@@ -6,8 +6,6 @@ SHARED_APPS = (
     'django_tenants',
     'ox_tenants',
 
-    'django.contrib.contenttypes',
-
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',

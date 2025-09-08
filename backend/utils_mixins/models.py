@@ -1,6 +1,9 @@
 import uuid
 from django.db import models
 from django.conf import settings
+from django.core.exceptions import ValidationError
+
+
 
 
 class UUIDPrimaryKeyMixin(models.Model):
@@ -112,5 +115,55 @@ class BaseModelMixin(UUIDPrimaryKeyMixin, TimestampMixin, ActiveMixin):
     Base mixin that combines the most commonly used mixins.
     Provides UUID primary key, timestamps, and active status.
     """
+    class Meta:
+        abstract = True
+
+
+class SingletonMxin(BaseModelMixin):
+    """
+    Classe de base pour un modèle singleton.
+    """
+    
+    class Meta:
+        abstract = True
+
+    @classmethod
+    def get_instance(cls):
+        """
+        Retourne l'unique instance du modèle singleton. Si aucune instance
+        n'existe, une nouvelle est créée.
+        """
+
+        instance = None
+        try:
+            instance = cls.objects.get()
+        except cls.DoesNotExist:
+            instance = cls.objects.create()
+        except cls.MultipleObjectsReturned:
+            instances = cls.objects.all()
+            instance = instances.first()
+            instances.exclude(pk=instance.pk).delete()
+        
+        return instance
+
+    def save(self, *args, **kwargs):
+        """
+        Vérifie si une instance existe déjà avant de sauvegarder.
+        """
+        if self.pk is not None and self.__class__.objects.exclude(pk=self.pk).exists():
+            raise ValidationError("There can only be one instance of this model.")
+        super().save(*args, **kwargs)
+
+
+
+class AddressMixin(BaseModelMixin):
+    number = models.CharField(max_length=5)
+    street = models.CharField(max_length=75)
+    municipality = models.CharField(max_length=75)
+    city = models.CharField(max_length=75)
+    province = models.CharField(max_length=75)
+    country = models.CharField(max_length=75)
+    country_code = models.CharField(max_length=3, verbose_name="Code Pays", default="cd")
+
     class Meta:
         abstract = True
