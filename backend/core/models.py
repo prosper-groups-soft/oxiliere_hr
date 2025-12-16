@@ -1,15 +1,16 @@
 from django.db import models
-from utils_mixins.models import SingletonMxin
+from django.core.exceptions import ValidationError
+from utils_mixins.models import SingletonMixin
 from math import radians, sin, cos, sqrt, atan2
 
 
 
 
-class ApplicationSettings(SingletonMxin):
+class ApplicationSettings(SingletonMixin):
     company_prefix = models.CharField(max_length=4)
 
 
-class WorkSite(SingletonModel):
+class WorkSite(SingletonMixin):
     name = models.CharField(max_length=255)
     latitude = models.FloatField(null=True)
     longitude = models.FloatField(null=True)
@@ -24,7 +25,7 @@ class WorkSite(SingletonModel):
     country = models.CharField(max_length=75)
     country_code = models.CharField(max_length=3, verbose_name="Code Pays", default="cd")
     
-    class Meta(SingletonModel.Meta):
+    class Meta(SingletonMixin.Meta):
         ordering = ["name"]
 
 

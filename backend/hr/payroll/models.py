@@ -1,28 +1,3 @@
-from decimal import Decimal
-import uuid
-from dateutil.relativedelta import relativedelta
-from django.conf import settings
-from django.utils import timezone
-from django.db import models, transaction
-from django.db.models import Q, Prefetch
-from django.dispatch import receiver
-from django.db.models.signals import post_save
-from django.core.exceptions import ValidationError
-from django.utils.translation import gettext_lazy as _
-from hr.models.enums import (
-    ContractType, PaymentPeriod, 
-    PaymentType, PayslipStatus
-)
-from hr.models.calendars import Attendance
-from hr.models.employees import Employee
-from hr.utils import get_contract_seq_key
-
-from utils_mixins.fn import get_rotate_value
-from utils_mixins.models import BaseModelMixin
-from sequences import get_next_value
-
-
-
 
 
 class Salary(BaseModelMixin):
@@ -214,418 +189,7 @@ class Salary(BaseModelMixin):
         ]
 
 
-class SocialContribution(BaseModelMixin):
-    name = models.CharField(max_length=100, verbose_name="Nom de la cotisation")
-    amount = models.DecimalField(
-        max_digits=10, decimal_places=2, 
-        verbose_name="Montant", null=True)
-    percentage = models.DecimalField(
-        max_digits=5, decimal_places=2, 
-        verbose_name="Pourcentage (%)", null=True, blank=True
-    )
-    applicable_to = models.ManyToManyField(
-        'Employee',
-        related_name='social_contributions',
-        verbose_name="Applicable à",
-        through="ContributionEmployee",
-    )
-    always_apply = models.BooleanField(
-        default=False,
-        verbose_name="Toujours applicable"
-    )
-    everyone = models.BooleanField(
-        default=False,
-        verbose_name="Appliquer à tout le monde"
-    )
-    is_active = models.BooleanField(
-        default=True,
-        verbose_name="Statut actif/inactif"
-    )
-    
-    def clean(self):
-        # Formatage du nom pour standardiser la casse
-        if self.name:
-            self.name = self.name.strip().title()
-            
-    start_date = models.DateField(
-        verbose_name="Date de début",
-        null=True, blank=True
-    )
-    end_date = models.DateField(
-        verbose_name="Date de fin",
-        null=True, blank=True
-    )
-    
-    class Meta:
-        ordering = ["name", "-is_active"]
-    description = models.TextField(
-        null=True, blank=True,
-        verbose_name="Description"
-    )
-
-    def add_employees(self, employee_ids, created_by_user, check_on_everyone=True):
-        if check_on_everyone:
-            self.check_on_everyone()
-
-        if employee_ids is None or len(employee_ids) == 0:
-            return []
-        
-        existing_employee_ids = self.contribution_employees.values_list('employee__id', flat=True)
-        new_employee_ids = [emp_id for emp_id in employee_ids if emp_id not in existing_employee_ids]
-        new_employees = Employee.objects.filter(id__in=new_employee_ids)
-        contribution_employee_instances = [
-            ContributionEmployee(
-                employee=employee,
-                contribution=self,
-                created_by=created_by_user
-            )
-            for employee in new_employees
-        ]
-        
-        ContributionEmployee.objects.bulk_create(contribution_employee_instances)
-        return new_employee_ids
-    
-
-    def remove_employees(self, employee_ids, created_by_user, check_on_everyone=True):
-        if check_on_everyone:
-            self.check_on_everyone()
-
-        if employee_ids is None or len(employee_ids) == 0:
-            return []
-        
-        existing_employee_ids = self.contribution_employees.values_list('employee__id', flat=True)
-        existed_ids = [emp_id for emp_id in employee_ids if emp_id in existing_employee_ids]
-        self.contribution_employees.filter(employee__id__in=existed_ids).delete()
-        return existed_ids
-    
-    def reset(self, created_by_user):
-        self.everyone = False
-        self.contribution_employees.all().delete()
-        self.updated_by = created_by_user
-        self.save(
-            update_fields=['everyone', 'updated_by']
-        )
-    
-    def check_on_everyone(self):
-        if self.everyone:
-            raise ValidationError("Cet avantage est appliquer à tout le monde, vous ne pouvez pas ajouter des employés")
-
-    def get_amount(self, total_payment: float) -> float:
-        """
-        Get amount, depending on percentage
-        """
-        if self.percentage:
-            return total_payment * self.percentage / 100
-        return self.amount
-
-    
-    def clean(self):
-        if self.percentage and self.amount:
-            raise ValidationError("Vous devez définir soit le montant soit le pourcentage.")
-        if not self.percentage and not self.amount:
-            raise ValidationError("Vous devez définir soit le montant soit le pourcentage.")
-        if self.start_date and self.end_date and self.start_date > self.end_date:
-            raise ValidationError("La date de début doitêtre avant la date de fin.")
-        
-    def save(self, *args, **kwargs):
-        self.clean()
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"{self.name} ({self.amount} - {self.percentage}%)"
-
-    class Meta:
-        verbose_name = "Cotisation sociale"
-        verbose_name_plural = "Cotisations sociales"
-        ordering = ['start_date']
-
-
-class ContributionEmployee(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    employee = models.ForeignKey(
-        'Employee',
-        on_delete=models.CASCADE,
-        related_name='social_contribution_employees',
-        verbose_name="Employé"
-    )
-    contribution = models.ForeignKey(
-        'SocialContribution',
-        on_delete=models.CASCADE,
-        related_name='contribution_employees',
-        verbose_name="Cotisation sociale"
-    )
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name='social_contribution_employees',
-        verbose_name="Creé par"
-    )
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Date de création")
-
-    class Meta:
-        verbose_name = "Cotisation sociale pour un employé"
-        verbose_name_plural = "Cotisations sociales pour les employés"
-        unique_together = ('employee', 'contribution')
-        ordering = ["-created_at"]
-
-
-class SalaryAdvance(BaseModelMixin):
-    employee = models.ForeignKey(
-        'Employee',
-        on_delete=models.CASCADE,
-        related_name='salary_advances',
-        verbose_name="Employé"
-    )
-    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Montant de l'avance")
-    repayment_percentage = models.DecimalField(
-        max_digits=5, decimal_places=2, verbose_name="Pourcentage de remboursement (%)", null=True, blank=True
-    )
-    is_repaid = models.BooleanField(default=False, verbose_name="Entièrement remboursée")
-    comments = models.TextField(null=True, blank=True, verbose_name="Commentaires")
-
-    def __str__(self):
-        return f"Avance de {self.amount} pour {self.employee}"
-
-    def clean(self):
-        unpaid_advances = SalaryAdvance.objects.filter(employee=self.employee, is_repaid=False).exclude(pk=self.pk)
-        if unpaid_advances.exists():
-            raise ValidationError(f"L'employé {self.employee} a déjà une avance non remboursée.")
-
-
-    def get_last_repayment(self):
-        if not hasattr(self, '_last_repayment'):
-            if self.repayment_logs.exists():
-                self._last_repayment = self.repayment_logs.last()
-            return None
-        return self._last_repayment
-    
-
-    def get_payment(self, amount):
-        if self.is_repaid:
-            return None
-        
-        last_repayment = self.get_last_repayment()
-        if last_repayment:
-            sold = last_repayment.sold
-            repay_amount = min(sold, self.computed_percentage)
-            new_sold = sold - repay_amount
-        else:
-            repay_amount = self.computed_percentage
-            new_sold = self.amount - repay_amount
-
-        if amount < repay_amount:
-            return None
-
-        self._last_repayment = RepaymentLog.objects.create(
-            sold = new_sold,
-            salary_advance = self,
-            amount = repay_amount,
-        )
-
-        if new_sold <= 0:
-            self.is_repaid = True
-            self.save()
-
-        return self._last_repayment
-
-        
-    @property
-    def computed_percentage(self):
-        return self.amount / 100 * self.repayment_percentage
-    
-    def save(self, *args, **kwargs):
-        self.clean()
-        return super().save(*args, **kwargs)
-
-
-    class Meta:
-        verbose_name = "Avance sur salaire"
-        verbose_name_plural = "Avances sur salaire"
-        ordering = ['-created_at']
-
-
-class RepaymentLog(models.Model):
-    salary_advance = models.ForeignKey(
-        'SalaryAdvance',
-        on_delete=models.CASCADE,
-        related_name='repayment_logs',
-        verbose_name="Avance sur salaire"
-    )
-    date = models.DateField(auto_now_add=True, verbose_name="Date de remboursement")
-    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Montant remboursé")
-    sold = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Montant restant")
-
-
-    def __str__(self):
-        return f"Remboursement de {self.repayment_amount} pour l'avance {self.salary_advance}"
-
-    class Meta:
-        verbose_name = "Historique de remboursement"
-        verbose_name_plural = "Historiques de remboursement"
-        ordering = ['-date']
-
-
-class Bonus(BaseModelMixin):
-    BONUS_TYPES = (
-        ('transport_allowance', 'Indemnité de transport'),
-        ('housing_allowance', 'Indemnité de logement'),
-        ('remote_work_allowance', 'Indemnité de télétravail'),
-        ('meal_allowance', 'Indemnité repas'),
-        ('company_health_insurance', 'Mutuelle d\'entreprise'),
-        ('disability_insurance', 'Assurance prévoyance'),
-        ('travel_expenses', 'Frais de mission'),
-        ('back_to_school_allowance', 'Allocation de rentrée scolaire'),
-        ('childcare_allowance', 'Allocation de garde d\'enfants'),
-        ('housing_aid', 'Aide au logement'),
-        ('thirteenth_month', '13e mois'),
-        ('health_insurance', 'Assurance santé'),
-        ('transport_bonus', 'Primes de transport'),
-        ('seniority_bonus', 'Prime d\'ancienneté'),
-        ('other', 'Autre'),
-    )
-    name = models.CharField(max_length=100, verbose_name="Nom du bonus", blank=True, null=True)
-    bonus_type = models.CharField(
-        max_length=50, 
-        choices=BONUS_TYPES, 
-        verbose_name="Type de bonus"
-    )
-    
-    def clean(self):
-        # Formatage du nom pour standardiser la casse
-        if self.name:
-            self.name = self.name.strip().title()
-        if self.description:
-            self.description = self.description.strip()
-    amount = models.DecimalField(
-        max_digits=10, 
-        decimal_places=2, 
-        verbose_name="Montant"
-    )
-    applicable_to = models.ManyToManyField(
-        Employee, 
-        related_name='bonuses', 
-        verbose_name="Applicable à",
-        through='BonusEmployee',
-    )
-    always_apply = models.BooleanField(
-        default=False,
-        verbose_name="Toujours applicable"
-    )
-    everyone = models.BooleanField(
-        default=False,
-        verbose_name="Appliquer à tout le monde"
-    )
-    start_date = models.DateField(
-        verbose_name="Date de début",
-        null=True, blank=True
-    )
-    end_date = models.DateField(
-        verbose_name="Date de fin",
-        null=True, blank=True
-    )
-    description = models.TextField(
-        null=True, 
-        blank=True, 
-        verbose_name="Description"
-    )
-    is_active = models.BooleanField(default=True, verbose_name="Actif")
-
-
-    def add_employees(self, employee_ids, created_by_user, check_on_everyone=True):
-        if check_on_everyone:
-            self.check_on_everyone()
-
-        if employee_ids is None or len(employee_ids) == 0:
-            return []
-        
-        existing_employee_ids = self.bonus_employees.values_list('employee__id', flat=True)
-        new_employee_ids = [emp_id for emp_id in employee_ids if emp_id not in existing_employee_ids]
-        new_employees = Employee.objects.filter(id__in=new_employee_ids)
-        bonus_employee_instances = [
-            BonusEmployee(
-                employee=employee,
-                bonus=self,
-                created_by=created_by_user
-            )
-            for employee in new_employees
-        ]
-        
-        BonusEmployee.objects.bulk_create(bonus_employee_instances)
-        return new_employee_ids
-    
-
-    def remove_employees(self, employee_ids, created_by_user, check_on_everyone=True):
-        if check_on_everyone:
-            self.check_on_everyone()
-
-        if employee_ids is None or len(employee_ids) == 0:
-            return []
-        
-        existing_employee_ids = self.bonus_employees.values_list('employee__id', flat=True)
-        existed_ids = [emp_id for emp_id in employee_ids if emp_id in existing_employee_ids]
-        self.bonus_employees.filter(employee__id__in=existed_ids).delete()
-        return existed_ids
-    
-    def reset(self, created_by_user):
-        self.everyone = False
-        self.bonus_employees.all().delete()
-        self.updated_by = created_by_user
-        self.save(
-            update_fields=['everyone', 'updated_by']
-        )
-    
-    def check_on_everyone(self):
-        if self.everyone:
-            raise ValidationError("Cet avantage est appliquer à tout le monde, vous ne pouvez pas ajouter des employés")
-    
-    
-    def __str__(self):
-        return f"{self.bonus_type()} : {self.amount}"
-    
-
-    def save(self, *args, **kwargs):
-        if not self.name:
-            self.name = timezone.now().strftime("%d/%m/%Y") + " - " + self.bonus_type
-        return super().save(*args, **kwargs)
-
-    class Meta:
-        verbose_name = "Bonus"
-        verbose_name_plural = "Bonus"
-
-
-class BonusEmployee(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    employee = models.ForeignKey(
-        'Employee',
-        on_delete=models.CASCADE,
-        related_name='bonus_employees',
-        verbose_name="Employé"
-    )
-    bonus = models.ForeignKey(
-        'Bonus',
-        on_delete=models.CASCADE,
-        related_name='bonus_employees',
-        verbose_name="Bonus"
-    )
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name='bonus_employees_created_by',
-        verbose_name="Creé par"
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"{self.employee} - {self.bonus}"
-    
-    class Meta:
-        verbose_name = "Employé - Bonus"
-        verbose_name_plural = "Employé - Bonus"
-        unique_together = ['employee', 'bonus']
-        ordering = ['-created_at']
-
-
-class SalaryLog(models.Model):
+class SalaryLog(BaseModelMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     salary = models.ForeignKey(
         Salary,
@@ -828,6 +392,262 @@ class SalaryLog(models.Model):
         unique_together = (
             ('salary', 'payslip',)
         )
+
+
+class Bonus(BaseModelMixin):
+    BONUS_TYPES = (
+        ('transport_allowance', 'Indemnité de transport'),
+        ('housing_allowance', 'Indemnité de logement'),
+        ('remote_work_allowance', 'Indemnité de télétravail'),
+        ('meal_allowance', 'Indemnité repas'),
+        ('company_health_insurance', 'Mutuelle d\'entreprise'),
+        ('disability_insurance', 'Assurance prévoyance'),
+        ('travel_expenses', 'Frais de mission'),
+        ('back_to_school_allowance', 'Allocation de rentrée scolaire'),
+        ('childcare_allowance', 'Allocation de garde d\'enfants'),
+        ('housing_aid', 'Aide au logement'),
+        ('thirteenth_month', '13e mois'),
+        ('health_insurance', 'Assurance santé'),
+        ('transport_bonus', 'Primes de transport'),
+        ('seniority_bonus', 'Prime d\'ancienneté'),
+        ('other', 'Autre'),
+    )
+    name = models.CharField(max_length=100, verbose_name="Nom du bonus", blank=True, null=True)
+    bonus_type = models.CharField(
+        max_length=50, 
+        choices=BONUS_TYPES, 
+        verbose_name="Type de bonus"
+    )
+    
+    def clean(self):
+        # Formatage du nom pour standardiser la casse
+        if self.name:
+            self.name = self.name.strip().title()
+        if self.description:
+            self.description = self.description.strip()
+    amount = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        verbose_name="Montant"
+    )
+    applicable_to = models.ManyToManyField(
+        Employee, 
+        related_name='bonuses', 
+        verbose_name="Applicable à",
+        through='BonusEmployee',
+    )
+    always_apply = models.BooleanField(
+        default=False,
+        verbose_name="Toujours applicable"
+    )
+    everyone = models.BooleanField(
+        default=False,
+        verbose_name="Appliquer à tout le monde"
+    )
+    start_date = models.DateField(
+        verbose_name="Date de début",
+        null=True, blank=True
+    )
+    end_date = models.DateField(
+        verbose_name="Date de fin",
+        null=True, blank=True
+    )
+    description = models.TextField(
+        null=True, 
+        blank=True, 
+        verbose_name="Description"
+    )
+    is_active = models.BooleanField(default=True, verbose_name="Actif")
+
+
+    def add_employees(self, employee_ids, created_by_user, check_on_everyone=True):
+        if check_on_everyone:
+            self.check_on_everyone()
+
+        if employee_ids is None or len(employee_ids) == 0:
+            return []
+        
+        existing_employee_ids = self.bonus_employees.values_list('employee__id', flat=True)
+        new_employee_ids = [emp_id for emp_id in employee_ids if emp_id not in existing_employee_ids]
+        new_employees = Employee.objects.filter(id__in=new_employee_ids)
+        bonus_employee_instances = [
+            BonusEmployee(
+                employee=employee,
+                bonus=self,
+                created_by=created_by_user
+            )
+            for employee in new_employees
+        ]
+        
+        BonusEmployee.objects.bulk_create(bonus_employee_instances)
+        return new_employee_ids
+    
+
+    def remove_employees(self, employee_ids, created_by_user, check_on_everyone=True):
+        if check_on_everyone:
+            self.check_on_everyone()
+
+        if employee_ids is None or len(employee_ids) == 0:
+            return []
+        
+        existing_employee_ids = self.bonus_employees.values_list('employee__id', flat=True)
+        existed_ids = [emp_id for emp_id in employee_ids if emp_id in existing_employee_ids]
+        self.bonus_employees.filter(employee__id__in=existed_ids).delete()
+        return existed_ids
+    
+    def reset(self, created_by_user):
+        self.everyone = False
+        self.bonus_employees.all().delete()
+        self.updated_by = created_by_user
+        self.save(
+            update_fields=['everyone', 'updated_by']
+        )
+    
+    def check_on_everyone(self):
+        if self.everyone:
+            raise ValidationError("Cet avantage est appliquer à tout le monde, vous ne pouvez pas ajouter des employés")
+    
+    
+    def __str__(self):
+        return f"{self.bonus_type()} : {self.amount}"
+    
+
+    def save(self, *args, **kwargs):
+        if not self.name:
+            self.name = timezone.now().strftime("%d/%m/%Y") + " - " + self.bonus_type
+        return super().save(*args, **kwargs)
+
+    class Meta:
+        verbose_name = "Bonus"
+        verbose_name_plural = "Bonus"
+
+
+class BonusEmployee(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    employee = models.ForeignKey(
+        'Employee',
+        on_delete=models.CASCADE,
+        related_name='bonus_employees',
+        verbose_name="Employé"
+    )
+    bonus = models.ForeignKey(
+        'Bonus',
+        on_delete=models.CASCADE,
+        related_name='bonus_employees',
+        verbose_name="Bonus"
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='bonus_employees_created_by',
+        verbose_name="Creé par"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.employee} - {self.bonus}"
+    
+    class Meta:
+        verbose_name = "Employé - Bonus"
+        verbose_name_plural = "Employé - Bonus"
+        unique_together = ['employee', 'bonus']
+        ordering = ['-created_at']
+
+
+class SalaryAdvance(BaseModelMixin):
+    employee = models.ForeignKey(
+        'Employee',
+        on_delete=models.CASCADE,
+        related_name='salary_advances',
+        verbose_name="Employé"
+    )
+    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Montant de l'avance")
+    repayment_percentage = models.DecimalField(
+        max_digits=5, decimal_places=2, verbose_name="Pourcentage de remboursement (%)", null=True, blank=True
+    )
+    is_repaid = models.BooleanField(default=False, verbose_name="Entièrement remboursée")
+    comments = models.TextField(null=True, blank=True, verbose_name="Commentaires")
+
+    def __str__(self):
+        return f"Avance de {self.amount} pour {self.employee}"
+
+    def clean(self):
+        unpaid_advances = SalaryAdvance.objects.filter(employee=self.employee, is_repaid=False).exclude(pk=self.pk)
+        if unpaid_advances.exists():
+            raise ValidationError(f"L'employé {self.employee} a déjà une avance non remboursée.")
+
+
+    def get_last_repayment(self):
+        if not hasattr(self, '_last_repayment'):
+            if self.repayment_logs.exists():
+                self._last_repayment = self.repayment_logs.last()
+            return None
+        return self._last_repayment
+    
+
+    def get_payment(self, amount):
+        if self.is_repaid:
+            return None
+        
+        last_repayment = self.get_last_repayment()
+        if last_repayment:
+            sold = last_repayment.sold
+            repay_amount = min(sold, self.computed_percentage)
+            new_sold = sold - repay_amount
+        else:
+            repay_amount = self.computed_percentage
+            new_sold = self.amount - repay_amount
+
+        if amount < repay_amount:
+            return None
+
+        self._last_repayment = RepaymentLog.objects.create(
+            sold = new_sold,
+            salary_advance = self,
+            amount = repay_amount,
+        )
+
+        if new_sold <= 0:
+            self.is_repaid = True
+            self.save()
+
+        return self._last_repayment
+
+        
+    @property
+    def computed_percentage(self):
+        return self.amount / 100 * self.repayment_percentage
+    
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
+
+
+    class Meta:
+        verbose_name = "Avance sur salaire"
+        verbose_name_plural = "Avances sur salaire"
+        ordering = ['-created_at']
+
+
+class RepaymentLog(models.Model):
+    salary_advance = models.ForeignKey(
+        'SalaryAdvance',
+        on_delete=models.CASCADE,
+        related_name='repayment_logs',
+        verbose_name="Avance sur salaire"
+    )
+    date = models.DateField(auto_now_add=True, verbose_name="Date de remboursement")
+    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Montant remboursé")
+    sold = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Montant restant")
+
+
+    def __str__(self):
+        return f"Remboursement de {self.repayment_amount} pour l'avance {self.salary_advance}"
+
+    class Meta:
+        verbose_name = "Historique de remboursement"
+        verbose_name_plural = "Historiques de remboursement"
+        ordering = ['-date']
 
 
 class Payslip(BaseModelMixin):
@@ -1061,6 +881,7 @@ class Payslip(BaseModelMixin):
         for employee in self.employees.all():
             print(f"Notification envoyée à {employee.email} pour la paie du {self.start_date} - {self.end_date}")
 
+
     # def create_entry(self, description: str):
     #     je_model = lazy_loader.get_journal_entry_model()
     #     jentry = je_model(
@@ -1288,12 +1109,157 @@ class PaymentState(models.Model):
         return f"PaymentState ({self.salary.employee}) - Prochain paiement : {self.next_payment_date} - Actif: {self.has_next}"
 
 
-@receiver(post_save, sender=Salary)
-def create_payment_state(sender, instance, created, **kwargs):
-    if created:
-        PaymentState.objects.create(
-            salary=instance,
-            next_payment_date=instance.start_date,
-            payment_cycles=0
+class SocialContribution(BaseModelMixin):
+    name = models.CharField(max_length=100, verbose_name="Nom de la cotisation")
+    amount = models.DecimalField(
+        max_digits=10, decimal_places=2, 
+        verbose_name="Montant", null=True)
+    percentage = models.DecimalField(
+        max_digits=5, decimal_places=2, 
+        verbose_name="Pourcentage (%)", null=True, blank=True
+    )
+    applicable_to = models.ManyToManyField(
+        'Employee',
+        related_name='social_contributions',
+        verbose_name="Applicable à",
+        through="ContributionEmployee",
+    )
+    always_apply = models.BooleanField(
+        default=False,
+        verbose_name="Toujours applicable"
+    )
+    everyone = models.BooleanField(
+        default=False,
+        verbose_name="Appliquer à tout le monde"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name="Statut actif/inactif"
+    )
+    
+    def clean(self):
+        # Formatage du nom pour standardiser la casse
+        if self.name:
+            self.name = self.name.strip().title()
+            
+    start_date = models.DateField(
+        verbose_name="Date de début",
+        null=True, blank=True
+    )
+    end_date = models.DateField(
+        verbose_name="Date de fin",
+        null=True, blank=True
+    )
+    
+    class Meta:
+        ordering = ["name", "-is_active"]
+    description = models.TextField(
+        null=True, blank=True,
+        verbose_name="Description"
+    )
+
+    def add_employees(self, employee_ids, created_by_user, check_on_everyone=True):
+        if check_on_everyone:
+            self.check_on_everyone()
+
+        if employee_ids is None or len(employee_ids) == 0:
+            return []
+        
+        existing_employee_ids = self.contribution_employees.values_list('employee__id', flat=True)
+        new_employee_ids = [emp_id for emp_id in employee_ids if emp_id not in existing_employee_ids]
+        new_employees = Employee.objects.filter(id__in=new_employee_ids)
+        contribution_employee_instances = [
+            ContributionEmployee(
+                employee=employee,
+                contribution=self,
+                created_by=created_by_user
+            )
+            for employee in new_employees
+        ]
+        
+        ContributionEmployee.objects.bulk_create(contribution_employee_instances)
+        return new_employee_ids
+    
+
+    def remove_employees(self, employee_ids, created_by_user, check_on_everyone=True):
+        if check_on_everyone:
+            self.check_on_everyone()
+
+        if employee_ids is None or len(employee_ids) == 0:
+            return []
+        
+        existing_employee_ids = self.contribution_employees.values_list('employee__id', flat=True)
+        existed_ids = [emp_id for emp_id in employee_ids if emp_id in existing_employee_ids]
+        self.contribution_employees.filter(employee__id__in=existed_ids).delete()
+        return existed_ids
+    
+    def reset(self, created_by_user):
+        self.everyone = False
+        self.contribution_employees.all().delete()
+        self.updated_by = created_by_user
+        self.save(
+            update_fields=['everyone', 'updated_by']
         )
+    
+    def check_on_everyone(self):
+        if self.everyone:
+            raise ValidationError("Cet avantage est appliquer à tout le monde, vous ne pouvez pas ajouter des employés")
+
+    def get_amount(self, total_payment: float) -> float:
+        """
+        Get amount, depending on percentage
+        """
+        if self.percentage:
+            return total_payment * self.percentage / 100
+        return self.amount
+
+    
+    def clean(self):
+        if self.percentage and self.amount:
+            raise ValidationError("Vous devez définir soit le montant soit le pourcentage.")
+        if not self.percentage and not self.amount:
+            raise ValidationError("Vous devez définir soit le montant soit le pourcentage.")
+        if self.start_date and self.end_date and self.start_date > self.end_date:
+            raise ValidationError("La date de début doitêtre avant la date de fin.")
+        
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.name} ({self.amount} - {self.percentage}%)"
+
+    class Meta:
+        verbose_name = "Cotisation sociale"
+        verbose_name_plural = "Cotisations sociales"
+        ordering = ['start_date']
+
+
+class ContributionEmployee(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    employee = models.ForeignKey(
+        'Employee',
+        on_delete=models.CASCADE,
+        related_name='social_contribution_employees',
+        verbose_name="Employé"
+    )
+    contribution = models.ForeignKey(
+        'SocialContribution',
+        on_delete=models.CASCADE,
+        related_name='contribution_employees',
+        verbose_name="Cotisation sociale"
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='social_contribution_employees',
+        verbose_name="Creé par"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Date de création")
+
+    class Meta:
+        verbose_name = "Cotisation sociale pour un employé"
+        verbose_name_plural = "Cotisations sociales pour les employés"
+        unique_together = ('employee', 'contribution')
+        ordering = ["-created_at"]
 

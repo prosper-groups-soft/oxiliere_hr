@@ -26,6 +26,7 @@ TENANT_APPS = (
     'safedelete',
     'auditlog',
     'users',
+    'hr'
 )
 
 INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]
@@ -58,3 +59,4 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'ox_hr.wsgi.application'
 ASGI_APPLICATION = 'ox_hr.asgi.application'
+

@@ -4,18 +4,18 @@ from django.utils import timezone
 from django.db import transaction
 
 from hr.models.employees import Employee
-from hr.models.careers import CarreerHistory
+from hr.models.careers import CareerHistory
 
 
 @receiver(post_save, sender=Employee)
 def employee_post_save(sender, instance, created, **kwargs):
     """
-    Signal handler to create or update CarreerHistory records when an Employee is saved.
+    Signal handler to create or update CareerHistory records when an Employee is saved.
     
-    When an employee is created or their department/position changes, a new CarreerHistory
+    When an employee is created or their department/position changes, a new CareerHistory
     record is created to track these changes.
     """
-    # Check if we need to create a new CarreerHistory entry
+    # Check if we need to create a new CareerHistory entry
     create_new_entry = False
     
     if created:
@@ -26,7 +26,7 @@ def employee_post_save(sender, instance, created, **kwargs):
         # For existing employees, check if department or position has changed
         try:
             # Get the latest career history for this employee
-            latest_history = CarreerHistory.objects.filter(
+            latest_history = CareerHistory.objects.filter(
                 employee=instance
             ).order_by('-start_date').first()
             
@@ -46,15 +46,15 @@ def employee_post_save(sender, instance, created, **kwargs):
                 if instance.department is not None or instance.position is not None:
                     create_new_entry = True
                     
-        except CarreerHistory.DoesNotExist:
+        except CareerHistory.DoesNotExist:
             # No history exists yet, but employee has department or position
             if instance.department is not None or instance.position is not None:
                 create_new_entry = True
     
-    # Create a new CarreerHistory if needed
+    # Create a new CareerHistory if needed
     if create_new_entry:
         with transaction.atomic():
-            CarreerHistory.objects.create(
+            CareerHistory.objects.create(
                 employee=instance,
                 department=instance.department,
                 position=instance.position,

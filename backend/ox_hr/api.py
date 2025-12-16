@@ -6,9 +6,6 @@ from ninja_extra import NinjaExtraAPI
 from ninja_jwt.authentication import JWTAuth, JWTBaseAuthentication
 
 
-
-
-
 class JWTCookieAuth(APIKeyCookie, JWTBaseAuthentication):
     param_name = "token"
     

@@ -8,12 +8,11 @@ from utils_mixins.fields import ULIDField
 class Tenant(TenantMixin, TimestampMixin):
     name = models.CharField(max_length=100)
     industry = models.CharField(max_length=255)
-    oxi_id = ULIDField(editable=False) # vient du service core
+    oxi_id = ULIDField(editable=False) # Come from service core
     on_trial = models.BooleanField(default=False)
 
     # default true, schema will be automatically created and synced when it is saved
     auto_create_schema = True
-
 
 
 class Domain(DomainMixin):

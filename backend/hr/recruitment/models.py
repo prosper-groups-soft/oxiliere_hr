@@ -1,50 +1,61 @@
 from django.db import models
 from django.utils.text import slugify
 import uuid
-
-class JobCategory(models.Model):
-    name = models.CharField(max_length=255, unique=True)
-    description = models.TextField(blank=True, null=True)
-    
-    class Meta:
-        ordering = ["name"]
-        verbose_name = "Catégorie d'emploi"
-        verbose_name_plural = "Catégories d'emploi"
-    
-    def clean(self):
-        # Formatage du nom pour standardiser la casse
-        if self.name:
-            self.name = self.name.strip().title()
-    
-    def save(self, *args, **kwargs):
-        self.clean()
-        super().save(*args, **kwargs)
-    
-    def __str__(self):
-        return self.name
+from utils_mixins.models import BaseModelMixin
+from django.utils.translation import gettext_lazy as _
 
 
-class JobOffer(models.Model):
-    title = models.CharField(max_length=255)
-    slug = models.SlugField(max_length=255, unique=True, blank=True)
-    company = models.CharField(max_length=255)
-    location = models.CharField(max_length=255)
-    category = models.ForeignKey(JobCategory, on_delete=models.SET_NULL, null=True, related_name='jobs')
+class JobOffer(BaseModelMixin):
+    title = models.CharField(
+        max_length=255
+    )
+    slug = models.SlugField(
+        max_length=255, 
+        unique=True, 
+        blank=True
+    )
+    company = models.CharField(
+        max_length=255
+    )
+    location = models.CharField(
+        max_length=255
+    )
+    category = models.ForeignKey(
+        "hr.jobs.models.JobCategory", 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        related_name='jobs'
+    )
     description = models.TextField()
     requirements = models.TextField()
-    salary_range = models.CharField(max_length=100, blank=True, null=True)
-    posted_by = models.CharField(max_length=255)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    is_published = models.BooleanField(default=False)
-    published_at = models.DateTimeField(null=True, blank=True)
-    end_date = models.DateField(null=True, blank=True)
-    is_active = models.BooleanField(default=True)
+    salary_range = models.CharField(
+        max_length=100, 
+        blank=True, 
+        null=True
+    )
+    posted_by = models.CharField(
+        max_length=255
+    )
+    is_published = models.BooleanField(
+        default=False
+    )
+    published_at = models.DateTimeField(
+        null=True, 
+        blank=True
+    )
+    end_date = models.DateField(
+        null=True, 
+        blank=True
+    )
+    is_active = models.BooleanField(
+        default=True
+    )
     
     class Meta:
         ordering = ["-created_at"]
         verbose_name = "Offre d'emploi"
         verbose_name_plural = "Offres d'emploi"
+
     
     def clean(self):
         # Formatage des champs textuels pour standardiser la casse
@@ -56,6 +67,7 @@ class JobOffer(models.Model):
             self.location = self.location.strip().title()
         if self.posted_by:
             self.posted_by = self.posted_by.strip().title()
+
     
     def save(self, *args, **kwargs):
         self.clean()
@@ -65,11 +77,12 @@ class JobOffer(models.Model):
             self.slug = slugify(f"{self.title}-{random_string}")
         super().save(*args, **kwargs)
         
+
     def __str__(self):
         return self.title
 
 
-class Application(models.Model):
+class Application(BaseModelMixin):
     PENDING = 'pending'
     REVIEW = 'review'
     ACCEPTED = 'accepted'
@@ -80,18 +93,30 @@ class Application(models.Model):
         (ACCEPTED, 'Accepted'),
         (REJECTED, 'Rejected')
     ]
-    job_offer = models.ForeignKey(JobOffer, on_delete=models.CASCADE, related_name='applications')
-    applicant_name = models.CharField(max_length=255)
+    job_offer = models.ForeignKey(
+        JobOffer, 
+        on_delete=models.CASCADE, 
+        related_name='applications'
+    )
+    applicant_name = models.CharField(
+        max_length=255
+    )
     applicant_email = models.EmailField()
-    applicant_phone = models.CharField(max_length=20)
+    applicant_phone = models.CharField(
+        max_length=20
+    )
     cover_letter = models.TextField()
-    resume = models.FileField(upload_to='resumes/')
+    resume = models.FileField(
+        upload_to='resumes/'
+    )
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
         default=PENDING
     )
-    applied_at = models.DateTimeField(auto_now_add=True)
+    applied_at = models.DateTimeField(
+        auto_now_add=True
+    )
 
     class Meta:
         ordering = ["-applied_at"]

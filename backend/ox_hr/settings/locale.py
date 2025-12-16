@@ -12,10 +12,12 @@ USE_TZ = True
 
 USE_L10N = True
 
+
 LANGUAGES = [
     ('en', 'English'),
     ('fr', 'Français'),
 ]
+
 
 LOCALE_PATHS = [
     BASE_DIR / 'locale',
