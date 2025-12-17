@@ -1,5 +1,5 @@
 from django.conf import settings
-from django.db import models, transaction
+from django.db import models
 from hr.employees.models import Employee
 from utils_mixins.models import BaseModelMixin
 from utils_mixins.fn import enum_to_choices
@@ -22,6 +22,7 @@ class Leave(BaseModelMixin):
         related_name="approved_leaves",
         verbose_name="Approuvé par",
     )
+    approved_at = models.DateTimeField(null=True, blank=True)
     start_date = models.DateField(verbose_name="Date de début")
     end_date = models.DateField(verbose_name="Date de fin")
     reason = models.TextField(
@@ -58,16 +59,36 @@ class Leave(BaseModelMixin):
     class Meta:
         verbose_name = "Congé"
         verbose_name_plural = "Congés"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(start_date__lte=models.F("end_date")),
+                name="leave_start_before_end",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        status=LeaveStatus.APPROVED.value,
+                        approved_by__isnull=False,
+                        approved_at__isnull=False
+                    ) |
+                    models.Q(status__in=[
+                            LeaveStatus.PENDING.value,
+                            LeaveStatus.REJECTED.value,
+                            LeaveStatus.CANCELLED.value,
+                        ],
+                        approved_by__isnull=True,
+                        approved_at__isnull=True
+                    )
+                ),
+                name="leave_approval_consistency",
+            )
+        ]
 
     def total_days(self):
-        return (self.end_date - self.start_date).days
+        return (self.end_date - self.start_date).days + 1
 
     def __str__(self):
         return f"{self.get_leave_type_display()} ({self.start_date} → {self.end_date})"
-
-    @transaction.atomic
-    def save(self, *args, **kwargs):
-        return super().save(*args, **kwargs)
 
 
 class LeaveEmployee(BaseModelMixin):
@@ -80,12 +101,14 @@ class LeaveEmployee(BaseModelMixin):
     leave = models.ForeignKey(
         Leave,
         on_delete=models.CASCADE,
-        related_name="leaves_employee",
+        related_name="leaves_employees",
         verbose_name="Congé",
     )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.DO_NOTHING,
+        null=True,
+        blank=True,
         related_name="%(app_label)s_%(class)s_created_by",
         verbose_name="Créé par",
     )

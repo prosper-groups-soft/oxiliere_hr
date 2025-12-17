@@ -2,19 +2,19 @@ from enum import Enum
 
 
 class LeaveStatus(str, Enum):
-    PENDING = "PENDING"
-    APPROVED = "APPROVED"
-    CANCELED = "CANCELED"
-    REJECTED = "REJECTED"
+    PENDING = "pending"
+    APPROVED = "approved"
+    CANCELLED = "cancelled"
+    REJECTED = "rejected"
 
 
 class LeaveType(str, Enum):
-    ANNUAL = "Annual Leave"             # Standard annual leave
-    SICK = "Sick Leave"                 # Leave due to illness
-    MATERNITY = "Maternity Leave"       # Leave for maternity
-    PATERNITY = "Paternity Leave"       # Leave for paternity
-    UNPAID = "Unpaid Leave"             # Leave without pay
-    COMPENSATORY = "Compensatory Leave" # Time-off for extra hours worked
-    BEREAVEMENT = "Bereavement Leave"   # Leave due to death in family
-    OTHER = "Other Leave"               # Any other type of leave
+    ANNUAL = "annual Leave"             # Standard annual leave
+    SICK = "sick Leave"                 # Leave due to illness
+    MATERNITY = "maternity Leave"       # Leave for maternity
+    PATERNITY = "paternity Leave"       # Leave for paternity
+    UNPAID = "unpaid Leave"             # Leave without pay
+    COMPENSATORY = "compensatory Leave" # Time-off for extra hours worked
+    BEREAVEMENT = "bereavement Leave"   # Leave due to death in family
+    OTHER = "other Leave"               # Any other type of leave
     

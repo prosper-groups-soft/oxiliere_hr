@@ -14,8 +14,9 @@ LEAVE_FIELDS = [
     'paid',
     'leave_type',
     'status',
+    'approved_at'
 ]
-class LeaveEmployeeCreateIn(ModelSchema):
+class LeaveCreateIn(ModelSchema):
 
     class Meta:
         model = Leave
@@ -28,11 +29,12 @@ class LeaveEmployeeCreateIn(ModelSchema):
             'everyone',
             'paid',
             'leave_type',
-            'status'
+            'status',
+            'approved_at'
         ]
 
 
-class LeaveEmployeeUpdateIn(ModelSchema):
+class LeaveUpdateIn(ModelSchema):
 
     class Meta:
         model = Leave
@@ -43,7 +45,7 @@ class LeaveEmployeeUpdateIn(ModelSchema):
         fields_optional = '__all__'
 
 
-class LeaveEmployeeDetailOut(ModelSchema):
+class LeaveDetailOut(ModelSchema):
     applicable_to: Optional[EmployeeDetailOut]
     approved_by: Optional[LightUserDetailOut]
 
@@ -58,17 +60,17 @@ class LeaveEmployeeDetailOut(ModelSchema):
 
 # --------------------   LeaveEmployee Schemas   ---------------------------
 LEAVE_EMPLOYEE_FIELDS = [
-    ''
+    'employee_id',
+    'leave_id',
+    'created_by',
 ]
 class LeaveEmployeeCreateIn(ModelSchema):
 
     class Meta:
         model = LeaveEmployee
-        fields = [
-
-        ]
+        fields = LEAVE_EMPLOYEE_FIELDS
         fields_optional = [
-
+            'created_by'
         ]
 
 
@@ -76,21 +78,20 @@ class LeaveEmployeeUpdateIn(ModelSchema):
 
     class Meta:
         model = LeaveEmployee
-        fields = [
-
-        ]
-        fields_optional = [
-
-        ]
+        fields = LEAVE_EMPLOYEE_FIELDS
+        fields_optional = '__all__'
 
 
 class LeaveEmployeeDetailOut(ModelSchema):
+    employee:  EmployeeDetailOut
+    leave: LeaveDetailOut
+    created_by: LightUserDetailOut
 
     class Meta:
         model = LeaveEmployee
         fields = [
-
+            'employee',
+            'leave',
+            'created_by',
         ]
-        fields_optional = [
-            
-        ]
+        

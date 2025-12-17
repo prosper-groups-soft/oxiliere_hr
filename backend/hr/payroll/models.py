@@ -1,8 +1,28 @@
+from django.db import models
+from django.utils import timezone
+from hr.employees.models import Employee
+from utils_mixins.models import BaseModelMixin
+from hr.enums import (
+    PaymentType, 
+    PaymentPeriod, 
+    ContractType
+)
+from django.core.exceptions import ValidationError
+from utils_mixins.fn import enum_to_choices
+from .enums import PaymentMethod, BonusTypes
+
+
+
+#
+#   from hr.caches import get_attendance_settings
+#   return get_attendance_settings()
+#
 
 
 class Salary(BaseModelMixin):
     code = models.CharField(
-        max_length=16, unique=True,
+        max_length=16,
+        unique=True,
         verbose_name="Code (automatique)",
     )
     employee = models.ForeignKey(
@@ -20,7 +40,6 @@ class Salary(BaseModelMixin):
         default=PaymentType.FIXED,
         verbose_name="Type de paiement"
     )
-
     payment_period = models.CharField(
         max_length=10,
         choices=[
@@ -28,10 +47,9 @@ class Salary(BaseModelMixin):
             (PaymentPeriod.PER_TASK.value, 'A la tâche'),
             (PaymentPeriod.MONTHLY.value, 'Mensuel'),
         ],
-        default=PaymentPeriod.MONTHLY,
+        default=PaymentPeriod.MONTHLY.value,
         verbose_name="Type de période"
     )
-
     contract_type = models.CharField(
         max_length=20,
         choices=[
@@ -41,22 +59,20 @@ class Salary(BaseModelMixin):
             (ContractType.FREELANCE.value, 'Freelance'),
             (ContractType.TEMPORARY.value, 'Contrat Temporaire'),
         ],
+        default=ContractType.CDD.value,
         verbose_name="Type de contrat",
-        default=ContractType.CDD,
     )
-    
     base_salary = models.DecimalField(
-        max_digits=10, 
-        decimal_places=2, 
-        null=True, 
+        max_digits=10,
+        decimal_places=2,
+        null=True,
         blank=True,
         verbose_name="Salaire de base"
     )
-    
     hourly_rate = models.DecimalField(
-        max_digits=10, 
-        decimal_places=2, 
-        null=True, 
+        max_digits=10,
+        decimal_places=2,
+        null=True,
         blank=True,
         verbose_name="Taux horaire"
     )
@@ -70,111 +86,40 @@ class Salary(BaseModelMixin):
         default=False, 
         verbose_name="Déduire les retards"
     )
-
     pay_overtime = models.BooleanField(
         default=False, 
         verbose_name="Payer les heures supplémentaires"
     )
-
     allow_advance = models.BooleanField(
         default=False, 
         verbose_name="Permettre les avances sur salaire"
     )
-    is_active = models.BooleanField(default=True, verbose_name="Contrat actif")
+    is_active = models.BooleanField(
+        default=True, 
+        verbose_name="Contrat actif"
+    )
     comments = models.TextField(
         null=True, 
-        blank=True,
+        blank=True, 
         verbose_name="Commentaires"
     )
 
-    def close_contract(self):
-        pass
-
-
-    def notify_contract_closing(self):
-        pass
-
-    
-    def notify_new_contract(self):
-        pass
-
     def clean(self):
-        # si contrat est un CDI, il n'a pas de date de fin
+        # Validation simple : cohérence des dates
+        if self.contract_type != ContractType.CDI and self.end_date is None:
+            raise ValidationError(
+                "La date de fin est obligatoire pour un contrat non CDI."
+            )
 
-        if not self.contract_type == ContractType.CDI and self.end_date is None:
-            raise ValidationError("La date de fin est obligatoire pour un contrat non CDI.")
+        if self.contract_type != ContractType.CDI and self.start_date >= self.end_date:
+            raise ValidationError("La date de début doit être inférieure à la date de fin.")
 
-        if not self.contract_type == ContractType.CDI:
-            if self.start_date >= self.end_date:
-                raise ValidationError("La date de début doit être inférieure à la date de fin.")
-            
-            days = (self.end_date - self.start_date).days
-            min_durations = {
-                PaymentPeriod.MONTHLY: 30,  # Au moins 30 jours
-                PaymentPeriod.DAILY: 1,      # Au moins 1 jour
-                PaymentPeriod.PER_TASK: 1    # Au moins 1 jour
-            }
-
-            if days < min_durations[self.payment_period]:
-                raise ValidationError(f"Le contrat doit avoir une durée d'au moins {min_durations[self.payment_period]} jours.")
-        
-        overlapping_salaries = Salary.objects.filter(
-            employee=self.employee,
-            start_date__lt=self.end_date if self.end_date else self.start_date,
-            end_date__gt=self.start_date if self.start_date else self.end_date
-        ).exclude(id=self.id)
-
-        if overlapping_salaries.exists():
-            raise ValidationError("Cet employé a déjà un contrat actif sur cette période.")
-
-
-    def clean(self):
-        # Vérifications existantes
-        # si contrat est un CDI, il n'a pas de date de fin
-
-        if not self.contract_type == ContractType.CDI and self.end_date is None:
-            raise ValidationError("La date de fin est obligatoire pour un contrat non CDI.")
-
-        if not self.contract_type == ContractType.CDI:
-            if self.start_date >= self.end_date:
-                raise ValidationError("La date de début doit être inférieure à la date de fin.")
-            
-            days = (self.end_date - self.start_date).days
-            min_durations = {
-                PaymentPeriod.MONTHLY: 30,  # Au moins 30 jours
-                PaymentPeriod.DAILY: 1,     # Au moins 1 jour
-                PaymentPeriod.PER_TASK: 1    # Au moins 1 jour
-            }
-
-            if days < min_durations[self.payment_period]:
-                raise ValidationError(f"Le contrat doit avoir une durée d'au moins {min_durations[self.payment_period]} jours.")
-        
-        overlapping_salaries = Salary.objects.filter(
-            employee=self.employee,
-            is_active=True,
-        ).exclude(id=self.id)
-
-        if overlapping_salaries.exists():
-            raise ValidationError("Cet employé a déjà un contrat actif sur cette période.")
-
-        # Formatage des commentaires
+        # Normalisation simple
         if self.comments:
             self.comments = self.comments.strip()
 
-    def save(self, *args, **kwargs):
-        if self._state.adding:
-            self.clean()
-            self.code = f"C-{get_rotate_value()}{get_next_value(get_contract_seq_key()):05d}"
-        if self.payment_type == 'FIXED':
-            self.total_payment = self.base_salary
-
-        elif self.payment_type == 'HOURLY':
-            self.total_payment = self.hourly_rate * self.hours_worked
-
-        super().save(*args, **kwargs)
-
     def __str__(self):
-        return f"Payment of {self.total_payment} to {self.employee.first_name} {self.employee.last_name} on {self.payment_date}"
+        return f"Contract of {self.employee} ({self.contract_type})"
 
     class Meta:
         verbose_name = "Salaire ou paiement horaire"
@@ -190,61 +135,62 @@ class Salary(BaseModelMixin):
 
 
 class SalaryLog(BaseModelMixin):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     salary = models.ForeignKey(
         Salary,
         on_delete=models.DO_NOTHING,
         related_name='salary_logs',
-        verbose_name="Salaire"
+        verbose_name="Salary"
     )
     payslip = models.ForeignKey(
         "hr.Payslip",
         on_delete=models.DO_NOTHING,
         related_name='salary_logs',
-        verbose_name="Salaire"
+        verbose_name="Payslip"
     )
-    start_date = models.DateField(
-        verbose_name="Date de début"
-    )
+    start_date = models.DateField(verbose_name="Start date")
     end_date = models.DateField(
-        verbose_name="Date de fin",
-        null=True, blank=True
+        null=True, 
+        blank=True, 
+        verbose_name="End date"
     )
-
+    
     total_payment = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        verbose_name="Paiement total"
+        max_digits=10, 
+        decimal_places=2, 
+        verbose_name="Total payment"
     )
     total_contributions = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        default=0,
-        verbose_name="Total Cotisation Sociale"
+        max_digits=10, 
+        decimal_places=2, 
+        default=0, 
+        verbose_name="Total social contributions"
     )
     total_bonus = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        default=0,
-        verbose_name="Total Avantage"
+        max_digits=10, 
+        decimal_places=2, 
+        default=0, 
+        verbose_name="Total bonus"
     )
     social_contributions = models.ManyToManyField(
         'SocialContribution',
         related_name='salary_logs',
         blank=True,
-        verbose_name="Cotisations sociales"
+        verbose_name="Social contributions"
     )
     overtime_payment = models.FloatField(
-        null=True, blank=True,
-        verbose_name="Paiement des heures supplémentaires"
+        null=True, 
+        blank=True, 
+        verbose_name="Overtime payment"
     )
     overtime_hours = models.DurationField(
-        null=True, blank=True,
-        verbose_name="Nombre d'heures supplémentaires"
+        null=True, 
+        blank=True, 
+        verbose_name="Overtime hours"
     )
     undertime_hours = models.DurationField(
-        null=True, blank=True,
-        verbose_name="Nombre d'heures perdues"
+        null=True, 
+        blank=True, 
+        verbose_name="Undertime hours"
     )
     bonus = models.ManyToManyField(
         'Bonus',
@@ -253,273 +199,118 @@ class SalaryLog(BaseModelMixin):
         verbose_name="Bonus"
     )
     salary_advance = models.ForeignKey(
-        RepaymentLog,
+        'RepaymentLog',
         on_delete=models.SET_NULL,
         related_name='salary_logs',
-        null=True, blank=True,
-        verbose_name="Avance sur salaire"
+        null=True,
+        blank=True,
+        verbose_name="Salary advance"
     )
     payment_method = models.CharField(
         max_length=50,
-        choices=[
-            ('BANK', 'Virement bancaire'),
-            ('CASH', 'Espèces'),
-            ('CHECK', 'Chèque'),
-        ],
-        default="CASH",
-        verbose_name="Méthode de paiement"
+        choices=enum_to_choices(PaymentMethod),
+        default=PaymentMethod.CASH.value,
+        verbose_name="Payment method"
     )
     payment_reference = models.CharField(
         max_length=100, 
-        verbose_name="Référence de paiement",
         null=True, 
-        blank=True
+        blank=True, 
+        verbose_name="Payment reference"
     )
     hours_worked = models.DurationField(
-        null=True,
-        blank=True,
-        verbose_name="Heures travaillées"
+        null=True, 
+        blank=True, 
+        verbose_name="Worked hours"
     )
-    is_paid = models.BooleanField(default=False, verbose_name="Paiement effectifié")
-    created_at = models.DateTimeField(auto_now_add=True)
+    is_paid = models.BooleanField(default=False, verbose_name="Paid")
     paid_at = models.DateTimeField(null=True, blank=True)
+    
+    confirmed = models.BooleanField(default=False, verbose_name="Confirmed")
     confirmed_at = models.DateTimeField(null=True, blank=True)
-    confirmed = models.BooleanField(default=False, verbose_name="Paiement confirmé")
-    comments = models.TextField(null=True, blank=True, verbose_name="Commentaires")
-
+    
+    comments = models.TextField(null=True, blank=True, verbose_name="Comments")
+    created_at = models.DateTimeField(auto_now_add=True)
 
     @property
     def attendance_settings(self):
         from hr.caches import get_attendance_settings
         return get_attendance_settings()
 
-    @transaction.atomic
-    def compute_salary(self, override = False, commit=True):
-
-        if self.is_paid and not override:
-            return
-
-        working_time = self.attendance_settings.total_working_time
-
-        if self.salary.pay_overtime:
-            self.overtime_hours, self.undertime_hours = Attendance.objects.compute_overtime_and_undertime(
-                self.salary.employee,
-                self.start_date,
-                self.end_date
-            )
-            self.hours_worked = working_time + self.overtime_hours - self.undertime_hours
-        else:
-            self.hours_worked = working_time
-
-
-        if self.salary.payment_type == 'FIXED':
-            self.total_payment = self.salary.base_salary
-
-        elif self.salary.payment_type == 'HOURLY':
-            if self.hours_worked is None:
-                self.total_payment = 0
-            elif self.hours_worked.total_seconds() == 0:
-                self.total_payment = 0
-            else:
-                hours_worked = self.hours_worked.total_seconds() / 3600
-            self.total_payment = self.salary.hourly_rate * hours_worked
-        
-
-        salary_advance = SalaryAdvance.objects.filter(employee=self.salary.employee).first()
-        if salary_advance:
-            self.salary_advance = salary_advance.get_payment(self.total_payment)
-
-        if self.salary_advance:
-            self.total_payment -= self.salary_advance.amount
-
-        # TODO: Add this to SaaS and his settings
-        # self.total_contributions = self.compute_contributions()
-        # self.total_payment -= self.total_contributions
-
-        # self.total_bonus = self.compute_bonus()
-        # self.total_payment += self.total_bonus
-
-        if self.salary.payment_type == 'FIXED' and self.salary.pay_overtime:
-            overtime = self.overtime_hours - self.undertime_hours
-            self.total_payment += Decimal(overtime.total_seconds() / 3600) * self.salary.hourly_rate
-        
-        if commit:
-            self.save()
-
-
-    def compute_contributions(self):
-        contributions = SocialContribution.objects.filter(
-            applicable_to=self.salary.employee
-        ).filter(
-            Q(end_date__gte=self.end_date) | Q(end_date__isnull=True),
-            Q(always_apply=True) | Q(start_date__lte=self.end_date)
-        )
-
-        self.social_contributions.set(contributions)
-
-        total_contributions = 0
-        for _c in contributions:
-            total_contributions += _c.get_amount(self.total_payment)
-
-        return total_contributions
-
-    
-    def compute_bonus(self):
-        bonus = Bonus.objects.filter(
-            applicable_to=self.salary.employee
-        )
-
-        self.bonus.set(bonus)
-
-        total_bonus = 0
-        for _b in bonus:
-            total_bonus += _b.amount
-
-        return total_bonus
-
-
-    def confirm_payment(self):
-        self.confirmed = True
-        self.confirmed_at = timezone.now()
-        self.save()
-
     def __str__(self):
-        return f"Log de paiement de {self.employee} pour la période {self.payment_period}"
+        return f"Payment log for {self.salary.employee} ({self.start_date} - {self.end_date})"
 
     class Meta:
-        verbose_name = "Historique des paiements"
-        verbose_name_plural = "Historiques des paiements"
-        unique_together = (
-            ('salary', 'payslip',)
-        )
+        verbose_name = "Payment log"
+        verbose_name_plural = "Payment logs"
+        unique_together = ('salary', 'payslip')
 
 
 class Bonus(BaseModelMixin):
-    BONUS_TYPES = (
-        ('transport_allowance', 'Indemnité de transport'),
-        ('housing_allowance', 'Indemnité de logement'),
-        ('remote_work_allowance', 'Indemnité de télétravail'),
-        ('meal_allowance', 'Indemnité repas'),
-        ('company_health_insurance', 'Mutuelle d\'entreprise'),
-        ('disability_insurance', 'Assurance prévoyance'),
-        ('travel_expenses', 'Frais de mission'),
-        ('back_to_school_allowance', 'Allocation de rentrée scolaire'),
-        ('childcare_allowance', 'Allocation de garde d\'enfants'),
-        ('housing_aid', 'Aide au logement'),
-        ('thirteenth_month', '13e mois'),
-        ('health_insurance', 'Assurance santé'),
-        ('transport_bonus', 'Primes de transport'),
-        ('seniority_bonus', 'Prime d\'ancienneté'),
-        ('other', 'Autre'),
+    name = models.CharField(
+        max_length=100, 
+        verbose_name="Nom du bonus", 
+        blank=True, 
+        null=True
     )
-    name = models.CharField(max_length=100, verbose_name="Nom du bonus", blank=True, null=True)
     bonus_type = models.CharField(
-        max_length=50, 
-        choices=BONUS_TYPES, 
+        max_length=100, 
+        choices=enum_to_choices(BonusTypes)
         verbose_name="Type de bonus"
     )
-    
-    def clean(self):
-        # Formatage du nom pour standardiser la casse
-        if self.name:
-            self.name = self.name.strip().title()
-        if self.description:
-            self.description = self.description.strip()
     amount = models.DecimalField(
         max_digits=10, 
         decimal_places=2, 
         verbose_name="Montant"
     )
     applicable_to = models.ManyToManyField(
-        Employee, 
-        related_name='bonuses', 
+        Employee,
+        related_name='bonuses',
         verbose_name="Applicable à",
         through='BonusEmployee',
     )
-    always_apply = models.BooleanField(
-        default=False,
-        verbose_name="Toujours applicable"
-    )
-    everyone = models.BooleanField(
-        default=False,
-        verbose_name="Appliquer à tout le monde"
-    )
-    start_date = models.DateField(
-        verbose_name="Date de début",
-        null=True, blank=True
-    )
-    end_date = models.DateField(
-        verbose_name="Date de fin",
-        null=True, blank=True
-    )
-    description = models.TextField(
-        null=True, 
-        blank=True, 
-        verbose_name="Description"
-    )
+    always_apply = models.BooleanField(default=False, verbose_name="Toujours applicable")
+    everyone = models.BooleanField(default=False, verbose_name="Appliquer à tout le monde")
+    start_date = models.DateField(verbose_name="Date de début", null=True, blank=True)
+    end_date = models.DateField(verbose_name="Date de fin", null=True, blank=True)
+    description = models.TextField(null=True, blank=True, verbose_name="Description")
     is_active = models.BooleanField(default=True, verbose_name="Actif")
 
-
-    def add_employees(self, employee_ids, created_by_user, check_on_everyone=True):
-        if check_on_everyone:
-            self.check_on_everyone()
-
-        if employee_ids is None or len(employee_ids) == 0:
-            return []
-        
-        existing_employee_ids = self.bonus_employees.values_list('employee__id', flat=True)
-        new_employee_ids = [emp_id for emp_id in employee_ids if emp_id not in existing_employee_ids]
-        new_employees = Employee.objects.filter(id__in=new_employee_ids)
-        bonus_employee_instances = [
-            BonusEmployee(
-                employee=employee,
-                bonus=self,
-                created_by=created_by_user
-            )
-            for employee in new_employees
-        ]
-        
-        BonusEmployee.objects.bulk_create(bonus_employee_instances)
-        return new_employee_ids
-    
-
-    def remove_employees(self, employee_ids, created_by_user, check_on_everyone=True):
-        if check_on_everyone:
-            self.check_on_everyone()
-
-        if employee_ids is None or len(employee_ids) == 0:
-            return []
-        
-        existing_employee_ids = self.bonus_employees.values_list('employee__id', flat=True)
-        existed_ids = [emp_id for emp_id in employee_ids if emp_id in existing_employee_ids]
-        self.bonus_employees.filter(employee__id__in=existed_ids).delete()
-        return existed_ids
-    
-    def reset(self, created_by_user):
-        self.everyone = False
-        self.bonus_employees.all().delete()
-        self.updated_by = created_by_user
-        self.save(
-            update_fields=['everyone', 'updated_by']
-        )
-    
-    def check_on_everyone(self):
-        if self.everyone:
-            raise ValidationError("Cet avantage est appliquer à tout le monde, vous ne pouvez pas ajouter des employés")
-    
-    
-    def __str__(self):
-        return f"{self.bonus_type()} : {self.amount}"
-    
+    def clean(self):
+        """Format the name and description fields."""
+        if self.name:
+            self.name = self.name.strip().title()
+        if self.description:
+            self.description = self.description.strip()
 
     def save(self, *args, **kwargs):
+        """Set default name if not provided."""
         if not self.name:
             self.name = timezone.now().strftime("%d/%m/%Y") + " - " + self.bonus_type
-        return super().save(*args, **kwargs)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.bonus_type} : {self.amount}"
 
     class Meta:
         verbose_name = "Bonus"
         verbose_name_plural = "Bonus"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 class BonusEmployee(models.Model):
@@ -880,150 +671,6 @@ class Payslip(BaseModelMixin):
         # Ici, tu peux utiliser un système de notification (email, webhook, etc.)
         for employee in self.employees.all():
             print(f"Notification envoyée à {employee.email} pour la paie du {self.start_date} - {self.end_date}")
-
-
-    # def create_entry(self, description: str):
-    #     je_model = lazy_loader.get_journal_entry_model()
-    #     jentry = je_model(
-    #         ledger = self.ledger,
-    #         posted = False,
-    #         description = description,
-    #         timestamp = timezone.now(),
-    #         locked=False
-    #     )
-    #     jentry.save(verify=False)
-    #     return jentry
-    
-    # @transaction.atomic
-    # def transaction_recorded(self):
-    #     if self.ledger:
-    #         return
-        
-    #     if not self.txs or not self.txs.account:
-    #         raise ValidationError("La fiche de paie doit être liée un bordereau configuré.")
-        
-    #     # create ledger
-    #     ledger_model = lazy_loader.get_ledger_model()
-    #     ledger = ledger_model(
-    #         name = f"Paie ({self.code}) ({self.start_date} - {self.end_date})",
-    #     )
-    #     ledger.configure_for_wrapper_model(model_instance=self.txs)
-    #     ledger.clean()
-    #     ledger.clean_fields()
-    #     self.ledger = ledger
-        
-    #     self.ledger.save()
-
-    #     self.save(
-    #         update_fields=['ledger', 'updated_at']
-    #     )
-
-    #     account_model = lazy_loader.get_account_model()
-    #     txs_model = lazy_loader.get_txs_model()
-
-    #     salary_charges_accounts = account_model.objects.get(code="661")
-    #     # bonus_charges_accounts = account_model.objects.get(code="6617")
-
-    #     # cash account bank or cash account
-    #     cash_account = self.txs.account.cash_account
-    #     personnal_dues_account = account_model.objects.get(code="422")
-
-    #     # amounts
-    #     total_contributions_amount = self.employees.aggregate(
-    #         total=models.Sum("salaries__salary_logs__total_contributions")
-    #     )["total"] or 0
-    #     # total_bonus_amount = self.employees.aggregate(
-    #     #     total=models.Sum("salaries__salary_logs__total_bonus")
-    #     # )["total"] or 0
-    #     brut_charges_amount = self.txs.amount + total_contributions_amount
-
-    #     social_charges_accounts = None
-    #     if total_contributions_amount > 0:
-    #         social_charges_accounts = account_model.objects.get(code="6641")
-
-
-    #     bulk_txs = []
-
-    #     # create journal entry for payslip record
-    #     je_init = self.create_entry(
-    #         "La paie de la fiche {} ({})".format(self.code, self.start_date)
-    #     )
-
-    #     bulk_txs += [
-    #         txs_model(
-    #             journal_entry = je_init,
-    #             tx_type = txs_model.CREDIT,
-    #             account = personnal_dues_account,
-    #             amount = self.txs.amount,
-    #             description = "Net à payer"
-    #         ),
-    #         txs_model(
-    #             journal_entry = je_init,
-    #             tx_type = txs_model.DEBIT,
-    #             account = salary_charges_accounts,
-    #             amount = brut_charges_amount,
-    #             description = "Salaire brut du personnel"
-    #         )
-    #     ]
-
-    #     if social_charges_accounts:
-    #         bulk_txs += [
-    #             txs_model(
-    #                 journal_entry = je_init,
-    #                 tx_type = txs_model.CREDIT,
-    #                 account = social_charges_accounts,
-    #                 amount = total_contributions_amount,
-    #                 description = "Dettes sociales - Cotisations salariales"
-    #             ),
-    #         ]
-
-    #     # create journal entry for net salary
-    #     je_net = self.create_entry(
-    #         "Salaires nets des employés. Fiche {} ({})".format(self.code, self.start_date)
-    #     )
-
-    #     bulk_txs += [
-    #         txs_model(
-    #             journal_entry = je_net,
-    #             tx_type = txs_model.DEBIT,
-    #             account = personnal_dues_account,
-    #             amount = self.txs.amount,
-    #             description = "Paiement des salaires nets"
-    #         ),
-    #         txs_model(
-    #             journal_entry = je_net,
-    #             tx_type = txs_model.CREDIT,
-    #             account = cash_account,
-    #             amount = self.txs.amount,
-    #             description = "Paiement des salaires nets"
-    #         ),
-    #     ]
-
-    #     if social_charges_accounts:
-    #         # create journal entry for tax and social contributions
-    #         je_tax = self.create_entry(
-    #             "Cotisations et impôts. Fiche {} ({})".format(self.code, self.start_date)
-    #         )
-
-    #         bulk_txs += [
-    #             txs_model(
-    #                 journal_entry = je_tax,
-    #                 tx_type = txs_model.DEBIT,
-    #                 account = social_charges_accounts,
-    #                 amount = total_contributions_amount,
-    #                 description = "Dettes sociales - Cotisations salariales"
-    #             ),
-    #             txs_model(
-    #                 journal_entry = je_tax,
-    #                 tx_type = txs_model.CREDIT,
-    #                 account = cash_account,
-    #                 amount = self.txs.amount,
-    #                 description = "Paiement des salaires nets"
-    #             ),
-    #         ]
-
-    #     txs_model.objects.bulk_create(bulk_txs)
-    #     self.mark_as_paid(commit=True)
 
 
     def save(self, *args, **kwargs):
