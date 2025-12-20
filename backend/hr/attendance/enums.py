@@ -18,3 +18,8 @@ class WeekdayEnum(str, Enum):
     SATURDAY = "saturday"
     SUNDAY = "sunday"
 
+
+class BlockType(str, Enum):
+    WORK = "work"
+    BREAK = "break"
+    EXCUSE = "excuse"

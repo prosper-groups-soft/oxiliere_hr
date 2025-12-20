@@ -1,6 +1,5 @@
 from django.db import transaction
 from django.core.exceptions import ValidationError
-from decimal import Decimal
 from hr.payroll.models import Salary
 from hr.enums import ContractType
 from sequences import get_next_value
@@ -20,6 +19,14 @@ class SalaryReaderService:
         if employee_id:
             qs = qs.filter(employee_id=employee_id)
         return qs.order_by('-start_date')
+    
+    @staticmethod
+    def get_active_salary(employee):
+        """Return the first active salary for a given employee."""
+        return Salary.objects.filter(
+            employee=employee, 
+            is_active=True
+        ).order_by('-start_date').first()
 
     @staticmethod
     def get_salary_by_id(salary_id):
@@ -121,10 +128,12 @@ class SalaryWriterService:
             )
 
         # Validate dates
-        if salary.contract_type != ContractType.CDI and salary.end_date is None:
-            raise ValidationError("End date is required for non-CDI contracts.")
-        if salary.contract_type != ContractType.CDI and salary.start_date >= salary.end_date:
-            raise ValidationError("Start date must be before end date.")
+        if salary.contract_type != ContractType.CDI:
+            if salary.end_date is None:
+                raise ValidationError("End date is required for non-CDI contracts.")
+            if salary.start_date >= salary.end_date:
+                raise ValidationError("Start date must be before end date.")
+
 
         salary.save()
         return salary

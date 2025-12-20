@@ -1,11 +1,14 @@
+import uuid
 from django.db import models
 from django.utils import timezone
+from django.conf import settings
 from hr.employees.models import Employee
 from utils_mixins.models import BaseModelMixin
 from hr.enums import (
     PaymentType, 
     PaymentPeriod, 
-    ContractType
+    ContractType,
+    PayslipStatus
 )
 from django.core.exceptions import ValidationError
 from utils_mixins.fn import enum_to_choices
@@ -247,6 +250,12 @@ class SalaryLog(BaseModelMixin):
 
 
 class Bonus(BaseModelMixin):
+    applicable_to = models.ManyToManyField(
+        Employee,
+        related_name='bonuses',
+        verbose_name="Applicable à",
+        through='BonusEmployee',
+    )
     name = models.CharField(
         max_length=100, 
         verbose_name="Nom du bonus", 
@@ -255,19 +264,13 @@ class Bonus(BaseModelMixin):
     )
     bonus_type = models.CharField(
         max_length=100, 
-        choices=enum_to_choices(BonusTypes)
+        choices=enum_to_choices(BonusTypes),
         verbose_name="Type de bonus"
     )
     amount = models.DecimalField(
         max_digits=10, 
         decimal_places=2, 
         verbose_name="Montant"
-    )
-    applicable_to = models.ManyToManyField(
-        Employee,
-        related_name='bonuses',
-        verbose_name="Applicable à",
-        through='BonusEmployee',
     )
     always_apply = models.BooleanField(default=False, verbose_name="Toujours applicable")
     everyone = models.BooleanField(default=False, verbose_name="Appliquer à tout le monde")
@@ -297,152 +300,138 @@ class Bonus(BaseModelMixin):
         verbose_name_plural = "Bonus"
 
 
+class BonusEmployee(BaseModelMixin):
+    """
+    Pure relationship model between Bonus and Employee.
+    """
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-class BonusEmployee(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     employee = models.ForeignKey(
         'Employee',
         on_delete=models.CASCADE,
         related_name='bonus_employees',
         verbose_name="Employé"
     )
+
     bonus = models.ForeignKey(
         'Bonus',
         on_delete=models.CASCADE,
         related_name='bonus_employees',
         verbose_name="Bonus"
     )
+
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name='bonus_employees_created_by',
-        verbose_name="Creé par"
+        verbose_name="Créé par"
     )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.employee} - {self.bonus}"
-    
+        return f"{self.employee} ← {self.bonus}"
+
     class Meta:
-        verbose_name = "Employé - Bonus"
-        verbose_name_plural = "Employé - Bonus"
-        unique_together = ['employee', 'bonus']
-        ordering = ['-created_at']
+        verbose_name = "Employé – Bonus"
+        verbose_name_plural = "Employés – Bonus"
+        constraints = [
+            models.UniqueConstraint(
+                fields=['employee', 'bonus'],
+                name='unique_employee_bonus'
+            )
+        ]
 
 
 class SalaryAdvance(BaseModelMixin):
     employee = models.ForeignKey(
         'Employee',
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name='salary_advances',
-        verbose_name="Employé"
+        verbose_name="Employee"
     )
-    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Montant de l'avance")
+
+    amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        verbose_name="Advance amount"
+    )
+
     repayment_percentage = models.DecimalField(
-        max_digits=5, decimal_places=2, verbose_name="Pourcentage de remboursement (%)", null=True, blank=True
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Repayment percentage"
     )
-    is_repaid = models.BooleanField(default=False, verbose_name="Entièrement remboursée")
-    comments = models.TextField(null=True, blank=True, verbose_name="Commentaires")
+
+    is_repaid = models.BooleanField(
+        default=False,
+        verbose_name="Fully repaid"
+    )
+
+    comments = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name="Comments"
+    )
 
     def __str__(self):
-        return f"Avance de {self.amount} pour {self.employee}"
+        return f"Salary advance {self.amount} for {self.employee}"
 
-    def clean(self):
-        unpaid_advances = SalaryAdvance.objects.filter(employee=self.employee, is_repaid=False).exclude(pk=self.pk)
-        if unpaid_advances.exists():
-            raise ValidationError(f"L'employé {self.employee} a déjà une avance non remboursée.")
-
-
-    def get_last_repayment(self):
-        if not hasattr(self, '_last_repayment'):
-            if self.repayment_logs.exists():
-                self._last_repayment = self.repayment_logs.last()
-            return None
-        return self._last_repayment
-    
-
-    def get_payment(self, amount):
-        if self.is_repaid:
-            return None
-        
-        last_repayment = self.get_last_repayment()
-        if last_repayment:
-            sold = last_repayment.sold
-            repay_amount = min(sold, self.computed_percentage)
-            new_sold = sold - repay_amount
-        else:
-            repay_amount = self.computed_percentage
-            new_sold = self.amount - repay_amount
-
-        if amount < repay_amount:
-            return None
-
-        self._last_repayment = RepaymentLog.objects.create(
-            sold = new_sold,
-            salary_advance = self,
-            amount = repay_amount,
-        )
-
-        if new_sold <= 0:
-            self.is_repaid = True
-            self.save()
-
-        return self._last_repayment
-
-        
     @property
-    def computed_percentage(self):
-        return self.amount / 100 * self.repayment_percentage
-    
-    def save(self, *args, **kwargs):
-        self.clean()
-        return super().save(*args, **kwargs)
-
+    def repayment_amount(self):
+        if not self.repayment_percentage:
+            return None
+        return (self.amount * self.repayment_percentage) / 100
 
     class Meta:
-        verbose_name = "Avance sur salaire"
-        verbose_name_plural = "Avances sur salaire"
+        verbose_name = "Salary advance"
+        verbose_name_plural = "Salary advances"
         ordering = ['-created_at']
 
 
-class RepaymentLog(models.Model):
+
+class RepaymentLog(BaseModelMixin):
     salary_advance = models.ForeignKey(
         'SalaryAdvance',
         on_delete=models.CASCADE,
         related_name='repayment_logs',
-        verbose_name="Avance sur salaire"
+        verbose_name="Salary advance"
     )
-    date = models.DateField(auto_now_add=True, verbose_name="Date de remboursement")
-    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Montant remboursé")
-    sold = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Montant restant")
 
+    date = models.DateField(
+        auto_now_add=True,
+        verbose_name="Repayment date"
+    )
+
+    amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        verbose_name="Repaid amount"
+    )
+
+    sold = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        verbose_name="Remaining amount"
+    )
 
     def __str__(self):
-        return f"Remboursement de {self.repayment_amount} pour l'avance {self.salary_advance}"
+        return f"Repayment of {self.amount} for advance {self.salary_advance_id}"
 
     class Meta:
-        verbose_name = "Historique de remboursement"
-        verbose_name_plural = "Historiques de remboursement"
+        verbose_name = "Repayment log"
+        verbose_name_plural = "Repayment logs"
         ordering = ['-date']
 
 
 class Payslip(BaseModelMixin):
-    code = models.CharField(max_length=16)
+    employees = models.ManyToManyField(
+        Employee,
+        related_name="payslips",
+        verbose_name="Employés inclus"
+    )
+    code: str = models.CharField(max_length=16)
     start_date = models.DateField(verbose_name="Début de la période")
     end_date = models.DateField(verbose_name="Fin de la période")
     payment_period = models.CharField(
@@ -455,22 +444,6 @@ class Payslip(BaseModelMixin):
         default=PaymentPeriod.MONTHLY,
         verbose_name="Type de période"
     )
-    employees = models.ManyToManyField(
-        Employee, 
-        related_name="payslips", 
-        verbose_name="Employés inclus"
-    )
-    # txs = models.ForeignKey(
-    #     "accounting.TransactionFlow",
-    #     on_delete=models.SET_NULL,
-    #     null=True,
-    # )
-    # ledger = models.ForeignKey(
-    #     "accounting.LedgerModel",
-    #     on_delete=models.SET_NULL,
-    #     null=True,
-    # )
-
     paid_date = models.DateTimeField(null=True)
     confirmed_date = models.DateTimeField(null=True)
     canceled_date = models.DateTimeField(null=True)
@@ -486,200 +459,34 @@ class Payslip(BaseModelMixin):
         default=PayslipStatus.REVIEW,
         verbose_name="État de la fiche de paie"
     )
-    
+
     class Meta:
         ordering = ["-start_date", "-created_at"]
 
+    def save(self, *args, **kwargs):
+        if not self.code:
+            self.code = f"FICHE-{uuid.uuid4().hex[:8].upper()}"
+        super().save(*args, **kwargs)
+
     def get_eligible_employees(self):
-        """Sélectionne les employés dont la prochaine date de paiement est dans la période
-        et exclut ceux qui sont déjà inclus dans une fiche de paie pour la même période."""
-        
         eligible_employees = Employee.objects.filter(
             salaries__payment_period=self.payment_period,
             salaries__is_active=True,
         ).filter(
-            Q(salaries__contract_type=ContractType.CDI) | Q(salaries__end_date__gte=self.start_date)
+            models.Q(salaries__contract_type=ContractType.CDI) | 
+            models.Q(salaries__end_date__gte=self.start_date)
         ).exclude(
             payslips=self
         )
         return eligible_employees
-    
 
-    def mark_as_canceled(self, commit=True, **kwargs):
-        """Annule la fiche de paie et libère potentiellement les employés pour une autre fiche."""
-        if self.status == PayslipStatus.PAID:
-            raise ValidationError("Impossible d'annuler une fiche de paie déjà payée.")
-        
-        self.status = PayslipStatus.CANCELED
-        if self.txs:
-            self.txs.mark_as_cancelled(commit=True)
-        self.canceled_date = timezone.now()
-        
-        if commit:
-            self.save(
-                update_fields=['status' , 'canceled_date']
-            )
-
-    def mark_as_confirmed(self, commit=True, user=None):
-        """Confirme la fiche de paie et verrouille les employés dedans."""
-        if self.status != PayslipStatus.REVIEW:
-            raise ValidationError("Seules les fiches en révision peuvent être confirmées.")
-        
-        self.status = PayslipStatus.CONFIRMED
-        self.confirmed_date = timezone.now()
-
-        s_logs, tx = self.create_salary_logs(user=user)
-
-        if commit:
-            self.save(
-                update_fields=['status', 'confirmed_date']
-            )
-        return s_logs, tx
-
-    def mark_as_review(self, commit=True, **kwargs):
-        """Remet la fiche de paie en révision si elle n'est pas encore payée."""
-        if self.status == PayslipStatus.PAID:
-            raise ValidationError("Impossible de repasser en révision une fiche déjà payée.")
-        
-        self.status = PayslipStatus.REVIEW
-        
-        if commit:
-            self.save(
-                update_fields=['status']
-            )
-
-    def mark_as_paid(self, commit=True, **kwargs):
-        """Marque la fiche de paie comme payée et notifie les employés concernés."""
-        if self.status != PayslipStatus.CONFIRMED:
-            raise ValidationError("Seules les fiches confirmées peuvent être payées.")
-        
-        self.status = PayslipStatus.PAID
-        self.paid_date = timezone.now()
-
-        # update salarylogs
-        qs = SalaryLog.objects.filter(
-            payslip=self
-        ).update(
-            is_paid=True,
-            paid_at=self.paid_date
-        )
-        self.notify_payment()
-
-        if commit:
-            self.save(
-                update_fields=['status', 'paid_date']
-            )
-
-    # def create_transaction(self, amount=0, user=None):
-    #     """Crée une transaction comptable liée à cette fiche de paie."""
-    #     if self.status != PayslipStatus.CONFIRMED:
-    #         raise ValidationError("Une transaction ne peut être créée que pour une fiche confirmée.")
-
-    #     if self.txs:
-    #         raise ValidationError("Une transaction a déjà été créée pour cette fiche de paie.")
-        
-    #     from accounting.models import TransactionFlow
-
-    #     user = user or self.created_by
-
-    #     tx = TransactionFlow.objects.create(
-    #         x_number=self.code,
-    #         date=timezone.now(),
-    #         type=TransactionFlow.OUTFLOW,
-    #         amount=amount,
-    #         status='new',
-    #         description=f"Paiement des salaires pour la période {self.start_date} - {self.end_date}",
-    #         created_by=user,
-    #         updated_by=user,
-    #         meta={
-    #             "initiator": "payslip",
-    #             "target": str(self.id)
-    #         }
-    #     )
-    #     self.txs = tx
-    #     self.save()
-        
-    #     return tx
-
-    @transaction.atomic
-    def create_salary_logs(self, user=None):
-        """Crée les bulletins de paie pour chaque employé inclus dans cette fiche de paie."""
-
-        if not self.status == PayslipStatus.CONFIRMED:
-            raise ValueError("Les bulletins de paie ne peuvent être générés que pour une fiche en révision ou confirmée.")
-
-        salary_logs: list[SalaryLog] = []
-
-        employees = self.employees.prefetch_related(
-            Prefetch(
-                "salaries",
-                queryset=Salary.objects.filter(is_active=True),
-                to_attr="active_salaries"
-            )
-        )
-
-        for employee in employees:
-            salary = employee.active_salaries[0] if employee.active_salaries else None
-            
-            if not salary:
-                continue  # L'employé n'a pas de contrat actif
-
-
-            # check active salary 
-            if not salary.contract_type == ContractType.CDI and salary.end_date < self.start_date:
-                continue
-
-            # if not (self.start_date <= payment_state.next_payment_date <= self.end_date):
-            #     continue
-
-            salary_log = SalaryLog(
-                salary=salary,
-                payslip=self,
-                start_date=self.start_date,
-                end_date=self.end_date,
-                total_payment=0,
-                is_paid=False
-            )
-            salary_logs.append(salary_log)
-
-        SalaryLog.objects.bulk_create(salary_logs)
-
-        total_amount = 0
-        for salary_log in salary_logs:
-            salary_log.compute_salary()
-            total_amount += salary_log.total_payment
-
-        if total_amount == 0:
-            raise ValidationError("Le montant total des bulletins de paie est de 0.")
-        
-        tx = self.create_transaction(total_amount, user)
-
-        return salary_logs, tx
-
-
-    def get_period_days(self):
-        """Retourne le nombre de jours correspondant à la période de paiement."""
+    def get_period_days(self) -> int:
         periods = {
             PaymentPeriod.MONTHLY: 30,
             PaymentPeriod.DAILY: 1,
             PaymentPeriod.PER_TASK: 1
         }
-        return periods.get(self.payment_period, 30)  # Par défaut, 30 jours
-
-    def notify_payment(self):
-        """Envoie une notification aux employés une fois la fiche de paie payée."""
-        # Ici, tu peux utiliser un système de notification (email, webhook, etc.)
-        for employee in self.employees.all():
-            print(f"Notification envoyée à {employee.email} pour la paie du {self.start_date} - {self.end_date}")
-
-
-    def save(self, *args, **kwargs):
-        """Ajoute automatiquement les employés éligibles"""
-
-        if not self.code:
-            self.code = f"FICHE-{uuid.uuid4().hex[:8].upper()}"
-        
-        super().save(*args, **kwargs)
+        return periods.get(self.payment_period, 30)
 
 
 class PaymentState(models.Model):
