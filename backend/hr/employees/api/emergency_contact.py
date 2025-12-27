@@ -1,13 +1,9 @@
 from typing import List
 from uuid import UUID
-from django.shortcuts import get_object_or_404
 from ninja_extra import api_controller, ControllerBase, route
 from ninja.errors import HttpError
+from django.core.exceptions import ObjectDoesNotExist
 
-from hr.employees.models import (
-    Employee, 
-    EmployeeEmergencyContact
-)
 from hr.employees.schemas import (
     EmployeeEmergencyContactCreateIn,
     EmployeeEmergencyContactUpdateIn,
@@ -26,12 +22,14 @@ class EmployeeEmergencyContactAPI(ControllerBase):
     """
 
     @route.get("/", response=List[EmployeeEmergencyContactDetailOut])
-    def get_contacts(self, employee_id: UUID, q: str | None = None):
+    def get_contacts(self, employee_id: UUID, search: str | None = None):
         """
         List or search emergency contacts for a specific employee.
         """
-        get_object_or_404(Employee, id=employee_id)
-        return EmployeeEmergencyContactReaderService.search(employee_id, query=q)
+        try:
+            return EmployeeEmergencyContactReaderService.search(employee_id, query=search)
+        except ObjectDoesNotExist:
+            raise HttpError(404, "Employee not found")
 
     @route.post("/", response=EmployeeEmergencyContactDetailOut)
     def add_contact(self, employee_id: UUID, payload: EmployeeEmergencyContactCreateIn):
@@ -43,7 +41,7 @@ class EmployeeEmergencyContactAPI(ControllerBase):
                 employee_id, 
                 **payload.dict(exclude_unset=True)
             )
-        except Employee.DoesNotExist:
+        except ObjectDoesNotExist:
             raise HttpError(404, "Employee not found")
 
     @route.get("/{contact_id}", response=EmployeeEmergencyContactDetailOut)
@@ -56,7 +54,7 @@ class EmployeeEmergencyContactAPI(ControllerBase):
             if contact.employee_id != employee_id:
                 raise HttpError(403, "Access denied: Contact belongs to another employee")
             return contact
-        except EmployeeEmergencyContact.DoesNotExist:
+        except ObjectDoesNotExist:
             raise HttpError(404, "Emergency contact not found")
 
     @route.put("/{contact_id}", response=EmployeeEmergencyContactDetailOut)
@@ -73,7 +71,7 @@ class EmployeeEmergencyContactAPI(ControllerBase):
                 contact_id, 
                 **payload.dict(exclude_unset=True)
             )
-        except EmployeeEmergencyContact.DoesNotExist:
+        except ObjectDoesNotExist:
             raise HttpError(404, "Emergency contact not found")
 
     @route.delete("/{contact_id}")
@@ -88,6 +86,6 @@ class EmployeeEmergencyContactAPI(ControllerBase):
             
             EmployeeEmergencyContactWriterService.remove_contact(contact_id)
             return {"success": True}
-        except EmployeeEmergencyContact.DoesNotExist:
+        except ObjectDoesNotExist:
             raise HttpError(404, "Emergency contact not found")
 

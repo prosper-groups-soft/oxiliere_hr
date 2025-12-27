@@ -1,10 +1,9 @@
 from typing import List
 from uuid import UUID
-from django.shortcuts import get_object_or_404
+from django.core.exceptions import ObjectDoesNotExist
 from ninja_extra import api_controller, ControllerBase, route
 from ninja.errors import HttpError
 
-from hr.employees.models import Employee, EmployeeEducation
 from hr.employees.schemas import (
     EmployeeEducationCreateIn,
     EmployeeEducationUpdateIn,
@@ -27,11 +26,13 @@ class EmployeeEducationAPI(ControllerBase):
         """
         List education records for an employee.
         """
-        get_object_or_404(Employee, id=employee_id)
-        return EmployeeEducationReaderService.list_by_employee(
-            employee_id=employee_id, 
-            institute=institute
-        )
+        try:
+            return EmployeeEducationReaderService.list_by_employee(
+                employee_id=employee_id, 
+                institute=institute
+            )
+        except ObjectDoesNotExist:
+            raise HttpError(404, "Employee not found")
 
     @route.post("/", response=EmployeeEducationDetailOut)
     def add_education(self, employee_id: UUID, payload: EmployeeEducationCreateIn):
@@ -43,7 +44,7 @@ class EmployeeEducationAPI(ControllerBase):
                 employee_id, 
                 **payload.dict(exclude_unset=True)
             )
-        except Employee.DoesNotExist:
+        except ObjectDoesNotExist:
             raise HttpError(404, "Employee not found")
         except ValueError as e:
             raise HttpError(400, str(e))
@@ -58,7 +59,7 @@ class EmployeeEducationAPI(ControllerBase):
             if edu.employee_id != employee_id:
                 raise HttpError(403, "Access denied: record belongs to another employee")
             return edu
-        except EmployeeEducation.DoesNotExist:
+        except ObjectDoesNotExist:
             raise HttpError(404, "Education record not found")
 
     @route.put("/{education_id}", response=EmployeeEducationDetailOut)
@@ -75,7 +76,7 @@ class EmployeeEducationAPI(ControllerBase):
                 education_id, 
                 **payload.dict(exclude_unset=True)
             )
-        except EmployeeEducation.DoesNotExist:
+        except ObjectDoesNotExist:
             raise HttpError(404, "Education record not found")
         except ValueError as e:
             raise HttpError(400, str(e))
@@ -92,6 +93,6 @@ class EmployeeEducationAPI(ControllerBase):
             
             EmployeeEducationWriterService.remove_education(education_id)
             return {"success": True}
-        except EmployeeEducation.DoesNotExist:
+        except ObjectDoesNotExist:
             raise HttpError(404, "Education record not found")
 

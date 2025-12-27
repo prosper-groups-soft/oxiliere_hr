@@ -56,6 +56,8 @@ class EmployeeEmergencyContactReaderService:
         """
         Search contacts for a specific employee by name or phone.
         """
+        # Ensure the employee exists first to avoid orphan searches
+        Employee.objects.get(id=employee_id)
         qs = EmployeeEmergencyContact.objects.filter(employee_id=employee_id)
         
         if query:

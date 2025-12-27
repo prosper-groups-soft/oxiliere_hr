@@ -60,6 +60,8 @@ class EmployeeChildrenReaderService:
         """
         Searches for children records based on given criteria.
         """
+        # Ensure the employee exists first to avoid orphan searches
+        Employee.objects.get(id=employee_id)
         qs = EmployeeChildren.objects.all()
         if employee_id:
             qs = qs.filter(parent_id=employee_id)

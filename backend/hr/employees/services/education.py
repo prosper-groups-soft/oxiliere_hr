@@ -62,6 +62,7 @@ class EmployeeEducationReaderService:
         """
         Merged search and list logic.
         """
+        Employee.objects.get(id=employee_id)  # Ensure employee exists
         qs = EmployeeEducation.objects.filter(employee_id=employee_id)
         if institute:
             qs = qs.filter(institute__icontains=institute)

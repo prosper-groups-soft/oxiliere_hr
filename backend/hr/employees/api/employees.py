@@ -7,6 +7,8 @@ from ninja_extra import (
     ControllerBase, 
     route
 )
+from django.core.exceptions import ObjectDoesNotExist
+
 from hr.employees.schemas import (
     EmployeeCreateIn, 
     EmployeeUpdateIn, 
@@ -21,7 +23,6 @@ from hr.employees.services import (
     EmployeeReaderService,
     EmployeeAddressService
 )
-from hr.employees.models import Employee, EmployeeAddress
 from hr.cursor_pagination import CursorPagination
 
 
@@ -43,7 +44,7 @@ class EmployeeAPI(ControllerBase):
                 **payload.dict(exclude_unset=True)
             )
             return employee
-        except Employee.DoesNotExist:
+        except ObjectDoesNotExist:
             raise HttpError(404, "Employee not found")
 
     @route.patch("/{employee_id}/activate")
@@ -51,7 +52,7 @@ class EmployeeAPI(ControllerBase):
         try:
             employee = EmployeeWriterService.activate_employee(employee_id)
             return {"success": True, "id": employee.id}
-        except Employee.DoesNotExist:
+        except ObjectDoesNotExist:
             raise HttpError(404, "Employee not found")
 
     @route.patch("/{employee_id}/deactivate")
@@ -59,7 +60,7 @@ class EmployeeAPI(ControllerBase):
         try:
             employee = EmployeeWriterService.deactivate_employee(employee_id)
             return {"success": True, "id": employee.id}
-        except Employee.DoesNotExist:
+        except ObjectDoesNotExist:
             raise HttpError(404, "Employee not found")
 
     @route.get("/", response=List[EmployeeListOut])
@@ -76,7 +77,7 @@ class EmployeeAPI(ControllerBase):
         try:
             employee = EmployeeReaderService.get_employee_detail(employee_id)
             return employee
-        except Employee.DoesNotExist:
+        except ObjectDoesNotExist:
             raise HttpError(404, "Employee not found")
 
     @route.get("/{employee_id}/profile", response=EmployeeFullProfileOut)
@@ -84,7 +85,7 @@ class EmployeeAPI(ControllerBase):
         try:
             employee = EmployeeReaderService.get_employee_full_profile(employee_id)
             return employee
-        except Employee.DoesNotExist:
+        except ObjectDoesNotExist:
             raise HttpError(404, "Employee not found")
 
 
@@ -100,7 +101,7 @@ class EmployeeAddressAPI(ControllerBase):
         try:
             address = EmployeeAddressService.get_address(employee_id)
             return address
-        except EmployeeAddress.DoesNotExist:
+        except ObjectDoesNotExist:
             raise HttpError(404, "Employee Address not found")
 
     @route.put("/", response=EmployeeAddressDetailOut)
@@ -111,6 +112,6 @@ class EmployeeAddressAPI(ControllerBase):
                 **payload.dict(exclude_unset=True)
             )
             return address
-        except EmployeeAddress.DoesNotExist:
+        except ObjectDoesNotExist:
             raise HttpError(404, "Employee Address not found")
 

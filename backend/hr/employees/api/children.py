@@ -1,10 +1,9 @@
 from typing import List
 from uuid import UUID
-from django.shortcuts import get_object_or_404
 from ninja_extra import api_controller, ControllerBase, route
 from ninja.errors import HttpError
+from django.core.exceptions import ObjectsDoesNotExist
 
-from hr.employees.models import Employee, EmployeeChildren
 from hr.employees.schemas import (
     EmployeeChildrenCreateIn,
     EmployeeChildrenUpdateIn,
@@ -31,12 +30,15 @@ class EmployeeChildrenAPI(ControllerBase):
         """
         List children for an employee with optional name filtering.
         """
-        get_object_or_404(Employee, id=employee_id)
-        return EmployeeChildrenReaderService.search(
-            employee_id=employee_id, 
-            name=name
-        )
-
+        try:
+            return EmployeeChildrenReaderService.search(
+                employee_id=employee_id, 
+                name=name
+            )
+        except ObjectsDoesNotExist:
+            raise HttpError(404, "Employee not found")  
+            
+            
     @route.post("/", response=EmployeeChildrenDetailOut)
     def add_child(self, employee_id: UUID, payload: EmployeeChildrenCreateIn):
         """
@@ -47,7 +49,7 @@ class EmployeeChildrenAPI(ControllerBase):
                 employee_id, 
                 **payload.dict(exclude_unset=True)
             )
-        except Employee.DoesNotExist:
+        except ObjectsDoesNotExist:
             raise HttpError(404, "Employee not found")
 
     @route.get("/{child_id}", response=EmployeeChildrenDetailOut)
@@ -60,7 +62,7 @@ class EmployeeChildrenAPI(ControllerBase):
             if child.parent_id != employee_id:
                 raise HttpError(403, "Child does not belong to this employee")
             return child
-        except EmployeeChildren.DoesNotExist:
+        except ObjectsDoesNotExist:
             raise HttpError(404, "Child not found")
 
     @route.put("/{child_id}", response=EmployeeChildrenDetailOut)
@@ -77,7 +79,7 @@ class EmployeeChildrenAPI(ControllerBase):
                 child_id, 
                 **payload.dict(exclude_unset=True)
             )
-        except EmployeeChildren.DoesNotExist:
+        except ObjectsDoesNotExist:
             raise HttpError(404, "Child not found")
 
     @route.delete("/{child_id}")
@@ -92,5 +94,5 @@ class EmployeeChildrenAPI(ControllerBase):
             
             EmployeeChildrenWriterService.remove_child(child_id)
             return {"success": True}
-        except EmployeeChildren.DoesNotExist:
+        except ObjectsDoesNotExist:
             raise HttpError(404, "Child not found")
