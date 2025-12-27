@@ -1,15 +1,14 @@
-import uuid
+import uuid6
 from django.db import models
 from django.conf import settings
 from django.core.exceptions import ValidationError
 
 
-
 class UUIDPrimaryKeyMixin(models.Model):
-    """Mixin that provides a UUID primary key field."""
+    """Mixin that provides a sortable UUID primary key field."""
     id = models.UUIDField(
         primary_key=True,
-        default=uuid.uuid4,
+        default=uuid6.uuid7,
         editable=False,
         help_text="Unique identifier for this record"
     )

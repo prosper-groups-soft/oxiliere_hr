@@ -1,3 +1,4 @@
+from typing import Optional
 from ninja.orm import ModelSchema
 from .models import (
     EmployeeAddress,
@@ -39,10 +40,7 @@ class EmployeeAddressDetailOut(ModelSchema):
     
     class Meta:
         model = EmployeeAddress
-        fields = [
-            'id',
-            *EMPL_ADDR_FIELDS
-        ]
+        fields = ['id'] + EMPL_ADDR_FIELDS
 
         
 # -----------------  Employee Schemas  ----------------------
@@ -57,52 +55,51 @@ EMPL_FIELDS = [
     'birthdate',
     'is_active',
     'marital_status',
-    'status',
-    'photo',
     'description',
     'can_connect',
+    'user',
+    'address',
 ]
 class EmployeeCreateIn(ModelSchema):
 
 
     class Meta:
         model = Employee
-        fields = [
-            'user_id',
-            'address_id',
-            *EMPL_FIELDS
-        ]
-        fields_optional = [
-            'user_id',
-            'address_id'
-        ]
+        fields = EMPL_FIELDS
+        fields_optional = ['user', 'address', 'matricule']
 
 
 class EmployeeUpdateIn(ModelSchema):
     
     class Meta:
         model = Employee
-        fields = [
-            'user_id',
-            'address_id',
-            *EMPL_FIELDS
-        ]
+        fields = EMPL_FIELDS
         fields_optional = '__all__'
 
 
 class EmployeeDetailOut(ModelSchema):
 
-    user: LightUserDetailOut
-    address: EmployeeAddressDetailOut
+    user: Optional[LightUserDetailOut] = None
+    address: Optional[EmployeeAddressDetailOut] = None
 
     class Meta:
         model = Employee
-        fields = [
-            'id',
-            'user',
-            'address'
-            *EMPL_FIELDS
-        ]
+        fields = ['id'] + EMPL_FIELDS
+        
+        
+
+class EmployeeListOut(ModelSchema):
+    user: Optional[LightUserDetailOut] = None
+    
+    class Meta:
+        model = Employee
+        fields = ['id'] + [f for f in EMPL_FIELDS if f != 'address']
+
+
+class EmployeeFullProfileOut(EmployeeDetailOut):
+    children: list['EmployeeChildrenDetailOut']
+    educations: list['EmployeeEducationDetailOut']
+    emergency_contacts: list['EmployeeEmergencyContactDetailOut']
 
 
 # ----------------  Emergency Contact Schemas  ---------------
@@ -112,16 +109,13 @@ EMPL_EMERG_CONTACT_FIEDS = [
     'last_name',
     'phone',
     'relation',
-    'priority',
+    'priority'
 ]
 class EmployeeEmergencyContactCreateIn(ModelSchema):
     
     class Meta:
         model = EmployeeEmergencyContact
-        fields = [
-            'employee_id',
-            *EMPL_EMERG_CONTACT_FIEDS
-        ]
+        fields = EMPL_EMERG_CONTACT_FIEDS
         fields_optional = [
             'phone',
             'relation',
@@ -134,23 +128,16 @@ class EmployeeEmergencyContactUpdateIn(ModelSchema):
 
     class Meta:
         model = EmployeeEmergencyContact
-        fields = [
-            'employee_id',
-            *EMPL_EMERG_CONTACT_FIEDS
-        ]
+        fields = EMPL_EMERG_CONTACT_FIEDS
+        
         fields_optional = '__all__'
 
 
 class EmployeeEmergencyContactDetailOut(ModelSchema):
-    employee: EmployeeDetailOut
 
     class Meta:
         model = EmployeeEmergencyContact
-        fields = [
-            'id',
-            'employee',
-            *EMPL_EMERG_CONTACT_FIEDS,
-        ]
+        fields = ['id'] + EMPL_EMERG_CONTACT_FIEDS
 
 
 # ----------------  Children Schemas  ------------------------
@@ -160,15 +147,13 @@ EMPL_CHILDREN_FIELDS = [
     'last_name',
     'gender',
     'birthdate',
+    'parent',
 ]
 class EmployeeChildrenCreateIn(ModelSchema):
     
     class Meta:
         model = EmployeeChildren
-        fields = [
-            'parent_id'
-            *EMPL_CHILDREN_FIELDS
-        ]
+        fields = [ f for f in EMPL_CHILDREN_FIELDS if f != "parent"]
         fields_optional = [
             'middle_name',
             'birthdate',
@@ -180,23 +165,16 @@ class EmployeeChildrenUpdateIn(ModelSchema):
     
     class Meta:
         model = EmployeeChildren
-        fields = [
-            'parent_id',
-            *EMPL_CHILDREN_FIELDS
-        ]
+        fields = EMPL_CHILDREN_FIELDS
+        
         fields_optional = '__all__'
 
 
 class EmployeeChildrenDetailOut(ModelSchema):
-    parent: EmployeeDetailOut
 
     class Meta:
         model = EmployeeChildren
-        fields = [
-            'id',
-            'parent',
-            *EMPL_CHILDREN_FIELDS
-        ]
+        fields = ['id'] + EMPL_CHILDREN_FIELDS
 
 
 # ----------------  Education Schemas   ---------------------
@@ -206,39 +184,28 @@ EMPL_EDUCATION_FIELDS = [
     'major',
     'start_year',
     'end_year',
-    'location'
+    'location',
 ]
 class EmployeeEducationCreateIn(ModelSchema):
     
     class Meta:
         model = EmployeeEducation
-        fields = [
-            'employee_id',
-            *EMPL_EDUCATION_FIELDS
-        ]
-        fields_optional = ['degree']
+        fields = EMPL_EDUCATION_FIELDS
+        fields_optional = ['degree', 'major']
 
 
 class EmployeeEducationUpdateIn(ModelSchema):
     
     class Meta:
         model = EmployeeEducation
-        fields = [
-            'employee_id',
-            *EMPL_EDUCATION_FIELDS
-        ]
+        fields = EMPL_EDUCATION_FIELDS
         fields_optional = '__all__'
 
 
 class EmployeeEducationDetailOut(ModelSchema):
-    employee: EmployeeDetailOut
 
     class Meta:
         model = EmployeeEducation
-        fields = [
-            'id',
-            'employee',
-            *EMPL_EDUCATION_FIELDS
-        ]
+        fields = ['id'] + EMPL_EDUCATION_FIELDS
 
       

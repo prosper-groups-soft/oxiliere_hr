@@ -1,3 +1,4 @@
+from uuid import UUID
 from django.db import transaction
 from hr.employees.models import Employee, EmployeeEducation
 from hr.enums import DegreeEnum
@@ -10,55 +11,45 @@ class EmployeeEducationWriterService:
 
     @staticmethod
     @transaction.atomic
-    def add_education(
-        employee_id: int, 
-        institute: str, 
-        degree: str, 
-        major: str,
-        start_year, 
-        end_year, 
-        location: str
-    ) -> EmployeeEducation:
+    def add_education(employee_id: UUID, **data) -> EmployeeEducation:        
         """
         Adds a new academic record for the given employee.
         """
-        if degree not in [d[0] for d in DegreeEnum.choices]:
-            raise ValueError(f"Invalid degree value: {degree}")
+        degree = data.get("degree")
+        if degree and degree not in [tag.value for tag in DegreeEnum]:
+            raise ValueError(f"Invalid degree: {degree}")
 
+        # Ensure employee exists (raises Employee.DoesNotExist)
         employee = Employee.objects.get(id=employee_id)
-        return EmployeeEducation.objects.create(
-            employee=employee,
-            institute=institute,
-            degree=degree,
-            major=major,
-            start_year=start_year,
-            end_year=end_year,
-            location=location
-        )
+        return EmployeeEducation.objects.create(employee=employee, **data)
 
     @staticmethod
     @transaction.atomic
-    def update_education(education_id: int, **kwargs) -> EmployeeEducation:
+    def update_education(education_id: UUID, **kwargs) -> EmployeeEducation:
         """
         Updates an existing academic record.
         Accepts kwargs corresponding to EmployeeEducation fields.
         """
+        # raises EmployeeEducation.DoesNotExist if not found
         education = EmployeeEducation.objects.get(id=education_id)
+        
         for field, value in kwargs.items():
             if hasattr(education, field):
                 if field == "degree" and value not in [d[0] for d in DegreeEnum.choices]:
-                    raise ValueError(f"Invalid degree value: {value}")
+                    raise ValueError(f"Invalid degree: {value}")
                 setattr(education, field, value)
+        
         education.save()
         return education
 
     @staticmethod
     @transaction.atomic
-    def remove_education(education_id: int) -> None:
+    def remove_education(education_id: UUID) -> None:
         """
         Deletes an academic record.
         """
-        EmployeeEducation.objects.filter(id=education_id).delete()
+        education = EmployeeEducation.objects.get(id=education_id)
+        education.delete()
 
 
 class EmployeeEducationReaderService:
@@ -67,36 +58,18 @@ class EmployeeEducationReaderService:
     """
 
     @staticmethod
-    def list_educations(employee_id: int):
+    def list_by_employee(employee_id: UUID, institute: str = None):
         """
-        Returns all academic records for a given employee.
+        Merged search and list logic.
         """
-        return EmployeeEducation.objects.filter(employee_id=employee_id)
+        qs = EmployeeEducation.objects.filter(employee_id=employee_id)
+        if institute:
+            qs = qs.filter(institute__icontains=institute)
+        return qs
 
     @staticmethod
-    def get_education(education_id: int) -> EmployeeEducation | None:
+    def get_education(education_id: UUID) -> EmployeeEducation:
         """
         Retrieves a single academic record by its ID.
         """
-        try:
-            return EmployeeEducation.objects.get(id=education_id)
-        except EmployeeEducation.DoesNotExist:
-            return None
-
-    @staticmethod
-    def search_educations(
-        employee_id: int = None, 
-        institute: str = None, 
-        major: str = None
-    ):
-        """
-        Searches academic records with optional filters.
-        """
-        queryset = EmployeeEducation.objects.all()
-        if employee_id:
-            queryset = queryset.filter(employee_id=employee_id)
-        if institute:
-            queryset = queryset.filter(institute__icontains=institute)
-        if major:
-            queryset = queryset.filter(major__icontains=major)
-        return queryset
+        return EmployeeEducation.objects.get(id=education_id)

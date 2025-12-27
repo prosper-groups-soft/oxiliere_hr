@@ -65,21 +65,11 @@ class Employee(BaseModelMixin):
         choices=enum_to_choices(MaritalStatus),
         default=MaritalStatus.SINGLE.value,
     )
-    status = models.CharField(
-        max_length=2,
-        choices=[],
-        default=None,
-        help_text=_("Employee status (optional). Can be moved to services.")
-    )
-    photo = models.ImageField(
-        upload_to="images/",
-        default="images/user-dummy-img.jpg",
-    )
     description = models.TextField(null=True, blank=True)
     can_connect = models.BooleanField(default=True)
 
     class Meta:
-        ordering = ["last_name", "first_name"]
+        ordering = ['-created_at']
 
     def __str__(self):
         return f"{self.first_name} {self.last_name} ({self.matricule})"
@@ -108,9 +98,9 @@ class EmployeeEmergencyContact(BaseModelMixin):
         on_delete=models.CASCADE,
         related_name="emergency_contacts",
     )
-    first_name = models.CharField(max_length=75)
+    first_name = models.CharField(max_length=75, null=True, blank=True)
     middle_name = models.CharField(max_length=128, null=True, blank=True)
-    last_name = models.CharField(max_length=75)
+    last_name = models.CharField(max_length=75, null=True, blank=True)
     phone = models.CharField(max_length=13, unique=True, blank=True)
     relation = models.CharField(
         choices=enum_to_choices(RelationshipType),
@@ -174,7 +164,7 @@ class EmployeeEducation(BaseModelMixin):
         choices=enum_to_choices(DegreeEnum),
         default=DegreeEnum.NOT_SPECIFIED.value,
     )
-    major = models.CharField(max_length=255)
+    major = models.CharField(max_length=255, null=True, blank=True)
     start_year = models.DateField()
     end_year = models.DateField()
     location = models.CharField(max_length=255)

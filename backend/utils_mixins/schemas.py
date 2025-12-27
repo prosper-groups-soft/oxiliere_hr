@@ -17,5 +17,5 @@ class LightUserDetailOut(ModelSchema):
     class Meta:
         model = User
         fields = '__all__'
-        exclude = ['password']
-    
+        fields_optional ='__all__'
+ 

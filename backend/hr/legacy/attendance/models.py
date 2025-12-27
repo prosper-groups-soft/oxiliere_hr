@@ -18,16 +18,16 @@ from .enums import WeekdayEnum, AttendanceStatus, BlockType
 """
 Capabilities supported by these models:
 
-1. Paid and unpaid breaks
-2. Multiple breaks per day
-3. Split work periods
-4. Night shifts
-5. Temporary exits
-6. Partial absences
-7. Planned vs actual comparison
-8. HR audits
-9. Multiple HR policies
-10. Multi-country payroll support
+    1. Paid and unpaid breaks
+    2. Multiple breaks per day
+    3. Split work periods
+    4. Night shifts
+    5. Temporary exits
+    6. Partial absences
+    7. Planned vs actual comparison
+    8. HR audits
+    9. Multiple HR policies
+    10. Multi-country payroll support
 """
 
 
@@ -52,11 +52,6 @@ class TimeBlock(BaseModelMixin):
         max_length=20,
         choices=enum_to_choices(BlockType),
         default=BlockType.WORK.value,
-        choices=[
-            ("WORK", _("Work")),
-            ("BREAK", _("Break")),
-            ("EXCUSE", _("Excused absence")),
-        ],
         verbose_name=_("Block type"),
     )
 
@@ -328,7 +323,7 @@ class AttendanceEntry(BaseModelMixin):
                 raise ValidationError(
                     _("Cannot create or modify entries in a closed period.")
                 )
-        super().clean()
+        super().clean() 
 
     @transaction.atomic
     def save(self, *args, **kwargs) -> None:
@@ -457,3 +452,10 @@ class AttendanceSettings(SingletonMixin):
         ordering = ["-id"]
         verbose_name = _("Attendance settings")
         verbose_name_plural = _("Attendance settings")
+        
+    @classmethod
+    def load(cls) -> "AttendanceSettings":
+        """
+        Returns the singleton instance of AttendanceSettings.
+        """
+        return cls.objects.get_or_create()[0]

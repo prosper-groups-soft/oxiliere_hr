@@ -14,8 +14,8 @@ USE_L10N = True
 
 
 LANGUAGES = [
-    ('en', 'English'),
     ('fr', 'Français'),
+    ('en', 'English'),
 ]
 
 

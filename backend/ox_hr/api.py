@@ -4,6 +4,7 @@ from django.http import HttpRequest
 from ninja.security import APIKeyCookie
 from ninja_extra import NinjaExtraAPI
 from ninja_jwt.authentication import JWTAuth, JWTBaseAuthentication
+from hr.employees.api import get_all_employee_api
 
 
 class JWTCookieAuth(APIKeyCookie, JWTBaseAuthentication):
@@ -18,11 +19,11 @@ api = NinjaExtraAPI(
     title="Oxiliere HR API",
     description="API for Oxiliere HR",
     version="1.0.0",
-    auth=[JWTAuth(), JWTCookieAuth()],
+    #auth=[JWTAuth(), JWTCookieAuth()],
 )
 
 
 
 api.register_controllers(
-    # controllers here...
+    *get_all_employee_api(),
 )

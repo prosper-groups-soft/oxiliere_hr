@@ -1,4 +1,5 @@
-from django.db import transaction
+from uuid import UUID
+from django.db import transaction, models
 from hr.employees.models import (
     Employee, 
     EmployeeEmergencyContact
@@ -12,33 +13,21 @@ class EmployeeEmergencyContactWriterService:
 
     @staticmethod
     @transaction.atomic
-    def add_contact(
-        employee_id: int, 
-        first_name: str, 
-        last_name: str, 
-        phone: str, 
-        relation: str, 
-        priority: int = 1
-    ) -> EmployeeEmergencyContact:
+    def add_contact(employee_id: UUID, **data) -> EmployeeEmergencyContact:
         """
         Adds a new emergency contact for the given employee.
         """
         employee = Employee.objects.get(id=employee_id)
         return EmployeeEmergencyContact.objects.create(
             employee=employee,
-            first_name=first_name,
-            last_name=last_name,
-            phone=phone,
-            relation=relation,
-            priority=priority
+            **data
         )
 
     @staticmethod
     @transaction.atomic
-    def update_contact(contact_id: int, **kwargs) -> EmployeeEmergencyContact:
+    def update_contact(contact_id: UUID, **kwargs) -> EmployeeEmergencyContact:
         """
-        Updates an existing emergency contact.
-        Accepts kwargs corresponding to EmployeeEmergencyContact fields.
+        Updates an existing emergency contact record.
         """
         contact = EmployeeEmergencyContact.objects.get(id=contact_id)
         for field, value in kwargs.items():
@@ -49,11 +38,12 @@ class EmployeeEmergencyContactWriterService:
 
     @staticmethod
     @transaction.atomic
-    def remove_contact(contact_id: int) -> None:
+    def remove_contact(contact_id: UUID) -> None:
         """
-        Deletes an emergency contact.
+        Deletes an emergency contact record.
         """
-        EmployeeEmergencyContact.objects.filter(id=contact_id).delete()
+        contact = EmployeeEmergencyContact.objects.get(id=contact_id)
+        contact.delete()
 
 
 class EmployeeEmergencyContactReaderService:   
@@ -62,18 +52,24 @@ class EmployeeEmergencyContactReaderService:
     """
 
     @staticmethod
-    def list_contacts(employee_id: int):
+    def search(employee_id: UUID, query: str = None):
         """
-        Returns all emergency contacts for a given employee.
+        Search contacts for a specific employee by name or phone.
         """
-        return EmployeeEmergencyContact.objects.filter(employee_id=employee_id)
+        qs = EmployeeEmergencyContact.objects.filter(employee_id=employee_id)
+        
+        if query:
+            qs = qs.filter(
+                models.Q(first_name__icontains=query) |
+                models.Q(last_name__icontains=query) |
+                models.Q(phone__icontains=query)
+            )
+        return qs # Meta ordering (priority, last_name) is applied automatically
 
     @staticmethod
-    def get_contact(contact_id: int) -> EmployeeEmergencyContact | None:
+    def get_contact(contact_id: UUID) -> EmployeeEmergencyContact:
         """
         Retrieves a single emergency contact by its ID.
         """
-        try:
-            return EmployeeEmergencyContact.objects.get(id=contact_id)
-        except EmployeeEmergencyContact.DoesNotExist:
-            return None
+        return EmployeeEmergencyContact.objects.get(id=contact_id)
+

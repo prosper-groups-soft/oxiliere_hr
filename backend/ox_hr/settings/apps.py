@@ -2,9 +2,41 @@
 Applications settings for core project.
 """
 
-SHARED_APPS = (
-    'django_tenants',
-    'ox_tenants',
+
+"""
+    Tenant will be coded later
+    SHARED_APPS = (
+        'django_tenants',
+        'ox_tenants',
+
+        'django.contrib.admin',
+        'django.contrib.auth',
+        'django.contrib.contenttypes',
+        'django.contrib.sessions',
+        'django.contrib.messages',
+        'django.contrib.staticfiles',
+        'django.contrib.humanize',
+
+        'corsheaders',
+        'django_filters',
+        'ninja',
+        'ninja_extra',
+        'ninja_jwt',
+        'utils_mixins',
+    )
+
+    TENANT_APPS = (
+        'safedelete',
+        'auditlog',
+        'users',
+        'hr'
+    )
+    
+"""
+
+INSTALLED_APPS = [
+    #'django_tenants',
+    #'ox_tenants',
 
     'django.contrib.admin',
     'django.contrib.auth',
@@ -14,25 +46,24 @@ SHARED_APPS = (
     'django.contrib.staticfiles',
     'django.contrib.humanize',
 
+    'sequences',
     'corsheaders',
     'django_filters',
     'ninja',
     'ninja_extra',
     'ninja_jwt',
-    'utils_mixins',
-)
-
-TENANT_APPS = (
     'safedelete',
     'auditlog',
     'users',
-    'hr'
-)
-
-INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]
+    'hr',
+    'utils_mixins',
+]
 
 MIDDLEWARE = [
-    'django_tenants.middleware.main.TenantMainMiddleware',
+    #'django_tenants.middleware.main.TenantMainMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
