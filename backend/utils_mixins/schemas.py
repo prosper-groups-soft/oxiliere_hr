@@ -4,13 +4,14 @@ from ninja.orm import ModelSchema
 from django.contrib.auth import get_user_model
 
 
+
 User = get_user_model()
 
 
 class MessageSchema(Schema):
     code: Optional[int] = None
     detail: str
-
+    
 
 class LightUserDetailOut(ModelSchema):
 
@@ -18,4 +19,8 @@ class LightUserDetailOut(ModelSchema):
         model = User
         fields = '__all__'
         fields_optional ='__all__'
- 
+
+
+class BaseSearchFilter(Schema):
+    search: Optional[str] = None
+

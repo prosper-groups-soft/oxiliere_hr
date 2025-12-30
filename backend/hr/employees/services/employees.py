@@ -7,6 +7,7 @@ from hr.employees.models import Employee, EmployeeAddress
 from utils_mixins.fn import create_unset_address
 from hr.utils import get_matricule_seq_key
 from sequences import get_next_value
+from hr.employees.schemas import EmployeeFilterIn
 
 
 class EmployeeWriterService:
@@ -18,7 +19,7 @@ class EmployeeWriterService:
     
     @staticmethod
     @transaction.atomic
-    def create_employee(**data) -> Employee:
+    def add_employee(**data) -> Employee:
         """
         Create an employee with:
         - optional user
@@ -105,7 +106,7 @@ class EmployeeWriterService:
     
     @staticmethod
     @transaction.atomic
-    def set_employee_active_status(employee_id: UUID, status: bool) -> Employee:
+    def set_employee_status_generic(employee_id: UUID, status: bool) -> Employee:
         """
         Generalization for activation and desactivation of an employee.
         """
@@ -125,14 +126,14 @@ class EmployeeWriterService:
         """
         Activate an amployee.
         """
-        return EmployeeWriterService.set_employee_active_status(employee_id, status=True)
-
+        return EmployeeWriterService.set_employee_status_generic(employee_id, status=True)
+    
     @staticmethod
     def deactivate_employee(employee_id: UUID) -> Employee:
         """
         Desactive an employee
         """
-        return EmployeeWriterService.set_employee_active_status(employee_id, status=False)
+        return EmployeeWriterService.set_employee_status_generic(employee_id, status=False)
 
     @staticmethod
     @transaction.atomic
@@ -145,6 +146,13 @@ class EmployeeWriterService:
         employee.can_connect = False
         employee.save()
         return employee
+
+    @staticmethod
+    def remove_employee(employee_id: UUID) -> None:
+        """
+        Deletes a employee record.
+        """
+        Employee.objects.get(id=employee_id).delete()
 
 
 class EmployeeReaderService:
@@ -178,30 +186,8 @@ class EmployeeReaderService:
     # ---------- Read operations ----------
 
     @staticmethod
-    def get_employee_by_id(employee_id: UUID) -> Employee | None:
+    def get_employee(employee_id: UUID) -> Employee | None:
         return Employee.objects.get(id=employee_id)
-        
-
-    @staticmethod
-    def get_employees(
-        search: str | None = None,
-        active_only: Optional[bool] = None,
-    ) -> QuerySet[Employee]:
-        queryset = EmployeeReaderService.base_queryset()
-
-        if active_only is not None :
-            queryset = queryset.filter(is_active=active_only)
-
-        if search:
-            queryset = queryset.filter(
-                models.Q(first_name__icontains=search)
-                | models.Q(last_name__icontains=search)
-                | models.Q(middle_name__icontains=search)
-                | models.Q(email__icontains=search)
-                | models.Q(phone__icontains=search)
-            )
-
-        return queryset
 
     @staticmethod
     def get_employee_detail(employee_id: UUID) -> Employee | None:
@@ -210,6 +196,35 @@ class EmployeeReaderService:
     @staticmethod
     def get_employee_full_profile(employee_id: UUID) -> Employee | None:
         return EmployeeReaderService.full_profile_queryset().filter(id=employee_id).first()
+
+    @staticmethod
+    def get_employees(*, filters: EmployeeFilterIn) -> QuerySet[Employee]:
+        queryset = EmployeeReaderService.base_queryset()
+
+        if filters.active_only is not None:
+            queryset = queryset.filter(is_active=filters.active_only)
+
+        if filters.search:
+            queryset = queryset.filter(
+                models.Q(first_name__icontains=filters.search)
+                | models.Q(last_name__icontains=filters.search)
+                | models.Q(middle_name__icontains=filters.search)
+                | models.Q(email__icontains=filters.search)
+                | models.Q(phone__icontains=filters.search)
+            )
+
+        for field in ("gender", "marital_status"):
+            value = getattr(filters, field)
+            if value is not None:
+                queryset = queryset.filter(**{field: value})
+
+        if filters.born_before or filters.born_after:
+            if filters.born_before:
+                queryset = queryset.filter(date_of_birth__lte=filters.born_before)
+            if filters.born_after:
+                queryset = queryset.filter(date_of_birth__gte=filters.born_after)
+
+        return queryset
 
 
 class EmployeeAddressService:

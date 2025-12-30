@@ -1,8 +1,13 @@
-from typing import List, Optional, Any
+from datetime import date
+from uuid import UUID
+from typing import Optional
+from ninja import Schema
 from ninja.orm import ModelSchema
 from hr.employees.schemas import EmployeeDetailOut
 from .models import Leave, LeaveEmployee
-from utils_mixins.schemas import LightUserDetailOut
+from utils_mixins.schemas import LightUserDetailOut, BaseSearchFilter
+
+
 
 
 # ---------------------   Leave Schemas   -------------------------
@@ -58,12 +63,17 @@ class LeaveDetailOut(ModelSchema):
         ]
 
 
-class LeaveFilterIn(Schema):
+class LeaveFilterIn(BaseSearchFilter):
     status: Optional[str] = None
     leave_type: Optional[str] = None
     paid: Optional[bool] = None
-    employee_id: Optional[int] = None
+    approver_id: Optional[UUID] = None
+    employee_id: Optional[UUID] = None
+    everyone: Optional[bool] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
     search: Optional[str] = None
+
 
 # --------------------   LeaveEmployee Schemas   ---------------------------
 LEAVE_EMPLOYEE_FIELDS = [
@@ -102,3 +112,17 @@ class LeaveEmployeeDetailOut(ModelSchema):
             'created_by',
         ]
         
+
+# --------------------   LeaveCreateEmployeesIn Schema   ---------------------------
+class LeaveCreateEmployeesIn(Schema):
+    employee_ids: list[int]
+    start_date: str
+    end_date: str
+    reason: Optional[str] = None
+    everyone: Optional[bool] = False
+    paid: Optional[bool] = True
+    leave_type: Optional[str] = "annual Leave"
+    status: Optional[str] = "pending"
+    approved_at: Optional[str] = None
+    
+    

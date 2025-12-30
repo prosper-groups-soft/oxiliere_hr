@@ -8,6 +8,8 @@ from .models import (
     EmployeeEmergencyContact,
 )
 from utils_mixins.schemas import LightUserDetailOut
+from datetime import date
+from utils_mixins.schemas import BaseSearchFilter
 
 
 # ---------------------  Address Schemas  -----------------------
@@ -102,6 +104,15 @@ class EmployeeFullProfileOut(EmployeeDetailOut):
     emergency_contacts: list['EmployeeEmergencyContactDetailOut']
 
 
+class EmployeeFilterIn(BaseSearchFilter):
+    gender: Optional[str] = None
+    marital_status: Optional[str] = None
+    
+    # ---- temporal bounds ----
+    born_before: Optional[date] = None
+    born_after: Optional[date] = None
+
+
 # ----------------  Emergency Contact Schemas  ---------------
 EMPL_EMERG_CONTACT_FIEDS = [
     'first_name',
@@ -140,6 +151,9 @@ class EmployeeEmergencyContactDetailOut(ModelSchema):
         fields = ['id'] + EMPL_EMERG_CONTACT_FIEDS
 
 
+class EmployeeEmergencyContactFilterIn(BaseSearchFilter):
+    pass
+
 # ----------------  Children Schemas  ------------------------
 EMPL_CHILDREN_FIELDS = [
     'first_name',
@@ -177,6 +191,10 @@ class EmployeeChildrenDetailOut(ModelSchema):
         fields = ['id'] + EMPL_CHILDREN_FIELDS
 
 
+class EmployeeChildrenFilterIn(BaseSearchFilter):
+    gender: Optional[str] = None
+
+
 # ----------------  Education Schemas   ---------------------
 EMPL_EDUCATION_FIELDS = [
     'institute',
@@ -209,3 +227,9 @@ class EmployeeEducationDetailOut(ModelSchema):
         fields = ['id'] + EMPL_EDUCATION_FIELDS
 
       
+class EmployeeEducationFilterIn(BaseSearchFilter):
+
+    degree: Optional[str] = None
+    gender: Optional[str] = None
+    
+    

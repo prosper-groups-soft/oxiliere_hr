@@ -4,11 +4,29 @@ from hr.leaves.models import Leave
 
 
 class LeaveOverlapService:
+    """
+    Service for detecting overlapping leaves.  
+    Vectorized version (bulk reasoning).
+    """
 
     @staticmethod
-    def has_overlap(*, employee, start_date, end_date, exclude_leave=None):
+    def has_overlap_bulk(
+        *,
+        employees,
+        start_date,
+        end_date,
+        exclude_leave=None,
+    ) -> bool:
+        """
+        Detects if there is AT LEAST one overlap
+        for the given set of employees.
+        """
+
         qs = Leave.objects.filter(
-            status=LeaveStatus.APPROVED.value,
+            status__in=[
+                LeaveStatus.PENDING.value,
+                LeaveStatus.APPROVED.value,
+            ],
             start_date__lte=end_date,
             end_date__gte=start_date,
         )
@@ -16,5 +34,10 @@ class LeaveOverlapService:
         if exclude_leave:
             qs = qs.exclude(id=exclude_leave.id)
 
-        qs = qs.filter(Q(everyone=True) | Q(leaves_employees__employee=employee))
+        qs = qs.filter(
+            Q(everyone=True) |
+            Q(leaves_employees__employee__in=employees)
+        )
+
         return qs.exists()
+

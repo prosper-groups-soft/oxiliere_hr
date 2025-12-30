@@ -1,7 +1,4 @@
 from django.utils import timezone
-from ninja import ModelSchema
-from typing import Type
-from django.db import models as dj_models
 
 
 def get_rotate_value():

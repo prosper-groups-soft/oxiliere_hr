@@ -1,8 +1,9 @@
 from uuid import UUID
 from django.db import transaction, models
+from hr.employees.schemas import EmployeeEmergencyContactFilterIn
 from hr.employees.models import (
     Employee, 
-    EmployeeEmergencyContact
+    EmployeeEmergencyContact,
 )
 
 
@@ -52,26 +53,34 @@ class EmployeeEmergencyContactReaderService:
     """
 
     @staticmethod
-    def search(employee_id: UUID, query: str = None):
-        """
-        Search contacts for a specific employee by name or phone.
-        """
-        # Ensure the employee exists first to avoid orphan searches
-        Employee.objects.get(id=employee_id)
-        qs = EmployeeEmergencyContact.objects.filter(employee_id=employee_id)
-        
-        if query:
-            qs = qs.filter(
-                models.Q(first_name__icontains=query) |
-                models.Q(last_name__icontains=query) |
-                models.Q(phone__icontains=query)
-            )
-        return qs # Meta ordering (priority, last_name) is applied automatically
-
-    @staticmethod
     def get_contact(contact_id: UUID) -> EmployeeEmergencyContact:
         """
         Retrieves a single emergency contact by its ID.
         """
         return EmployeeEmergencyContact.objects.get(id=contact_id)
+
+    @staticmethod
+    def get_contacts(
+        *,
+        employee_id: UUID,
+        filters: EmployeeEmergencyContactFilterIn
+    ):
+        """
+        Search contacts for a specific employee by name or phone.
+        """
+        # raises Employee.DoesNotExist ifnot found
+        Employee.objects.get(id=employee_id)
+
+        qs = EmployeeEmergencyContact.objects.filter(employee_id=employee_id)
+
+        # Search text
+        if filters.search:
+            qs = qs.filter(
+                models.Q(first_name__icontains=filters.search) |
+                models.Q(middle_name__icontains=filters.search) |
+                models.Q(last_name__icontains=filters.search) |
+                models.Q(phone__icontains=filters.search)
+            )
+
+        return qs
 

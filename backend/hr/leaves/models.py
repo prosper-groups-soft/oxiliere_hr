@@ -83,12 +83,17 @@ class Leave(BaseModelMixin):
                 name="leave_approval_consistency",
             )
         ]
+        indexes = [
+            models.Index(fields=["start_date", "end_date"]),
+            models.Index(fields=["status"]),
+            models.Index(fields=["everyone"]),
+        ]
 
     def total_days(self):
         return (self.end_date - self.start_date).days + 1
 
     def __str__(self):
-        return f"{self.get_leave_type_display()} ({self.start_date} → {self.end_date})"
+        return f"{LeaveType(self.leave_type).name} ({self.start_date} → {self.end_date})"
 
 
 class LeaveEmployee(BaseModelMixin):
@@ -117,6 +122,17 @@ class LeaveEmployee(BaseModelMixin):
         unique_together = ["employee", "leave"]
         verbose_name = "Affectation de congé"
         verbose_name_plural = "Affectations de congés"
+        indexes = [
+            models.Index(fields=["employee", "leave"]),
+            models.Index(fields=["employee"]),
+            models.Index(fields=["leave"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["leave", "employee"],
+                name="unique_leave_employee"
+            )
+        ]
 
     def __str__(self):
         return f"{self.employee} → {self.leave}"

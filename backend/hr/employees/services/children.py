@@ -1,5 +1,7 @@
 from uuid import UUID
+from django.db.models import QuerySet, Q
 from hr.employees.models import EmployeeChildren, Employee
+from hr.employees.schemas import EmployeeChildrenFilterIn
 
 
 class EmployeeChildrenWriterService:
@@ -47,26 +49,30 @@ class EmployeeChildrenReaderService:
         Retrieves a single child record by its ID.
         """
         return EmployeeChildren.objects.get(id=child_id)
-
+    
     @staticmethod
-    def get_for_employee(employee_id: UUID):
-        """
-        Returns all children records for a given employee.
-        """
-        return EmployeeChildren.objects.filter(employee_id=employee_id)
+    def get_children(
+        *,
+        employee_id: UUID,
+        filters: EmployeeChildrenFilterIn,
+    ) -> QuerySet[EmployeeChildren]:
 
-    @staticmethod
-    def search(employee_id: UUID = None, name: str = None, **filters):
-        """
-        Searches for children records based on given criteria.
-        """
-        # Ensure the employee exists first to avoid orphan searches
+        # Check employee existence
         Employee.objects.get(id=employee_id)
-        qs = EmployeeChildren.objects.all()
-        if employee_id:
-            qs = qs.filter(parent_id=employee_id)
-        if name:
-            qs = qs.filter(name__icontains=name)
 
-        return qs.filter(**filters)
+        qs = EmployeeChildren.objects.filter(parent_id=employee_id)
+
+        # Text search
+        if filters.search:
+            qs = qs.filter(
+                Q(first_name__icontains=filters.search) |
+                Q(middle_name__icontains=filters.search) |
+                Q(last_name__icontains=filters.search)
+            )
+            
+        if filters.gender:
+            qs = qs.filter(gender=filters.gender)
+
+
+        return qs
 

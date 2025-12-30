@@ -1,13 +1,15 @@
 from typing import List
 from uuid import UUID
+from ninja import Query
 from ninja_extra import api_controller, ControllerBase, route
 from ninja.errors import HttpError
-from django.core.exceptions import ObjectsDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist
 
 from hr.employees.schemas import (
     EmployeeChildrenCreateIn,
     EmployeeChildrenUpdateIn,
-    EmployeeChildrenDetailOut
+    EmployeeChildrenDetailOut,
+    EmployeeChildrenFilterIn
 )
 from hr.employees.services import (
     EmployeeChildrenWriterService,
@@ -21,23 +23,32 @@ class EmployeeChildrenAPI(ControllerBase):
     API for managing employee's children records.
     """
 
-    @route.get("/", response=List[EmployeeChildrenDetailOut])
-    def get_children(
-        self, 
-        employee_id: UUID, 
-        name: str | None = None
-    ):
+    @route.get("/{child_id}", response=EmployeeChildrenDetailOut)
+    def get_child(self, employee_id: UUID, child_id: UUID):
         """
-        List children for an employee with optional name filtering.
+        Retrieve a specific child record.
         """
         try:
-            return EmployeeChildrenReaderService.search(
-                employee_id=employee_id, 
-                name=name
+            child = EmployeeChildrenReaderService.get_child(child_id)
+            if child.parent_id != employee_id:
+                raise HttpError(403, "Child does not belong to this employee")
+            return child
+        except ObjectDoesNotExist:
+            raise HttpError(404, "Child not found")
+        
+    @route.get("/", response=List[EmployeeChildrenDetailOut])
+    def get_children(
+        self,
+        employee_id: UUID,
+        filters: EmployeeChildrenFilterIn = Query(...)
+    ):
+        try:
+            return EmployeeChildrenReaderService.get_children(
+                employee_id=employee_id,
+                filters=filters,
             )
-        except ObjectsDoesNotExist:
-            raise HttpError(404, "Employee not found")  
-            
+        except ObjectDoesNotExist:
+            raise HttpError(404, "Employee not found")            
             
     @route.post("/", response=EmployeeChildrenDetailOut)
     def add_child(self, employee_id: UUID, payload: EmployeeChildrenCreateIn):
@@ -49,21 +60,8 @@ class EmployeeChildrenAPI(ControllerBase):
                 employee_id, 
                 **payload.dict(exclude_unset=True)
             )
-        except ObjectsDoesNotExist:
+        except ObjectDoesNotExist:
             raise HttpError(404, "Employee not found")
-
-    @route.get("/{child_id}", response=EmployeeChildrenDetailOut)
-    def get_child(self, employee_id: UUID, child_id: UUID):
-        """
-        Retrieve a specific child record.
-        """
-        try:
-            child = EmployeeChildrenReaderService.get_child(child_id)
-            if child.parent_id != employee_id:
-                raise HttpError(403, "Child does not belong to this employee")
-            return child
-        except ObjectsDoesNotExist:
-            raise HttpError(404, "Child not found")
 
     @route.put("/{child_id}", response=EmployeeChildrenDetailOut)
     def update_child(self, employee_id: UUID, child_id: UUID, payload: EmployeeChildrenUpdateIn):
@@ -79,7 +77,7 @@ class EmployeeChildrenAPI(ControllerBase):
                 child_id, 
                 **payload.dict(exclude_unset=True)
             )
-        except ObjectsDoesNotExist:
+        except ObjectDoesNotExist:
             raise HttpError(404, "Child not found")
 
     @route.delete("/{child_id}")
@@ -94,5 +92,7 @@ class EmployeeChildrenAPI(ControllerBase):
             
             EmployeeChildrenWriterService.remove_child(child_id)
             return {"success": True}
-        except ObjectsDoesNotExist:
+        except ObjectDoesNotExist:
             raise HttpError(404, "Child not found")
+        
+        

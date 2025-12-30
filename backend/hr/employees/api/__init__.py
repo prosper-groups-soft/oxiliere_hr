@@ -12,3 +12,4 @@ def get_all_employee_api():
         EmployeeEducationAPI,
         EmployeeEmergencyContactAPI,
     )
+

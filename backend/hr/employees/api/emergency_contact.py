@@ -1,5 +1,6 @@
 from typing import List
 from uuid import UUID
+from ninja import Query
 from ninja_extra import api_controller, ControllerBase, route
 from ninja.errors import HttpError
 from django.core.exceptions import ObjectDoesNotExist
@@ -7,7 +8,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from hr.employees.schemas import (
     EmployeeEmergencyContactCreateIn,
     EmployeeEmergencyContactUpdateIn,
-    EmployeeEmergencyContactDetailOut
+    EmployeeEmergencyContactDetailOut,
+    EmployeeEmergencyContactFilterIn,
 )
 from hr.employees.services import (
     EmployeeEmergencyContactWriterService,
@@ -21,13 +23,33 @@ class EmployeeEmergencyContactAPI(ControllerBase):
     API for managing employee emergency contacts.
     """
 
+    @route.get("/{contact_id}", response=EmployeeEmergencyContactDetailOut)
+    def get_contact(self, employee_id: UUID, contact_id: UUID):
+        """
+        Retrieve a specific emergency contact record.
+        """
+        try:
+            contact = EmployeeEmergencyContactReaderService.get_contact(contact_id)
+            if contact.employee_id != employee_id:
+                raise HttpError(403, "Access denied: Contact belongs to another employee")
+            return contact
+        except ObjectDoesNotExist:
+            raise HttpError(404, "Emergency contact not found")
+
     @route.get("/", response=List[EmployeeEmergencyContactDetailOut])
-    def get_contacts(self, employee_id: UUID, search: str | None = None):
+    def get_contacts(
+        self,
+        employee_id: UUID,
+        filters: EmployeeEmergencyContactFilterIn = Query(...)
+    ):
         """
         List or search emergency contacts for a specific employee.
         """
         try:
-            return EmployeeEmergencyContactReaderService.search(employee_id, query=search)
+            return EmployeeEmergencyContactReaderService.get_contacts(
+                employee_id=employee_id,
+                filters=filters
+            )
         except ObjectDoesNotExist:
             raise HttpError(404, "Employee not found")
 
@@ -43,19 +65,6 @@ class EmployeeEmergencyContactAPI(ControllerBase):
             )
         except ObjectDoesNotExist:
             raise HttpError(404, "Employee not found")
-
-    @route.get("/{contact_id}", response=EmployeeEmergencyContactDetailOut)
-    def get_contact(self, employee_id: UUID, contact_id: UUID):
-        """
-        Retrieve a specific emergency contact record.
-        """
-        try:
-            contact = EmployeeEmergencyContactReaderService.get_contact(contact_id)
-            if contact.employee_id != employee_id:
-                raise HttpError(403, "Access denied: Contact belongs to another employee")
-            return contact
-        except ObjectDoesNotExist:
-            raise HttpError(404, "Emergency contact not found")
 
     @route.put("/{contact_id}", response=EmployeeEmergencyContactDetailOut)
     def update_contact(self, employee_id: UUID, contact_id: UUID, payload: EmployeeEmergencyContactUpdateIn):

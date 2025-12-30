@@ -1,5 +1,6 @@
 from typing import List
 from uuid import UUID
+from ninja import Query
 from django.core.exceptions import ObjectDoesNotExist
 from ninja_extra import api_controller, ControllerBase, route
 from ninja.errors import HttpError
@@ -7,7 +8,8 @@ from ninja.errors import HttpError
 from hr.employees.schemas import (
     EmployeeEducationCreateIn,
     EmployeeEducationUpdateIn,
-    EmployeeEducationDetailOut
+    EmployeeEducationDetailOut,
+    EmployeeEducationFilterIn,
 )
 from hr.employees.services import (
     EmployeeEducationWriterService,
@@ -21,15 +23,29 @@ class EmployeeEducationAPI(ControllerBase):
     API for managing employee academic records.
     """
 
-    @route.get("/", response=List[EmployeeEducationDetailOut])
-    def get_educations(self, employee_id: UUID, institute: str | None = None):
+    @route.get("/{education_id}", response=EmployeeEducationDetailOut)
+    def get_education(self, employee_id: UUID, education_id: UUID):
         """
-        List education records for an employee.
+        Retrieve a specific education record.
         """
         try:
-            return EmployeeEducationReaderService.list_by_employee(
-                employee_id=employee_id, 
-                institute=institute
+            edu = EmployeeEducationReaderService.get_education(education_id)
+            if edu.employee_id != employee_id:
+                raise HttpError(403, "Access denied: record belongs to another employee")
+            return edu
+        except ObjectDoesNotExist:
+            raise HttpError(404, "Education record not found")
+        
+    @route.get("/", response=List[EmployeeEducationDetailOut])
+    def get_educations(
+        self,
+        employee_id: UUID,
+        filters: EmployeeEducationFilterIn = Query(...)
+    ):
+        try:
+            return EmployeeEducationReaderService.get_educations(
+                employee_id=employee_id,
+                filters=filters,
             )
         except ObjectDoesNotExist:
             raise HttpError(404, "Employee not found")
@@ -48,19 +64,6 @@ class EmployeeEducationAPI(ControllerBase):
             raise HttpError(404, "Employee not found")
         except ValueError as e:
             raise HttpError(400, str(e))
-
-    @route.get("/{education_id}", response=EmployeeEducationDetailOut)
-    def get_education(self, employee_id: UUID, education_id: UUID):
-        """
-        Retrieve a specific education record.
-        """
-        try:
-            edu = EmployeeEducationReaderService.get_education(education_id)
-            if edu.employee_id != employee_id:
-                raise HttpError(403, "Access denied: record belongs to another employee")
-            return edu
-        except ObjectDoesNotExist:
-            raise HttpError(404, "Education record not found")
 
     @route.put("/{education_id}", response=EmployeeEducationDetailOut)
     def update_education(self, employee_id: UUID, education_id: UUID, payload: EmployeeEducationUpdateIn):

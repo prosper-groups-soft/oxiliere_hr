@@ -1,5 +1,6 @@
-from typing import List, Optional
+from typing import List
 from uuid import UUID
+from ninja import Query
 from ninja.errors import HttpError
 from ninja.pagination import paginate
 from ninja_extra import (
@@ -17,6 +18,7 @@ from hr.employees.schemas import (
     EmployeeAddressDetailOut,
     EmployeeListOut,
     EmployeeAddressUpdateIn,
+    EmployeeFilterIn,
 )
 from hr.employees.services import (
     EmployeeWriterService, 
@@ -30,10 +32,34 @@ from hr.cursor_pagination import CursorPagination
 @api_controller("/employees", tags=["Employee"])
 class EmployeeAPI(ControllerBase):
     """API for employee"""
+
+    @route.get("/{employee_id}", response=EmployeeDetailOut)
+    def get_employee(self, employee_id: UUID):
+        try:
+            employee = EmployeeReaderService.get_employee_detail(employee_id)
+            return employee
+        except ObjectDoesNotExist:
+            raise HttpError(404, "Employee not found")
+
+    @route.get("/{employee_id}/profile", response=EmployeeFullProfileOut)
+    def get_employee_profile(self, employee_id: UUID):
+        try:
+            employee = EmployeeReaderService.get_employee_full_profile(employee_id)
+            return employee
+        except ObjectDoesNotExist:
+            raise HttpError(404, "Employee not found")
+    
+    @route.get("/", response=List[EmployeeListOut])
+    @paginate(CursorPagination)
+    def get_employees(
+        self,
+        filters: EmployeeFilterIn = Query(...)
+    ):
+        return EmployeeReaderService.get_employees(filters=filters)
     
     @route.post("/", response=EmployeeDetailOut)
-    def create_employee(self, payload: EmployeeCreateIn):
-        employee = EmployeeWriterService.create_employee(**payload.dict(exclude_unset=True))
+    def add_employee(self, payload: EmployeeCreateIn):
+        employee = EmployeeWriterService.add_employee(**payload.dict(exclude_unset=True))
         return employee
 
     @route.put("/{employee_id}", response=EmployeeDetailOut)
@@ -62,29 +88,12 @@ class EmployeeAPI(ControllerBase):
             return {"success": True, "id": employee.id}
         except ObjectDoesNotExist:
             raise HttpError(404, "Employee not found")
-
-    @route.get("/", response=List[EmployeeListOut])
-    @paginate(CursorPagination)
-    def get_employees(self, search: str | None = None, active_only: Optional[bool] = None):
-
-        return EmployeeReaderService.get_employees(
-            search=search,
-            active_only=active_only,
-        )
-
-    @route.get("/{employee_id}", response=EmployeeDetailOut)
-    def get_employee(self, employee_id: UUID):
+        
+    @route.delete("/{employee_id}")
+    def remove_employee(self, employee_id: UUID):
         try:
-            employee = EmployeeReaderService.get_employee_detail(employee_id)
-            return employee
-        except ObjectDoesNotExist:
-            raise HttpError(404, "Employee not found")
-
-    @route.get("/{employee_id}/profile", response=EmployeeFullProfileOut)
-    def get_employee_profile(self, employee_id: UUID):
-        try:
-            employee = EmployeeReaderService.get_employee_full_profile(employee_id)
-            return employee
+            EmployeeWriterService.remove_employee(employee_id)
+            return {"success": True, "id": employee_id}
         except ObjectDoesNotExist:
             raise HttpError(404, "Employee not found")
 
