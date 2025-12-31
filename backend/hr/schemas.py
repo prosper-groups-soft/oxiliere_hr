@@ -2,15 +2,11 @@ from typing import Optional
 from ninja import Schema
 from ninja.orm import ModelSchema
 from django.contrib.auth import get_user_model
-
+from ninja import FilterSchema
 
 
 User = get_user_model()
 
-
-class MessageSchema(Schema):
-    code: Optional[int] = None
-    detail: str
     
 
 class LightUserDetailOut(ModelSchema):
@@ -21,6 +17,5 @@ class LightUserDetailOut(ModelSchema):
         fields_optional ='__all__'
 
 
-class BaseSearchFilter(Schema):
+class BaseFilter(FilterSchema):
     search: Optional[str] = None
-

@@ -17,7 +17,10 @@ from hr.employees.services import (
 )
 
 
-@api_controller("/employees/{employee_id}/education", tags=["Employee Education"])
+@api_controller(
+    "/employees/{employee_id}/education", 
+    tags=["Employee Education"]
+)
 class EmployeeEducationAPI(ControllerBase):
     """
     API for managing employee academic records.

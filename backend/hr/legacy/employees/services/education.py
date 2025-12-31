@@ -1,6 +1,6 @@
 from django.db import transaction
 from hr.employees.models import Employee, EmployeeEducation
-from hr.enums import DegreeEnum
+from hr.choices import DegreeEnum
 
 
 class EmployeeEducationWriterService:

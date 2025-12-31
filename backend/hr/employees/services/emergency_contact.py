@@ -1,10 +1,12 @@
 from uuid import UUID
-from django.db import transaction, models
+from django.db import transaction
+from django.db.models import QuerySet
 from hr.employees.schemas import EmployeeEmergencyContactFilterIn
 from hr.employees.models import (
     Employee, 
     EmployeeEmergencyContact,
 )
+from hr.utils.fn import update_instance
 
 
 class EmployeeEmergencyContactWriterService:
@@ -27,15 +29,20 @@ class EmployeeEmergencyContactWriterService:
     @staticmethod
     @transaction.atomic
     def update_contact(contact_id: UUID, **kwargs) -> EmployeeEmergencyContact:
-        """
-        Updates an existing emergency contact record.
-        """
         contact = EmployeeEmergencyContact.objects.get(id=contact_id)
-        for field, value in kwargs.items():
-            if hasattr(contact, field):
-                setattr(contact, field, value)
-        contact.save()
-        return contact
+
+        return update_instance(
+            instance=contact,
+            allowed_fields={
+                "first_name",
+                "middle_name",
+                "last_name",
+                "phone",
+                "relation",
+                "priority",
+            },
+            data=kwargs,
+        )
 
     @staticmethod
     @transaction.atomic
@@ -64,23 +71,14 @@ class EmployeeEmergencyContactReaderService:
         *,
         employee_id: UUID,
         filters: EmployeeEmergencyContactFilterIn
-    ):
+    ) -> QuerySet[EmployeeEmergencyContact]:
         """
         Search contacts for a specific employee by name or phone.
         """
-        # raises Employee.DoesNotExist ifnot found
+        # raises Employee.DoesNotExist if not found
         Employee.objects.get(id=employee_id)
 
         qs = EmployeeEmergencyContact.objects.filter(employee_id=employee_id)
-
-        # Search text
-        if filters.search:
-            qs = qs.filter(
-                models.Q(first_name__icontains=filters.search) |
-                models.Q(middle_name__icontains=filters.search) |
-                models.Q(last_name__icontains=filters.search) |
-                models.Q(phone__icontains=filters.search)
-            )
-
-        return qs
+        
+        return filters.filter(qs)
 

@@ -1,7 +1,9 @@
 from uuid import UUID
-from django.db.models import QuerySet, Q
+from django.db import transaction
+from django.db.models import QuerySet, Q 
 from hr.employees.models import EmployeeChildren, Employee
 from hr.employees.schemas import EmployeeChildrenFilterIn
+from hr.utils.fn import update_instance
 
 
 class EmployeeChildrenWriterService:
@@ -17,18 +19,29 @@ class EmployeeChildrenWriterService:
         employee = Employee.objects.get(id=employee_id)
         child = EmployeeChildren.objects.create(parent=employee, **data)
         return child
-
+    
     @staticmethod
+    @transaction.atomic
     def update_child(child_id: UUID, **data) -> EmployeeChildren:
         """
-        Updates an existing child record.
-        Accepts kwargs corresponding to EmployeeChildren fields.
+        Updates allowed fields of an employee's child record.
         """
+        # Récupération de l'instance
         child = EmployeeChildren.objects.get(id=child_id)
-        for k, v in data.items():
-            setattr(child, k, v)
-        child.save()
-        return child
+
+        # Appel au helper générique
+        return update_instance(
+            instance=child,
+            allowed_fields={
+                "first_name",
+                "middle_name",
+                "last_name",
+                "birth_date",
+                "gender",
+                "description",
+            },
+            data=data,
+        )
 
     @staticmethod
     def remove_child(child_id: UUID) -> None:
@@ -56,23 +69,12 @@ class EmployeeChildrenReaderService:
         employee_id: UUID,
         filters: EmployeeChildrenFilterIn,
     ) -> QuerySet[EmployeeChildren]:
-
-        # Check employee existence
+        """
+        Retrieve children for a specific employee with filtering.
+        """
         Employee.objects.get(id=employee_id)
 
         qs = EmployeeChildren.objects.filter(parent_id=employee_id)
 
-        # Text search
-        if filters.search:
-            qs = qs.filter(
-                Q(first_name__icontains=filters.search) |
-                Q(middle_name__icontains=filters.search) |
-                Q(last_name__icontains=filters.search)
-            )
-            
-        if filters.gender:
-            qs = qs.filter(gender=filters.gender)
-
-
-        return qs
+        return filters.filter(qs)
 

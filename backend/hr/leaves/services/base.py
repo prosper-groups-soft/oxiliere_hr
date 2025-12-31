@@ -1,5 +1,5 @@
 from django.db.models import Q
-from hr.leaves.enums import LeaveStatus
+from hr.leaves.choices import LeaveStatus
 from hr.leaves.models import Leave
 
 

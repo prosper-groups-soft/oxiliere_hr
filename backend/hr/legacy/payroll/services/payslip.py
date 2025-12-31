@@ -2,7 +2,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 from hr.payroll.models import Payslip
-from hr.enums import PayslipStatus, PaymentPeriod
+from hr.choices import PayslipStatus, PaymentPeriod
 from .salary_log import (
     SalaryLogWriterService, 
     SalaryLogReaderService

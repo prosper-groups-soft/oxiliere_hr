@@ -17,7 +17,10 @@ from hr.employees.services import (
 )
 
 
-@api_controller("/employees/{employee_id}/emergency-contacts", tags=["Emergency Contacts"])
+@api_controller(
+    "/employees/{employee_id}/emergency-contacts", 
+    tags=["Emergency Contacts"]
+)
 class EmployeeEmergencyContactAPI(ControllerBase):
     """
     API for managing employee emergency contacts.
@@ -35,7 +38,7 @@ class EmployeeEmergencyContactAPI(ControllerBase):
             return contact
         except ObjectDoesNotExist:
             raise HttpError(404, "Emergency contact not found")
-
+        
     @route.get("/", response=List[EmployeeEmergencyContactDetailOut])
     def get_contacts(
         self,

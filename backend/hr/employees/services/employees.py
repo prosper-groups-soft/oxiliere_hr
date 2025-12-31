@@ -1,13 +1,17 @@
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
-from django.db import transaction, models
+<<<<<<< HEAD
+from django.db import transaction
 from django.db.models import QuerySet
+=======
+from django.db import transaction, models
+>>>>>>> d9d914b (add: oxiliere tenant)
 from django.utils import timezone
 from hr.employees.models import Employee, EmployeeAddress
-from utils_mixins.fn import create_unset_address
-from hr.utils import get_matricule_seq_key
+from hr.utils import get_matricule_seq_key, create_unset_address
 from sequences import get_next_value
 from hr.employees.schemas import EmployeeFilterIn
+from hr.utils.fn import update_instance
 
 
 class EmployeeWriterService:
@@ -37,11 +41,6 @@ class EmployeeWriterService:
                 model=EmployeeAddress,
             )
 
-        if "marital_status" not in data:
-            data["marital_status"] = Employee._meta.get_field(
-                "marital_status"
-            ).default
-
         employee = Employee(
             **data,
             user=user,
@@ -69,18 +68,24 @@ class EmployeeWriterService:
     @staticmethod
     @transaction.atomic
     def update_employee(employee_id: UUID, **kwargs) -> Employee:
-        """
-        Updates employee fields (excluding address, which is handled separately).
-        Supports updating the linked user account.
-        """
         employee = Employee.objects.get(id=employee_id)
 
-        for field, value in kwargs.items():
-            if hasattr(employee, field) and field != "address":
-                setattr(employee, field, value)
-
-        employee.save()
-        return employee
+        return update_instance(
+            instance=employee,
+            allowed_fields={
+                "first_name",
+                "middle_name",
+                "last_name",
+                "email",
+                "phone",
+                "birthdate",
+                "gender",
+                "marital_status",
+                "description",
+                "user",
+            },
+            data=kwargs,
+        )
 
     @staticmethod
     @transaction.atomic
@@ -90,6 +95,7 @@ class EmployeeWriterService:
         """
         employee = Employee.objects.get(id=employee_id)
         employee.user = user
+        employee.full_clean()
         employee.save()
         return employee
 
@@ -136,18 +142,6 @@ class EmployeeWriterService:
         return EmployeeWriterService.set_employee_status_generic(employee_id, status=False)
 
     @staticmethod
-    @transaction.atomic
-    def deactivate_employee(employee_id: UUID) -> Employee:
-        """
-        Soft delete / deactivate an employee.
-        """
-        employee = Employee.objects.get(id=employee_id)
-        employee.is_active = False
-        employee.can_connect = False
-        employee.save()
-        return employee
-
-    @staticmethod
     def remove_employee(employee_id: UUID) -> None:
         """
         Deletes a employee record.
@@ -164,15 +158,15 @@ class EmployeeReaderService:
     # ---------- Queryset factories ----------
 
     @staticmethod
-    def base_queryset() -> QuerySet[Employee]:
+    def base_queryset() -> models.QuerySet[Employee]:
         return Employee.objects.select_related("user")
 
     @staticmethod
-    def detail_queryset() -> QuerySet[Employee]:
+    def detail_queryset() -> models.QuerySet[Employee]:
         return Employee.objects.select_related("user", "address")
 
     @staticmethod
-    def full_profile_queryset() -> QuerySet[Employee]:
+    def full_profile_queryset() -> models.QuerySet[Employee]:
         return (
             Employee.objects
             .select_related("user", "address")
@@ -186,7 +180,7 @@ class EmployeeReaderService:
     # ---------- Read operations ----------
 
     @staticmethod
-    def get_employee(employee_id: UUID) -> Employee | None:
+    def get_employee(employee_id: UUID) -> Employee:
         return Employee.objects.get(id=employee_id)
 
     @staticmethod
@@ -198,33 +192,10 @@ class EmployeeReaderService:
         return EmployeeReaderService.full_profile_queryset().filter(id=employee_id).first()
 
     @staticmethod
-    def get_employees(*, filters: EmployeeFilterIn) -> QuerySet[Employee]:
+    def get_employees(*, filters: EmployeeFilterIn) -> models.QuerySet[Employee]:
         queryset = EmployeeReaderService.base_queryset()
+        return filters.filter(queryset)
 
-        if filters.active_only is not None:
-            queryset = queryset.filter(is_active=filters.active_only)
-
-        if filters.search:
-            queryset = queryset.filter(
-                models.Q(first_name__icontains=filters.search)
-                | models.Q(last_name__icontains=filters.search)
-                | models.Q(middle_name__icontains=filters.search)
-                | models.Q(email__icontains=filters.search)
-                | models.Q(phone__icontains=filters.search)
-            )
-
-        for field in ("gender", "marital_status"):
-            value = getattr(filters, field)
-            if value is not None:
-                queryset = queryset.filter(**{field: value})
-
-        if filters.born_before or filters.born_after:
-            if filters.born_before:
-                queryset = queryset.filter(date_of_birth__lte=filters.born_before)
-            if filters.born_after:
-                queryset = queryset.filter(date_of_birth__gte=filters.born_after)
-
-        return queryset
 
 
 class EmployeeAddressService:
@@ -257,3 +228,4 @@ class EmployeeAddressService:
 
         address.save()
         return address
+

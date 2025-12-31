@@ -7,7 +7,7 @@ from hr.leaves.exceptions import (
     LeaveOverlapError,
     LeaveWorkflowError
 )
-from hr.leaves.enums import LeaveStatus
+from hr.leaves.choices import LeaveStatus
 from .base import LeaveOverlapService
 
 

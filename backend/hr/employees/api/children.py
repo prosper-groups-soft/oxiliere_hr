@@ -17,7 +17,10 @@ from hr.employees.services import (
 )
 
 
-@api_controller("/employees/{employee_id}/children", tags=["Employee Children"])
+@api_controller(
+    "/employees/{employee_id}/children", 
+    tags=["Employee Children"]
+)
 class EmployeeChildrenAPI(ControllerBase):
     """
     API for managing employee's children records.
@@ -35,7 +38,7 @@ class EmployeeChildrenAPI(ControllerBase):
             return child
         except ObjectDoesNotExist:
             raise HttpError(404, "Child not found")
-        
+    
     @route.get("/", response=List[EmployeeChildrenDetailOut])
     def get_children(
         self,
@@ -48,7 +51,7 @@ class EmployeeChildrenAPI(ControllerBase):
                 filters=filters,
             )
         except ObjectDoesNotExist:
-            raise HttpError(404, "Employee not found")            
+            raise HttpError(404, "Employee not found")           
             
     @route.post("/", response=EmployeeChildrenDetailOut)
     def add_child(self, employee_id: UUID, payload: EmployeeChildrenCreateIn):
@@ -94,5 +97,4 @@ class EmployeeChildrenAPI(ControllerBase):
             return {"success": True}
         except ObjectDoesNotExist:
             raise HttpError(404, "Child not found")
-        
         

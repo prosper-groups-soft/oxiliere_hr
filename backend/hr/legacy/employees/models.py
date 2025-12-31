@@ -11,7 +11,7 @@ from utils_mixins.models import (
     BaseModelMixin
 )
 from utils_mixins.fn import enum_to_choices
-from hr.enums import (
+from hr.choices import (
     DegreeEnum, 
     GenderStatus, 
     MaritalStatus, 

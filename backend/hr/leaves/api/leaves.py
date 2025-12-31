@@ -1,4 +1,5 @@
 from uuid import UUID
+from ninja import Query
 from ninja.pagination import paginate
 from ninja.errors import HttpError
 from ninja_extra import api_controller, route
@@ -21,11 +22,13 @@ from hr.leaves.exceptions import (
     LeaveValidationError,
     LeaveWorkflowError,
 )
-from hr.cursor_pagination import CursorPagination
+from oxutils.pagination.cursor import CursorPagination
+
+
 
 
 @api_controller("/leaves", tags=["Leaves"])
-class LeaveController:
+class LeaveAPI:
     """
     Leave API Controller
     - Thin layer
@@ -40,22 +43,20 @@ class LeaveController:
             leave = LeaveReaderService.get_leave(leave_id)
             return {
                 **leave.__dict__,
-                "total_days": leave.total_days(),
+                "total_days": leave.total_days,
             }
         except ObjectDoesNotExist:
             raise HttpError(404, "Leave not found")
 
     @route.get("/", response=list[LeaveDetailOut])
     @paginate(CursorPagination)
-    def get_leaves(self, request, filters: LeaveFilterIn):
+    def get_leaves(self, request, filters: LeaveFilterIn = Query(...)):
+        # The service now returns the filtered queryset directly
         qs = LeaveReaderService.get_leaves(filters=filters)
-        return [
-            {
-                **leave.__dict__,
-                "total_days": leave.total_days(),
-            }
-            for leave in qs
-        ]
+        
+        # Note: If your LeaveDetailOut has a 'total_days' field, 
+        # Ninja can often call the model method automatically.
+        return qs
 
     # ---------- Creation ----------
 
@@ -65,7 +66,7 @@ class LeaveController:
             leave = LeaveWriterService.add_global_leave(**payload.dict())
             return {
                 **leave.__dict__,
-                "total_days": leave.total_days(),    
+                "total_days": leave.total_days,    
             }
         except LeaveOverlapError as e:
             raise HttpError(409, str(e))
@@ -85,7 +86,7 @@ class LeaveController:
             )
             return {
                 **leave.__dict__,
-                "total_days": leave.total_days(),
+                "total_days": leave.total_days,
             }
         except LeaveOverlapError as e:
             raise HttpError(409, str(e))
@@ -94,21 +95,27 @@ class LeaveController:
 
     # ---------- Update ----------
 
-    @route.patch("/{leave_id}", response=LeaveDetailOut)
-    def update_leave(self, request, leave_id: UUID, payload: LeaveUpdateIn):
+    @route.patch("/{leave_id}", response=LeaveDetailOut) 
+    def update_leave(request, leave_id: UUID, payload: LeaveUpdateIn):
+        """
+        Update a leave record. Validates overlaps before saving.
+        """
         try:
             leave = LeaveWriterService.update_leave(
-                leave_id,
-                **payload.dict(exclude_unset=True),
+                leave_id=leave_id,
+                **payload.dict(exclude_unset=True),  # only fields provided in the request
             )
+
+            # Return the leave with computed total_days
             return {
                 **leave.__dict__,
-                "total_days": leave.total_days(),
+                "total_days": leave.total_days,
             }
+
         except ObjectDoesNotExist:
             raise HttpError(404, "Leave not found")
         except LeaveOverlapError as e:
-            raise HttpError(409, str(e))
+            raise HttpError(409, str(e))    
 
     # ---------- Workflow ----------
 

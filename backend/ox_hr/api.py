@@ -1,17 +1,10 @@
-from typing import Any
-from django.http import HttpRequest
-
-from ninja.security import APIKeyCookie
 from ninja_extra import NinjaExtraAPI
-from ninja_jwt.authentication import JWTAuth, JWTBaseAuthentication
 from hr.employees.api import get_all_employee_api
+from oxutils.jwt.auth import get_auth_handlers, basic_no_password_auth
+from oxutils.permissions.controllers import PermissionController
+from oxutils.oxiliere.controllers import SetupController
 
 
-class JWTCookieAuth(APIKeyCookie, JWTBaseAuthentication):
-    param_name = "token"
-    
-    def authenticate(self, request: HttpRequest, key: str) -> Any:
-        return self.jwt_authenticate(request, key)
 
 
 
@@ -19,11 +12,13 @@ api = NinjaExtraAPI(
     title="Oxiliere HR API",
     description="API for Oxiliere HR",
     version="1.0.0",
-    #auth=[JWTAuth(), JWTCookieAuth()],
+    auth=get_auth_handlers([basic_no_password_auth]),
 )
 
 
 
 api.register_controllers(
+    SetupController,
+    PermissionController,
     *get_all_employee_api(),
 )

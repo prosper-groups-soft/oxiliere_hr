@@ -5,8 +5,9 @@ from django.db.models import Q, Count, F, Sum
 from django.utils import timezone
 from django.db.models import QuerySet
 
+from hr.utils.fn import update_instance
 from hr.leaves.models import Leave, LeaveEmployee
-from hr.leaves.enums import LeaveStatus
+from hr.leaves.choices import LeaveStatus
 from hr.employees.models import Employee
 from hr.leaves.schemas import LeaveFilterIn
 from hr.leaves.exceptions import (
@@ -14,7 +15,9 @@ from hr.leaves.exceptions import (
     LeaveValidationError,
     LeaveWorkflowError
 )
+
 from .base import LeaveOverlapService
+
 
 
 class LeaveReaderService:
@@ -29,50 +32,36 @@ class LeaveReaderService:
         )
 
     # ---- Single reads ----
-    @classmethod
-    def get_leave(cls, leave_id: UUID) -> Leave:
-        return cls.base_queryset().get(id=leave_id)
+    @staticmethod
+    def get_leave(leave_id: UUID) -> Leave:
+        return LeaveReaderService.base_queryset().get(id=leave_id)
 
     # ---- Lists ----
-    @classmethod
-    def get_globals_leaves(cls) -> QuerySet[Leave]:
-        return cls.base_queryset().filter(everyone=True)
+    @staticmethod
+    def get_globals_leaves() -> QuerySet[Leave]:
+        return LeaveReaderService.base_queryset().filter(everyone=True)
 
-    @classmethod
-    def get_leaves_for_employee(cls, employee_id: UUID) -> QuerySet[Leave]:
+    @staticmethod
+    def get_leaves_for_employee(employee_id: UUID) -> QuerySet[Leave]:
         Employee.objects.get(id=employee_id)  # ensure exists
-        return cls.base_queryset().filter(
+        return LeaveReaderService.base_queryset().filter(
             Q(everyone=True) | Q(leaves_employees__employee_id=employee_id)
         ).distinct()
 
     # ---- Filtered / search ----
-    @classmethod
-    def get_leaves(cls, *, filters: LeaveFilterIn) -> QuerySet[Leave]:
-        qs = cls.base_queryset()
-
-        if filters.status:
-            qs = qs.filter(status=filters.status)
-        if filters.leave_type:
-            qs = qs.filter(leave_type=filters.leave_type)
-        if filters.paid is not None:
-            qs = qs.filter(paid=filters.paid)
-        if filters.approver_id:
-            qs = qs.filter(approved_by_id=filters.approver_id)
-        if filters.employee_id:
-            qs = qs.filter(leaves_employees__employee_id=filters.employee_id)
-        if filters.start_date and filters.end_date:
-            qs = qs.filter(start_date__lte=filters.end_date, end_date__gte=filters.start_date)
-        if filters.search:
-            qs = qs.filter(reason__icontains=filters.search)
-        if filters.everyone is not None:
-            qs = qs.filter(everyone=filters.everyone)
-
-        return qs.distinct()
+    @staticmethod
+    def get_leaves(*, filters: LeaveFilterIn) -> QuerySet[Leave]:
+        """
+        Search leaves using FilterSchema logic.
+        """
+        qs = LeaveReaderService.base_queryset()
+        return filters.filter(qs)
 
     # ---- Aggregations ----
-    @classmethod
-    def total_days_for_employee(cls, employee_id: UUID) -> int:
-        qs = cls.get_leaves_for_employee(employee_id).filter(status=LeaveStatus.APPROVED.value)
+    @staticmethod
+    def total_days_for_employee(employee_id: UUID) -> int:
+        qs = LeaveReaderService.get_leaves_for_employee(employee_id)
+        qs = qs.filter(status=LeaveStatus.APPROVED.value)
         total = qs.aggregate(total_days=Sum(F("end_date") - F("start_date")))["total_days"]
         return total.days if total else 0
 
@@ -85,9 +74,8 @@ class LeaveWriterService:
     """Write and workflow service for leave management."""
 
     # ---- Overlap validation ----
-    @classmethod
+    @staticmethod
     def _validate_overlap_for_employees(
-        cls,
         *, 
         employees: Iterable[Employee], 
         start_date, 
@@ -107,19 +95,11 @@ class LeaveWriterService:
             )
 
     # ---- Creation ----
-    @classmethod
+    @staticmethod
     @transaction.atomic
-    def add_global_leave(
-        cls, 
-        *, 
-        start_date, 
-        end_date, 
-        leave_type,
-        paid, 
-        reason: Optional[str] = None
-    ) -> Leave:
+    def add_global_leave(*, start_date, end_date, leave_type, paid, reason: Optional[str] = None) -> Leave:
         employees = Employee.objects.all()
-        cls._validate_overlap_for_employees(
+        LeaveWriterService._validate_overlap_for_employees(
             employees=employees, 
             start_date=start_date, 
             end_date=end_date
@@ -137,10 +117,9 @@ class LeaveWriterService:
         leave.save()
         return leave
 
-    @classmethod
+    @staticmethod
     @transaction.atomic
     def add_leave_for_employees(
-        cls, 
         *, 
         start_date, 
         end_date, 
@@ -153,7 +132,7 @@ class LeaveWriterService:
         if not employees:
             raise LeaveValidationError("No employees provided")
 
-        cls._validate_overlap_for_employees(
+        LeaveWriterService._validate_overlap_for_employees(
             employees=employees, 
             start_date=start_date, 
             end_date=end_date
@@ -178,58 +157,59 @@ class LeaveWriterService:
         return leave
 
     # ---- Update ----
-    @classmethod
+    @staticmethod
     @transaction.atomic
-    def update_leave(
-        cls, 
-        leave_id: UUID, 
-        *, 
-        start_date=None, 
-        end_date=None, 
-        leave_type=None, 
-        paid=None, 
-        reason=None
-    ) -> Leave:
-        leave = LeaveReaderService.get_leave(leave_id)
+    def update_leave(leave_id: UUID, **kwargs) -> Leave:
+        """
+        Updates allowed fields of a leave record.
+        Validates overlap for employees before saving.
+        """
+        # Retrieve the leave instance
+        leave = Leave.objects.get(id=leave_id)
 
-        if start_date:
-            leave.start_date = start_date
-        if end_date:
-            leave.end_date = end_date
-        if leave_type:
-            leave.leave_type = leave_type
-        if paid is not None:
-            leave.paid = paid
-        if reason:
-            leave.reason = reason
+        # Allowed fields for update
+        allowed_fields = {
+            "start_date",
+            "end_date",
+            "leave_type",
+            "paid",
+            "reason",
+        }
 
-        if start_date or end_date:
+        # Prepare the updated values for validation
+        updated_data = {field: kwargs.get(field, getattr(leave, field)) for field in allowed_fields}
+
+        # Check overlaps if dates are updated
+        if "start_date" in kwargs or "end_date" in kwargs:
             if leave.everyone:
                 employees = Employee.objects.all()
             else:
                 employees = Employee.objects.filter(leaves__id=leave.id)
 
-            cls._validate_overlap_for_employees(
-                employees=employees, 
-                start_date=leave.start_date, 
-                end_date=leave.end_date, 
-                exclude_leave=leave
+            LeaveWriterService._validate_overlap_for_employees(
+                employees=employees,
+                start_date=updated_data["start_date"],
+                end_date=updated_data["end_date"],
+                exclude_leave=leave,
             )
 
-        leave.full_clean()
-        leave.save()
-        return leave
+        # Apply updates using the helper
+        return update_instance(
+            instance=leave,
+            allowed_fields=allowed_fields,
+            data=kwargs,
+        )
 
     # ---- Assignment ----
-    @classmethod
+    @staticmethod
     @transaction.atomic
-    def assign_employee(cls, leave_id: UUID, employee: Employee, created_by=None) -> LeaveEmployee:
+    def assign_employee(leave_id: UUID, employee: Employee, created_by=None) -> LeaveEmployee:
         leave = LeaveReaderService.get_leave(leave_id)
 
         if leave.everyone:
             raise LeaveValidationError("Cannot assign employees to a global leave")
 
-        cls._validate_overlap_for_employees(
+        LeaveWriterService._validate_overlap_for_employees(
             employees=[employee], 
             start_date=leave.start_date, 
             end_date=leave.end_date
@@ -241,10 +221,9 @@ class LeaveWriterService:
             created_by=created_by
         )
 
-    @classmethod
+    @staticmethod
     @transaction.atomic
     def assign_employees_bulk(
-        cls, 
         leave_id: UUID, 
         employees: Iterable[Employee], 
         created_by=None
@@ -254,7 +233,7 @@ class LeaveWriterService:
         if leave.everyone:
             raise LeaveValidationError("Cannot assign employees to a global leave")
 
-        cls._validate_overlap_for_employees(
+        LeaveWriterService._validate_overlap_for_employees(
             employees=employees, 
             start_date=leave.start_date, 
             end_date=leave.end_date
@@ -264,9 +243,9 @@ class LeaveWriterService:
             for emp in employees
         ])
 
-    @classmethod
+    @staticmethod
     @transaction.atomic
-    def sync_employees(cls, leave_id: UUID, employees: Iterable[Employee], created_by=None):
+    def sync_employees(leave_id: UUID, employees: Iterable[Employee], created_by=None):
         leave = LeaveReaderService.get_leave(leave_id)
         
         if leave.everyone:
@@ -290,9 +269,9 @@ class LeaveWriterService:
         LeaveEmployee.objects.bulk_create(new_assignments)
 
     # ---- Workflow ----
-    @classmethod
+    @staticmethod
     @transaction.atomic
-    def approve(cls, leave_id: UUID, approver: Employee) -> Leave:
+    def approve(leave_id: UUID, approver: Employee) -> Leave:
         leave = LeaveReaderService.get_leave(leave_id)
 
         if leave.status != LeaveStatus.PENDING.value:
@@ -303,7 +282,7 @@ class LeaveWriterService:
         else:
             employees = Employee.objects.filter(leaves__id=leave.id)  # ensure at least one employee assigned
 
-        cls._validate_overlap_for_employees(
+        LeaveWriterService._validate_overlap_for_employees(
             employees=employees, 
             start_date=leave.start_date, 
             end_date=leave.end_date, 
@@ -317,9 +296,9 @@ class LeaveWriterService:
         leave.save()
         return leave
 
-    @classmethod
+    @staticmethod
     @transaction.atomic
-    def reject(cls, leave_id: UUID) -> Leave:
+    def reject(leave_id: UUID) -> Leave:
         leave = LeaveReaderService.get_leave(leave_id)
         
         if leave.status != LeaveStatus.PENDING.value:
@@ -330,9 +309,9 @@ class LeaveWriterService:
         leave.save()
         return leave
 
-    @classmethod
+    @staticmethod
     @transaction.atomic
-    def cancel(cls, leave_id: UUID) -> Leave:
+    def cancel(leave_id: UUID) -> Leave:
         leave = LeaveReaderService.get_leave(leave_id)
         
         if leave.status != LeaveStatus.APPROVED.value:
@@ -343,9 +322,9 @@ class LeaveWriterService:
         leave.save()
         return leave
 
-    @classmethod
+    @staticmethod
     @transaction.atomic
-    def reset_to_pending(cls, leave_id: UUID) -> Leave:
+    def reset_to_pending(leave_id: UUID) -> Leave:
         leave = LeaveReaderService.get_leave(leave_id)
         leave.status = LeaveStatus.PENDING.value
         leave.approved_by = None
@@ -355,14 +334,14 @@ class LeaveWriterService:
         return leave
 
     # ---- Removals ----
-    @classmethod
+    @staticmethod
     @transaction.atomic
-    def remove_employee(cls, leave_id: UUID, employee: Employee):
+    def remove_employee(leave_id: UUID, employee: Employee):
         leave = LeaveReaderService.get_leave(leave_id)
         LeaveEmployee.objects.filter(leave=leave, employee=employee).delete()
 
-    @classmethod
+    @staticmethod
     @transaction.atomic
-    def remove_leave(cls, leave_id: UUID):
+    def remove_leave(leave_id: UUID):
         leave = LeaveReaderService.get_leave(leave_id)
         leave.delete()

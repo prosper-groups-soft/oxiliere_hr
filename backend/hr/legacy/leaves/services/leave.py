@@ -2,7 +2,7 @@ from django.db import transaction
 from django.db.models import Q, Sum, Count, F
 from django.utils import timezone
 from hr.leaves.models import Leave, LeaveEmployee
-from hr.leaves.enums import LeaveStatus
+from hr.leaves.choices import LeaveStatus
 from hr.employees.models import Employee
 from hr.leaves.exceptions import (
     LeaveOverlapError,

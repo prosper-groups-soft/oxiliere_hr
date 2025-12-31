@@ -4,7 +4,7 @@ from django.utils import timezone
 from django.conf import settings
 from hr.employees.models import Employee
 from utils_mixins.models import BaseModelMixin
-from hr.enums import (
+from hr.choices import (
     PaymentType, 
     PaymentPeriod, 
     ContractType,

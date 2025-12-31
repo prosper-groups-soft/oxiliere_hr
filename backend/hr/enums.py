@@ -1,88 +1,92 @@
-from enum import Enum
-from utils_mixins.mixins_cls import EnumValuesMixin
+from django.db.models import TextChoices
+from django.utils.translation import gettext_lazy as _
 
 
-class DegreeEnum(str, EnumValuesMixin, Enum):
-    BREVET = "brevet"
-    DIPLOMA = "diploma"
-    LICENSE = "license"
-    MASTER = "master"
-    PHD = "phd"
-    NOT_SPECIFIED = 'not specified'
+
+class DegreeEnum(TextChoices):
+    BREVET = "brevet", _('brevet')
+    DIPLOMA = "diploma", _('diploma')
+    LICENSE = "license", _('license')
+    MASTER = "master", _('master')
+    PHD = "phd", _('phd')
+    NOT_SPECIFIED = 'not specified', _('not specified')
 
 
-class GenderStatus(str, EnumValuesMixin, Enum):
-    MALE = "male"
-    FEMALE = "female"
-    NOT_SPECIFIED = "not specified"
+class GenderStatus(TextChoices):
+    MALE = "male", _('male')
+    FEMALE = "female", _('female')
+    NOT_SPECIFIED = "not specified", _('not specified')
 
 
-class MaritalStatus(str, EnumValuesMixin, Enum):
-    SINGLE = "single"
-    MARRIED = "married"
-    DIVORCED = "divorced"
-    WIDOW = "widow"
+class MaritalStatus(TextChoices):
+    SINGLE = "single", _('single')
+    MARRIED = "married", _('married')
+    DIVORCED = "divorced", _('divorced')
+    WIDOW = "widow", _('widow')
 
 
-class EmployeeStatus(str, EnumValuesMixin, Enum):
-    PERMANENT_WORKER = "permanent worker"
-    LABOR_TECHNICIAN = "labor technician"
-    LABOR_WORKER = "labor worker"
+class EmployeeStatus(TextChoices):
+    PERMANENT_WORKER = "pw", _('permanent worker')
+    COLLABORATOR = "col", _('collaborator')
+    CONSULTANT = "con", _('consultant')
+    INTERNSHIP = "int", _('internship')
+    FREELANCE = "fre", _('freelance')
+    TEMPORARY = "tmp", _('temporary')
 
 
-class RelationshipType(str, EnumValuesMixin, Enum):
-    PARENT = "parent"
-    CHILD = "child"
-    SIBLING = "sibling"
-    FRIEND = "friend"
-    SPOUSE = "spouse"
-    OTHER = "other"
+class RelationshipType(TextChoices):
+    PARENT = "parent", _('parent')
+    CHILD = "child", _('child')
+    SIBLING = "sibling", _('sibling')
+    FRIEND = "friend", _('friend')
+    SPOUSE = "spouse", _('spouse')
+    OTHER = "other", _('other')
 
 
-class AttendanceStatus(str, EnumValuesMixin, Enum):
-    PRESENT = "present"
-    ABSENT = "absent"
-    LATE = "late"
-    EXCUSED = "excused"
-    HOLIDAY = "holiday"
+class AttendanceStatus(TextChoices):
+    PRESENT = "present", _('present')
+    ABSENT = "absent", _('absent')
+    LATE = "late", _('late')
+    EXCUSED = "excused", _('excused')
+    HOLIDAY = "holiday", _('holiday')
 
 
-class UpdateAttendanceStatus(str, EnumValuesMixin, Enum):
-    PRESENT = "present"
-    ABSENT = "absent"
-    EXCUSED = "excused"
+class UpdateAttendanceStatus(TextChoices):
+    PRESENT = "present", _('present')
+    ABSENT = "absent", _('absent')
+    EXCUSED = "excused", _('excused')
 
 
-class CalendarEventType(str, EnumValuesMixin, Enum):
-    HOLIDAY = "holiday"
-    MEETING = "meeting"
-    TRAINING = "training"
-    BIRTHDAY = "birthday"
-    DEADLINE = "deadline"
-    OTHER = "other"
+class CalendarEventType(TextChoices):
+    HOLIDAY = "holiday", _('holiday')
+    MEETING = "meeting", _('meeting')
+    TRAINING = "training", _('training')
+    BIRTHDAY = "birthday", _('birthday')
+    DEADLINE = "deadline", _('deadline')
+    OTHER = "other", _('other')
 
 
-class PaymentType(str, EnumValuesMixin, Enum):
-    FIXED = "fixed"
-    HOURLY = "hourly"
+class PaymentType(TextChoices):
+    FIXED = "fixed", _('fixed')
+    HOURLY = "hourly", _('hourly')
 
 
-class ContractType(str, EnumValuesMixin, Enum):
-    CDI = "cdi"
-    CDD = "cdd"
-    INTERNSHIP = "internship"
-    FREELANCE = "freelance"
-    TEMPORARY = "temporary"
+class ContractType(TextChoices):
+    CDI = "cdi", _('cdi')
+    CDD = "cdd", _('cdd')
+    INTERNSHIP = "internship", _('internship')
+    FREELANCE = "freelance", _('freelance')
+    TEMPORARY = "temporary", _('temporary')
 
 
-class PaymentPeriod(str, EnumValuesMixin, Enum):
-    DAILY = "DAILY daily"
-    PER_TASK = "per_task"
-    MONTHLY = "monthly"
+class PaymentPeriod(TextChoices):
+    DAILY = "daily", _('daily')
+    PER_TASK = "per_task", _('per task')
+    MONTHLY = "monthly", _('monthly')
 
 
-class PayslipStatus(str, EnumValuesMixin, Enum):
-    CONFIRMED = "confirmed"
-    PAID = "paid"
-    CANCELED = "canceled"
-    REVIEW = "review"
+class PayslipStatus(TextChoices):
+    CONFIRMED = "confirmed", _('confirmed')
+    PAID = "paid", _('paid')
+    CANCELED = "canceled", _('canceled')
+    REVIEW = "review", _('review')

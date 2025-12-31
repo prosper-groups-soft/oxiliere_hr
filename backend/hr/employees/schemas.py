@@ -1,5 +1,9 @@
 from typing import Optional
+from datetime import date
 from ninja.orm import ModelSchema
+from ninja import Field
+from django.db.models import Q
+from utils_mixins.schemas import LightUserDetailOut, BaseFilter
 from .models import (
     EmployeeAddress,
     Employee,
@@ -7,229 +11,247 @@ from .models import (
     EmployeeChildren,
     EmployeeEmergencyContact,
 )
-from utils_mixins.schemas import LightUserDetailOut
+<<<<<<< HEAD
+
+# ------------------ FIELD DICTIONARY --------------------
+MODEL_FIELDS = {
+    "address": [
+        "number", 
+        "street", 
+        "municipality", 
+        "city", 
+        "province", 
+        "country", 
+        "country_code"
+    ],
+    "employee": [
+        "first_name", 
+        "middle_name", 
+        "last_name", 
+        "matricule", 
+        "email", 
+        "phone",
+        "gender", 
+        "birthdate", 
+        "is_active", 
+        "marital_status", 
+        "description",
+        "can_connect", 
+        "user", 
+        "address"
+    ],
+    "children": [
+        "first_name", 
+        "middle_name", 
+        "last_name", 
+        "gender", 
+        "birthdate",
+        "parent"
+    ],
+    "education": [
+        "institute", 
+        "degree", 
+        "major", 
+        "start_year", 
+        "end_year", 
+        "location"
+    ],
+    "emergency_contact": [
+        "first_name", 
+        "middle_name", 
+        "last_name", 
+        "phone", 
+        "relation", 
+        "priority"
+    ],
+}
+=======
+from hr.schemas import LightUserDetailOut
 from datetime import date
-from utils_mixins.schemas import BaseSearchFilter
+from hr.schemas import BaseSearchFilter
+>>>>>>> d9d914b (add: oxiliere tenant)
 
 
-# ---------------------  Address Schemas  -----------------------
-EMPL_ADDR_FIELDS = [
-    'number',
-    'street',
-    'municipality',
-    'city',
-    'province',
-    'country',
-    'country_code',
-]
+# ------------------ Address Schemas --------------------
 class EmployeeAddressCreateIn(ModelSchema):
-    
+
     class Meta:
         model = EmployeeAddress
-        fields = EMPL_ADDR_FIELDS
-        fields_optional = '__all__'
+        fields = MODEL_FIELDS["address"]
+        fields_optional = "__all__"
 
 
-class EmployeeAddressUpdateIn(ModelSchema):
-    
-    class Meta:
-        model = EmployeeAddress
-        fields = EMPL_ADDR_FIELDS
-        fields_optional = '__all__'
+class EmployeeAddressUpdateIn(EmployeeAddressCreateIn):
+    pass
 
 
 class EmployeeAddressDetailOut(ModelSchema):
-    
+
     class Meta:
         model = EmployeeAddress
-        fields = ['id'] + EMPL_ADDR_FIELDS
+        fields = ["id"] + MODEL_FIELDS["address"]
 
-        
-# -----------------  Employee Schemas  ----------------------
-EMPL_FIELDS = [
-    'first_name',
-    'middle_name',
-    'last_name',
-    'matricule',
-    'email',
-    'phone',
-    'gender',
-    'birthdate',
-    'is_active',
-    'marital_status',
-    'description',
-    'can_connect',
-    'user',
-    'address',
-]
+
+# ------------------ Employee Schemas -------------------
 class EmployeeCreateIn(ModelSchema):
-
 
     class Meta:
         model = Employee
-        fields = EMPL_FIELDS
-        fields_optional = ['user', 'address', 'matricule']
+        fields = MODEL_FIELDS["employee"]
+        fields_optional = ["user", "address", "matricule"]
 
 
 class EmployeeUpdateIn(ModelSchema):
-    
+
     class Meta:
         model = Employee
-        fields = EMPL_FIELDS
-        fields_optional = '__all__'
+        fields = MODEL_FIELDS["employee"]
+        fields_optional = "__all__"
 
 
 class EmployeeDetailOut(ModelSchema):
-
     user: Optional[LightUserDetailOut] = None
     address: Optional[EmployeeAddressDetailOut] = None
 
     class Meta:
         model = Employee
-        fields = ['id'] + EMPL_FIELDS
-        
-        
+        fields = ["id"] + MODEL_FIELDS["employee"]
+
 
 class EmployeeListOut(ModelSchema):
     user: Optional[LightUserDetailOut] = None
-    
+
     class Meta:
         model = Employee
-        fields = ['id'] + [f for f in EMPL_FIELDS if f != 'address']
+        fields = ["id"] + [f for f in MODEL_FIELDS["employee"] if f != "address"]
 
 
 class EmployeeFullProfileOut(EmployeeDetailOut):
-    children: list['EmployeeChildrenDetailOut']
-    educations: list['EmployeeEducationDetailOut']
-    emergency_contacts: list['EmployeeEmergencyContactDetailOut']
+    children: list["EmployeeChildrenDetailOut"]
+    educations: list["EmployeeEducationDetailOut"]
+    emergency_contacts: list["EmployeeEmergencyContactDetailOut"]
 
 
-class EmployeeFilterIn(BaseSearchFilter):
+class EmployeeFilterIn(BaseFilter):
     gender: Optional[str] = None
     marital_status: Optional[str] = None
-    
-    # ---- temporal bounds ----
-    born_before: Optional[date] = None
-    born_after: Optional[date] = None
+    is_active: Optional[bool] = Field(None, alias="active_only")
+    born_before: Optional[date] = Field(None, q="birthdate__lte")
+    born_after: Optional[date] = Field(None, q="birthdate__gte")
+
+    def filter_search(self, value: str) -> Q:
+        return Q(
+            Q(first_name__icontains=value) |
+            Q(last_name__icontains=value) |
+            Q(middle_name__icontains=value) |
+            Q(email__icontains=value) |
+            Q(phone__icontains=value)
+        )
 
 
-# ----------------  Emergency Contact Schemas  ---------------
-EMPL_EMERG_CONTACT_FIEDS = [
-    'first_name',
-    'middle_name',
-    'last_name',
-    'phone',
-    'relation',
-    'priority'
-]
+# ------------------ Emergency Contact Schemas -----------
 class EmployeeEmergencyContactCreateIn(ModelSchema):
-    
+
     class Meta:
         model = EmployeeEmergencyContact
-        fields = EMPL_EMERG_CONTACT_FIEDS
-        fields_optional = [
-            'phone',
-            'relation',
-            'middle_name',
-            'priority',
-        ]
+        fields = MODEL_FIELDS["emergency_contact"]
+        fields_optional = ["phone", "relation", "middle_name", "priority"]
 
 
 class EmployeeEmergencyContactUpdateIn(ModelSchema):
 
     class Meta:
         model = EmployeeEmergencyContact
-        fields = EMPL_EMERG_CONTACT_FIEDS
-        
-        fields_optional = '__all__'
+        fields = MODEL_FIELDS["emergency_contact"]
+        fields_optional = "__all__"
 
 
 class EmployeeEmergencyContactDetailOut(ModelSchema):
 
     class Meta:
         model = EmployeeEmergencyContact
-        fields = ['id'] + EMPL_EMERG_CONTACT_FIEDS
+        fields = ["id"] + MODEL_FIELDS["emergency_contact"]
 
 
-class EmployeeEmergencyContactFilterIn(BaseSearchFilter):
-    pass
+class EmployeeEmergencyContactFilterIn(BaseFilter):
 
-# ----------------  Children Schemas  ------------------------
-EMPL_CHILDREN_FIELDS = [
-    'first_name',
-    'middle_name',
-    'last_name',
-    'gender',
-    'birthdate',
-    'parent',
-]
+    def filter_search(self, value: str) -> Q:
+        return Q(
+            Q(first_name__icontains=value) |
+            Q(middle_name__icontains=value) |
+            Q(last_name__icontains=value) |
+            Q(phone__icontains=value)
+        )
+
+
+# ------------------ Children Schemas -------------------
 class EmployeeChildrenCreateIn(ModelSchema):
-    
+
     class Meta:
         model = EmployeeChildren
-        fields = [ f for f in EMPL_CHILDREN_FIELDS if f != "parent"]
-        fields_optional = [
-            'middle_name',
-            'birthdate',
-            'gender',
-        ]
+        fields = [f for f in MODEL_FIELDS["children"] if f != "parent"]
+        fields_optional = ["middle_name", "birthdate", "gender"]
 
 
 class EmployeeChildrenUpdateIn(ModelSchema):
-    
+
     class Meta:
         model = EmployeeChildren
-        fields = EMPL_CHILDREN_FIELDS
-        
-        fields_optional = '__all__'
+        fields = MODEL_FIELDS["children"]
+        fields_optional = "__all__"
 
 
 class EmployeeChildrenDetailOut(ModelSchema):
 
     class Meta:
         model = EmployeeChildren
-        fields = ['id'] + EMPL_CHILDREN_FIELDS
+        fields = ["id"] + MODEL_FIELDS["children"]
 
 
-class EmployeeChildrenFilterIn(BaseSearchFilter):
+class EmployeeChildrenFilterIn(BaseFilter):
+
     gender: Optional[str] = None
 
+    def filter_search(self, value: str) -> Q:
+        return Q(
+            Q(first_name__icontains=value) |
+            Q(middle_name__icontains=value) |
+            Q(last_name__icontains=value)
+        )
 
-# ----------------  Education Schemas   ---------------------
-EMPL_EDUCATION_FIELDS = [
-    'institute',
-    'degree',
-    'major',
-    'start_year',
-    'end_year',
-    'location',
-]
+
+# ------------------ Education Schemas ------------------
 class EmployeeEducationCreateIn(ModelSchema):
-    
+
     class Meta:
         model = EmployeeEducation
-        fields = EMPL_EDUCATION_FIELDS
-        fields_optional = ['degree', 'major']
+        fields = MODEL_FIELDS["education"]
+        fields_optional = ["degree", "major"]
 
 
 class EmployeeEducationUpdateIn(ModelSchema):
-    
+
     class Meta:
         model = EmployeeEducation
-        fields = EMPL_EDUCATION_FIELDS
-        fields_optional = '__all__'
+        fields = MODEL_FIELDS["education"]
+        fields_optional = "__all__"
 
 
 class EmployeeEducationDetailOut(ModelSchema):
 
     class Meta:
         model = EmployeeEducation
-        fields = ['id'] + EMPL_EDUCATION_FIELDS
+        fields = ["id"] + MODEL_FIELDS["education"]
 
-      
-class EmployeeEducationFilterIn(BaseSearchFilter):
+
+class EmployeeEducationFilterIn(BaseFilter):
 
     degree: Optional[str] = None
-    gender: Optional[str] = None
-    
-    
+
+    def filter_search(self, value: str) -> Q:
+        return Q(
+            Q(institute__icontains=value) |
+            Q(major__icontains=value) |
+            Q(location__icontains=value)
+        )
+

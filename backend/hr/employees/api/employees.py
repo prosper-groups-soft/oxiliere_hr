@@ -25,11 +25,14 @@ from hr.employees.services import (
     EmployeeReaderService,
     EmployeeAddressService
 )
-from hr.cursor_pagination import CursorPagination
+from oxutils.pagination.cursor import CursorPagination
 
 
 
-@api_controller("/employees", tags=["Employee"])
+@api_controller(
+    "/employees", 
+    tags=["Employee"]
+)
 class EmployeeAPI(ControllerBase):
     """API for employee"""
 
@@ -48,7 +51,7 @@ class EmployeeAPI(ControllerBase):
             return employee
         except ObjectDoesNotExist:
             raise HttpError(404, "Employee not found")
-    
+        
     @route.get("/", response=List[EmployeeListOut])
     @paginate(CursorPagination)
     def get_employees(

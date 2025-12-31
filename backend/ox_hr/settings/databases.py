@@ -1,29 +1,21 @@
-"""
-Database settings for core project.
-"""
-from .base import BASE_DIR
+import os
+import dj_database_url
 
 
-# --- TEST Configuration (SQLite3) ---
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+DATABASE_ROUTERS = (
+    'django_tenants.routers.TenantSyncRouter',
+)
+
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    "default": dj_database_url.config(
+        default=DATABASE_URL,
+        engine='django_tenants.postgresql_backend'
+    )
 }
 
 
-# --- Old Configuration (PostgreSQL / Tenants) ---
-# DATABASE_URL = os.environ.get("DATABASE_URL")
-
-# DATABASES = {
-#     "default": dj_database_url.config(
-#         default=DATABASE_URL,
-#         engine='django_tenants.postgresql_backend'
-#     )
-# }
-
-# DATABASE_ROUTERS = (
-#     'django_tenants.routers.TenantSyncRouter',
-# )
-
+TENANT_MODEL = 'core.Tenant'
+TENANT_DOMAIN_MODEL = 'core.Domain'
+TENANT_USER_MODEL = 'core.TenantUser'

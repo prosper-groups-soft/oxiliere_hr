@@ -1,3 +1,4 @@
+from uuid import UUID
 from django.db import transaction
 from django.db.models import Count
 from hr.employees.models import Employee
@@ -7,7 +8,7 @@ from hr.leaves.exceptions import (
     LeaveOverlapError,
     LeaveWorkflowError
 )
-from hr.leaves.enums import LeaveStatus
+from hr.leaves.choices import LeaveStatus
 from .base import LeaveOverlapService
 
 
@@ -20,22 +21,22 @@ class LeaveEmployeeReaderService:
         return LeaveEmployee.objects.select_related("leave", "employee")
 
     @classmethod
-    def get_by_id(cls, pk):
+    def get_leave_for_employee(cls, pk):
         """Return a single LeaveEmployee by primary key."""
         return cls.base_queryset().get(id=pk)
 
     @classmethod
-    def list_by_employee(cls, employee: Employee):
+    def get_leaves_for_employee(cls, employee_id: UUID):
         """List all leave assignments for a given employee."""
-        return cls.base_queryset().filter(employee=employee)
+        return cls.base_queryset().filter(employee=employee_id)
 
     @classmethod
-    def list_by_leave(cls, leave: Leave):
+    def get_employees_for_leave(cls, leave: Leave):
         """List all employees assigned to a given leave."""
         return cls.base_queryset().filter(leave=leave)
 
     @classmethod
-    def list_by_period(cls, start_date, end_date):
+    def get_leaves_employees_in_period(cls, start_date, end_date):
         """List assignments whose leave overlaps a given period."""
         return cls.base_queryset().filter(
             leave__start_date__lte=end_date,
@@ -88,7 +89,7 @@ class LeaveEmployeeWriterService:
         )
 
     @classmethod
-    @transaction.atomic
+    @transaction.atomic 
     def bulk_assign(cls, leave: Leave, employees, created_by=None):
         """Assign multiple employees to the same leave."""
         for employee in employees:
