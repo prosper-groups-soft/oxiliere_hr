@@ -1,15 +1,13 @@
 from typing import Optional
-from ninja import Schema
 from ninja.orm import ModelSchema
 from django.contrib.auth import get_user_model
 from ninja import FilterSchema
 
 
 User = get_user_model()
-
     
 
-class LightUserDetailOut(ModelSchema):
+class LightUserOut(ModelSchema):
 
     class Meta:
         model = User
@@ -19,3 +17,4 @@ class LightUserDetailOut(ModelSchema):
 
 class BaseFilter(FilterSchema):
     search: Optional[str] = None
+

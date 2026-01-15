@@ -18,5 +18,14 @@ from .permissions import *
 from .locale import *
 from .email import *
 from .static import *
+from .logging import *
+from .celery import *
 
 from oxutils.logger.settings import *
+
+
+# Add the logging config define by oxutils
+for key in ['formatters', 'handlers', 'loggers']:
+    if key in HR_LOGGING_CONFIG:
+        LOGGING.setdefault(key, {}).update(HR_LOGGING_CONFIG[key])
+

@@ -1,160 +1,380 @@
+from decimal import Decimal
 from django.conf import settings
 from django.db import models
-from django.core.exceptions import ValidationError
+from django.utils.translation import gettext_lazy as _
+from auditlog.registry import auditlog
+
 from hr.employees.models import Employee
-<<<<<<< HEAD
-from utils_mixins.models import BaseModelMixin
-from utils_mixins.fn import enum_to_choices
-from .choices import LeaveStatus, LeaveType
-=======
-from oxutils.models import BaseModelMixin
-from .enums import LeaveStatus, LeaveType
->>>>>>> d9d914b (add: oxiliere tenant)
+from hr.models import BaseAuditableModel
+from hr.enums import (
+    LeaveCategory, 
+    LeaveStatus, 
+    CircumstanceType, 
+    CountryCode
+)
+from hr.utils import get_country_codes
 
 
-class Leave(BaseModelMixin):
+# --- HR CONFIGURATION ---
+
+class LeavePolicy(BaseAuditableModel):
     """
-    Represents a leave request in the system.
+    Global annual leave configuration.
+    Defines the base foundation for all employees.
     """
-
-    applicable_to = models.ManyToManyField(
-        Employee,
-        through="LeaveEmployee",
-        related_name="leaves",
-        verbose_name="Applicable Employees",
-        blank=True,
+    name = models.CharField(max_length=100)
+    country_code = models.CharField(
+        max_length=2,
+        choices=get_country_codes(),
+        default=CountryCode.DRC,
+        unique=True
+    )
+    
+    # Base number of days (e.g., 18 days or 30 days per year)
+    standard_annual_days = models.PositiveIntegerField(
+        default=18,
+        help_text=_("Number of base annual leave days per year.")
     )
 
-    approved_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="approved_leaves",
-        verbose_name="Approved By",
+    # --- Carry-over Configuration ---
+    allows_carry_over = models.BooleanField(default=False)
+    max_carry_over_days = models.PositiveIntegerField(
+        default=10, 
+        help_text=_("Maximum number of days an employee can carry over to the next year.")
     )
-    approved_at = models.DateTimeField(null=True, blank=True)
-
-    start_date = models.DateField(verbose_name="Start Date")
-    end_date = models.DateField(verbose_name="End Date")
-    reason = models.TextField(null=True, blank=True, verbose_name="Reason")
-
-    everyone = models.BooleanField(default=False, verbose_name="Applies to Everyone")
-    paid = models.BooleanField(default=False, verbose_name="Paid")
-
-    leave_type = models.CharField(
-        max_length=50,
-        choices=LeaveType.choices,
-        default=LeaveType.ANNUAL.value,
-        verbose_name="Leave Type",
-    )
-
-    status = models.CharField(
-        max_length=20,
-        choices=LeaveStatus.choices,
-        default=LeaveStatus.PENDING.value,
-        verbose_name="Status",
+    carry_over_expiration_month = models.PositiveIntegerField(
+        default=3,
+        help_text=_("Month (1–12) when carry-over expires, e.g. 3 = March 31 of the following year.")
     )
 
     class Meta:
-        verbose_name = "Leave"
-        verbose_name_plural = "Leaves"
-        ordering = ["-start_date"]
+        db_table = "leav_leave_policy"
+        verbose_name_plural = "Leave Policies"
         constraints = [
-            # Ensure start_date is before or equal to end_date
+            # Valid expiration month (January to December)
             models.CheckConstraint(
-                condition=models.Q(start_date__lte=models.F("end_date")),
-                name="leave_start_before_end",
-            ),
-            # Ensure approved leaves have approver and approval date, others do not
-            models.CheckConstraint(
-                condition=(
-                    models.Q(
-                        status=LeaveStatus.APPROVED.value,
-                        approved_by__isnull=False,
-                        approved_at__isnull=False
-                    ) |
-                    models.Q(
-                        status__in=[
-                            LeaveStatus.PENDING.value,
-                            LeaveStatus.REJECTED.value,
-                            LeaveStatus.CANCELLED.value,
-                        ],
-                        approved_by__isnull=True,
-                        approved_at__isnull=True
-                    )
+                condition=models.Q(
+                    carry_over_expiration_month__gte=1,
+                    carry_over_expiration_month__lte=12
                 ),
-                name="leave_approval_consistency",
+                name="valid_expiration_month"
             )
         ]
-        indexes = [
-            models.Index(fields=["start_date", "end_date"]),
-            models.Index(fields=["status"]),
-            models.Index(fields=["everyone"]),
+
+    def __str__(self):
+        return f"{self.name} ({self.country_code})"
+
+
+class SeniorityRule(BaseAuditableModel):
+    """
+    Rules for granting bonus days based on seniority.
+    Example: +1 day after 3 years, +2 days after 5 years.
+    """
+    policy = models.ForeignKey(
+        LeavePolicy,
+        on_delete=models.CASCADE,
+        related_name="seniority_rules"
+    )
+    years_of_service = models.PositiveIntegerField(
+        help_text=_("Required years of service.")
+    )
+    bonus_days = models.PositiveIntegerField(
+        help_text=_("Additional leave days granted.")
+    )
+
+    class Meta:
+        db_table = "leav_seniority_rule"
+        ordering = ['years_of_service']
+        constraints = [
+            # Prevent duplicate seniority rules for the same policy
+            models.UniqueConstraint(
+                fields=['policy', 'years_of_service'], 
+                name="unique_seniority_per_policy"
+            )
         ]
 
-    def clean(self):
-        """Validate start/end dates and approval consistency."""
-        super().clean()
-        if self.start_date and self.end_date and self.start_date > self.end_date:
-            raise ValidationError("Start date must be before or equal to end date.")
 
-        if self.status == LeaveStatus.APPROVED.value:
-            if not self.approved_by or not self.approved_at:
-                raise ValidationError("Approved leave must have approver and approval date.")
-
-        if self.everyone and self.applicable_to.exists():
-            raise ValidationError("Leave cannot be set to 'everyone' while also having specific employees.")
-
-    @property
-    def total_days(self) -> int:
-        """Returns the total number of calendar days of the leave."""
-        return (self.end_date - self.start_date).days + 1
-
-    def __str__(self) -> str:
-        return f"{LeaveType(self.leave_type).name} ({self.start_date} → {self.end_date})"
-
-
-class LeaveEmployee(BaseModelMixin):
+class CircumstanceLeaveRule(BaseAuditableModel):
     """
-    Through model linking Employees to Leaves.
+    Defines the fixed duration for each type of special (circumstance) leave.
+    Configured by HR.
     """
+    policy = models.ForeignKey(LeavePolicy, on_delete=models.CASCADE)
+    type = models.CharField(
+        max_length=50,
+        choices=CircumstanceType.choices
+    )
+    duration_days = models.PositiveIntegerField()
+    is_paid = models.BooleanField(default=True)
 
+    class Meta:
+        db_table = "leav_circumstance_leave_rule"
+        unique_together = ("policy", "type")
+        indexes = [
+            models.Index(fields=['policy', 'type']),
+        ]
+
+
+# --- BALANCE TRACKING (ENTITLEMENTS) ---
+
+class LeaveBalance(BaseAuditableModel):
+    """
+    Employee leave balance for a given year.
+    Manages annual expiration and prorated calculation upon hire date.
+    """
     employee = models.ForeignKey(
         Employee,
         on_delete=models.CASCADE,
-        related_name="employee_leaves",
-        verbose_name="Employee",
+        related_name="balances"
     )
-    leave = models.ForeignKey(
-        Leave,
-        on_delete=models.CASCADE,
-        related_name="leaves_employees",
-        verbose_name="Leave",
+    year = models.PositiveIntegerField()
+
+    # Calculated at creation (prorated if starting mid-year)
+    base_entitlement = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0
     )
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="%(app_label)s_%(class)s_created_by",
-        verbose_name="Created By",
+    seniority_bonus = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0
     )
 
+    # Days already used
+    used_days = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0
+    )
+
+    @property
+    def total_granted(self):
+        return self.base_entitlement + self.seniority_bonus
+
+    @property
+    def remaining_days(self):
+        return self.total_granted - self.used_days
+
     class Meta:
-        verbose_name = "Leave Assignment"
-        verbose_name_plural = "Leave Assignments"
+        db_table = "leav_leave_balance"
+        unique_together = ("employee", "year")
         indexes = [
-            models.Index(fields=["employee", "leave"]),
-            models.Index(fields=["employee"]),
-            models.Index(fields=["leave"]),
+            models.Index(fields=['employee', 'year']),
         ]
         constraints = [
-            models.UniqueConstraint(
-                fields=["leave", "employee"],
-                name="unique_leave_employee"
+            models.CheckConstraint(
+                condition=models.Q(
+                    used_days__lte=models.F('base_entitlement') + models.F('seniority_bonus')
+                ),
+                name="used_days_within_limit"
+            ),
+            # Entitlement cannot be negative
+            models.CheckConstraint(
+                condition=models.Q(base_entitlement__gte=0),
+                name="positive_base_entitlement"
             )
         ]
 
-    def __str__(self) -> str:
-        return f"{self.employee} → {self.leave}"
+
+class LeaveCarryOver(BaseAuditableModel):
+    """
+    Represents leave days carried over from a previous year for an employee,
+    tracking usage and expiration.
+    """
+    employee = models.ForeignKey(
+        Employee,
+        on_delete=models.CASCADE,
+        related_name="carry_overs"
+    )
+
+    source_year = models.PositiveIntegerField(
+        help_text=_("Year from which the leave was carried over.")
+    )
+
+    days = models.DecimalField(
+        max_digits=6,
+        decimal_places=2
+    )
+
+    used_days = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        default=Decimal("0")
+    )
+
+    expires_at = models.DateField()
+
+    class Meta:
+        db_table = "leav_leave_carry_over"
+        unique_together = ("employee", "source_year")
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(used_days__lte=models.F('days')),
+                name="carryover_used_days_within_limit"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(days__gt=0),
+                name="positive_carryover_days"
+            )
+        ]
+
+
+# --- TRANSACTIONS (REQUESTS) ---
+
+class LeaveRequest(BaseAuditableModel):
+    """
+    Leave request (annual or special/circumstance).
+    Supports splitting across multiple records if needed.
+    """
+    employee = models.ForeignKey(
+        Employee,
+        on_delete=models.CASCADE,
+        related_name="leave_requests"
+    )
+    category = models.CharField(
+        max_length=20,
+        choices=LeaveCategory.choices
+    )
+    
+    # For special (circumstance) leave
+    circumstance_type = models.CharField(
+        max_length=50,
+        choices=CircumstanceType.choices,
+        null=True,
+        blank=True
+    )
+    
+    start_date = models.DateField()
+    end_date = models.DateField()
+    
+    # Number of effective leave days (excluding public holidays, weekends, closures)
+    requested_days = models.DecimalField(
+        max_digits=5,
+        decimal_places=2
+    )
+    
+    status = models.CharField(
+        max_length=20,
+        choices=LeaveStatus.choices,
+        default=LeaveStatus.PENDING
+    )
+    
+    # Supporting document (mandatory for special leave)
+    attachment = models.FileField(
+        upload_to='leave_proofs/%Y/',
+        null=True,
+        blank=True
+    )
+    
+    comment = models.TextField(blank=True)
+
+    class Meta:
+        db_table = "leav_leave_request"
+        indexes = [
+            models.Index(fields=['employee', 'status']),
+            models.Index(fields=['start_date', 'end_date']),
+        ]
+        constraints = [
+            # End date must be on or after start date
+            models.CheckConstraint(
+                condition=models.Q(end_date__gte=models.F('start_date')),
+                name="leave_start_before_end"
+            ),
+            # Requested days must be positive
+            models.CheckConstraint(
+                condition=models.Q(requested_days__gt=0),
+                name="positive_requested_days"
+            )
+        ]
+
+
+class LeaveRecall(BaseAuditableModel):
+    """
+    Manages employee recall from leave.
+    Triggers re-crediting of unused leave days.
+    """
+    leave_request = models.ForeignKey(
+        LeaveRequest,
+        on_delete=models.CASCADE,
+        related_name="recalls"
+    )
+
+    recall_date = models.DateField(
+        help_text=_("Date on which the employee must return to work.")
+    )
+
+    reason = models.TextField(
+        help_text=_("Reason for recalling the employee.")
+    )
+
+    recalled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="leave_recalls",
+        help_text=_("User who initiated the recall.")
+    )
+
+    class Meta:
+        db_table = "leav_leave_recall"
+        indexes = [
+            models.Index(fields=['leave_request', 'recall_date']),
+        ]
+
+
+# --- CALENDAR ---
+
+class PublicHoliday(BaseAuditableModel):
+    """Statutory public holidays."""
+    name = models.CharField(max_length=100)
+    date = models.DateField()
+    country_code = models.CharField(
+        max_length=2,
+        choices=get_country_codes(),
+        default=CountryCode.DRC
+    )
+    is_recurring = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "leav_public_holiday"
+        indexes = [
+            models.Index(fields=['date', 'country_code']),
+        ]
+        constraints = [
+            # A public holiday must be unique per date and country
+            models.UniqueConstraint(
+                fields=['date', 'country_code'],
+                name="unique_holiday_per_country_date"
+            )
+        ]
+
+
+class CompanyClosing(BaseAuditableModel):
+    """Exceptional company-wide closing days."""
+    name = models.CharField(max_length=100)
+    start_date = models.DateField()
+    end_date = models.DateField()
+
+    class Meta:
+        db_table = "leav_company_closing"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(end_date__gte=models.F('start_date')),
+                name="closing_start_before_end"
+            )
+        ]
+
+
+# --- AUDIT LOG REGISTRATION ---
+
+auditlog.register(LeavePolicy)
+auditlog.register(SeniorityRule)
+auditlog.register(CircumstanceLeaveRule)
+auditlog.register(LeaveBalance)
+auditlog.register(LeaveRequest)
+auditlog.register(LeaveRecall)
+auditlog.register(PublicHoliday)
+auditlog.register(CompanyClosing)
+

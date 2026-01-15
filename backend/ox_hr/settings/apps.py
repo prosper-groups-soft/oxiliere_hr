@@ -1,6 +1,18 @@
 from .base import BASE_DIR
 
 
+HR_MODULES = [
+    'hr',
+    'hr.employees',
+    'hr.leaves',
+    'hr.attendance',
+    'hr.jobs',
+    'hr.recruitment',
+    'hr.banking',
+    'hr.calendar',
+]
+
+
 SHARED_APPS = [
     'django_tenants',
     'cacheops',
@@ -14,6 +26,7 @@ SHARED_APPS = [
     'django_filters',
     'safedelete',
     'django_celery_results',
+    'django_celery_beat',
     'oxutils',
     'oxutils.users',
     'oxutils.currency',
@@ -23,15 +36,17 @@ SHARED_APPS = [
     'ninja_jwt',
 ]
 
-TENANT_APPS = [
-    'hr',
+
+TENANT_APPS = HR_MODULES + [
     'auditlog',
     'oxutils.audit',
     'oxutils.permissions',
     'sequences',
-]
+] 
+
 
 INSTALLED_APPS = SHARED_APPS + TENANT_APPS
+
 
 MIDDLEWARE = [
     'oxutils.oxiliere.middleware.TenantMainMiddleware',
@@ -48,7 +63,9 @@ MIDDLEWARE = [
     'ninja.compatibility.files.fix_request_files_middleware',
 ]
 
+
 ROOT_URLCONF = 'ox_hr.urls'
+
 
 TEMPLATES = [
     {
@@ -66,5 +83,7 @@ TEMPLATES = [
     },
 ]
 
+
 WSGI_APPLICATION = 'ox_hr.wsgi.application'
 ASGI_APPLICATION = 'ox_hr.asgi.application'
+

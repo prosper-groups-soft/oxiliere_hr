@@ -4,7 +4,9 @@ from .base import BASE_DIR
 
 LANGUAGE_CODE = 'fr-FR'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Africa/Lubumbashi'
+
+USE_TZ = True
 
 USE_I18N = True
 

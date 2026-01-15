@@ -100,5 +100,3 @@ NINJA_EXTRA={
 SITE_NAME = os.environ.get('OXI_SITE_NAME', 'Oxiliere')
 SITE_DOMAIN = os.environ.get('OXI_SITE_DOMAIN', 'oxiliere.com')
 
-
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

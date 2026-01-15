@@ -1,89 +1,96 @@
-from uuid import UUID
-<<<<<<< HEAD
+import logging
+from typing import Any, Dict
 from django.db import transaction
-from django.db.models import QuerySet
-=======
-from django.db import transaction, models
->>>>>>> d9d914b (add: oxiliere tenant)
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError
+
 from hr.employees.models import Employee, EmployeeEducation
-from hr.employees.schemas import EmployeeEducationFilterIn
-from hr.choices import DegreeChoices
-from hr.utils.fn import update_instance
+from hr.utils import update_instance
 
 
-class EmployeeEducationWriterService:
+logger = logging.getLogger(__name__)
+
+
+class EmployeeEducationService:
     """
-    Handles creation, update, and deletion of employee academic records.
+    Service managing academic backgrounds and qualifications.
+    Ensures data aligns with DRC's LMD educational framework.
     """
 
-    @staticmethod
     @transaction.atomic
-    def add_education(employee_id: UUID, **data) -> EmployeeEducation:        
+    def add_education(
+        self, 
+        employee: Employee, 
+        data: Dict[str, Any], 
+        actor: Any = None
+    ) -> EmployeeEducation:
         """
-        Adds a new academic record for the given employee.
-        """
-        degree = data.get("degree")
-        if degree and degree not in DegreeChoices.values:
-            raise ValueError(f"{degree!r} is not a valid DegreeChoices")
-            
-        # Ensure employee exists (raises Employee.DoesNotExist)
-        employee = Employee.objects.get(id=employee_id)
-        return EmployeeEducation.objects.create(employee=employee, **data)
-
-    @staticmethod
-    @transaction.atomic
-    def update_education(education_id: UUID, **kwargs) -> EmployeeEducation:
-        """
-        Updates allowed fields of an academic record.
-        """
-        education = EmployeeEducation.objects.get(id=education_id)
-
-        if "degree" in kwargs and kwargs["degree"] not in DegreeChoices.values:
-            raise ValueError(f"Invalid degree: {kwargs['degree']}")
-
-        return update_instance(
-            instance=education,
-            allowed_fields={
-                "institute",
-                "degree",
-                "major",
-                "start_year",
-                "end_year",
-                "location",
-            },
-            data=kwargs,
-        )
-
-    @staticmethod
-    @transaction.atomic
-    def remove_education(education_id: UUID) -> None:
-        """
-        Deletes an academic record.
-        """
-        count, _ = EmployeeEducation.objects.filter(id=education_id).delete()
-        if count == 0:
-            raise EmployeeEducation.DoesNotExist()
-
-
-class EmployeeEducationReaderService:
-    """
-    Handles retrieval and search of EmployeeEducation records.
-    """
-
-    @staticmethod
-    def get_education(education_id: UUID) -> EmployeeEducation:
-        return EmployeeEducation.objects.get(id=education_id)
-
-    @staticmethod
-<<<<<<< HEAD
-    def get_educations(*, employee_id: UUID, filters: EmployeeEducationFilterIn) -> QuerySet[EmployeeEducation]:
-=======
-    def get_educations(*, employee_id: UUID, filters: EmployeeEducationFilterIn) -> models.QuerySet[EmployeeEducation]:
+        Business Intent: Register a new academic degree or certification.
         
->>>>>>> d9d914b (add: oxiliere tenant)
-        # raises Employee.DoesNotExist if not found
-        Employee.objects.get(id=employee_id)
+        Rules:
+        - Validates chronological consistency (via model.clean()).
+        - Normalizes institute and major names.
+        - Handles potential duplicates (Unique constraint).
+        """
+        # Normalization
+        institute = data.get('institute', '')
+        major = data.get('major', '') if data.get('major') else None
 
-        qs = EmployeeEducation.objects.filter(employee_id=employee_id)
+        try:
+            education = EmployeeEducation.objects.create(
+                employee=employee,
+                institute=institute,
+                degree=data.get('degree'),
+                major=major,
+                start_year=data.get('start_year'),
+                end_year=data.get('end_year'),
+                location=data.get('location', ''),
+                created_by=actor
+            )
+            
+            logger.info(f"[EDU] Education added for {employee.matricule}: {education.degree} at {institute}")
+            return education
 
-        return filters.filter(qs)
+        except IntegrityError:
+            # Handle the unique_together constraint (employee, degree, institute)
+            raise ValidationError({
+                "degree": f"This employee already has a {data.get('degree')} recorded for this institute."
+            })
+
+    @transaction.atomic
+    def update_education(
+        self, 
+        education: EmployeeEducation, 
+        data: Dict[str, Any], 
+        actor: Any = None
+    ) -> EmployeeEducation:
+        """
+        Business Intent: Correct or update academic record details.
+        """
+        allowed_fields = [
+            'institute', 'degree', 'major', 
+            'start_year', 'end_year', 'location'
+        ]
+
+        update_instance(
+            instance=education,
+            allowed_fields=allowed_fields,
+            data=data
+        )
+        
+        education.updated_by = actor
+        education.save(update_fields=['updated_by'])
+        
+        logger.info(f"[EDU] Education record {education.id} updated by {actor}")
+        return education
+
+    @transaction.atomic
+    def remove_education(self, education: EmployeeEducation, actor: Any = None) -> None:
+        """
+        Business Intent: Remove an education record.
+        Uses Soft Delete via BaseAuditableModel.
+        """
+        education.updated_by = actor
+        education.delete()
+        logger.warning(f"[EDU] Education record {education.id} deleted by {actor}")
+        

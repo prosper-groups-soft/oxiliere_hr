@@ -14,3 +14,4 @@ class TenantUser(BaseTenantUser):
 
 class Domain(DomainMixin):
     pass
+

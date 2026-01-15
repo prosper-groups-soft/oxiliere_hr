@@ -1,128 +1,341 @@
-from datetime import date
+from typing import Optional, List
 from uuid import UUID
-from typing import Optional
-from ninja import Schema, Field
-from ninja.orm import ModelSchema
-from django.db.models import QuerySet, Q
+from datetime import date
+from decimal import Decimal
+from pydantic import field_validator, ValidationInfo
+from ninja import ModelSchema, FilterSchema, Field, Schema
+from django.db import models
 
-from hr.employees.schemas import EmployeeDetailOut
-from utils_mixins.schemas import LightUserDetailOut, BaseFilter
-from .models import Leave, LeaveEmployee
-
-
-# ------------------ FIELD DICTIONARY --------------------
-MODEL_FIELDS = {
-    "leave": [
-        "start_date",
-        "end_date",
-        "reason",
-        "everyone",
-        "paid",
-        "leave_type",
-        "status",
-        "approved_at",
-        "applicable_to_id",
-        "approved_by",
-    ],
-    "leave_employee": [
-        "employee_id",
-        "leave_id",
-        "created_by",
-    ],
-}
+from hr.schemas import BaseFilter
+from .models import (
+    LeavePolicy, 
+    SeniorityRule, 
+    CircumstanceLeaveRule, 
+    PublicHoliday, 
+    CompanyClosing, 
+    LeaveBalance, 
+    LeaveRequest, 
+    LeaveRecall
+)
+from hr.schemas import LightUserOut
 
 
-# --------------------- Leave Schemas -------------------------
-class LeaveCreateIn(ModelSchema):
-    """Input schema for creating a Leave record."""
+#  -------- Leave Policy -------- 
+class LeavePolicyOut(ModelSchema):
     class Meta:
-        model = Leave
-        fields = MODEL_FIELDS["leave"]
-        fields_optional = [
-            "reason",
-            "everyone",
-            "paid",
-            "leave_type",
-            "status",
-            "approved_at",
-            "applicable_to_id",
-            "approved_by",
+        model = LeavePolicy
+        fields = [
+            "id", 
+            "name", 
+            "country_code", 
+            "standard_annual_days",
+            "allows_carry_over",
+            "max_carry_over_days",
+            "carry_over_expiration_month"
         ]
 
 
-class LeaveUpdateIn(ModelSchema):
-    """Input schema for updating a Leave record."""
+class LeavePolicyCreate(ModelSchema):
     class Meta:
-        model = Leave
-        fields = MODEL_FIELDS["leave"]
+        model = LeavePolicy
+        fields = [
+            'name', 
+            'country_code', 
+            'standard_annual_days', 
+            'allows_carry_over', 
+            'max_carry_over_days'
+        ]
+
+
+class LeavePolicyUpdate(ModelSchema):
+    class Meta:
+        model = LeavePolicy
+        fields = [
+            'name', 
+            'standard_annual_days', 
+            'allows_carry_over',
+            'max_carry_over_days'
+        ]
         fields_optional = "__all__"
 
 
-class LeaveDetailOut(ModelSchema):
-    """Output schema representing detailed leave info."""
-    applicable_to: Optional[EmployeeDetailOut] = None
-    approved_by: Optional[LightUserDetailOut] = None
+#  -------- Public Holidays -------- 
+class PublicHolidayOut(ModelSchema):
+    class Meta:
+        model = PublicHoliday
+        fields = [
+            'id', 
+            'name', 
+            'date', 
+            'country_code', 
+            'is_recurring'
+        ]
+
+
+class PublicHolidayCreate(ModelSchema):
+    class Meta:
+        model = PublicHoliday
+        fields = [
+            'name', 
+            'date', 
+            'country_code', 
+            'is_recurring'
+        ]
+
+
+class PublicHolidayUpdate(PublicHolidayCreate):
+    class Meta(PublicHolidayCreate.Meta):
+        fields_optional = "__all__"
+
+
+class PublicHolidayFilter(BaseFilter):
+    country_code: Optional[str] = None
+    year: Optional[int] = Field(None, q='date__year')
+
+    def filter_search(self, value: str) -> models.Q:
+        return models.Q(name__icontains=value)
+        
+
+#  -------- Company Closings -------- 
+class CompanyClosingOut(ModelSchema):
+    class Meta:
+        model = CompanyClosing
+        fields = [
+            'id', 
+            'name', 
+            'start_date', 
+            'end_date'
+        ]
+        
+
+class CompanyClosingCreate(ModelSchema):
+    class Meta:
+        model = CompanyClosing
+        fields = [
+            'name', 
+            'start_date', 
+            'end_date'
+        ]
+        
+
+class CompanyClosingUpdate(CompanyClosingCreate):
+    class Meta(CompanyClosingCreate.Meta):
+        fields_optional = "__all__"
+    
+    
+class CompanyClosingFilter(BaseFilter):
+    # Find closings starting on or after this date
+    after: Optional[date] = Field(None, q='start_date__gte')
+    # Find closings ending on or before this date
+    before: Optional[date] = Field(None, q='end_date__lte')
+    
+    def filter_search(self, value: str) -> models.Q:
+        return models.Q(name__icontains=value)
+
+
+#  -------- Seniority Rules -------- 
+class SeniorityRuleOut(ModelSchema):
+    policy: LeavePolicyOut
+    
+    class Meta:
+        model = SeniorityRule
+        fields = ['id', 'years_of_service', 'bonus_days']
+
+
+class SeniorityRuleCreate(ModelSchema):
+    class Meta:
+        model = SeniorityRule
+        fields = ['years_of_service', 'bonus_days']
+
+
+class SeniorityRuleUpdate(SeniorityRuleCreate):
+    class Meta(SeniorityRuleCreate.Meta):
+        fields_optional = "__all__"
+
+
+class SeniorityRuleFilter(FilterSchema):
+    min_years: Optional[int] = Field(None, q='years_of_service__gte')
+    
+    # This field uses the custom method below
+    exact_years: Optional[int] = None
+
+    def filter_exact_years(self, value: int) -> models.Q:
+        """
+        Custom filter logic for an exact number of years of service.
+        """
+        return models.Q(years_of_service=value)
+
+
+#  -------- Circumstance Rules -------- 
+class CircumstanceLeaveRuleOut(ModelSchema):
+    policy: LeavePolicyOut
 
     class Meta:
-        model = Leave
-        fields = ["applicable_to", "approved_by"] + MODEL_FIELDS["leave"][:-2]  # exclude IDs
+        model = CircumstanceLeaveRule
+        fields = ['id', 'type', 'duration_days', 'is_paid']
 
 
-class LeaveFilterIn(BaseFilter):
-    """Filter schema for Leave queries."""
+class CircumstanceLeaveRuleCreate(ModelSchema):
+    class Meta:
+        model = CircumstanceLeaveRule
+        fields = ['type', 'duration_days', 'is_paid']
+
+
+class CircumstanceLeaveRuleUpdate(CircumstanceLeaveRuleCreate):
+    class Meta(CircumstanceLeaveRuleCreate.Meta):
+        fields_optional = "__all__"
+
+
+class CircumstanceLeaveRuleFilter(BaseFilter):
+    type: Optional[str] = None
+    is_paid: Optional[bool] = None
+    
+    def filter_search(self, value: str) -> models.Q:
+        return models.Q(type__icontains=value)
+
+
+#  -------- Leave Balance --------
+class LeaveBalanceOut(ModelSchema):
+    remaining_days: Decimal   # Computed property
+    total_granted: Decimal    # Computed property
+    
+    class Meta:
+        model = LeaveBalance
+        fields = [
+            'id', 
+            'employee', 
+            'year', 
+            'base_entitlement', 
+            'seniority_bonus', 
+            'used_days', 
+        ]
+
+
+class LeaveBalanceFilter(FilterSchema):
+    employee_id: Optional[int] = None
+    year: Optional[int] = None
+
+
+#  -------- Leave Request --------
+class LeaveRequestOut(ModelSchema):
+    class Meta:
+        model = LeaveRequest
+        fields = [
+            'id',
+            'employee',
+            'category',
+            'circumstance_type', 
+            'start_date', 
+            'end_date', 
+            'requested_days', 
+            'status', 
+            'attachment', 
+            'comment'
+        ]
+
+
+class LeaveRequestCreate(ModelSchema):
+    """Used by LeaveRequestService.create_request"""
+    category: str
+    start_date: date
+    end_date: date
+
+    class Meta:
+        model = LeaveRequest
+        fields = [
+            'category', 
+            'circumstance_type', 
+            'start_date', 
+            'end_date', 
+            'comment'
+        ]
+    
+    @field_validator("end_date")
+    @classmethod
+    def validate_dates(cls, v: date, info: ValidationInfo):
+        if 'start_date' in info.data and v < info.data['start_date']:
+            raise ValueError("End date cannot be earlier than start date.")
+        return v
+
+
+class LeaveRequestUpdate(ModelSchema):
+    """Mainly used for HR modifications via update_request_by_hr"""
+    class Meta:
+        model = LeaveRequest
+        fields = ['start_date', 'end_date', 'comment']
+        fields_optional = "__all__"
+
+
+class LeaveRequestFilter(BaseFilter):
+    employee_id: Optional[int] = None
     status: Optional[str] = None
-    leave_type: Optional[str] = None
-    paid: Optional[bool] = None
-    everyone: Optional[bool] = None
+    category: Optional[str] = None
 
-    approver_id: Optional[UUID] = Field(None, q="approved_by_id")
-    employee_id: Optional[UUID] = Field(None, q="leaves_employees__employee_id")
-
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
-
-    def filter_search(self, value: str) -> Q:
-        """Custom search on reason field."""
-        return Q(reason__icontains=value)
-
-    def filter_dates(self) -> Q:
-        """Filter leaves that overlap with the specified date range."""
-        if self.start_date and self.end_date:
-            return Q(start_date__lte=self.end_date, end_date__gte=self.start_date)
-        return Q()
-
-    def filter(self, queryset: QuerySet) -> QuerySet:
-        """Apply all filters including date overlap."""
-        queryset = super().filter(queryset)
-        if self.start_date and self.end_date:
-            queryset = queryset.filter(self.filter_dates())
-        return queryset.distinct()
+    def filter_search(self, value: str) -> models.Q:
+        """
+        Broad global search across main fields and related models.
+        """
+        search_query = (
+            models.Q(comment__icontains=value) |
+            models.Q(employee__first_name__icontains=value) |
+            models.Q(employee__middle_name__icontains=value) |
+            models.Q(employee__last_name__icontains=value)
+        )
+        return search_query
 
 
-# -------------------- LeaveEmployee Schemas --------------------
-class LeaveEmployeeCreateIn(ModelSchema):
-    """Input schema for creating a LeaveEmployee record."""
+#  -------- Batcj Leave Request --------
+class BatchLeaveRequestItem(Schema):
+    employee_id: UUID
+    category: str
+    start_date: date
+    end_date: date
+    circumstance_type: Optional[str] = None
+    comment: Optional[str] = None
+
+
+class BatchLeaveRequestCreate(Schema):
+    requests: List[BatchLeaveRequestItem]
+    
+
+class BatchLeaveRequestResult(Schema):
+    employee_id: UUID
+    success: bool
+    leave_request_id: Optional[UUID] = None
+    error: Optional[str] = None
+
+
+class BatchLeaveRequestReport(Schema):
+    results: List[BatchLeaveRequestResult]
+
+
+class BatchActionSchema(Schema):
+    request_ids: List[UUID]
+    reason: Optional[str] = None
+    recall_date: Optional[date] = None
+
+
+#  -------- Leave Recall --------
+class LeaveRecallOut(ModelSchema):
+    recalled_by: Optional[LightUserOut]
+    
     class Meta:
-        model = LeaveEmployee
-        fields = MODEL_FIELDS["leave_employee"]
-        fields_optional = ["created_by"]
+        model = LeaveRecall
+        fields = [
+            'id',
+            'leave_request',
+            'recall_date',
+            'reason',
+            'recalled_by',
+            'created_at'
+        ]
 
 
-class LeaveEmployeeUpdateIn(ModelSchema):
-    """Input schema for updating a LeaveEmployee record."""
+class LeaveRecallCreate(ModelSchema):
     class Meta:
-        model = LeaveEmployee
-        fields = MODEL_FIELDS["leave_employee"]
-        fields_optional = "__all__"
-
-
-class LeaveEmployeeDetailOut(ModelSchema):
-    """Output schema representing a LeaveEmployee record with nested relations."""
-    employee: EmployeeDetailOut
-    leave: LeaveDetailOut
-    created_by: LightUserDetailOut
-
-    class Meta:
-        model = LeaveEmployee
-        fields = MODEL_FIELDS["leave_employee"]
+        model = LeaveRecall
+        fields = [
+            'recall_date', 
+            'reason'
+        ]
 

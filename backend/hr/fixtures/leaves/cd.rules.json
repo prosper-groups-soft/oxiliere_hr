@@ -1,0 +1,111 @@
+[
+    {
+        "model": "hr_leaves.leavepolicy",
+        "pk": "019b951c-23bc-7263-b961-a18d0e9c7070",
+        "fields": {    
+            "created_at": "2026-01-10T10:40:00Z",
+            "updated_at": "2026-01-10T10:40:00Z",
+            "name": "RDC Labor Law Standard",
+            "country_code": "CD",
+            "standard_annual_days": 18,
+            "allows_carry_over": false,
+            "max_carry_over_days": 10,
+            "carry_over_expiration_month": 3
+        }
+    },
+    {
+        "model": "hr_leaves.seniorityrule",
+        "pk": "019b951c-acc1-7001-b961-a18d0e9c7001",
+        "fields": {        
+            "created_at": "2026-01-10T10:40:00Z",
+            "updated_at": "2026-01-10T10:40:00Z",
+            "policy": "019b951c-23bc-7263-b961-a18d0e9c7070",
+            "years_of_service": 1,
+            "bonus_days": 1
+        }
+    },
+    {
+        "model": "hr_leaves.seniorityrule",
+        "pk": "019b951c-acc2-7002-b961-a18d0e9c7002",
+        "fields": {        
+            "created_at": "2026-01-10T10:40:00Z",
+            "updated_at": "2026-01-10T10:40:00Z",
+            "policy": "019b951c-23bc-7263-b961-a18d0e9c7070",
+            "years_of_service": 5,
+            "bonus_days": 2
+        }
+    },
+    {
+        "model": "hr_leaves.circumstanceleaverule",
+        "pk": "019b951c-d51d-778e-a17a-90611bbd6621",
+        "fields": {        
+            "created_at": "2026-01-10T10:40:00Z",
+            "updated_at": "2026-01-10T10:40:00Z",
+            "policy": "019b951c-23bc-7263-b961-a18d0e9c7070",
+            "type": "marriage_employee",
+            "duration_days": 2,
+            "is_paid": true
+        }
+    },
+    {
+        "model": "hr_leaves.circumstanceleaverule",
+        "pk": "019b951d-60c9-73b6-9838-4f3b8f106df1",
+        "fields": {        
+            "created_at": "2026-01-10T10:40:00Z",
+            "updated_at": "2026-01-10T10:40:00Z",
+            "policy": "019b951c-23bc-7263-b961-a18d0e9c7070",
+            "type": "birth_spouse",
+            "duration_days": 2,
+            "is_paid": true
+        }
+    },
+    {
+        "model": "hr_leaves.circumstanceleaverule",
+        "pk": "019b951d-f04c-7075-9b87-021074c8a148",
+        "fields": {        
+            "created_at": "2026-01-10T10:40:00Z",
+            "updated_at": "2026-01-10T10:40:00Z",
+            "policy": "019b951c-23bc-7263-b961-a18d0e9c7070",
+            "type": "death_1st_degree",
+            "duration_days": 4,
+            "is_paid": true
+        }
+    },
+    {
+        "model": "hr_leaves.circumstanceleaverule",
+        "pk": "019b951e-a05f-75f5-a02d-2f887d4ba4a1",
+        "fields": {        
+            "created_at": "2026-01-10T10:40:00Z",
+            "updated_at": "2026-01-10T10:40:00Z",
+            "policy": "019b951c-23bc-7263-b961-a18d0e9c7070",
+            "type": "death_2nd_degree",
+            "duration_days": 2,
+            "is_paid": true
+        }
+    },
+    {
+        "model": "hr_leaves.circumstanceleaverule",
+        "pk": "019b951e-fb1b-71cb-8f41-26285c8a57d6",
+        "fields": {        
+            "created_at": "2026-01-10T10:40:00Z",
+            "updated_at": "2026-01-10T10:40:00Z",
+            "policy": "019b951c-23bc-7263-b961-a18d0e9c7070",
+            "type": "child_marriage",
+            "duration_days": 1,
+            "is_paid": true
+        }
+    },
+    {
+        "model": "hr_leaves.circumstanceleaverule",
+        "pk": "019b951f-a837-75ff-8bb9-271379fc0452",
+        "fields": {        
+            "created_at": "2026-01-10T10:40:00Z",
+            "updated_at": "2026-01-10T10:40:00Z",
+            "policy": "019b951c-23bc-7263-b961-a18d0e9c7070",
+            "type": "moving",
+            "duration_days": 1,
+            "is_paid": true
+        }
+    }
+]
+
