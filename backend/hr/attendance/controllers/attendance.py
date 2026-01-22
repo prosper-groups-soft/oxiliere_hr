@@ -130,7 +130,7 @@ class AttendanceController(ControllerBase):
         # Log filter usage for debugging and audit purposes
         logger.debug(
             "Timesheet list requested",
-            extra={"filters": filters.dict()},
+            extra={"filters": filters.model_dump()},
         )
 
         # Optimize query to avoid N+1 issues

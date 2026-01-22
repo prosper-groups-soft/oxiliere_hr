@@ -4,7 +4,7 @@ from uuid import UUID
 from django.db import transaction
 from django.db.models import QuerySet
 from hr.jobs.models import JobFamily, Position
-from hr.enums import PositionLevel
+from hr.jobs.enums import PositionLevel
 
 
 logger = logging.getLogger(__name__)

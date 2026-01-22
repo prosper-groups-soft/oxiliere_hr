@@ -11,11 +11,10 @@ from .models import (
     LeavePolicy, 
     SeniorityRule, 
     CircumstanceLeaveRule, 
-    PublicHoliday, 
-    CompanyClosing, 
     LeaveBalance, 
     LeaveRequest, 
-    LeaveRecall
+    LeaveRecall,
+    LeaveTransaction
 )
 from hr.schemas import LightUserOut
 
@@ -59,78 +58,7 @@ class LeavePolicyUpdate(ModelSchema):
         fields_optional = "__all__"
 
 
-#  -------- Public Holidays -------- 
-class PublicHolidayOut(ModelSchema):
-    class Meta:
-        model = PublicHoliday
-        fields = [
-            'id', 
-            'name', 
-            'date', 
-            'country_code', 
-            'is_recurring'
-        ]
 
-
-class PublicHolidayCreate(ModelSchema):
-    class Meta:
-        model = PublicHoliday
-        fields = [
-            'name', 
-            'date', 
-            'country_code', 
-            'is_recurring'
-        ]
-
-
-class PublicHolidayUpdate(PublicHolidayCreate):
-    class Meta(PublicHolidayCreate.Meta):
-        fields_optional = "__all__"
-
-
-class PublicHolidayFilter(BaseFilter):
-    country_code: Optional[str] = None
-    year: Optional[int] = Field(None, q='date__year')
-
-    def filter_search(self, value: str) -> models.Q:
-        return models.Q(name__icontains=value)
-        
-
-#  -------- Company Closings -------- 
-class CompanyClosingOut(ModelSchema):
-    class Meta:
-        model = CompanyClosing
-        fields = [
-            'id', 
-            'name', 
-            'start_date', 
-            'end_date'
-        ]
-        
-
-class CompanyClosingCreate(ModelSchema):
-    class Meta:
-        model = CompanyClosing
-        fields = [
-            'name', 
-            'start_date', 
-            'end_date'
-        ]
-        
-
-class CompanyClosingUpdate(CompanyClosingCreate):
-    class Meta(CompanyClosingCreate.Meta):
-        fields_optional = "__all__"
-    
-    
-class CompanyClosingFilter(BaseFilter):
-    # Find closings starting on or after this date
-    after: Optional[date] = Field(None, q='start_date__gte')
-    # Find closings ending on or before this date
-    before: Optional[date] = Field(None, q='end_date__lte')
-    
-    def filter_search(self, value: str) -> models.Q:
-        return models.Q(name__icontains=value)
 
 
 #  -------- Seniority Rules -------- 
@@ -339,3 +267,38 @@ class LeaveRecallCreate(ModelSchema):
             'reason'
         ]
 
+
+#  -------- Leave Transaction --------
+class LeaveTransactionOut(ModelSchema):
+    class Meta:
+        model = LeaveTransaction
+        fields = [
+            'id',
+            'employee',
+            'year',
+            'amount',
+            'transaction_type',
+            'leave_request',
+            'reason',
+            'created_at'
+        ]
+
+
+class LeaveTransactionFilter(FilterSchema):
+    employee_id: Optional[UUID] = None
+    year: Optional[int] = None
+    transaction_type: Optional[str] = None
+
+
+#  -------- Admin Adjustments --------
+class BalanceAdjustmentIn(Schema):
+    year: int
+    amount: Decimal
+    reason: str
+
+
+class CarryOverAdjustmentIn(Schema):
+    source_year: int
+    amount: Decimal
+    reason: str
+    new_expiration: Optional[date] = None

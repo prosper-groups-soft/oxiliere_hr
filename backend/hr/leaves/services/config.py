@@ -1,21 +1,9 @@
 from core.services import BaseCRUDService
 from hr.leaves.models import (
-    PublicHoliday, 
-    CompanyClosing,
     LeavePolicy,
     SeniorityRule,
     CircumstanceLeaveRule
 )
-
-
-class PublicHolidayService(BaseCRUDService):
-    model = PublicHoliday
-    allowed_update_fields = ['name', 'date', 'country_code', 'is_recurring']
-
-
-class CompanyClosingService(BaseCRUDService):
-    model = CompanyClosing
-    allowed_update_fields = ['name', 'start_date', 'end_date']
 
 
 class LeavePolicyService(BaseCRUDService):
@@ -31,10 +19,17 @@ class LeavePolicyService(BaseCRUDService):
 
 class SeniorityRuleService(BaseCRUDService):
     model = SeniorityRule
-    allowed_update_fields = ['years_of_service', 'bonus_days']
+    allowed_update_fields = [
+        'years_of_service', 
+        'bonus_days'
+    ]
 
 
 class CircumstanceLeaveRuleService(BaseCRUDService):
     model = CircumstanceLeaveRule
-    allowed_update_fields = ['type', 'duration_days', 'is_paid']
+    allowed_update_fields = [
+        'type', 
+        'duration_days', 
+        'is_paid'
+    ]
 

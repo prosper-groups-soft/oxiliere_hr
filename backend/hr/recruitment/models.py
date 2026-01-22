@@ -8,7 +8,7 @@ from auditlog.registry import auditlog
 
 from hr.models import BaseAuditableModel
 from hr.jobs.models import Position, Department
-from hr.enums import ApplicationStatus, InterviewType
+from .enums import ApplicationStatus, InterviewType
 from hr.utils import normalize_names
 
 

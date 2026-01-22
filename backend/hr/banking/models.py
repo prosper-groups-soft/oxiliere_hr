@@ -7,11 +7,13 @@ from django.utils import timezone
 from auditlog.registry import auditlog
 
 from hr.models import BaseAuditableModel
-from hr.enums import (
-    AccountType, 
-    Currency, 
+from .enums import (
+    AccountType,
     BankAccountAction,
-    CountryCode
+)
+from hr.enums import ( 
+    Currency, 
+    CountryCode,
 )
 
 

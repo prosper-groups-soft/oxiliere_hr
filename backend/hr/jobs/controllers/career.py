@@ -3,7 +3,6 @@ from injector import inject
 from uuid import UUID
 from typing import List
 
-from ninja import Query
 from ninja_extra import (
     api_controller,
     http_get,

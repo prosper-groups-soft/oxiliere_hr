@@ -4,19 +4,23 @@ from datetime import timedelta, date
 from django.db import transaction
 from django.utils import timezone
 from django.core.exceptions import ValidationError
-from collections import defaultdict
 from functools import wraps
 
 from hr.employees.models import Employee
-from hr.enums import LeaveCategory, LeaveStatus, CountryCode
+from hr.leaves.enums import (
+    LeaveCategory,
+    LeaveStatus,
+    LeaveTransactionTypes
+)
 from hr.leaves.models import (
     LeaveRequest,
     LeaveBalance,
     LeaveRecall,
     CircumstanceLeaveRule,
-    LeaveCarryOver
+    LeaveCarryOver,
+    LeaveTransaction
 )
-from .calendar import CalendarService
+from hr.attendance.services import SchedulingService 
 from .balance import BalanceService
 from .consumption import LeaveConsumptionService
 
@@ -51,25 +55,24 @@ def leave_transition(action):
             if target_status not in valid_transitions.get(current_status, []):
                 raise ValidationError(f"Cannot perform '{action}' from {current_status}")
 
-            # Execute the actual transition logic
             result = func(self, leave_request, *args, **kwargs)
 
-            # Append French comment for audit trail
             user = kwargs.get('user')
             reason = kwargs.get('reason')
             prefix_map = {
-                'approve': "[APPROBATION]",
-                'reject': "[REJET]",
-                'cancel': "[ANNULATION]",
+                'approve': "[APPROUVÉ]",
+                'reject': "[REJETÉ]",
+                'cancel': "[ANNULÉ]",
                 'mark_taken': "[ARCHIVÉ]"
             }
+            
             existing_comment = leave_request.comment or ""
+            timestamp = timezone.now().date()
             if user:
-                leave_request.comment = f"{existing_comment}\n{prefix_map[action]} Par {user} le {timezone.now().date()}."
+                leave_request.comment = f"{existing_comment}\n{prefix_map[action]} Par {user} le {timestamp}."
             if reason:
-                leave_request.comment += f"\nMotif: {reason}"
+                leave_request.comment += f"\nMotif : {reason}"
 
-            # Update status in DBf
             leave_request.status = target_status
             leave_request.save(update_fields=["status", "comment"])
             return result
@@ -89,7 +92,6 @@ class LeaveRequestService:
         PENDING ── CANCELLED
     """
 
-    # --- Create request ---
     @transaction.atomic
     def create_request(self, employee: Employee, data, creator):
         """
@@ -106,17 +108,15 @@ class LeaveRequestService:
         end_date = data.get('end_date')
         attachment = data.get('attachment')
 
-        # Calculate working days between start and end
-        days_total = Decimal(str(CalendarService.get_working_days(
-            start_date, end_date, employee.nationality or CountryCode.DRC
+        days_total = Decimal(str(SchedulingService.count_working_days_for_employee(
+            employee, start_date, end_date
         )))
-        if days_total <= 0:
-            raise ValidationError("The selected period does not contain any working days.")
 
-        # Check for overlapping leave requests
+        if days_total <= 0:
+            raise ValidationError("The period selected does not contain any working days.")
+
         self._check_overlap(employee, start_date, end_date)
 
-        # Validate leave balance
         if category == LeaveCategory.ANNUAL:
             self._validate_annual_balance(employee, start_date, end_date, days_total)
         elif category == LeaveCategory.CIRCUMSTANCE:
@@ -124,7 +124,6 @@ class LeaveRequestService:
 
         circumstance_type = data.get('circumstance_type') if category == LeaveCategory.CIRCUMSTANCE else None
 
-        # Create and return the leave request object
         return LeaveRequest.objects.create(
             employee=employee,
             category=category,
@@ -137,30 +136,7 @@ class LeaveRequestService:
             created_by=creator,
             comment=data.get('comment', '')
         )
-        
-    def _check_overlap(self, employee, start_date, end_date):
-        """
-        Ensures that an employee does not have any pending or approved 
-        leave requests that overlap with the requested period.
-        """
-        conflicting_requests = LeaveRequest.objects.filter(
-            employee=employee,
-            status__in=[LeaveStatus.PENDING, LeaveStatus.APPROVED],
-            start_date__lte=end_date,
-            end_date__gte=start_date
-        )
 
-        if conflicting_requests.exists():
-            conflict_list = [
-                f"{r.start_date} → {r.end_date} (status: {r.status})"
-                for r in conflicting_requests
-            ]
-            conflict_msg = "; ".join(conflict_list)
-            raise ValidationError(
-                f"Cannot create leave request. Conflicts with existing requests: {conflict_msg}"
-            )
-
-    # --- Transition actions decorated ---
     @leave_transition('approve')
     def approve_request(self, leave_request: LeaveRequest, user=None, reason=None):
         """
@@ -169,7 +145,14 @@ class LeaveRequestService:
         - Adds an approval comment automatically.
         """
         if leave_request.category == LeaveCategory.ANNUAL:
-            self._consume_annual_leave(leave_request)
+            self._consume_annual_leave(leave_request, user)
+        return leave_request
+
+    @leave_transition('cancel')
+    def cancel_request(self, leave_request: LeaveRequest, user=None, reason=None):
+        """Cancel a pending leave request."""
+        if leave_request.category == LeaveCategory.ANNUAL and leave_request.status == LeaveStatus.APPROVED:
+            self._refund_annual_leave(leave_request, user)
         return leave_request
 
     @leave_transition('reject')
@@ -177,127 +160,118 @@ class LeaveRequestService:
         """Reject a pending leave request and log the rejection comment."""
         return leave_request
 
-    @leave_transition('cancel')
-    def cancel_request(self, leave_request: LeaveRequest, user=None, reason=None):
-        """
-        Cancel a leave request.
-        - Refunds annual leave if it was approved.
-        - Logs cancellation comment.
-        """
-        if leave_request.category == LeaveCategory.ANNUAL and leave_request.status == LeaveStatus.APPROVED:
-            self._refund_annual_leave(leave_request)
-        return leave_request
-
     @leave_transition('mark_taken')
     def mark_taken_request(self, leave_request: LeaveRequest):
         """Mark an approved leave as TAKEN after its end date."""
         return leave_request
 
-    # --- Consume annual leave ---
-    def _consume_annual_leave(self, leave_request: LeaveRequest):
+    # --- Internal Balance Management ---
+
+    def _consume_annual_leave(self, leave_request: LeaveRequest, actor):
         """
-        Deduct annual leave from employee balance.
-        - Handles multi-year leaves separately.
+        Deduct days and create consumption transactions.
         """
-        if leave_request.start_date.year != leave_request.end_date.year:
-            # Split leave across two years
-            days_y1 = Decimal(str(CalendarService.get_working_days(
-                leave_request.start_date, date(leave_request.start_date.year, 12, 31),
-                leave_request.employee.nationality
-            )))
-            days_y2 = leave_request.requested_days - days_y1
-            LeaveConsumptionService.consume(leave_request.employee, leave_request.start_date.year, days_y1)
-            LeaveConsumptionService.consume(leave_request.employee, leave_request.end_date.year, days_y2)
-        else:
-            # Single-year leave
-            LeaveConsumptionService.consume(
-                leave_request.employee, 
-                leave_request.start_date.year, 
-                leave_request.requested_days
+        days_per_year = SchedulingService.get_working_days_by_year(
+            leave_request.employee, leave_request.start_date, leave_request.end_date
+        )
+
+        for year, days in days_per_year.items():
+            amount = Decimal(str(days))
+            LeaveConsumptionService.consume(leave_request.employee, year, amount)
+            
+            # Audit Trail
+            LeaveTransaction.objects.create(
+                employee=leave_request.employee,
+                year=year,
+                amount=-amount,  # Negative for debit
+                transaction_type=LeaveTransactionTypes.CONSUME,
+                leave_request=leave_request,
+                reason=f"Leave approved: {leave_request.start_date} to {leave_request.end_date}",
+                created_by=actor
             )
 
-    # --- Refund annual leave ---
-    def _refund_annual_leave(self, leave_request: LeaveRequest):
+    def _refund_annual_leave(self, leave_request: LeaveRequest, actor):
         """
-        Refund consumed annual leave days to employee balance.
-        - Uses FIFO: carry-over balance refunded first, then annual balance.
-        - Handles multi-year leave separately.
+        Refund days and create refund transactions.
         """
-        if leave_request.start_date.year != leave_request.end_date.year:
-            days_y1 = Decimal(str(CalendarService.get_working_days(
-                leave_request.start_date, date(leave_request.start_date.year, 12, 31),
-                leave_request.employee.nationality
-            )))
-            days_y2 = leave_request.requested_days - days_y1
-            self._refund_balance(leave_request.employee, leave_request.start_date.year, days_y1)
-            self._refund_balance(leave_request.employee, leave_request.end_date.year, days_y2)
-        else:
-            self._refund_balance(leave_request.employee, leave_request.start_date.year, leave_request.requested_days)
+        days_per_year = SchedulingService.get_working_days_by_year(
+            leave_request.employee, leave_request.start_date, leave_request.end_date
+        )
 
-    # --- Refund helper ---
-    def _refund_balance(self, employee, year, days):
+        for year, days in days_per_year.items():
+            amount = Decimal(str(days))
+            self._refund_balance(leave_request.employee, year, amount, leave_request, actor)
+
+    def _refund_balance(self, employee, year, days, leave_request, actor):
         """
-        Refund leave days to employee:
-        1. Refund carry-over days first (FIFO).
-        2. Refund current year's annual balance if any days remain.
+        Smart refund logic: Annual Balance first, then CarryOver (LIFO-like).
         """
         remaining = Decimal(str(days))
-        carry_overs = LeaveCarryOver.objects.select_for_update().filter(
-            employee=employee,
-            source_year__lt=year
-        ).order_by("source_year")
+        total_to_refund = remaining
 
-        for co in carry_overs:
-            used = co.used_days
-            if used <= 0:
-                continue
-            refund = min(used, remaining)
-            co.used_days -= refund
-            co.save(update_fields=["used_days"])
-            remaining -= refund
-            if remaining <= 0:
-                return
-
-        if remaining > 0:
-            balance = LeaveBalance.objects.select_for_update().get(employee=employee, year=year)
-            balance.used_days -= remaining
+        # 1. Refund to annual balance
+        balance = LeaveBalance.objects.select_for_update().get(employee=employee, year=year)
+        can_refund_to_annual = balance.used_days 
+        refund_to_annual = min(can_refund_to_annual, remaining)
+        
+        if refund_to_annual > 0:
+            balance.used_days -= refund_to_annual
             balance.save(update_fields=["used_days"])
+            remaining -= refund_to_annual
 
+        # 2. Refund to CarryOver
+        if remaining > 0:
+            carry_overs = LeaveCarryOver.objects.select_for_update().filter(
+                employee=employee, source_year__lt=year 
+            ).order_by("-source_year")
 
-    # --- Recall employee ---
+            for co in carry_overs:
+                if remaining <= 0: break
+                used = co.used_days
+                if used <= 0: continue
+                
+                refund_to_co = min(used, remaining)
+                co.used_days -= refund_to_co
+                co.save(update_fields=["used_days"])
+                remaining -= refund_to_co
+
+        # Audit Trail (One entry per year)
+        LeaveTransaction.objects.create(
+            employee=employee,
+            year=year,
+            amount=total_to_refund,
+            transaction_type=LeaveTransactionTypes.REFUND,
+            leave_request=leave_request,
+            reason=f"Refund for cancelled/recalled leave",
+            created_by=actor
+        )
+
     @transaction.atomic
     def recall_employee(self, leave_request: LeaveRequest, recall_date: date, reason: str, recalled_by):
         """
-        Recall an employee from an approved leave:
-        - Adjusts end date.
-        - Refunds unused leave days to balance.
-        - Creates a LeaveRecall record.
+        Handles employee recall with balance restoration.
         """
         if leave_request.status != LeaveStatus.APPROVED:
-            raise ValidationError("Only approved leave requests can be recalled.")
-        if recall_date <= leave_request.start_date:
-            raise ValidationError("Recall date must be after the start date.")
-
-        country_code = leave_request.employee.nationality
-        original_days = CalendarService.get_working_days_per_year(
-            leave_request.start_date, 
-            leave_request.end_date, 
-            country_code
+            raise ValidationError("Only approved requests can be recalled.")
+        
+        original_days_per_year = SchedulingService.get_working_days_by_year(
+            leave_request.employee, leave_request.start_date, leave_request.end_date
         )
-        actual_days = CalendarService.get_working_days_per_year(
-            leave_request.start_date, 
-            recall_date - timedelta(days=1), 
-            country_code
+        
+        actual_end_date = recall_date - timedelta(days=1)
+        actual_days_per_year = SchedulingService.get_working_days_by_year(
+            leave_request.employee, leave_request.start_date, actual_end_date
         )
 
-        # Refund unused days per year
-        for year, total in original_days.items():
-            to_restore = total - actual_days.get(year, 0)
+        for year, total_planned in original_days_per_year.items():
+            actually_taken = actual_days_per_year.get(year, 0)
+            to_restore = Decimal(str(total_planned - actually_taken))
+            
             if to_restore > 0 and leave_request.category == LeaveCategory.ANNUAL:
-                self._refund_balance(leave_request.employee, year, to_restore)
+                self._refund_balance(leave_request.employee, year, to_restore, leave_request, recalled_by)
 
-        leave_request.end_date = recall_date - timedelta(days=1)
-        leave_request.requested_days = sum(actual_days.values())
+        leave_request.end_date = actual_end_date
+        leave_request.requested_days = sum(actual_days_per_year.values())
         leave_request.save(update_fields=["end_date", "requested_days"])
 
         return LeaveRecall.objects.create(
@@ -306,6 +280,35 @@ class LeaveRequestService:
             reason=reason,
             recalled_by=recalled_by
         )
+
+    # --- Validators & Helpers ---
+
+    def _check_overlap(self, employee, start_date, end_date):
+        """Check for overlapping leave requests."""
+        conflicting = LeaveRequest.objects.filter(
+            employee=employee,
+            status__in=[LeaveStatus.PENDING, LeaveStatus.APPROVED],
+            start_date__lte=end_date,
+            end_date__gte=start_date
+        )
+        if conflicting.exists():
+            raise ValidationError("This request overlaps with an existing pending/approved leave.")
+
+    def _validate_annual_balance(self, employee, start_date, end_date, days_total):
+        """Validate annual leave balance."""
+        days_per_year = SchedulingService.get_working_days_by_year(employee, start_date, end_date)
+        for year, days in days_per_year.items():
+            if not BalanceService.check_eligibility(employee, Decimal(str(days)), year):
+                raise ValidationError(f"Insufficient balance for year {year}.")
+
+    def _validate_circumstance(self, data, days_total):
+        """Validate circumstance leave balance."""
+        circ_type = data.get('circumstance_type')
+        if not circ_type:
+            raise ValidationError("Circumstance type is mandatory.")
+        rule = CircumstanceLeaveRule.objects.filter(type=circ_type).first()
+        if rule and days_total > Decimal(str(rule.duration_days)):
+            raise ValidationError(f"Max {rule.duration_days} days allowed for this category.")
 
     # --- HR update ---
     @transaction.atomic
@@ -344,44 +347,4 @@ class LeaveRequestService:
         leave_request.save()
         logger.info(f"Attachment updated for request {leave_request.id}")
         return leave_request
-
-    # --- Private validators ---
-    def _validate_annual_balance(self, employee, start_date, end_date, days_total):
-        """
-        Check that employee has sufficient annual leave balance.
-        - Handles multi-year leaves separately.
-        """
-        if start_date.year != end_date.year:
-            days_y1 = Decimal(str(CalendarService.get_working_days(
-                start_date, 
-                date(start_date.year, 12, 31), 
-                employee.nationality
-            )))
-            days_y2 = Decimal(str(CalendarService.get_working_days(
-                date(end_date.year, 1, 1), 
-                end_date, 
-                employee.nationality
-            )))
-            
-            if not BalanceService.check_eligibility(employee, days_y1, start_date.year):
-                raise ValidationError(f"Insufficient balance for year {start_date.year}")
-            
-            if not BalanceService.check_eligibility(employee, days_y2, end_date.year):
-                raise ValidationError(f"Insufficient balance for year {end_date.year}")
-        
-        elif not BalanceService.check_eligibility(employee, days_total, start_date.year):
-            raise ValidationError("Insufficient annual leave balance.")
-
-    def _validate_circumstance(self, data, days_total):
-        """
-        Validate circumstance leave:
-        - Checks that a type is provided.
-        - Checks maximum allowed duration based on rule.
-        """
-        circ_type = data.get('circumstance_type')
-        if not circ_type:
-            raise ValidationError("Circumstance type is mandatory.")
-        rule = CircumstanceLeaveRule.objects.filter(type=circ_type).first()
-        if rule and days_total > Decimal(str(rule.duration_days)):
-            raise ValidationError(f"Limited to {rule.duration_days} days for this reason.")
 

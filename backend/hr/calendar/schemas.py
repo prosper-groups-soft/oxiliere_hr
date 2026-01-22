@@ -1,10 +1,12 @@
-from ninja import Schema
 from ninja.orm import ModelSchema
-from typing import Optional, List
-from datetime import date, time
 from uuid import UUID
+from typing import Optional
+from datetime import date
+from ninja import Field
+from django.db.models import Q
 
-from .models import CalendarEvent, CalendarSettings
+from .models import CalendarEvent
+from hr.schemas import BaseFilter
 
 
 # --- Calendar Event Schemas ---
@@ -23,6 +25,7 @@ class CalendarEventCreateIn(ModelSchema):
             "recurrent",
             "description",
             "status",
+            "country_code",
         ]
         fields_optional = [
             "end_date",
@@ -32,6 +35,7 @@ class CalendarEventCreateIn(ModelSchema):
             "description",
             "status",
         ]
+
 
 class CalendarEventUpdateIn(ModelSchema):
     class Meta:
@@ -50,6 +54,7 @@ class CalendarEventUpdateIn(ModelSchema):
         ]
         fields_optional = "__all__"
 
+
 class CalendarEventOut(ModelSchema):
     id: UUID
     class Meta:
@@ -66,32 +71,42 @@ class CalendarEventOut(ModelSchema):
             "is_workable",
             "recurrent",
             "description",
+            "description",
             "status",
+            "country_code",
             "created_at",
             "updated_at",
         ]
 
 
-# --- Calendar Settings Schemas ---
+class CalendarEventFilterIn(BaseFilter):
+    """Filter schema for calendar events."""
+    
+    event_type: Optional[str] = None
+    is_workable: Optional[bool] = None
+    status: Optional[str] = None
+    recurrent: Optional[str] = None
+    country_code: Optional[str] = None
+    
+    # Date range filtering
+    start_date: Optional[date] = Field(None, description="Filter events starting from this date")
+    end_date: Optional[date] = Field(None, description="Filter events ending before this date")
+    
+    def filter_start_date(self, value: date) -> Q:
+        """Filter events that overlap with or occur after the start date."""
+        # Events that end on or after the start date (or have no end date and start on/after)
+        return Q(end_date__gte=value) | Q(end_date__isnull=True, start_date__gte=value)
+    
+    def filter_end_date(self, value: date) -> Q:
+        """Filter events that overlap with or occur before the end date."""
+        # Events that start on or before the end date
+        return Q(start_date__lte=value)
 
-class CalendarSettingsUpdateIn(ModelSchema):
-    class Meta:
-        model = CalendarSettings
-        fields = [
-            "show_anniversaries",
-            "show_deadlines",
-            "work_days_per_week",
-        ]
-        fields_optional = "__all__"
+    def filter_search(self, value: str) -> Q:
+        """Filter events by name or code."""
+        return (
+            Q(name__icontains=value) | 
+            Q(code__icontains=value) | 
+            Q(description__icontains=value)
+        )
 
-class CalendarSettingsOut(ModelSchema):
-    id: UUID
-    class Meta:
-        model = CalendarSettings
-        fields = [
-            "id",
-            "show_anniversaries",
-            "show_deadlines",
-            "work_days_per_week",
-            "updated_at",
-        ]

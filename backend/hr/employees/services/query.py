@@ -1,7 +1,11 @@
 from typing import Optional
 from uuid import UUID
 from django.db.models import QuerySet, Prefetch
-from hr.employees.models import Employee, EmployeeAddress, StatusHistory
+from hr.employees.models import (
+    Employee, 
+    EmployeeAddress, 
+    StatusHistory
+)
 
 
 class EmployeeQueryService:

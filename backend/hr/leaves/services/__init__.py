@@ -1,11 +1,9 @@
-from .balance import     BalanceService
-from .calendar import    CalendarService
-from .leave import       LeaveRequestService
+from .balance     import BalanceService
+from .leave       import LeaveRequestService
 from .consumption import LeaveConsumptionService
-from .init_leave import  LeaveInitializerService
+from .init_leave  import LeaveInitializerService
+from .admin       import LeaveAdminService
 from .config import (
-    PublicHolidayService,
-    CompanyClosingService,
     LeavePolicyService,
     SeniorityRuleService,
     CircumstanceLeaveRuleService,
@@ -14,14 +12,12 @@ from .config import (
 
 __all__ = [
     'BalanceService',
-    'CalendarService',
     'LeaveRequestService',
     'LeaveConsumptionService',
-    'PublicHolidayService',
-    'CompanyClosingService',
     'LeavePolicyService',
     'SeniorityRuleService',
     'CircumstanceLeaveRuleService',
     'LeaveInitializerService',
+    'LeaveAdminService',
 ]
 

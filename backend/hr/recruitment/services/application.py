@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from hr.recruitment.models import Application, JobOffer
 from .candidate import CandidateService
-from hr.enums import ApplicationStatus
+from hr.recruitment.enums import ApplicationStatus
 
 
 logger = logging.getLogger(__name__)

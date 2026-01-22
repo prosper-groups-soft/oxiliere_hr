@@ -22,7 +22,7 @@ from hr.jobs.schemas import (
 
 # Services
 from hr.jobs.services import JobService
-from hr.enums import PositionLevel
+from hr.jobs.enums import PositionLevel
 
 
 logger = logging.getLogger(__name__)

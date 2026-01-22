@@ -10,9 +10,12 @@ from hr.leaves.models import (
     LeaveBalance, 
     LeavePolicy, 
     SeniorityRule,
-    LeaveCarryOver
+    LeaveCarryOver,
+    LeaveTransaction
 )
-from hr.utils import carry_over_expiration_date
+
+from hr.leaves.utils import get_carry_over_expiration_date
+from hr.leaves.enums import LeaveTransactionTypes
 
 
 logger = logging.getLogger(__name__)
@@ -65,7 +68,17 @@ class BalanceService:
                 'seniority_bonus': bonus_days,
             }
         )
-        
+    
+        if created:
+            # Save from initial balance allocation
+            LeaveTransaction.objects.create(
+                employee=employee,
+                year=year,
+                amount=base_days + bonus_days,
+                transaction_type=LeaveTransactionTypes.EARN,
+                reason=f"Initial balance allocation for year {year} (Base: {base_days}, Bonus: {bonus_days})"
+            )
+
         # Carry-over logic triggered only once per year initialization
         if created and policy.allows_carry_over:
             BalanceService.create_carry_over(employee, year, policy)
@@ -120,7 +133,10 @@ class BalanceService:
         )
 
         # Define the expiration date according to the policy
-        expiration_date = carry_over_expiration_date(year, policy.carry_over_expiration_month)
+        expiration_date = get_carry_over_expiration_date(
+            year, 
+            policy.carry_over_expiration_month
+        )
 
         LeaveCarryOver.objects.update_or_create(
             employee=employee,
@@ -129,5 +145,14 @@ class BalanceService:
                 "days": days,
                 "expires_at": expiration_date,
             }
+        )
+
+        # Track the carry-over in the history of the NEW year
+        LeaveTransaction.objects.create(
+            employee=employee,
+            year=year, # Year of destination
+            amount=days,
+            transaction_type=LeaveTransactionTypes.CARRY_OVER,
+            reason=f"Carry-over from year {year-1}"
         )
 

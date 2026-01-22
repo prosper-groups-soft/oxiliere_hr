@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from hr.employees.models import Employee, StatusHistory
-from hr.enums import EmployeeStatus
+from hr.employees.enums import EmployeeStatus
 from hr.utils import update_instance
 
 

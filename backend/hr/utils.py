@@ -2,8 +2,6 @@ from typing import Optional, Dict, Callable, Iterable
 from django.utils import timezone
 from django.db import models
 import pycountry
-from datetime import date, timedelta
-import calendar
 
 
 def get_contract_seq_key():
@@ -97,12 +95,4 @@ def normalize_names(
         key: func(val.strip()) if val and val.strip() else None 
         for key, (val, func) in config.items()
     }
-
-def carry_over_expiration_date(year: int, month: int) -> date:
-    """
-    Returns the last day of the specified month and year to determine 
-    the expiration date of carried-over leave days.
-    """
-    last_day = calendar.monthrange(year, month)[1]  # last day of the month
-    return date(year, month, last_day)
 

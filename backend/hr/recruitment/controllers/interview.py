@@ -1,5 +1,4 @@
 import logging
-from typing import List
 from injector import inject
 
 from ninja_extra import (

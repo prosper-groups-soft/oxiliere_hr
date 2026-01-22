@@ -66,6 +66,15 @@ class ValidationService:
                     _("Break exceedance detected: {duration} extra minutes.")
                     .format(duration=overtime_break.seconds // 60)
                 )
+        
+        # 5. Check for work on non-working days (Holidays)
+        is_non_working_day = CalendarService.is_non_working_day(
+            timesheet.register.date, 
+            timesheet.employee.country_code
+        )
+        if is_non_working_day and timesheet.recorded_work > timedelta(0):
+            # This is an info/warning rather than a blocking error
+            errors.append(_("Work recorded on a Public Holiday. Verify overtime eligibility."))
 
         return errors
 

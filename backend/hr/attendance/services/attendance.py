@@ -10,6 +10,7 @@ from hr.attendance.models import (
     AttendanceSettings
 )
 from .scheduling import SchedulingService
+from hr.calendar.services import CalendarService
 
 
 class AttendanceService:
@@ -37,7 +38,10 @@ class AttendanceService:
         3. Determines Attendance Status (Present, Late, Absent).
         4. Calculates Overtime and Shortfall durations.
         """
-        # 1. Fetch expected schedule from the policy active on that date
+        # Load global settings for thresholds
+        settings = AttendanceSettings.load()
+
+        # 1. Fetch expected schedule (Now returns None if Holiday thanks to our previous change)
         schedule = SchedulingService.get_expected_schedule(timesheet.employee, timesheet.register.date)
         
         # 2. Sum up worked durations and breaks from completed punch segments
@@ -55,19 +59,32 @@ class AttendanceService:
         timesheet.recorded_work = total_work
         timesheet.recorded_break = total_break
 
-        # 3. Status and Lateness logic
-        if not schedule:
-            # If no schedule is defined for this day, any work is counted but status is simple
+        # 3. Special Logic for Non-Working Days (No schedule)
+        is_non_working_day = CalendarService.is_non_working_day(
+            timesheet.register.date, 
+            getattr(timesheet.employee, 'country_code', 'CD')
+        )
+
+        if is_non_working_day:
+            timesheet.status = TimeSheetStatus.HOLIDAY
+            # Every worked minute on a holiday is Overtime
+            timesheet.overtime = total_work
+            timesheet.shortfall = timedelta(0)
+            
+        elif not schedule:
+            # Weekend or unscheduled day (not a holiday)
             timesheet.status = TimeSheetStatus.PRESENT if total_work > timedelta() else TimeSheetStatus.ABSENT
+            timesheet.overtime = total_work # Any work on weekend/off-day is also overtime
+            timesheet.shortfall = timedelta(0)
+
         else:
+            # --- NORMAL WORKING DAY LOGIC ---
             # Identify the first work segment to check for lateness
             first_work_punch = punches.filter(punch_type=PunchType.WORK).order_by('start_at').first()
             
             if not first_work_punch:
                 timesheet.status = TimeSheetStatus.ABSENT
             else:
-                settings = AttendanceSettings.load()
-                
                 # Timezone-aware comparison: combine date and time then make aware
                 naive_expected_start = datetime.combine(timesheet.register.date, schedule.start_time)
                 expected_start = timezone.make_aware(naive_expected_start)
@@ -103,6 +120,10 @@ class AttendanceService:
                 else:
                     timesheet.shortfall = expected_duration - timesheet.recorded_work
                     timesheet.overtime = timedelta(0)
+                
+                # Refine status for partial absences using dynamic threshold from settings
+                if total_work > timedelta(0) and timesheet.shortfall > settings.partial_absence_threshold:
+                    timesheet.status = TimeSheetStatus.PARTIAL
 
         timesheet.save()
         return timesheet
@@ -114,8 +135,13 @@ class AttendanceService:
         Calculates total absences and expected headcount for the dashboard.
         """
         sheets = register.sheets.all()
+        
+        # We count absences normally
         register.total_absences = sheets.filter(status=TimeSheetStatus.ABSENT).count()
-        register.total_employees_expected = sheets.count()
+        
+        # Expected employees: We exclude those on holiday status to keep ratios accurate
+        register.total_employees_expected = sheets.exclude(status=TimeSheetStatus.HOLIDAY).count()
+        
         register.is_finalized = True
         register.save()
 

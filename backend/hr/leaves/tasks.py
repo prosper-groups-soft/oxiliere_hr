@@ -1,6 +1,7 @@
 import logging
 from django.utils import timezone
 from django.db import transaction
+from django.db.models import F
 from celery import shared_task, group
 from django_tenants.utils import tenant_context
 
@@ -9,10 +10,11 @@ from hr.employees.models import Employee
 from hr.leaves.models import (
     LeavePolicy, 
     LeaveCarryOver, 
-    LeaveRequest
+    LeaveRequest,
+    LeaveTransaction
 )
 from hr.leaves.services.balance import BalanceService
-from hr.enums import LeaveStatus
+from hr.leaves.enums import LeaveStatus, LeaveTransactionTypes
 
 
 logger = logging.getLogger(__name__)
@@ -52,22 +54,23 @@ def process_tenant_leave_reset(schema_name: str, year: int):
     error_count = 0
 
     with tenant_context(tenant):
-        # Prefetch related data to speed up the loop
         active_employees = Employee.objects.filter(is_active=True)
-        
-        # Cache policies in memory for this tenant to avoid DB hits in the loop
         policies = {p.country_code: p for p in LeavePolicy.objects.all()}
 
         for employee in active_employees:
             try:
-                # Use a sub-transaction per employee to isolate failures
                 with transaction.atomic():
                     policy = policies.get(employee.nationality)
+                    if not policy:
+                        continue
                     
-                    if policy and policy.allows_carry_over:
+                    # 1. Carry-over logic (Should create a LeaveTransaction internally)
+                    if policy.allows_carry_over:
                         BalanceService.create_carry_over(employee, year, policy)
                     
+                    # 2. Init Balance (Should create an EARN type LeaveTransaction internally)
                     BalanceService.init_employee_balance(employee, year)
+                    
                     success_count += 1
             except Exception as e:
                 error_count += 1
@@ -76,30 +79,65 @@ def process_tenant_leave_reset(schema_name: str, year: int):
     return f"{schema_name}: Success {success_count}, Errors {error_count}"
 
 
+
+
 @shared_task(name="hr.leaves.tasks.expire_carry_overs_daily")
 def expire_carry_overs_task():
     """
-    Daily cleanup. Optimized to use a single SQL UPDATE per tenant 
-    instead of looping through records.
+    Optimized daily cleanup using bulk operations.
+    Scalable for tenants with thousands of employees.
     """
     today = timezone.now().date()
     tenants = Tenant.objects.exclude(schema_name='public').values_list('schema_name', flat=True)
-    total_expired = 0
+    total_expired_count = 0
 
     for schema_name in tenants:
         tenant = Tenant.objects.get(schema_name=schema_name)
         with tenant_context(tenant):
-            # Surgical SQL Update: bulk update is O(1) at the DB level
-            updated = LeaveCarryOver.objects.filter(
+            # 1. Fetch all records to expire in one query
+            # We use select_related if employee info is needed for the reason
+            expired_records = list(LeaveCarryOver.objects.filter(
                 expires_at__lt=today,
                 used_days__lt=F("days")
-            ).update(used_days=F("days"))
-            
-            total_expired += updated
-            if updated > 0:
-                logger.info(f"[{schema_name}] Expired {updated} carry-over records.")
+            ).select_related('employee'))
 
-    return total_expired
+            if not expired_records:
+                continue
+
+            transactions_to_create = []
+            records_to_update = []
+
+            for record in expired_records:
+                lost_days = record.days - record.used_days
+                
+                # Prepare Transaction Audit
+                transactions_to_create.append(
+                    LeaveTransaction(
+                        employee=record.employee,
+                        year=today.year,
+                        amount=-lost_days,
+                        transaction_type=LeaveTransactionTypes.EXPIRE,
+                        reason=f"Expiration of carry-over from {record.source_year}"
+                    )
+                )
+
+                # Prepare record update
+                record.used_days = record.days
+                records_to_update.append(record)
+
+            # 2. Database atomic block for bulk operations
+            with transaction.atomic():
+                # Create all transactions in one SQL INSERT
+                LeaveTransaction.objects.bulk_create(transactions_to_create)
+                
+                # Update all CarryOver records in one SQL UPDATE
+                LeaveCarryOver.objects.bulk_update(records_to_update, ['used_days'])
+                
+            count = len(records_to_update)
+            total_expired_count += count
+            logger.info(f"[{schema_name}] Bulk expired {count} carry-over records.")
+
+    return total_expired_count
 
 
 @shared_task(name="hr.leaves.tasks.mark_taken_daily_bulk")
@@ -127,7 +165,7 @@ def mark_taken_daily_bulk_task():
             for leave in leaves_to_mark:
                 # Preserve existing comment and append archive note
                 existing_comment = leave.comment or ""
-                leave.comment = f"{existing_comment}\n[ARCHIVÉ] Automatiquement marqué comme PRIS le {today}."
+                leave.comment = f"{existing_comment}\n[ARCHIVÉ] Marqué automatiquement comme PRIS le {today}."
                 leave.status = LeaveStatus.TAKEN
 
             # Bulk update the status and comment fields only

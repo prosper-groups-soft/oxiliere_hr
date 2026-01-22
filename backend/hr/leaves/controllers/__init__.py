@@ -2,6 +2,7 @@ from typing import Tuple
 from .config import LeaveConfigController
 from .leave_batch import LeaveBatchController
 from .leave import LeaveController
+from .admin import LeaveAdminController
 
 
 def get_all_leaves_ctrls() -> Tuple:
@@ -12,6 +13,7 @@ def get_all_leaves_ctrls() -> Tuple:
         LeaveController,
         LeaveBatchController,
         LeaveConfigController,
+        LeaveAdminController,
     )
 
 
@@ -19,5 +21,6 @@ __all__ = [
     'LeaveConfigController',
     'LeaveBatchController',
     'LeaveController',
+    'LeaveAdminController',
 ]
 

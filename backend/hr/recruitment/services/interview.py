@@ -1,6 +1,6 @@
 import logging
 from hr.recruitment.models import Interview, Application
-from hr.enums import ApplicationStatus
+from hr.recruitment.enums import ApplicationStatus
 
 
 logger = logging.getLogger(__name__)

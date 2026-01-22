@@ -54,7 +54,7 @@ class BankingController(ControllerBase):
     def create_bank(self, payload: BankCreateIn):
         """Register a new bank."""
         try:
-            bank = self.banking_service.create_bank(payload.dict(exclude_none=True))
+            bank = self.banking_service.create_bank(payload.model_dump(exclude_none=True))
             logger.info(f"Bank created via API: {bank.code}")
             return 201, bank
         except ValidationError as e:
@@ -72,7 +72,7 @@ class BankingController(ControllerBase):
         try:
             return self.banking_service.update_bank(
                 bank_id, 
-                payload.dict(exclude_unchanged=True)
+                payload.model_dump(exclude_unchanged=True)
             )
         except ValidationError as e:
             return self.create_response({"detail": e.messages}, status_code=400)
@@ -89,7 +89,7 @@ class BankingController(ControllerBase):
     def create_account(self, payload: BankAccountCreateIn):
         """Create a bank account for an employee."""
         try:
-            data = payload.dict()
+            data = payload.model_dump()
             employee_id = data.pop('employee_id')
             bank_id = data.pop('bank_id')
             
@@ -121,7 +121,7 @@ class BankingController(ControllerBase):
         try:
             return self.banking_service.update_account(
                 account_id=account_id,
-                data=payload.dict(exclude_unchanged=True),
+                data=payload.model_dump(exclude_unchanged=True),
                 actor=self.context.request.user
             )
         except ValidationError as e:

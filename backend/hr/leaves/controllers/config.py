@@ -7,28 +7,19 @@ from ninja_extra import (
     http_get, 
     http_post, 
     http_patch, 
-    http_put, 
     http_delete, 
     ControllerBase
 )
 from oxutils.pagination.cursor import CursorPagination
 from injector import inject
 from hr.leaves.services import (
-    LeavePolicyService, 
-    PublicHolidayService,
-    CompanyClosingService,
+    LeavePolicyService,
     SeniorityRuleService,
     LeaveInitializerService,
     CircumstanceLeaveRuleService
 )
 from hr.leaves.schemas import (
     LeavePolicyOut, LeavePolicyCreate, LeavePolicyUpdate,
-    
-    PublicHolidayOut, PublicHolidayCreate,
-    PublicHolidayUpdate, PublicHolidayFilter,
-    
-    CompanyClosingOut, CompanyClosingCreate,
-    CompanyClosingUpdate, CompanyClosingFilter,
     
     SeniorityRuleOut, SeniorityRuleCreate,
     SeniorityRuleUpdate, SeniorityRuleFilter,
@@ -45,15 +36,11 @@ class LeaveConfigController(ControllerBase):
     def __init__(
         self,
         policy_service: LeavePolicyService,
-        holiday_service: PublicHolidayService,
-        closing_service: CompanyClosingService,
         seniority_service: SeniorityRuleService,
         circumstance_service: CircumstanceLeaveRuleService,
         initializer_service: LeaveInitializerService
     ):
         self.policy_service = policy_service
-        self.holiday_service = holiday_service
-        self.closing_service = closing_service
         self.seniority_service = seniority_service
         self.circumstance_service = circumstance_service
         self.initializer_service = initializer_service
@@ -93,64 +80,6 @@ class LeaveConfigController(ControllerBase):
             instance=instance, 
             data=data.model_dump(exclude_unset=True)
         )
-
-    # --- Public Holidays ---
-    
-    @http_get('/holidays', response=List[PublicHolidayOut])
-    @paginate(CursorPagination)
-    def list_holidays(self, filters: PublicHolidayFilter = Query(...)):
-        """List public holidays with optional filtering."""
-        return filters.filter(self.holiday_service.list())
-
-    @http_post('/holidays', response={201: PublicHolidayOut})
-    def create_holiday(self, data: PublicHolidayCreate):
-        """Create a new public holiday."""
-        return 201, self.holiday_service.create(data=data.model_dump())
-
-    @http_put('/holidays/{holiday_id}', response=PublicHolidayOut)
-    def update_holiday(self, holiday_id: UUID, data: PublicHolidayUpdate):
-        """Fully update a public holiday."""
-        instance = self.holiday_service.get(id=holiday_id)
-        return self.holiday_service.update(
-            instance=instance,
-            data=data.model_dump(exclude_unset=True)
-        )
-
-    @http_delete('/holidays/{holiday_id}', response={204: None})
-    def delete_holiday(self, holiday_id: UUID):
-        """Delete a public holiday."""
-        instance = self.holiday_service.get(id=holiday_id)
-        self.holiday_service.delete(instance=instance)
-        return 204, None
-
-    # --- Company Closings ---
-    
-    @http_get('/closings', response=List[CompanyClosingOut])
-    @paginate(CursorPagination)
-    def list_closings(self, filters: CompanyClosingFilter = Query(...)):
-        """List company closing periods."""
-        return filters.filter(self.closing_service.list())
-
-    @http_post('/closings', response={201: CompanyClosingOut})
-    def create_closing(self, data: CompanyClosingCreate):
-        """Create a new company closing period."""
-        return 201, self.closing_service.create(data=data.model_dump())
-
-    @http_patch('/closings/{closing_id}', response=CompanyClosingOut)
-    def update_closing(self, closing_id: UUID, data: CompanyClosingUpdate):
-        """Partially update a company closing period."""
-        instance = self.closing_service.get(id=closing_id)
-        return self.closing_service.update(
-            instance=instance,
-            data=data.model_dump(exclude_unset=True)
-        )
-
-    @http_delete('/closings/{closing_id}', response={204: None})
-    def delete_closing(self, closing_id: UUID):
-        """Delete a company closing period."""
-        instance = self.closing_service.get(id=closing_id)
-        self.closing_service.delete(instance=instance)
-        return 204, None
 
     # --- Seniority Rules ---
     

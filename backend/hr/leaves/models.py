@@ -6,12 +6,14 @@ from auditlog.registry import auditlog
 
 from hr.employees.models import Employee
 from hr.models import BaseAuditableModel
-from hr.enums import (
+from .enums import (
     LeaveCategory, 
     LeaveStatus, 
     CircumstanceType, 
-    CountryCode
+    LeaveTransactionTypes
 )
+from hr.enums import CountryCode
+
 from hr.utils import get_country_codes
 
 
@@ -324,46 +326,40 @@ class LeaveRecall(BaseAuditableModel):
         ]
 
 
-# --- CALENDAR ---
-
-class PublicHoliday(BaseAuditableModel):
-    """Statutory public holidays."""
-    name = models.CharField(max_length=100)
-    date = models.DateField()
-    country_code = models.CharField(
-        max_length=2,
-        choices=get_country_codes(),
-        default=CountryCode.DRC
+class LeaveTransaction(BaseAuditableModel):
+    # Required: We must always know who the transaction belongs to
+    employee = models.ForeignKey(
+        Employee, 
+        on_delete=models.CASCADE,
+        related_name="leave_transactions"
     )
-    is_recurring = models.BooleanField(default=True)
+    
+    # Fiscal/calendar year affected by the transaction
+    year = models.PositiveIntegerField()
+    
+    # Amount (e.g., -2.00 for leave consumption, +18.00 for accrual)
+    amount = models.DecimalField(max_digits=5, decimal_places=2)
+    
+    transaction_type = models.CharField(
+        max_length=20, 
+        choices=LeaveTransactionTypes.choices
+    )
+    
+    # Optional: Only if it's a leave consumption or a refund
+    leave_request = models.ForeignKey(
+        'LeaveRequest', 
+        null=True, 
+        blank=True, 
+        on_delete=models.SET_NULL
+    )
+    
+    reason = models.TextField(blank=True)
 
     class Meta:
-        db_table = "leav_public_holiday"
+        db_table = "leav_leave_transaction"
         indexes = [
-            models.Index(fields=['date', 'country_code']),
-        ]
-        constraints = [
-            # A public holiday must be unique per date and country
-            models.UniqueConstraint(
-                fields=['date', 'country_code'],
-                name="unique_holiday_per_country_date"
-            )
-        ]
-
-
-class CompanyClosing(BaseAuditableModel):
-    """Exceptional company-wide closing days."""
-    name = models.CharField(max_length=100)
-    start_date = models.DateField()
-    end_date = models.DateField()
-
-    class Meta:
-        db_table = "leav_company_closing"
-        constraints = [
-            models.CheckConstraint(
-                condition=models.Q(end_date__gte=models.F('start_date')),
-                name="closing_start_before_end"
-            )
+            models.Index(fields=['employee', 'year']),
+            models.Index(fields=['transaction_type']),
         ]
 
 
@@ -375,6 +371,5 @@ auditlog.register(CircumstanceLeaveRule)
 auditlog.register(LeaveBalance)
 auditlog.register(LeaveRequest)
 auditlog.register(LeaveRecall)
-auditlog.register(PublicHoliday)
-auditlog.register(CompanyClosing)
+auditlog.register(LeaveTransaction)
 

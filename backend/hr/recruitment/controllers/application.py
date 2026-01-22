@@ -3,7 +3,7 @@ from typing import List
 from injector import inject
 
 from django.core.exceptions import ValidationError
-from ninja import Query, File, Form
+from ninja import File, Form
 from ninja.files import UploadedFile
 from ninja.pagination import paginate
 from ninja_extra import (
@@ -20,7 +20,7 @@ from hr.recruitment.schemas import (
     ApplicationOut,
     ApplicationCreateIn,
 )
-from hr.enums import ApplicationStatus
+from hr.recruitment.enums import ApplicationStatus
 
 # Models 
 from hr.recruitment.models import Application

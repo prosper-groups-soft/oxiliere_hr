@@ -12,7 +12,11 @@ from django.utils.translation import gettext_lazy as _
 from auditlog.registry import auditlog
 
 from hr.models import BaseAuditableModel
-from hr.enums import WeekdayEnum, TimeSheetStatus, PunchType
+from .enums import (
+    TimeSheetStatus,
+    PunchType,
+)
+from hr.enums import WeekdayEnum
 
 
 class ShiftPolicy(BaseAuditableModel):
@@ -266,6 +270,12 @@ class AttendanceSettings(BaseAuditableModel):
 
     # Technical safeguard to ensure only one settings record exists
     singleton_enforcer = models.IntegerField(default=1, unique=True, editable=False)
+
+    partial_absence_threshold = models.DurationField(
+        default=timedelta(minutes=30),
+        help_text=_("Minimum shortfall duration to classify a timesheet as 'PARTIAL' instead of 'PRESENT'."),
+        verbose_name=_("Partial Absence Threshold")
+    )
 
     class Meta:
         db_table = "atnd_attendance_settings"

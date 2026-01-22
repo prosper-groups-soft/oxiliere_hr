@@ -22,6 +22,7 @@ from hr.employees.models import Employee
 from hr.leaves.models import (
     LeaveRequest,
     LeaveBalance,
+    LeaveTransaction,
 )
 from hr.leaves.services import (
     LeaveRequestService,
@@ -35,7 +36,9 @@ from hr.leaves.schemas import (
     LeaveBalanceOut,
     LeaveBalanceFilter,
     LeaveRecallOut,
-    LeaveRecallCreate
+    LeaveRecallCreate,
+    LeaveTransactionOut,
+    LeaveTransactionFilter
 )
 
 
@@ -245,4 +248,15 @@ class LeaveController(ControllerBase):
             return self.request_service.add_attachment(leave_request, file, actor)
         except ValidationError as e:
             return self.create_response({"detail": str(e.message)}, status_code=400)
+
+    # ------------------ Leave Transactions ------------------
+
+    @http_get('/transactions', response=List[LeaveTransactionOut])
+    @paginate(CursorPagination)
+    def list_transactions(self, filters: LeaveTransactionFilter = Query(...)):
+        """
+        View the history of all leave-related transactions (accrual, consumption, refund, etc.).
+        """
+        qs = LeaveTransaction.objects.select_related('employee', 'leave_request').all()
+        return filters.filter(qs)
 

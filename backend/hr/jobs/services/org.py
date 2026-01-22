@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404
 
 from hr.jobs.models import Department
 from hr.employees.models import Employee
-from hr.enums import PositionLevel
+from hr.jobs.enums import PositionLevel
 
 
 logger = logging.getLogger(__name__)

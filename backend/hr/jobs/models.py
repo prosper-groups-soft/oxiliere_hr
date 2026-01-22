@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 from auditlog.registry import auditlog
 
 from hr.models import BaseAuditableModel
-from hr.enums import PositionLevel
+from .enums import PositionLevel
 
 
 class JobFamily(BaseAuditableModel):
@@ -230,6 +230,7 @@ class Training(BaseAuditableModel):
             super().clean()
             if self.expiry_date and self.start_date and self.expiry_date <= self.start_date:
                 raise ValidationError(_("Expiry date must be after the start date."))
+
 
 # --- AUDIT LOG REGISTRATION ---
 

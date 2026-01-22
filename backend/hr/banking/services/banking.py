@@ -10,7 +10,7 @@ from hr.banking.models import (
     BankAccount,
     BankAccountHistory
 )
-from hr.enums import BankAccountAction
+from hr.banking.enums import BankAccountAction
 
 
 logger = logging.getLogger(__name__)

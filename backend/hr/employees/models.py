@@ -8,13 +8,16 @@ from auditlog.registry import auditlog
 
 from hr.models import BaseAuditableModel, AddressMixin
 from hr.enums import (
-    AcademicLevel, 
     GenderStatus, 
-    MaritalStatus, 
+    CountryCode,
+)
+
+from .enums import (
+    AcademicLevel,
+    MaritalStatus,
     RelationshipType,
     EmployeeStatus,
     DocumentType,
-    CountryCode
 )
 from hr.utils import get_country_codes, normalize_names
 

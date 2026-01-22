@@ -2,7 +2,7 @@ import logging
 from django.db import transaction
 from hr.recruitment.models import Application
 from hr.employees.models import Employee
-from hr.enums import ApplicationStatus
+from hr.recruitment.enums import ApplicationStatus
 from .career import CareerService
 
 

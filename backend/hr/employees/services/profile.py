@@ -12,7 +12,7 @@ from sequences import get_next_value
 from injector import inject
 
 from hr.employees.models import Employee, StatusHistory
-from hr.enums import EmployeeStatus
+from hr.employees.enums import EmployeeStatus
 from hr.utils import update_instance
 from .query import EmployeeQueryService
 

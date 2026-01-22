@@ -30,6 +30,7 @@ from hr.employees.services import (
     EmployeeQueryService,
 )
 
+
 logger = logging.getLogger(__name__)
 
 

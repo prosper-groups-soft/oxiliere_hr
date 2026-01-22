@@ -19,6 +19,7 @@ from hr.attendance.schemas import (
     WeeklyPlanningOut,
     RotationCreateIn,
     RotationBackfillIn,
+    WorkingDaysPreviewOut,
 )
 
 from hr.attendance.services import SchedulingService
@@ -195,4 +196,24 @@ class SchedulingController(ControllerBase):
         logger.info("Rotation backfill completed")
 
         return {"message": "Backfill process triggered"}
+
+    @http_get('/preview-working-days', response=WorkingDaysPreviewOut)
+    def preview_working_days(self, employee_id: UUID, start_date: date, end_date: date):
+        """
+        Preview working days calculation for a given period.
+        Useful for previewing leave consumption.
+        """
+        employee = get_object_or_404(Employee, id=employee_id)
+
+        total = self.scheduling_service.count_working_days_for_employee(
+            employee, start_date, end_date
+        )
+        breakdown = self.scheduling_service.get_working_days_by_year(
+            employee, start_date, end_date
+        )
+
+        return WorkingDaysPreviewOut(
+            total_working_days=total,
+            breakdown=breakdown
+        )
 

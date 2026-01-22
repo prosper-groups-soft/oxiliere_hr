@@ -10,6 +10,7 @@ HR_MODULES = [
     'hr.recruitment',
     'hr.banking',
     'hr.calendar',
+    'hr.payroll',
 ]
 
 

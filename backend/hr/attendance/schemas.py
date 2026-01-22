@@ -7,14 +7,13 @@ from django.db import models
 
 from hr.attendance.models import (
     DailyRegister,
-    TimeSheet,
     TimePunch,
     PeriodArchiveLock,
     ShiftPolicy,
     ShiftDetail,
     AttendanceSettings,
 )
-from hr.enums import PunchType
+from hr.attendance.enums import PunchType
 
 
 class DurationOut(Schema):
@@ -183,12 +182,14 @@ class AttendanceSettingsOut(ModelSchema):
         fields = [
             "late_grace_period",
             "rounding_precision",
+            "partial_absence_threshold"
         ]
 
 
 class AttendanceSettingsUpdateIn(Schema):
     late_grace_period: Optional[timedelta]
     rounding_precision: Optional[int]
+    partial_absence_threshold: Optional[timedelta]
 
 
 class TimeSheetFilter(FilterSchema):
@@ -204,3 +205,7 @@ class TimeSheetFilter(FilterSchema):
         return models.Q(register__date__lte=value)
 
 
+
+class WorkingDaysPreviewOut(Schema):
+    total_working_days: int
+    breakdown: dict[int, int]

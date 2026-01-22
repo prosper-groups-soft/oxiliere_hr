@@ -5,6 +5,9 @@ from django.db.models import Q
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
+from hr.enums import WeekdayEnum
+from hr.calendar.services import CalendarService
+
 from hr.attendance.models import (
     ShiftPolicy, 
     ShiftDetail, 
@@ -12,7 +15,6 @@ from hr.attendance.models import (
     ShiftAssignment,
     RotationPattern
 )
-from hr.enums import WeekdayEnum
 
 
 class SchedulingService:
@@ -124,10 +126,19 @@ class SchedulingService:
     @classmethod
     def get_expected_schedule(cls, employee, target_date: date) -> ShiftDetail | None:
         """
-        Retrieves the scheduled planning according to the hierarchy:
-        1. Checks for a ShiftAssignment (Specific planning override)
-        2. Otherwise, retrieves the ShiftDetail from the active ShiftPolicy.
+        Retrieves the scheduled planning with Holiday awareness.
+        Hierarchy:
+        1. Check if the date is a Public Holiday/Company Closing (Global override).
+        2. Check for a ShiftAssignment (Specific planning override).
+        3. Retrieve the ShiftDetail from the active ShiftPolicy.
         """
+        # --- NEW PRIORITY 0: Global Calendar Holidays ---
+        # If the day is a holiday in the employee's country, no work is expected.
+        # Assuming employee has a 'country_code' field, otherwise use default.
+        country_code = getattr(employee, 'country_code', 'CD') 
+        if CalendarService.is_non_working_day(target_date, country_code):
+            return None
+
         # --- PRIORITY 1: Specific Override ---
         assignment = ShiftAssignment.objects.filter(
             employee=employee, 
@@ -137,7 +148,7 @@ class SchedulingService:
         if assignment:
             return assignment.shift_detail
 
-        # --- PRIORITY 2: Default Policy (Standard Scheme) ---
+        # --- PRIORITY 2: Default Policy ---
         scheme = cls.get_active_scheme_for_date(employee, target_date)
         if not scheme:
             return None
@@ -293,4 +304,40 @@ class SchedulingService:
         
         if assignments_to_create:
             ShiftAssignment.objects.bulk_create(assignments_to_create)
+
+    @staticmethod
+    def count_working_days_for_employee(employee, start_date: date, end_date: date) -> int:
+        """
+        Calculates the exact number of days an employee was supposed to work
+        between two dates, accounting for their specific shift policy and holidays.
+        """
+        if start_date > end_date:
+            return 0
+
+        count = 0
+        curr = start_date
+        while curr <= end_date:
+            if SchedulingService.is_working_day(employee, curr):
+                count += 1
+            curr += timedelta(days=1)
+        return count
+
+    @staticmethod
+    def get_working_days_by_year(employee, start_date: date, end_date: date) -> dict[int, int]:
+        """
+        Returns a breakdown of working days per calendar year.
+        Crucial for leave requests spanning across December and January.
+        Example: {2025: 3, 2026: 2}
+        """
+        results = {}
+        if start_date > end_date:
+            return results
+
+        curr = start_date
+        while curr <= end_date:
+            if SchedulingService.is_working_day(employee, curr):
+                year = curr.year
+                results[year] = results.get(year, 0) + 1
+            curr += timedelta(days=1)
+        return results
 

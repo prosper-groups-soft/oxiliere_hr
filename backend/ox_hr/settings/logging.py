@@ -27,3 +27,4 @@ HR_LOGGING_CONFIG = {
         },
     },
 }
+

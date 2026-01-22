@@ -6,7 +6,7 @@ from hr.attendance.models import (
     TimeSheet, 
     DailyRegister
 )
-from hr.enums import PunchType
+from hr.attendance.enums import PunchType
 
 
 class PunchService:
