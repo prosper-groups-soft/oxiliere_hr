@@ -391,14 +391,35 @@ class RepaymentRecord(BaseAuditableModel):
         db_table = "pyrl_repayment_record"
 
 
+class TaxBracket(BaseAuditableModel):
+    """
+    Stores progressive tax brackets (e.g., IPR in DRC).
+    Example: 0 to 1000 @ 0%, 1001 to 2500 @ 15%, etc.
+    """
+    label = models.CharField(max_length=100)
+    lower_limit = models.DecimalField(max_digits=12, decimal_places=2)
+    upper_limit = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    rate_percentage = models.DecimalField(max_digits=5, decimal_places=2)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "pyrl_tax_bracket"
+        ordering = ['lower_limit']
+
+    def __str__(self):
+        return f"{self.label}: {self.rate_percentage}%"
+
+
 # --- AUDIT LOG REGISTRATION ---
 
 auditlog.register(PayrollConfiguration)
 auditlog.register(EmployeeContract)
 auditlog.register(PayrollAdjustment)
 auditlog.register(EmployeeAdjustment)
-audtilog.register(PayrollRun)
+auditlog.register(PayrollRun)
 auditlog.register(EmployeePayslip)
 auditlog.register(PayslipLine)
 auditlog.register(SalaryAdvance)
 auditlog.register(RepaymentRecord)
+auditlog.register(TaxBracket)
+

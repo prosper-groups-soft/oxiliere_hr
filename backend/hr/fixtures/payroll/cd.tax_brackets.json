@@ -1,0 +1,47 @@
+[
+  {
+    "model": "pyrl.taxbracket",
+    "pk": 1,
+    "fields": {
+      "label": "Tranche 1 (Mensuelle)",
+      "lower_limit": "0.00",
+      "upper_limit": "162000.00",
+      "rate_percentage": "3.00",
+      "is_active": true
+    }
+  },
+  {
+    "model": "pyrl.taxbracket",
+    "pk": 2,
+    "fields": {
+      "label": "Tranche 2 (Mensuelle)",
+      "lower_limit": "162000.01",
+      "upper_limit": "1800000.00",
+      "rate_percentage": "15.00",
+      "is_active": true
+    }
+  },
+  {
+    "model": "pyrl.taxbracket",
+    "pk": 3,
+    "fields": {
+      "label": "Tranche 3 (Mensuelle)",
+      "lower_limit": "1800000.01",
+      "upper_limit": "3600000.00",
+      "rate_percentage": "30.00",
+      "is_active": true
+    }
+  },
+  {
+    "model": "pyrl.taxbracket",
+    "pk": 4,
+    "fields": {
+      "label": "Tranche 4 (Mensuelle) - Surplus",
+      "lower_limit": "3600000.01",
+      "upper_limit": null,
+      "rate_percentage": "40.00",
+      "is_active": true
+    }
+  }
+]
+

@@ -1,0 +1,58 @@
+Pour transformer ton moteur de paie actuel en un système **complet et conforme**, voici le plan d'action structuré. Nous allons construire sur ta base solide en ajoutant les couches de complexité fiscale et opérationnelle manquantes.
+
+---
+
+## Plan d'évolution du Moteur de Paie
+
+### Phase 1 : Précision du Brut (Attendance & Time)
+
+Actuellement, ton moteur suppose que tout le monde travaille 173h.
+
+* **Action :** Modifier l'orchestrateur pour accepter des données de présence (heures travaillées, absences, heures supp).
+* **Service à créer :** `AttendanceIntegrationService`.
+* **Objectif :** Calculer un `Gross Salary` réel basé sur le temps de présence effectif.
+
+### Phase 2 : Le Moteur Fiscal (Tax Engine)
+
+C'est l'étape la plus critique pour la conformité légale.
+
+* **Action :** Créer un système capable de gérer les barèmes d'imposition par tranches (ex: IPR en RDC).
+* **Service à créer :** `TaxCalculationService`.
+* **Logic :** Ce service calculera les retenues obligatoires qui ne sont pas des pourcentages fixes (tranches progressives).
+
+### Phase 3 : Charges Patronales (Employer Costs)
+
+Le coût d'un employé n'est pas juste son net. L'entreprise doit savoir ce qu'elle paie à l'État.
+
+* **Action :** Étendre les `PayslipLine` pour inclure les charges que l'employeur paie (ex: Part patronale INSS/CNSS, ONEM).
+* **Objectif :** Générer un état récapitulatif des cotisations sociales.
+
+### Phase 4 : Workflow & Validation
+
+Un bulletin ne doit pas être créé s'il y a des erreurs de données.
+
+* **Action :** Créer un `PayrollValidationService`.
+* **Contrôles :** Vérifier les dates de fin de contrat, les doublons, et les comptes bancaires manquants.
+
+### Phase 5 : Clôture & Reporting
+
+Générer les documents officiels.
+
+* **Action :** Services d'exportation.
+* **Sorties :** PDF du bulletin de paie, Fichier de virement bancaire (format CSV/Excel), et Journal de Paie (comptabilité).
+
+---
+
+## Architecture de calcul mise à jour
+
+Voici l'ordre logique que le moteur devra suivre pour chaque bulletin :
+
+1. **Input :** Heures travaillées + Contrat.
+2. **Base :** Salaire de base (proratisé si absence).
+3. **Variable :** Ajout des primes (Bonus).
+4. **Fiscal :** Calcul des taxes (IPR/Impôts) sur le montant imposable.
+5. **Social :** Calcul des cotisations (INSS/CNSS) Employé **ET** Employeur.
+6. **Dette :** Déduction des avances.
+7. **Final :** Net à payer.
+
+---
