@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal          import Decimal
 from hr.payroll.enums import CalculationMode
 
 
@@ -29,6 +29,36 @@ class PayrollCalculatorService:
             return (base_value * (percentage / Decimal('100'))).quantize(Decimal('0.01'))
         
         return Decimal('0.00')
+
+    @staticmethod
+    def calculate_overtime_pay(hourly_rate: Decimal, 
+                              std_hours: float, 
+                              hol_hours: float, 
+                              multipliers: dict) -> Decimal:
+        """
+        Calculates total overtime pay based on DRC majorations.
+        """
+        pay = Decimal('0.00')
+        std_hours_dec = Decimal(str(std_hours))
+        hol_hours_dec = Decimal(str(hol_hours))
+        
+        # 1. Standard Overtime
+        if std_hours_dec > 0:
+            m130 = multipliers.get('first_two', Decimal('1.30'))
+            m160 = multipliers.get('subsequent', Decimal('1.60'))
+            
+            if std_hours_dec <= 2:
+                pay += (std_hours_dec * hourly_rate * m130)
+            else:
+                pay += (Decimal('2.0') * hourly_rate * m130)
+                pay += ((std_hours_dec - Decimal('2.0')) * hourly_rate * m160)
+        
+        # 2. Holiday/Weekend Overtime
+        if hol_hours_dec > 0:
+            m200 = multipliers.get('holiday', Decimal('2.00'))
+            pay += (hol_hours_dec * hourly_rate * m200)
+            
+        return pay.quantize(Decimal('0.01'))
 
     @staticmethod
     def calculate_hourly_gross(hourly_rate: Decimal, hours_worked: float, 

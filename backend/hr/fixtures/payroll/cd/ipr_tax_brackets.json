@@ -1,0 +1,66 @@
+[
+  {
+    "model": "hr_payroll.taxbracket",
+    "pk": "019bea5e-f8c7-79d3-b5e7-3eda4b49f001",
+    "fields": {
+      "label": "IPR Tranche 1 (0 - 1 944 000 FC)",
+      "lower_limit": "0.00",
+      "upper_limit": "1944000.00",
+      "rate_percentage": "3.00",
+      "min_tax_amount": "2000.00",
+      "max_tax_percentage": "30.00",
+      "applies_to_taxable_base": true,
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr_payroll.taxbracket",
+    "pk": "019bea5e-f8c7-79d3-b5e7-3eda4b49f002",
+    "fields": {
+      "label": "IPR Tranche 2 (1 944 001 - 21 600 000 FC)",
+      "lower_limit": "1944001.00",
+      "upper_limit": "21600000.00",
+      "rate_percentage": "15.00",
+      "min_tax_amount": "2000.00",
+      "max_tax_percentage": "30.00",
+      "applies_to_taxable_base": true,
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr_payroll.taxbracket",
+    "pk": "019bea5e-f8c7-79d3-b5e7-3eda4b49f003",
+    "fields": {
+      "label": "IPR Tranche 3 (21 600 001 - 43 200 000 FC)",
+      "lower_limit": "21600001.00",
+      "upper_limit": "43200000.00",
+      "rate_percentage": "30.00",
+      "min_tax_amount": "2000.00",
+      "max_tax_percentage": "30.00",
+      "applies_to_taxable_base": true,
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr_payroll.taxbracket",
+    "pk": "019bea5e-f8c7-79d3-b5e7-3eda4b49f004",
+    "fields": {
+      "label": "IPR Tranche 4 (au-delà de 43 200 000 FC)",
+      "lower_limit": "43200001.00",
+      "upper_limit": null,
+      "rate_percentage": "40.00",
+      "min_tax_amount": "2000.00",
+      "max_tax_percentage": "30.00",
+      "applies_to_taxable_base": true,
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  }
+]

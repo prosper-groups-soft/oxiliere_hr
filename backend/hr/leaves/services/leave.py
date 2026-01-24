@@ -348,3 +348,59 @@ class LeaveRequestService:
         logger.info(f"Attachment updated for request {leave_request.id}")
         return leave_request
 
+    @staticmethod
+    def get_leaves_for_period(employee: Employee, start_date: date, end_date: date):
+        """
+        Retrieves approved leaves for an employee during a specific period.
+        Returns a dictionary with day counts for 'paid_leave' and 'unpaid_leave'.
+        """
+        # Approved or Taken leaves that overlap with the period
+        requests = LeaveRequest.objects.filter(
+            employee=employee,
+            status__in=[LeaveStatus.APPROVED, LeaveStatus.TAKEN],
+            start_date__lte=end_date,
+            end_date__gte=start_date
+        )
+
+        results = {
+            'paid_days': Decimal('0.00'),
+            'unpaid_days': Decimal('0.00'),
+            'details': []
+        }
+
+        for req in requests:
+            # Determine actual overlap dates
+            overlap_start = max(start_date, req.start_date)
+            overlap_end = min(end_date, req.end_date)
+            
+            # Count working days in the overlap
+            days = Decimal(str(SchedulingService.count_working_days_for_employee(
+                employee, overlap_start, overlap_end
+            )))
+
+            if days <= 0:
+                continue
+
+            # Categorize
+            is_paid = True
+            if req.category == LeaveCategory.UNPAID:
+                is_paid = False
+            elif req.category == LeaveCategory.CIRCUMSTANCE:
+                # Check rule for circumstance leave (some might be unpaid in theory)
+                rule = CircumstanceLeaveRule.objects.filter(type=req.circumstance_type).first()
+                if rule:
+                    is_paid = rule.is_paid
+            
+            if is_paid:
+                results['paid_days'] += days
+            else:
+                results['unpaid_days'] += days
+            
+            results['details'].append({
+                'category': req.category,
+                'days': days,
+                'is_paid': is_paid
+            })
+
+        return results
+

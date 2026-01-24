@@ -1,0 +1,83 @@
+[
+  {
+    "model": "hr_payroll.socialcontributionrate",
+    "pk": "019bea5e-f8c7-79d3-b5e7-3eda4b49f101",
+    "fields": {
+      "contribution_type": "CNSS",
+      "rate_percentage": "18.00",
+      "employee_portion": "5.00",
+      "employer_portion": "13.00",
+      "company_size_min": null,
+      "company_size_max": null,
+      "effective_date": "2024-01-01",
+      "is_active": true,
+      "ceiling_amount": "250000.00",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr_payroll.socialcontributionrate",
+    "pk": "019bea5e-f8c7-79d3-b5e7-3eda4b49f102",
+    "fields": {
+      "contribution_type": "ONEM",
+      "rate_percentage": "0.20",
+      "employee_portion": "0.20",
+      "employer_portion": "0.00",
+      "company_size_min": null,
+      "company_size_max": null,
+      "effective_date": "2024-01-01",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr_payroll.socialcontributionrate",
+    "pk": "019bea5e-f8c7-79d3-b5e7-3eda4b49f103",
+    "fields": {
+      "contribution_type": "INPP",
+      "rate_percentage": "3.00",
+      "employee_portion": "3.00",
+      "employer_portion": "0.00",
+      "company_size_min": null,
+      "company_size_max": 50,
+      "effective_date": "2024-01-01",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr_payroll.socialcontributionrate",
+    "pk": "019bea5e-f8c7-79d3-b5e7-3eda4b49f104",
+    "fields": {
+      "contribution_type": "INPP",
+      "rate_percentage": "2.00",
+      "employee_portion": "2.00",
+      "employer_portion": "0.00",
+      "company_size_min": 51,
+      "company_size_max": 300,
+      "effective_date": "2024-01-01",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr_payroll.socialcontributionrate",
+    "pk": "019bea5e-f8c7-79d3-b5e7-3eda4b49f105",
+    "fields": {
+      "contribution_type": "INPP",
+      "rate_percentage": "1.00",
+      "employee_portion": "1.00",
+      "employer_portion": "0.00",
+      "company_size_min": 301,
+      "company_size_max": null,
+      "effective_date": "2024-01-01",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  }
+]

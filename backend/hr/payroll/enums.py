@@ -1,4 +1,4 @@
-from django.db.models import TextChoices
+from django.db.models         import TextChoices
 from django.utils.translation import gettext_lazy as _
 
 
@@ -14,6 +14,12 @@ class RemunerationType(TextChoices):
     """Calculation method for employee compensation."""
     FIXED = "FIXED", _('Fixed Salary')
     HOURLY = "HOURLY", _('Hourly Rate')
+
+
+class SalaryBaseType(TextChoices):
+    """Determines if the base salary is expressed as Gross or Net."""
+    GROSS = "GROSS", _('Gross (Brut)')
+    NET = "NET", _('Net (Brutage)')
 
 
 class ContractType(TextChoices):
@@ -77,4 +83,32 @@ class PayslipStatus(TextChoices):
     CONFIRMED = "CONFIRMED", _('Confirmed')
     PAID = "PAID", _('Paid')
     CANCELED = "CANCELED", _('Canceled')
+
+
+class SocialContributionType(TextChoices):
+    """Types of social contributions in DRC."""
+    CNSS = "CNSS", _('CNSS (Caisse Nationale de Sécurité Sociale)')
+    ONEM = "ONEM", _('ONEM (Office National de l\'Emploi)')
+    INPP = "INPP", _('INPP (Institut National de Préparation Professionnelle)')
+
+
+class OvertimeRuleType(TextChoices):
+    """Types of overtime calculation rules."""
+    FIRST_TWO_HOURS = "FIRST_TWO_HOURS", _('First 2 hours beyond 45h/week (130%)')
+    SUBSEQUENT_HOURS = "SUBSEQUENT_HOURS", _('Subsequent hours (160%)')
+    WEEKEND = "WEEKEND", _('Weekend/Rest day (200%)')
+    HOLIDAY = "HOLIDAY", _('Public holiday (200%)')
+
+
+class LegalAllowanceType(TextChoices):
+    """Types of legal allowances in DRC."""
+    FAMILY = "FAMILY", _('Family Allowance (Allocation Familiale)')
+    HOUSING = "HOUSING", _('Housing Allowance (Contre-valeur Logement)')
+    TRANSPORT = "TRANSPORT", _('Transport Allowance (Allocation de Transport)')
+
+
+class ExchangeRateSource(TextChoices):
+    """Source for fetching currency exchange rates."""
+    MANUAL = "MANUAL", _('Manual Entry')
+    BCC = "BCC", _('Banque Centrale du Congo (Official)')
 

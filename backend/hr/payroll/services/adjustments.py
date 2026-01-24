@@ -1,8 +1,8 @@
-from datetime import date
-from uuid import UUID
-from django.db.models import Q
-from typing import List, Dict, Any
-from hr.payroll.models import (
+from datetime            import date
+from uuid                import UUID
+from django.db.models    import Q
+from typing              import List, Dict, Any
+from hr.payroll.models   import (
     PayrollAdjustment, 
     EmployeeAdjustment
 )

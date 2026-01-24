@@ -1,4 +1,5 @@
 import logging
+from uuid import UUID
 from datetime import date
 from typing import Any, Dict
 from django.db import transaction
@@ -81,6 +82,17 @@ class EmployeeFamilyService:
         
         return child
 
+    @staticmethod
+    def get_dependent_count(employee_id: UUID) -> int:
+        """
+        Returns the count of active legal dependents for an employee.
+        Used by the payroll module for allocation calculations.
+        """
+        return EmployeeChild.objects.filter(
+            parent_id=employee_id, 
+            is_dependent=True
+        ).count()
+        
     @transaction.atomic
     def remove_child(self, child: EmployeeChild, actor: Any = None) -> None:
         """

@@ -1,5 +1,5 @@
-from decimal import Decimal
-from django.db.models import Sum
+from decimal           import Decimal
+from django.db.models  import Sum
 from hr.payroll.models import (
     SalaryAdvance, 
     RepaymentRecord

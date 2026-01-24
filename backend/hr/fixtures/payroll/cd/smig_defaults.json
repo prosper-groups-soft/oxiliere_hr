@@ -1,0 +1,13 @@
+[
+  {
+    "model": "hr_payroll.smigconfiguration",
+    "pk": "019bea5e-f8c7-79d3-b5e7-3eda4b49f395",
+    "fields": {
+      "daily_rate": "7075.00",
+      "effective_date": "2024-01-01",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  }
+]

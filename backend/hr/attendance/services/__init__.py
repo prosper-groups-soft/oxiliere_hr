@@ -3,6 +3,7 @@ from .locking import LockingService
 from .punch import PunchService
 from .scheduling import SchedulingService
 from .validation import ValidationService
+from .summary import AttendanceSummaryService
 
 
 __all__ = [
@@ -11,5 +12,6 @@ __all__ = [
     'PunchService',
     'SchedulingService',
     'ValidationService',
+    'AttendanceSummaryService',
 ]
 

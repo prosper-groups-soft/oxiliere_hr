@@ -21,7 +21,7 @@ from io import BytesIO
 import pandas as pd
 from oxutils.pagination.cursor import CursorPagination
 
-from hr.banking.services import BankingService
+from hr.banking.services import BankingService, BankFileGenerator
 from hr.banking.models import Bank, BankAccount
 from hr.banking.schemas import (
     BankCreateIn, 
@@ -180,27 +180,33 @@ class BankingController(ControllerBase):
         return account.history.select_related('changed_by').all().order_by('-created_at')
 
     @http_get("/export/payroll-file")
-    def download_payroll_file(self, bank_code: str = None, currency: str = "CDF"):
-        # 1. Get data from service
-        data = self.banking_service.generate_payroll_export(bank_code, currency)
+    def download_payroll_file(self, run_id: str, bank_code: str = None, currency: str = "CDF"):
+        # 1. Get data from generator
+        print(f"Generating export for Run: {run_id}, Bank: {bank_code}, Currency: {currency}")
+        data = BankFileGenerator.generate_listing(run_id, bank_code, currency)
         df = pd.DataFrame(data)
 
         # 2. Create Excel file in memory
         output = BytesIO()
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
             df.to_excel(writer, index=False, sheet_name='Virements')
+            # Auto-adjust column width
+            worksheet = writer.sheets['Virements']
+            for i, col in enumerate(df.columns):
+                max_len = max(df[col].astype(str).map(len).max(), len(col)) + 2
+                worksheet.set_column(i, i, max_len)
         
         output.seek(0)
 
         # 3. Prepare HTTP response
-        filename = f"virements_{currency}_{bank_code or 'ALL'}.xlsx"
+        filename = f"virements_{currency}_{bank_code or 'ALL'}_{timezone.now().strftime('%Y%m%d')}.xlsx"
         response = HttpResponse(
             output.read(),
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
         response["Content-Disposition"] = f"attachment; filename={filename}"
         
-        logger.info(f"Payroll file generated for bank {bank_code} and currency {currency}") 
+        logger.info(f"Payroll file generated for run {run_id}") 
                
         return response
 
