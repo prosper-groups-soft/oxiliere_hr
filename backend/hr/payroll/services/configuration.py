@@ -1,0 +1,622 @@
+"""
+PAYROLL CONFIGURATION SERVICE
+
+Manages payroll system configuration:
+- Global payroll settings
+- SMIG rates (minimum wage)
+- Social contribution rates
+- Overtime rules
+- Tax brackets
+- Legal allowances
+"""
+
+import logging
+from decimal import Decimal
+from typing import Dict, Any
+from uuid import UUID
+
+from django.db import transaction
+from django.core.exceptions import ValidationError
+
+from hr.payroll.models import (
+    PayrollConfiguration,
+    SMIGConfiguration,
+    SocialContributionRate,
+    OvertimeRule,
+    TaxBracket,
+    LegalAllowance,
+)
+
+
+logger = logging.getLogger(__name__)
+
+
+class ConfigurationService:
+    """
+    Manages payroll system-wide configuration.
+    
+    Responsibilities:
+    - Global payroll settings (currency, payment method, work hours)
+    - SMIG rates management with history
+    - Social contribution rates (CNSS, ONEM, etc.)
+    - Overtime rules and multipliers
+    - Tax brackets for progressive taxation
+    - Legal allowances (family, housing, transport, etc.)
+    """
+
+    # ===== PAYROLL CONFIGURATION =====
+
+    @classmethod
+    @transaction.atomic
+    def create_configuration(cls, data: Dict[str, Any], actor=None) -> PayrollConfiguration:
+        """
+        Create global payroll configuration (singleton pattern).
+        
+        This should be called once during system initialization.
+        
+        Args:
+            data: Dictionary with configuration fields
+            actor: User creating configuration
+            
+        Returns:
+            PayrollConfiguration: Created configuration
+            
+        Raises:
+            ValidationError: If configuration already exists or invalid data
+        """
+        logger.debug("[Config] Creating payroll configuration", extra={"actor": actor})
+
+        # Check if configuration already exists
+        if PayrollConfiguration.objects.exists():
+            logger.warning("[Config] Configuration already exists")
+            raise ValidationError("Payroll configuration already exists. Use update instead.")
+
+        # Validate currency
+        currency = data.get('currency', 'CDF')
+        if currency not in ['CDF', 'USD', 'EUR']:
+            logger.warning("[Config] Invalid currency", extra={"currency": currency})
+            raise ValidationError(f"Invalid currency: {currency}")
+
+        # Create configuration
+        config = PayrollConfiguration.objects.create(**data)
+
+        logger.info("[Config] Configuration created successfully")
+        return config
+
+    @classmethod
+    @transaction.atomic
+    def update_configuration(cls, data: Dict[str, Any], actor=None) -> PayrollConfiguration:
+        """
+        Update global payroll configuration.
+        
+        Args:
+            data: Dictionary with fields to update
+            actor: User updating configuration
+            
+        Returns:
+            PayrollConfiguration: Updated configuration
+            
+        Raises:
+            ValidationError: If no configuration exists or invalid data
+        """
+        logger.debug("[Config] Updating configuration", extra={"actor": actor})
+
+        config = PayrollConfiguration.objects.first()
+        if not config:
+            logger.warning("[Config] No configuration found to update")
+            raise ValidationError("Payroll configuration not initialized. Create one first.")
+
+        # Update fields
+        for key, value in data.items():
+            if hasattr(config, key) and value is not None:
+                setattr(config, key, value)
+
+        config.save()
+        logger.info("[Config] Configuration updated successfully")
+        return config
+
+    # ===== SMIG RATES =====
+
+    @classmethod
+    @transaction.atomic
+    def create_smig_rate(cls, data: Dict[str, Any], actor=None) -> SMIGConfiguration:
+        """
+        Create a new SMIG (minimum wage) rate.
+        
+        Used when minimum wage changes occur.
+        
+        Args:
+            data: Dictionary with:
+                - effective_date: Date when rate takes effect
+                - amount: Decimal minimum wage amount
+                - currency: Currency code (CDF/USD)
+                
+            actor: User creating rate
+            
+        Returns:
+            SMIGConfiguration: Created rate
+            
+        Raises:
+            ValidationError: If invalid data
+        """
+        logger.debug("[SMIG] Creating SMIG rate", extra={"data": data, "actor": actor})
+
+        # Validate amount
+        amount = Decimal(str(data.get('amount', 0)))
+        if amount <= 0:
+            logger.warning("[SMIG] Invalid SMIG amount", extra={"amount": amount})
+            raise ValidationError("SMIG amount must be positive")
+
+        # Validate effective_date
+        effective_date = data.get('effective_date')
+        if not effective_date:
+            logger.warning("[SMIG] Missing effective_date")
+            raise ValidationError("effective_date is required")
+
+        # Check if rate already exists for this date
+        if SMIGConfiguration.objects.filter(effective_date=effective_date).exists():
+            logger.warning("[SMIG] Rate already exists for this date", extra={"date": effective_date})
+            raise ValidationError(f"SMIG rate already exists for {effective_date}")
+
+        # Create SMIG rate
+        smig = SMIGConfiguration.objects.create(**data)
+
+        logger.info(
+            "[SMIG] SMIG rate created",
+            extra={"effective_date": effective_date, "amount": amount}
+        )
+        return smig
+
+    @classmethod
+    @transaction.atomic
+    def update_smig_rate(
+        cls,
+        smig_id: UUID,
+        data: Dict[str, Any],
+        actor=None
+    ) -> SMIGConfiguration:
+        """
+        Update an existing SMIG rate.
+        
+        Args:
+            smig_id: UUID of SMIG rate
+            data: Fields to update
+            actor: User updating
+            
+        Returns:
+            SMIGConfiguration: Updated rate
+            
+        Raises:
+            ValidationError: If invalid data
+            SMIGConfiguration.DoesNotExist: If not found
+        """
+        logger.debug("[SMIG] Updating SMIG rate", extra={"smig_id": smig_id})
+
+        smig = SMIGConfiguration.objects.get(id=smig_id)
+
+        # Validate amount if provided
+        if 'amount' in data:
+            amount = Decimal(str(data['amount']))
+            if amount <= 0:
+                raise ValidationError("SMIG amount must be positive")
+
+        # Update fields
+        for key, value in data.items():
+            if hasattr(smig, key) and value is not None:
+                setattr(smig, key, value)
+
+        smig.save()
+        logger.info("[SMIG] SMIG rate updated", extra={"smig_id": smig_id})
+        return smig
+
+    # ===== SOCIAL CONTRIBUTION RATES =====
+
+    @classmethod
+    @transaction.atomic
+    def create_contribution_rate(
+        cls,
+        data: Dict[str, Any],
+        actor=None
+    ) -> SocialContributionRate:
+        """
+        Create a new social contribution rate.
+        
+        Contribution types: CNSS, ONEM, INPP, etc.
+        
+        Args:
+            data: Dictionary with:
+                - contribution_type: Type of contribution
+                - employee_rate: Employee contribution percentage
+                - employer_rate: Employer contribution percentage
+                - is_active: Whether rate is active
+                
+            actor: User creating rate
+            
+        Returns:
+            SocialContributionRate: Created rate
+            
+        Raises:
+            ValidationError: If invalid data or type already exists
+        """
+        logger.debug("[Contributions] Creating contribution rate", extra={"data": data})
+
+        # Validate percentage rates
+        employee_rate = Decimal(str(data.get('employee_rate', 0)))
+        employer_rate = Decimal(str(data.get('employer_rate', 0)))
+
+        if employee_rate < 0 or employer_rate < 0:
+            logger.warning("[Contributions] Invalid rates", extra={"employee": employee_rate, "employer": employer_rate})
+            raise ValidationError("Rates must be non-negative")
+
+        if employee_rate > 100 or employer_rate > 100:
+            logger.warning("[Contributions] Rates exceed 100%")
+            raise ValidationError("Rates cannot exceed 100%")
+
+        # Check if type already exists
+        contribution_type = data.get('contribution_type')
+        if SocialContributionRate.objects.filter(contribution_type=contribution_type).exists():
+            logger.warning(
+                "[Contributions] Type already exists",
+                extra={"type": contribution_type}
+            )
+            raise ValidationError(f"Contribution type {contribution_type} already exists")
+
+        # Create rate
+        rate = SocialContributionRate.objects.create(**data)
+
+        logger.info(
+            "[Contributions] Rate created",
+            extra={"type": contribution_type, "employee": employee_rate, "employer": employer_rate}
+        )
+        return rate
+
+    @classmethod
+    @transaction.atomic
+    def update_contribution_rate(
+        cls,
+        rate_id: UUID,
+        data: Dict[str, Any],
+        actor=None
+    ) -> SocialContributionRate:
+        """
+        Update an existing social contribution rate.
+        
+        Args:
+            rate_id: UUID of rate
+            data: Fields to update
+            actor: User updating
+            
+        Returns:
+            SocialContributionRate: Updated rate
+            
+        Raises:
+            ValidationError: If invalid data
+            SocialContributionRate.DoesNotExist: If not found
+        """
+        logger.debug("[Contributions] Updating contribution rate", extra={"rate_id": rate_id})
+
+        rate = SocialContributionRate.objects.get(id=rate_id)
+
+        # Validate rates if provided
+        if 'employee_rate' in data:
+            emp_rate = Decimal(str(data['employee_rate']))
+            if emp_rate < 0 or emp_rate > 100:
+                raise ValidationError("Employee rate must be between 0 and 100")
+
+        if 'employer_rate' in data:
+            emp_rate = Decimal(str(data['employer_rate']))
+            if emp_rate < 0 or emp_rate > 100:
+                raise ValidationError("Employer rate must be between 0 and 100")
+
+        # Update fields
+        for key, value in data.items():
+            if hasattr(rate, key) and value is not None:
+                setattr(rate, key, value)
+
+        rate.save()
+        logger.info("[Contributions] Rate updated", extra={"rate_id": rate_id})
+        return rate
+
+    # ===== OVERTIME RULES =====
+
+    @classmethod
+    @transaction.atomic
+    def create_overtime_rule(cls, data: Dict[str, Any], actor=None) -> OvertimeRule:
+        """
+        Create a new overtime rule.
+        
+        Rules define multipliers for overtime hours.
+        Example: First 2 hours = 130%, subsequent = 160%, holidays = 200%.
+        
+        Args:
+            data: Dictionary with:
+                - rule_type: Type of rule (HOURS, HOLIDAYS, etc.)
+                - starting_hour: Starting hour count for this rule
+                - multiplier: Overtime multiplier (e.g., 1.3 for 130%)
+                
+            actor: User creating rule
+            
+        Returns:
+            OvertimeRule: Created rule
+            
+        Raises:
+            ValidationError: If invalid data
+        """
+        logger.debug("[Overtime] Creating overtime rule", extra={"data": data})
+
+        # Validate multiplier
+        multiplier = Decimal(str(data.get('multiplier', 1)))
+        if multiplier < 1:
+            logger.warning("[Overtime] Invalid multiplier", extra={"multiplier": multiplier})
+            raise ValidationError("Multiplier must be >= 1.0")
+
+        # Validate starting_hour
+        starting_hour = int(data.get('starting_hour', 0))
+        if starting_hour < 0:
+            logger.warning("[Overtime] Invalid starting_hour", extra={"hour": starting_hour})
+            raise ValidationError("starting_hour must be non-negative")
+
+        # Create rule
+        rule = OvertimeRule.objects.create(**data)
+
+        logger.info(
+            "[Overtime] Rule created",
+            extra={"type": data.get('rule_type'), "hour": starting_hour, "multiplier": multiplier}
+        )
+        return rule
+
+    @classmethod
+    @transaction.atomic
+    def update_overtime_rule(
+        cls,
+        rule_id: UUID,
+        data: Dict[str, Any],
+        actor=None
+    ) -> OvertimeRule:
+        """
+        Update an existing overtime rule.
+        
+        Args:
+            rule_id: UUID of rule
+            data: Fields to update
+            actor: User updating
+            
+        Returns:
+            OvertimeRule: Updated rule
+            
+        Raises:
+            ValidationError: If invalid data
+            OvertimeRule.DoesNotExist: If not found
+        """
+        logger.debug("[Overtime] Updating overtime rule", extra={"rule_id": rule_id})
+
+        rule = OvertimeRule.objects.get(id=rule_id)
+
+        # Validate multiplier if provided
+        if 'multiplier' in data:
+            multiplier = Decimal(str(data['multiplier']))
+            if multiplier < 1:
+                raise ValidationError("Multiplier must be >= 1.0")
+
+        if 'starting_hour' in data:
+            hour = int(data['starting_hour'])
+            if hour < 0:
+                raise ValidationError("starting_hour must be non-negative")
+
+        # Update fields
+        for key, value in data.items():
+            if hasattr(rule, key) and value is not None:
+                setattr(rule, key, value)
+
+        rule.save()
+        logger.info("[Overtime] Rule updated", extra={"rule_id": rule_id})
+        return rule
+
+    # ===== TAX BRACKETS =====
+
+    @classmethod
+    @transaction.atomic
+    def create_tax_bracket(cls, data: Dict[str, Any], actor=None) -> TaxBracket:
+        """
+        Create a new tax bracket for progressive IPR calculation.
+        
+        Used for calculating income tax with progressive rates.
+        
+        Args:
+            data: Dictionary with:
+                - fiscal_year: Year this bracket applies to
+                - min_amount: Minimum salary for this bracket
+                - max_amount: Maximum salary for this bracket
+                - tax_rate: Tax rate for this bracket (percentage)
+                
+            actor: User creating bracket
+            
+        Returns:
+            TaxBracket: Created bracket
+            
+        Raises:
+            ValidationError: If invalid data
+        """
+        logger.debug("[Taxes] Creating tax bracket", extra={"data": data})
+
+        # Validate amounts
+        min_amount = Decimal(str(data.get('min_amount', 0)))
+        max_amount = Decimal(str(data.get('max_amount', 0)))
+        tax_rate = Decimal(str(data.get('tax_rate', 0)))
+
+        if min_amount < 0 or max_amount < 0:
+            logger.warning("[Taxes] Invalid amounts")
+            raise ValidationError("Amounts must be non-negative")
+
+        if min_amount >= max_amount:
+            logger.warning("[Taxes] min_amount >= max_amount")
+            raise ValidationError("min_amount must be less than max_amount")
+
+        if tax_rate < 0 or tax_rate > 100:
+            logger.warning("[Taxes] Invalid tax_rate", extra={"rate": tax_rate})
+            raise ValidationError("Tax rate must be between 0 and 100")
+
+        # Check for overlapping brackets
+        fiscal_year = data.get('fiscal_year')
+        overlapping = TaxBracket.objects.filter(
+            fiscal_year=fiscal_year,
+            min_amount__lt=max_amount,
+            max_amount__gt=min_amount,
+        )
+        if overlapping.exists():
+            logger.warning("[Taxes] Overlapping bracket exists")
+            raise ValidationError("This bracket overlaps with existing brackets")
+
+        # Create bracket
+        bracket = TaxBracket.objects.create(**data)
+
+        logger.info(
+            "[Taxes] Bracket created",
+            extra={"fiscal_year": fiscal_year, "min": min_amount, "max": max_amount, "rate": tax_rate}
+        )
+        return bracket
+
+    @classmethod
+    @transaction.atomic
+    def update_tax_bracket(
+        cls,
+        bracket_id: UUID,
+        data: Dict[str, Any],
+        actor=None
+    ) -> TaxBracket:
+        """
+        Update an existing tax bracket.
+        
+        Args:
+            bracket_id: UUID of bracket
+            data: Fields to update
+            actor: User updating
+            
+        Returns:
+            TaxBracket: Updated bracket
+            
+        Raises:
+            ValidationError: If invalid data
+            TaxBracket.DoesNotExist: If not found
+        """
+        logger.debug("[Taxes] Updating tax bracket", extra={"bracket_id": bracket_id})
+
+        bracket = TaxBracket.objects.get(id=bracket_id)
+
+        # Validate amounts if provided
+        if 'min_amount' in data or 'max_amount' in data:
+            min_amt = Decimal(str(data.get('min_amount', bracket.min_amount)))
+            max_amt = Decimal(str(data.get('max_amount', bracket.max_amount)))
+
+            if min_amt >= max_amt:
+                raise ValidationError("min_amount must be less than max_amount")
+
+        if 'tax_rate' in data:
+            rate = Decimal(str(data['tax_rate']))
+            if rate < 0 or rate > 100:
+                raise ValidationError("Tax rate must be between 0 and 100")
+
+        # Update fields
+        for key, value in data.items():
+            if hasattr(bracket, key) and value is not None:
+                setattr(bracket, key, value)
+
+        bracket.save()
+        logger.info("[Taxes] Bracket updated", extra={"bracket_id": bracket_id})
+        return bracket
+
+    # ===== LEGAL ALLOWANCES =====
+
+    @classmethod
+    @transaction.atomic
+    def create_allowance(cls, data: Dict[str, Any], actor=None) -> LegalAllowance:
+        """
+        Create a new legal allowance (family, housing, transport, etc.).
+        
+        Args:
+            data: Dictionary with:
+                - allowance_type: Type of allowance
+                - base_amount: Fixed amount OR percentage for base calculation
+                - calculation_method: FIXED or PERCENTAGE
+                - is_mandatory: Whether required for all employees
+                
+            actor: User creating allowance
+            
+        Returns:
+            LegalAllowance: Created allowance
+            
+        Raises:
+            ValidationError: If invalid data
+        """
+        logger.debug("[Allowances] Creating allowance", extra={"data": data})
+
+        # Validate amount
+        amount = Decimal(str(data.get('base_amount', 0)))
+        if amount < 0:
+            logger.warning("[Allowances] Invalid amount")
+            raise ValidationError("Allowance amount must be non-negative")
+
+        if data.get('calculation_method') == 'PERCENTAGE' and amount > 100:
+            logger.warning("[Allowances] Percentage > 100%")
+            raise ValidationError("Percentage cannot exceed 100")
+
+        # Check if type already exists
+        allowance_type = data.get('allowance_type')
+        if LegalAllowance.objects.filter(allowance_type=allowance_type).exists():
+            logger.warning("[Allowances] Type already exists", extra={"type": allowance_type})
+            raise ValidationError(f"Allowance type {allowance_type} already exists")
+
+        # Create allowance
+        allowance = LegalAllowance.objects.create(**data)
+
+        logger.info(
+            "[Allowances] Allowance created",
+            extra={"type": allowance_type, "amount": amount, "method": data.get('calculation_method')}
+        )
+        return allowance
+
+    @classmethod
+    @transaction.atomic
+    def update_allowance(
+        cls,
+        allowance_id: UUID,
+        data: Dict[str, Any],
+        actor=None
+    ) -> LegalAllowance:
+        """
+        Update an existing legal allowance.
+        
+        Args:
+            allowance_id: UUID of allowance
+            data: Fields to update
+            actor: User updating
+            
+        Returns:
+            LegalAllowance: Updated allowance
+            
+        Raises:
+            ValidationError: If invalid data
+            LegalAllowance.DoesNotExist: If not found
+        """
+        logger.debug("[Allowances] Updating allowance", extra={"allowance_id": allowance_id})
+
+        allowance = LegalAllowance.objects.get(id=allowance_id)
+
+        # Validate amount if provided
+        if 'base_amount' in data:
+            amount = Decimal(str(data['base_amount']))
+            if amount < 0:
+                raise ValidationError("Allowance amount must be non-negative")
+
+            if allowance.calculation_method == 'PERCENTAGE' and amount > 100:
+                raise ValidationError("Percentage cannot exceed 100")
+
+        # Update fields
+        for key, value in data.items():
+            if hasattr(allowance, key) and value is not None:
+                setattr(allowance, key, value)
+
+        allowance.save()
+        logger.info("[Allowances] Allowance updated", extra={"allowance_id": allowance_id})
+        return allowance
+

@@ -5,7 +5,7 @@ from .job    import JobController
 from .org    import OrganizationController
 
 
-def get_all_jobs_ctrls() -> Tuple:
+def get_all_ctrls_jobs() -> Tuple:
     """
     Groups and returns all controllers associated with the recruitment 
     and career development modules for router registration.

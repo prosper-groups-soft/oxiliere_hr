@@ -1,8 +1,8 @@
 from datetime import date, datetime, timedelta
-from typing import Optional, List
+from typing   import Optional, List
 
-from ninja import Schema, Field, FilterSchema, ModelSchema
-from pydantic import field_validator
+from ninja     import Schema, Field, FilterSchema, ModelSchema
+from pydantic  import field_validator
 from django.db import models
 
 from hr.attendance.models import (

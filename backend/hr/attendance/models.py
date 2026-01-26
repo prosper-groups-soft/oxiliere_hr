@@ -1,22 +1,21 @@
 from __future__ import annotations
 
-import secrets
-import string
 from datetime import timedelta
 
-from django.conf import settings
-from django.core.exceptions import ValidationError
-from django.db import models
+from django.conf              import settings
+from django.core.exceptions   import ValidationError
+from django.db                import models
 from django.utils.translation import gettext_lazy as _
 
 from auditlog.registry import auditlog
 
 from hr.models import BaseAuditableModel
-from .enums import (
+from .enums    import (
     TimeSheetStatus,
     PunchType,
 )
 from hr.enums import WeekdayEnum
+from .utils import generate_daily_register_code
 
 
 class ShiftPolicy(BaseAuditableModel):
@@ -149,11 +148,9 @@ class DailyRegister(BaseAuditableModel):
         verbose_name = _("Daily Register")
 
     def save(self, *args, **kwargs):
-        """Generates a unique code (DR-YYYYMMDD-XXXX) upon creation."""
+        """Generates a unique code upon creation."""
         if not self.code:
-            date_str = self.date.strftime("%Y%m%d")
-            rand = "".join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(4))
-            self.code = f"DR-{date_str}-{rand}"
+            self.code = generate_daily_register_code(self.date)
         super().save(*args, **kwargs)
 
 

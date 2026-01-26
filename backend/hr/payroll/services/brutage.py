@@ -1,4 +1,4 @@
-from decimal           import Decimal
+from decimal import Decimal
 from .contributions    import SocialContributionService
 from .taxes            import TaxCalculationService
 from .legal_allowances import LegalAllowanceService
@@ -7,9 +7,7 @@ from .legal_allowances import LegalAllowanceService
 class GrossUpService:
     """
     Handles 'Net-to-Gross' (Brutage) calculations for DRC.
-    This service finds the Gross amount (Base Salary or Hourly Rate) required 
-    to reach a target Net (Base or Total Net à Payer) after all deductions 
-    and legal allowances.
+    Calculates the Base Salary required to reach a target Net Salary.
     """
 
     @classmethod
@@ -23,24 +21,16 @@ class GrossUpService:
         std_monthly_hours: Decimal = Decimal('195'),
         tolerance: Decimal = Decimal('1.00')
     ) -> Decimal:
-        """
-        Uses a bisection (goal-seeking) algorithm to find the Base Salary or Hourly Rate.
-        
-        This enhanced version targets the 'Net à Payer' (Total Net).
-        Net = (Gross + Allowances) - (SocialDeductions + IPR)
-        """
         if target_net <= 0:
             return Decimal('0.00')
 
-        # Initial bounds for bisection
-        # Lower bound: 0 (since allowances can make base salary < net)
+        # Bounds: Lower 0, Upper is high enough to cover 40% tax + social
         low = Decimal('0.00')
-        # Upper bound: Roughly net * 2 (to cover taxes + social + potential high base)
-        high = target_net * Decimal('2.5') 
+        high = target_net * Decimal('3.0') 
         
         candidate = (low + high) / 2
         
-        # Max 50 iterations for precision and safety
+        # Max 50 iterations to find the base salary
         for _ in range(50):
             current_net = cls._derive_total_net(
                 candidate=candidate, 
@@ -73,45 +63,44 @@ class GrossUpService:
         is_hourly: bool,
         std_monthly_hours: Decimal
     ) -> Decimal:
-        """
-        Helper to calculate the Net (Monthly or Hourly) for a candidate.
-        Includes social contributions, legal allowances, and progressive tax.
-        """
+        # Determine the monthly base salary for simulation
         if is_hourly:
-            hourly_rate = candidate
-            base_salary = (hourly_rate * std_monthly_hours).quantize(Decimal('0.01'))
-            gross_salary = base_salary # Simplification for goal seeking: assume 0 OT
+            base_salary = (candidate * std_monthly_hours).quantize(Decimal('0.01'))
         else:
             base_salary = candidate
-            gross_salary = base_salary # Simplification for goal seeking: assume 0 OT
 
-        # 1. Social Contributions (Worker 5% on Gross)
-        social = SocialContributionService.calculate_contributions(gross_salary, base_salary, company_size)
-        cnss_employee = Decimal('0.00')
-        for d in social['details']:
-            if d['type'] == 'CNSS':
-                cnss_employee = d['employee_amount']
+        # We assume Gross = Base during simulation (excluding allowances)
+        # Note: OT and other bonuses are ignored during Net-to-Base search
+        gross_before_allowances = base_salary 
+
+        # 1. Social Contributions (CNSS 5% with ceiling)
+        social = SocialContributionService.calculate_contributions(
+            gross_amount=gross_before_allowances, 
+            company_size=company_size
+        )
+        cnss_employee = social['employee_total']
         
         # 2. Legal Allowances
         allowances = LegalAllowanceService.calculate_allowances(
             worked_days=worked_days,
             child_count=child_count,
-            gross_salary=gross_salary,
             base_salary=base_salary
         )
         
-        # 3. Taxable Base
-        # Base IPR = (Gross - CNSS) + Taxable Housing Excess
-        taxable_base = (gross_salary - cnss_employee) + allowances['taxable_housing_excess']
+        # 3. Taxable Base for IPR
+        # In DRC: (Gross - CNSS) + Taxable Housing Excess
+        taxable_base = (gross_before_allowances - cnss_employee) + allowances['taxable_housing_excess']
         
-        # 4. IPR Tax
+        # 4. IPR Tax calculation
         ipr = TaxCalculationService.calculate_progressive_tax(taxable_base)
         
-        # 5. Resulting Net à Payer
+        # 5. Final Net to Pay
         # Net = (Gross + Total Allowances) - (CNSS + IPR)
-        total_monthly_net = (gross_salary + allowances['total_allowances']) - (cnss_employee + ipr)
+        total_monthly_net = (gross_before_allowances + allowances['total_allowances']) - (cnss_employee + ipr)
         
         if is_hourly:
+            # Return net hourly rate to compare with target
             return (total_monthly_net / std_monthly_hours).quantize(Decimal('0.01'))
         
         return total_monthly_net
+

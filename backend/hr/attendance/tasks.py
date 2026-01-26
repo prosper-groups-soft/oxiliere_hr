@@ -1,8 +1,7 @@
 import logging
-from django.utils import timezone
-from celery import shared_task, group
+from celery               import shared_task, group
 from django_tenants.utils import tenant_context
-from core.models import Tenant
+from core.models          import Tenant
 from hr.attendance.services.scheduling import SchedulingService
 
 

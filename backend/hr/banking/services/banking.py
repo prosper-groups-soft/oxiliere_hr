@@ -1,8 +1,8 @@
 import logging
-from uuid import UUID
+from uuid   import UUID
 from typing import Dict, Any
 
-from django.db import transaction
+from django.db    import transaction
 from django.utils import timezone
 
 from hr.banking.models import (

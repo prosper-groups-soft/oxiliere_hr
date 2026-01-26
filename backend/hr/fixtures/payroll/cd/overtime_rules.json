@@ -5,10 +5,10 @@
     "fields": {
       "rule_type": "FIRST_TWO_HOURS",
       "multiplier": "1.30",
-      "description": "Les 2 premières heures au-delà de 45 heures par semaine sont majorées à 130 % du taux horaire de base.",
+      "description": "Majoration de 30% pour les 6 premières heures supplémentaires (de la 46ème à la 51ème heure par semaine).",
       "is_active": true,
-      "created_at": "2024-01-01T00:00:00Z",
-      "updated_at": "2024-01-01T00:00:00Z"
+      "created_at": "2026-01-26T00:00:00Z",
+      "updated_at": "2026-01-26T00:00:00Z"
     }
   },
   {
@@ -17,10 +17,10 @@
     "fields": {
       "rule_type": "SUBSEQUENT_HOURS",
       "multiplier": "1.60",
-      "description": "Les heures au-delà des 2 premières heures supplémentaires sont majorées à 160 % du taux horaire de base.",
+      "description": "Majoration de 60% pour les heures au-delà des 6 premières heures supplémentaires.",
       "is_active": true,
-      "created_at": "2024-01-01T00:00:00Z",
-      "updated_at": "2024-01-01T00:00:00Z"
+      "created_at": "2026-01-26T00:00:00Z",
+      "updated_at": "2026-01-26T00:00:00Z"
     }
   },
   {
@@ -29,10 +29,10 @@
     "fields": {
       "rule_type": "WEEKEND",
       "multiplier": "2.00",
-      "description": "Le travail effectué les jours de repos hebdomadaire est majoré à 200 % (double) du taux horaire de base.",
+      "description": "Majoration de 100% (double) pour le travail effectué le dimanche ou jour de repos hebdomadaire.",
       "is_active": true,
-      "created_at": "2024-01-01T00:00:00Z",
-      "updated_at": "2024-01-01T00:00:00Z"
+      "created_at": "2026-01-26T00:00:00Z",
+      "updated_at": "2026-01-26T00:00:00Z"
     }
   },
   {
@@ -41,10 +41,10 @@
     "fields": {
       "rule_type": "HOLIDAY",
       "multiplier": "2.00",
-      "description": "Le travail effectué les jours fériés est majoré à 200 % (double) du taux horaire de base.",
+      "description": "Majoration de 100% (double) pour le travail effectué un jour férié légal.",
       "is_active": true,
-      "created_at": "2024-01-01T00:00:00Z",
-      "updated_at": "2024-01-01T00:00:00Z"
+      "created_at": "2026-01-26T00:00:00Z",
+      "updated_at": "2026-01-26T00:00:00Z"
     }
   }
 ]

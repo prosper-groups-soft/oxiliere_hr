@@ -3,7 +3,6 @@ from hr.enums          import Currency
 from hr.payroll.models import PayrollConfiguration
 from hr.payroll.enums  import ExchangeRateSource
 
-
 try:
     from bcc_rates import BCCBankSource
     BCC_RATES_AVAILABLE = True
@@ -18,7 +17,7 @@ class ExchangeRateService:
     """
     
     # Default fallback rate (example market rate)
-    DEFAULT_USD_TO_CDF = Decimal('2850.0')
+    DEFAULT_USD_TO_CDF = Decimal('2100.0')
 
     @classmethod
     def get_exchange_rate(cls, from_currency: str, to_currency: str) -> Decimal:

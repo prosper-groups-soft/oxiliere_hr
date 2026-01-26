@@ -1,37 +1,34 @@
-from datetime            import date
-from uuid                import UUID
-from django.db.models    import Q
-from typing              import List, Dict, Any
-from hr.payroll.models   import (
+from datetime import date
+from uuid import UUID
+from typing import List, Dict, Any
+from django.db.models import Q
+from hr.payroll.models import (
     PayrollAdjustment, 
     EmployeeAdjustment
 )
 
-
 class AdjustmentResolverService:
     """
-    Handles the logic of identifying which bonuses and deductions apply to an employee.
-    Manages the priority between global mandatory settings and specific employee overrides.
+    Identifies bonuses and deductions applicable to an employee in DRC.
+    Manages priority between mandatory global rules and employee-specific overrides.
     """
 
     @classmethod
     def get_applicable_adjustments(cls, employee_id: UUID, reference_date: date) -> List[Dict[str, Any]]:
         """
-        Retrieves all active adjustments for an employee at a specific date.
+        Retrieves all active adjustments for a given date.
         
-        Logic:
-        1. Fetch all mandatory global adjustments.
-        2. Fetch all specific EmployeeAdjustment records for this employee.
-        3. If an EmployeeAdjustment exists for a specific PayrollAdjustment, 
-           it takes priority (especially for custom amounts).
+        Priority:
+        1. Mandatory adjustments are included by default.
+        2. Employee-specific adjustments override global values or add new bonuses/deductions.
         """
-        # 1. Fetch Global Mandatory Adjustments
+        # 1. Retrieval of mandatory global adjustments (e.g., Housing 25%, Transport)
         global_mandatory = PayrollAdjustment.objects.filter(
             is_mandatory=True, 
             is_active=True
         )
 
-        # 2. Fetch Employee-Specific Adjustments active during reference_date
+        # 2. Retrieval of employee-specific assignments active at the reference date
         specific_assignments = EmployeeAdjustment.objects.filter(
             employee_id=employee_id,
             is_active=True,
@@ -40,31 +37,39 @@ class AdjustmentResolverService:
             Q(end_date__isnull=True) | Q(end_date__gte=reference_date)
         ).select_related('adjustment')
 
-        # Dictionary to store final resolved adjustments (Key: Adjustment ID)
+        # Dictionary to resolve conflicts (Key: Adjustment ID)
         resolved_map = {}
 
-        # First, populate with global mandatory adjustments
+        # Step A: Populate with mandatory global rules
         for adj in global_mandatory:
             resolved_map[adj.id] = {
-                'source': adj,
+                'id': adj.id,
+                'label': adj.name,
+                'type': adj.adjustment_type,
+                'mode': adj.calculation_mode,
                 'amount': adj.amount,
                 'percentage': adj.percentage,
-                'label': adj.name,
-                'type': adj.adjustment_type,
-                'mode': adj.calculation_mode
+                'is_mandatory': True
             }
 
-        # Second, apply specific assignments (these override or add to global ones)
+        # Step B: Apply employee-specific overrides
+        # If the employee has a custom amount or percentage, it overrides the global rule.
         for assignment in specific_assignments:
             adj = assignment.adjustment
+            
             resolved_map[adj.id] = {
-                'source': adj,
-                # Use custom_amount if provided, otherwise fallback to global config
-                'amount': assignment.custom_amount if assignment.custom_amount else adj.amount,
-                'percentage': adj.percentage,
+                'id': adj.id,
                 'label': adj.name,
                 'type': adj.adjustment_type,
-                'mode': adj.calculation_mode
+                'mode': adj.calculation_mode,
+                
+                # Priority to custom employee amount
+                'amount': assignment.custom_amount if assignment.custom_amount is not None else adj.amount,
+                
+                # Priority to custom employee percentage (New in 2026)
+                'percentage': assignment.custom_percentage if assignment.custom_percentage is not None else adj.percentage, 
+                
+                'is_mandatory': adj.is_mandatory
             }
 
         return list(resolved_map.values())

@@ -1,4 +1,4 @@
-from decimal          import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from hr.payroll.enums import CalculationMode
 
 
@@ -12,21 +12,12 @@ class PayrollCalculatorService:
     def calculate_adjustment_value(mode: str, base_value: Decimal, 
                                  config_amount: Decimal = None, 
                                  config_percentage: Decimal = None) -> Decimal:
-        """
-        Calculates the actual value of an adjustment based on its mode (Fixed or Percentage).
-        
-        Args:
-            mode: CalculationMode choice (FIXED or PERCENTAGE).
-            base_value: The reference amount (usually base salary) for percentage calculations.
-            config_amount: The fixed amount defined in settings.
-            config_percentage: The percentage value defined in settings (0-100).
-        """
         if mode == CalculationMode.FIXED:
             return config_amount or Decimal('0.00')
         
         if mode == CalculationMode.PERCENTAGE:
             percentage = config_percentage or Decimal('0.00')
-            return (base_value * (percentage / Decimal('100'))).quantize(Decimal('0.01'))
+            return (base_value * (percentage / Decimal('100'))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         
         return Decimal('0.00')
 
@@ -37,36 +28,36 @@ class PayrollCalculatorService:
                               multipliers: dict) -> Decimal:
         """
         Calculates total overtime pay based on DRC majorations.
+        Note: In DRC, the first 6 overtime hours of the week are at 130%.
         """
         pay = Decimal('0.00')
         std_hours_dec = Decimal(str(std_hours))
         hol_hours_dec = Decimal(str(hol_hours))
         
-        # 1. Standard Overtime
+        # 1. Standard Overtime (Weekdays)
         if std_hours_dec > 0:
-            m130 = multipliers.get('first_two', Decimal('1.30'))
+            m130 = multipliers.get('first_period', Decimal('1.30')) # Changed label for clarity
             m160 = multipliers.get('subsequent', Decimal('1.60'))
             
-            if std_hours_dec <= 2:
+            # DRC Rule: 130% for the first 6 hours, 160% beyond
+            if std_hours_dec <= 6:
                 pay += (std_hours_dec * hourly_rate * m130)
             else:
-                pay += (Decimal('2.0') * hourly_rate * m130)
-                pay += ((std_hours_dec - Decimal('2.0')) * hourly_rate * m160)
+                pay += (Decimal('6.0') * hourly_rate * m130)
+                pay += ((std_hours_dec - Decimal('6.0')) * hourly_rate * m160)
         
         # 2. Holiday/Weekend Overtime
         if hol_hours_dec > 0:
             m200 = multipliers.get('holiday', Decimal('2.00'))
             pay += (hol_hours_dec * hourly_rate * m200)
             
-        return pay.quantize(Decimal('0.01'))
+        return pay.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
     @staticmethod
-    def calculate_hourly_gross(hourly_rate: Decimal, hours_worked: float, 
-                              overtime_hours: float, multiplier: Decimal) -> Decimal:
+    def calculate_hourly_rate(monthly_base_salary: Decimal, hours_per_month: float = 195.0) -> Decimal:
         """
-        Calculates gross pay for hourly contracts including overtime.
+        Helper to get hourly rate from monthly salary in DRC.
+        Standard legal hours per month: (45h/week * 52 weeks) / 12 months = 195h.
         """
-        regular_pay = hourly_rate * Decimal(str(hours_worked))
-        overtime_pay = (hourly_rate * multiplier) * Decimal(str(overtime_hours))
-        return (regular_pay + overtime_pay).quantize(Decimal('0.01'))
+        return (monthly_base_salary / Decimal(str(hours_per_month))).quantize(Decimal('0.01'))
 

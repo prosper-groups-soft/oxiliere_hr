@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.core.exceptions import ValidationError
@@ -19,7 +20,10 @@ from .enums import (
     OvertimeRuleType,
     LegalAllowanceType,
     SalaryBaseType,
-    ExchangeRateSource
+    ExchangeRateSource,
+    AdvanceDeductionBase,
+    AdvanceTaxTiming,
+    AdvanceDeductionWindow,
 )
 from hr.enums import Currency
 
@@ -196,13 +200,17 @@ class EmployeeContract(BaseAuditableModel):
             if smig:
                 if self.remuneration_type == RemunerationType.FIXED:
                     if self.base_salary < smig.monthly_rate:
-                        raise ValidationError(_(f"Base salary ({self.base_salary} FC) cannot be lower than the active monthly SMIG ({smig.monthly_rate} FC)."))
+                        raise ValidationError(
+                            _(f"Base salary ({self.base_salary} FC) cannot be lower than the active monthly SMIG ({smig.monthly_rate} FC).")
+                        )
                 elif self.remuneration_type == RemunerationType.HOURLY:
                     # Assuming 8 hours per day for hourly SMIG comparison
                     daily_smig = smig.daily_rate
                     hourly_smig = daily_smig / Decimal('8.0')
                     if self.hourly_rate < hourly_smig:
-                        raise ValidationError(_(f"Hourly rate ({self.hourly_rate} FC) cannot be lower than the active hourly SMIG ({hourly_smig:.2f} FC)."))
+                        raise ValidationError(
+                            _(f"Hourly rate ({self.hourly_rate} FC) cannot be lower than the active hourly SMIG ({hourly_smig:.2f} FC).")
+                        )
 
     def save(self, *args, **kwargs):
         self.full_clean()
@@ -363,6 +371,8 @@ class EmployeePayslip(BaseAuditableModel):
         help_text=_("The final amount to be paid to the employee.")
     )
     
+    #status = models.CharField(max_length=15, choices=EmployeePayslipStatus.choices, default=EmployeePayslipStatus.DRAFT) DRAFT, VALIDATED, PAID, CANCELED
+    
     # Work tracking fields
     worked_days = models.PositiveIntegerField(
         default=0,
@@ -511,6 +521,7 @@ class PayslipLine(BaseAuditableModel):
 class SalaryAdvance(BaseAuditableModel):
     """
     Records a short-term financial advance granted to an employee to be repaid over time.
+    Supports flexible configuration for how and when deductions are applied.
     """
     employee = models.ForeignKey(
         'hr_employees.Employee', 
@@ -525,8 +536,41 @@ class SalaryAdvance(BaseAuditableModel):
     repayment_percentage = models.DecimalField(
         max_digits=5, 
         decimal_places=2,
-        help_text=_("Percentage of the net salary to be deducted for each repayment cycle.")
+        help_text=_("Percentage of the salary to be deducted for each repayment cycle.")
     )
+    
+    # Deduction configuration fields
+    # The salary advance is always deducted from net salary
+    salary_base_for_deduction = models.CharField(
+        max_length=10,
+        choices=AdvanceDeductionBase.choices,
+        default=AdvanceDeductionBase.NET,
+        help_text=_("Determines if the advance is deducted from Gross or Net salary.")
+    )
+    tax_timing = models.CharField(
+        max_length=15,
+        choices=AdvanceTaxTiming.choices,
+        default=AdvanceTaxTiming.AFTER_TAX,
+        help_text=_("Determines if the advance deduction affects the taxable income.")
+    )
+    deduction_window = models.CharField(
+        max_length=15,
+        choices=AdvanceDeductionWindow.choices,
+        default=AdvanceDeductionWindow.ALL_MONTHS,
+        help_text=_("Determines the time period for applying deductions.")
+    )
+    deduction_start_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text=_("Start date for applying deductions (if deduction_window is CUSTOM_PERIOD).")
+    )
+    deduction_end_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text=_("End date for applying deductions (if deduction_window is CUSTOM_PERIOD).")
+    )
+    
+    # Status
     is_closed = models.BooleanField(
         default=False,
         help_text=_("Indicates if the advance has been fully settled.")
@@ -534,6 +578,50 @@ class SalaryAdvance(BaseAuditableModel):
 
     class Meta:
         db_table = "pyrl_salary_advance"
+        verbose_name = _("Salary Advance")
+        verbose_name_plural = _("Salary Advances")
+
+
+class AdvanceDeductionConfiguration(BaseAuditableModel):
+    """
+    Manages the priority order and selection of salary advances for deduction.
+    Allows flexible configuration: which advances to deduct and in what order.
+    
+    Example:
+    - Priority 1: Advance A (must be deducted first)
+    - Priority 2: Advance B (deducted after A)
+    - Priority 3: Advance C (deducted only if A & B are satisfied)
+    """
+    employee = models.ForeignKey(
+        'hr_employees.Employee',
+        on_delete=models.CASCADE,
+        related_name='advance_deduction_config',
+        help_text=_("The employee for this deduction configuration.")
+    )
+    advance = models.ForeignKey(
+        SalaryAdvance,
+        on_delete=models.CASCADE,
+        related_name='deduction_configs',
+        help_text=_("The salary advance to be managed.")
+    )
+    priority_order = models.PositiveIntegerField(
+        default=0,
+        help_text=_("Order of deduction priority. Lower numbers = higher priority. 0 = first to be deducted.")
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text=_("If False, this advance will not be deducted in payroll calculations.")
+    )
+    
+    class Meta:
+        db_table = "pyrl_advance_deduction_config"
+        verbose_name = _("Advance Deduction Configuration")
+        verbose_name_plural = _("Advance Deduction Configurations")
+        unique_together = ('employee', 'advance')
+        ordering = ['priority_order']
+        
+    def __str__(self):
+        return f"{self.employee} - Advance Priority #{self.priority_order} - {self.advance.id}"
 
 
 class RepaymentRecord(BaseAuditableModel):
@@ -907,6 +995,7 @@ auditlog.register(PayrollRun)
 auditlog.register(EmployeePayslip)
 auditlog.register(PayslipLine)
 auditlog.register(SalaryAdvance)
+auditlog.register(AdvanceDeductionConfiguration)
 auditlog.register(RepaymentRecord)
 auditlog.register(SMIGConfiguration)
 auditlog.register(SocialContributionRate)

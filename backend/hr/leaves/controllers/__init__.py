@@ -5,7 +5,7 @@ from .leave import LeaveController
 from .admin import LeaveAdminController
 
 
-def get_all_leaves_ctrls() -> Tuple:
+def get_all_ctrls_leaves() -> Tuple:
     """
     Returns a tuple of all controllers related to leave management for API routing registration.
     """

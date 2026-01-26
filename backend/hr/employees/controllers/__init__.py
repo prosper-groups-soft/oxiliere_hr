@@ -6,7 +6,7 @@ from .records   import EmployeeRecordController
 from .safety    import EmployeeSafetyController
 
 
-def get_all_employees_ctrls() -> Tuple:
+def get_all_ctrls_employees() -> Tuple:
     """
     Returns all controller classes related to employee management and workflows.
     """

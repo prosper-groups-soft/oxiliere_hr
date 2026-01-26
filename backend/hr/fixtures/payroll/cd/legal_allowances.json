@@ -6,12 +6,12 @@
       "allowance_type": "FAMILY",
       "calculation_mode": "FIXED",
       "base_amount": "262.00",
-      "formula_description": "1/27 du SMIG par enfant (7075 / 27 = 262 FC). Multiplier par le nombre d'enfants et de jours travaillés.",
+      "formula_description": "Minimum légal : 1/27 du SMIG par enfant par jour ouvré. Non imposable (Exonéré IPR).",
       "is_taxable": false,
       "taxable_threshold_percentage": null,
       "is_active": true,
-      "created_at": "2024-01-01T00:00:00Z",
-      "updated_at": "2024-01-01T00:00:00Z"
+      "created_at": "2026-01-26T00:00:00Z",
+      "updated_at": "2026-01-26T00:00:00Z"
     }
   },
   {
@@ -20,13 +20,13 @@
     "fields": {
       "allowance_type": "HOUSING",
       "calculation_mode": "FIXED",
-      "base_amount": "52.40",
-      "formula_description": "1/5 des allocations familiales par jour (262 / 5 = 52,40 FC). Si l'indemnité de logement dépasse 30% du salaire brut, l'excédent est imposable.",
+      "base_amount": "0.00",
+      "formula_description": "Indemnité de logement. Exonérée d'IPR jusqu'à 30% du salaire brut. L'excédent est imposable.",
       "is_taxable": true,
       "taxable_threshold_percentage": "30.00",
       "is_active": true,
-      "created_at": "2024-01-01T00:00:00Z",
-      "updated_at": "2024-01-01T00:00:00Z"
+      "created_at": "2026-01-26T00:00:00Z",
+      "updated_at": "2026-01-26T00:00:00Z"
     }
   },
   {
@@ -36,12 +36,13 @@
       "allowance_type": "TRANSPORT",
       "calculation_mode": "FIXED",
       "base_amount": "2000.00",
-      "formula_description": "L'employeur doit assurer le transport si l'employé habite à plus de 3 km du lieu de travail. Le montant équivaut au coût du transport local (max 4 trajets en taxi pour les cadres, 4 trajets en bus pour les autres). Par défaut : 2000 FC/jour.",
+      "formula_description": "Indemnité de transport journalière. Exonérée d'IPR si elle ne dépasse pas les coûts réels (usage local : 4 courses).",
       "is_taxable": false,
       "taxable_threshold_percentage": null,
       "is_active": true,
-      "created_at": "2024-01-01T00:00:00Z",
-      "updated_at": "2024-01-01T00:00:00Z"
+      "created_at": "2026-01-26T00:00:00Z",
+      "updated_at": "2026-01-26T00:00:00Z"
     }
   }
 ]
+

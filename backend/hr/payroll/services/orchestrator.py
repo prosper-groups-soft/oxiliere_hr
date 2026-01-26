@@ -1,5 +1,6 @@
 from decimal             import Decimal
 from django.db           import transaction
+from django.utils        import timezone
 from hr.employees.models import Employee
 from hr.payroll.models   import (
     EmployeeContract, 
@@ -7,16 +8,17 @@ from hr.payroll.models   import (
     EmployeePayslip, 
     PayslipLine, 
     PayrollConfiguration,
-    SalaryAdvance,
     OvertimeRule,
-    PayrollConfiguration
+    WorkedDaysRecord
 )
 from hr.payroll.enums    import (
     PayrollStatus, 
     RemunerationType, 
     OvertimeRuleType,
-    SalaryBaseType
+    SalaryBaseType,
+    SocialContributionType
 )
+from hr.enums import Currency
 
 from .adjustments        import AdjustmentResolverService
 from .advances           import AdvanceService
@@ -56,74 +58,168 @@ class PayrollOrchestrator:
     @classmethod
     def _generate_single_payslip(cls, run, contract, config):
         """
-        Internal logic to calculate and save one employee's payslip following DRC legal standards.
-        Sequence:
-        1. Worked Days Data Persistence
-        2. Gross Salary (Base + Overtime + Bonuses)
-        3. Social Deductions (Worker CNSS 5%)
-        4. Taxable Base & IPR Tax
-        5. Legal Allowances (Family, Housing, Transport)
-        6. Net Pay calculation
+        Generates a complete payslip for an employee following DRC legal standards.
+        Delegates to specialized sub-methods for clarity and maintainability.
         """
-        # --- A. Data Retrieval (Integration) ---
-        attendance = PayrollIntegrationService.get_worked_days_data(contract.employee_id, run.start_date, run.end_date)
-        family = PayrollIntegrationService.get_employee_family_data(contract.employee_id)
+        # === STAGE 1: Data Retrieval ===
+        employee_data = cls._retrieve_employee_data(contract, run, config)
+        
+        # === STAGE 2: Gross Salary Calculation ===
+        gross_data = cls._calculate_gross_salary(
+            contract, 
+            employee_data, 
+            config
+        )
+        
+        # === STAGE 3: Legal Deductions (Absences) ===
+        gross_data = cls._apply_absence_deductions(
+            gross_data, 
+            contract, 
+            employee_data, 
+            config
+        )
+        
+        # === STAGE 4: Social Contributions & Tax ===
+        social_data = cls._calculate_social_contributions(
+            gross_data['gross_salary'],
+            gross_data['base_amount'],
+            employee_data['company_size']
+        )
+        
+        tax_data = cls._calculate_tax_and_allowances(
+            gross_data['gross_salary'],
+            social_data['cnss_employee'],
+            employee_data,
+            config
+        )
+        
+        # === STAGE 5: Process Salary Advances ===
+        advance_data = cls._process_advances(
+            contract, 
+            gross_data['gross_salary'],
+            social_data['cnss_employee'],
+            tax_data['ipr_tax'],
+            tax_data['total_allowances'],
+            employee_data,
+            run
+        )
+        
+        # === STAGE 6: Create Payslip ===
+        payslip = cls._create_payslip(
+            run, 
+            contract, 
+            config,
+            gross_data,
+            social_data,
+            tax_data,
+            advance_data,
+            employee_data
+        )
+        
+        # === STAGE 7: Record Detail Lines ===
+        cls._record_payslip_lines(
+            payslip,
+            gross_data,
+            social_data,
+            tax_data,
+            advance_data,
+            employee_data
+        )
+        
+        return payslip
 
-        # --- B. Leave Data Retrieval (Configurable) ---
+    @classmethod
+    def _retrieve_employee_data(cls, contract, run, config):
+        """
+        Retrieves all necessary employee data from integration services.
+        
+        Returns:
+            dict with keys: attendance, family, leave, company_size, contract_currency, conversion_rate
+        """
+        attendance = PayrollIntegrationService.get_worked_days_data(
+            contract.employee_id, 
+            run.start_date, 
+            run.end_date
+        )
+        family = PayrollIntegrationService.get_employee_family_data(contract.employee_id)
+        
+        # Leave data (configurable)
         leave = {
             'paid_leave_days': Decimal('0.00'),
             'unpaid_leave_days': Decimal('0.00')
         }
         if config.include_leaves_in_payroll:
-            leave = PayrollIntegrationService.get_employee_leave_data(contract.employee_id, run.start_date, run.end_date)
-
-        # Determine dynamic company size for INPP
+            leave = PayrollIntegrationService.get_employee_leave_data(
+                contract.employee_id, 
+                run.start_date, 
+                run.end_date
+            )
+        
+        # Company size for INPP calculation
         company_size = Employee.objects.filter(is_active=True).count()
-
-        # --- B. Persistence: WorkedDaysRecord ---
+        
+        # Use Run's specific exchange rate if defined, otherwise fetch current
+        conversion_rate = run.exchange_rate_applied or Decimal('1.0')
+        if not run.exchange_rate_applied and contract.currency != Currency.CDF:
+             conversion_rate = ExchangeRateService.get_exchange_rate(contract.currency, Currency.CDF)
+        
+        # PERSISTENCE - DRC Rule: 6 hours for the first tier (130%)
+        # Ref: Arrêté ministériel n° 68/11
+        standard_ot = Decimal(str(attendance['overtime_hours_standard']))
+        tier_limit = Decimal('6.0') 
+        
         WorkedDaysRecord.objects.update_or_create(
             employee=contract.employee,
             payroll_run=run,
             defaults={
                 'regular_days': attendance['regular_days'],
-                'overtime_hours_first_tier': attendance['overtime_hours_standard'] if attendance['overtime_hours_standard'] <= 2 else 2.0,
-                'overtime_hours_second_tier': max(0, attendance['overtime_hours_standard'] - 2.0),
+                'overtime_hours_first_tier': min(standard_ot, tier_limit),
+                'overtime_hours_second_tier': max(0, standard_ot - tier_limit),
                 'overtime_hours_holiday': attendance['overtime_hours_holiday'],
                 'absence_days': attendance['absence_days']
             }
         )
+        
+        return {
+            'attendance': attendance,
+            'family': family,
+            'leave': leave,
+            'company_size': company_size,
+            'contract_currency': contract.currency,
+            'conversion_rate': conversion_rate,
+        }
 
+    @classmethod
+    def _calculate_gross_salary(cls, contract, employee_data, config):
+        """
+        Calculates base salary, overtime, bonuses and returns gross salary.
+        Handles multi-currency conversion and Brutage (Net → Gross resolution).
+        
+        Returns:
+            dict with keys: base_amount, hourly_rate, overtime_pay, total_bonuses, 
+                           gross_salary, adjustment_lines
+        """
+        attendance = employee_data['attendance']
+        family = employee_data['family']
+        leave = employee_data['leave']
+        company_size = employee_data['company_size']
+        conversion_rate = employee_data['conversion_rate']
+        
         payroll_config = PayrollConfiguration.objects.first()
         std_monthly_hours = Decimal(str(payroll_config.work_hours_per_month if payroll_config else 195))
-
-        # --- Multi-Currency Handling ---
-        # Convert contract amounts to CDF if necessary
-        contract_currency = getattr(contract, 'currency', Currency.CDF) # Assuming added to model or default
-        # Note: Contract model likely needs currency field, checking if it exists or default to CDF
-        # Inspecting previous models.py view, EmployeeContract did not show 'currency' field explicitly in the snippet?
-        # Let's assume logic: Check if we need to add field or if it exists.
-        # Wait, I didn't see a currency field on EmployeeContract in step 546.
-        # I must add it to the model first!
-        # ABORTING changes to Orchestrator to add field to model first.
-        # --- Multi-Currency Handling ---
-        contract_currency = contract.currency
-        conversion_rate = Decimal('1.0')
         
-        if contract_currency != Currency.CDF:
-            conversion_rate = ExchangeRateService.get_exchange_rate(contract_currency, Currency.CDF)
-            
-        # --- C. Base Salary & Overtime (Stage 1: Gross/Net Resolution) ---
+        # === Base Salary Calculation ===
         if contract.remuneration_type == RemunerationType.FIXED:
             target_amount = contract.base_salary
             
-            # Apply currency conversion if needed
-            if contract_currency != Currency.CDF:
+            # Apply currency conversion
+            if employee_data['contract_currency'] != Currency.CDF:
                 target_amount = (target_amount * conversion_rate).quantize(Decimal('0.01'))
-
+            
+            # Brutage if base is Net
             if contract.salary_base_type == SalaryBaseType.NET:
-                # Brutage: Resolve required Gross Base from target Net à Payer
                 base_amount = GrossUpService.calculate_base_from_net(
-                    target_net=target_amount, 
+                    target_net=target_amount,
                     company_size=company_size,
                     worked_days=attendance['regular_days'],
                     child_count=family['child_count'],
@@ -131,18 +227,20 @@ class PayrollOrchestrator:
                 )
             else:
                 base_amount = target_amount
+            
             hourly_rate = base_amount / std_monthly_hours
-        else:
+        
+        else:  # HOURLY
             target_rate = contract.hourly_rate
             
-            # Apply currency conversion if needed
-            if contract_currency != Currency.CDF:
+            # Apply currency conversion
+            if employee_data['contract_currency'] != Currency.CDF:
                 target_rate = (target_rate * conversion_rate).quantize(Decimal('0.01'))
-
+            
+            # Brutage if rate is Net
             if contract.salary_base_type == SalaryBaseType.NET:
-                # Brutage: Resolve required Gross Hourly Rate from target Net Hourly à Payer
                 hourly_rate = GrossUpService.calculate_base_from_net(
-                    target_net=target_rate, 
+                    target_net=target_rate,
                     company_size=company_size,
                     worked_days=attendance['regular_days'] + int(leave['paid_leave_days']),
                     child_count=family['child_count'],
@@ -152,80 +250,133 @@ class PayrollOrchestrator:
             else:
                 hourly_rate = target_rate
             
-            # Total hours for payment: Worked + Paid Leave Hours (assuming 8h/day for leave)
+            # Total hours: worked + paid leave hours
             paid_leave_hours = float(leave['paid_leave_days']) * 8.0
             total_remunerable_hours = float(attendance['total_worked_hours']) + paid_leave_hours
             base_amount = (hourly_rate * Decimal(str(total_remunerable_hours))).quantize(Decimal('0.01'))
-
-        # Calculate Overtime Pay using the new calculator
+            
+        # === Overtime Calculation - Updated for DRC (6-hour tier) ===
         rules_qs = OvertimeRule.objects.filter(is_active=True)
         multipliers = {
-            'first_two': rules_qs.filter(rule_type=OvertimeRuleType.FIRST_TWO_HOURS).values_list('multiplier', flat=True).first() or Decimal('1.30'),
+            # Change 'first_two' to a generic name like 'first_period'
+            'first_period': rules_qs.filter(rule_type=OvertimeRuleType.FIRST_TWO_HOURS).values_list('multiplier', flat=True).first() or Decimal('1.30'),
             'subsequent': rules_qs.filter(rule_type=OvertimeRuleType.SUBSEQUENT_HOURS).values_list('multiplier', flat=True).first() or Decimal('1.60'),
             'holiday': rules_qs.filter(rule_type=OvertimeRuleType.HOLIDAY).values_list('multiplier', flat=True).first() or Decimal('2.00')
         }
         
+        # This service now correctly uses the 6-hour rule for RDC
         overtime_pay = PayrollCalculatorService.calculate_overtime_pay(
             hourly_rate=hourly_rate,
             std_hours=attendance['overtime_hours_standard'],
             hol_hours=attendance['overtime_hours_holiday'],
             multipliers=multipliers
         )
-
-        # Resolved Adjustments (Bonuses & Other Deductions)
+        
+        # === Adjustments (Bonuses) ===
+        # Use end_date to fetch active adjustments for the period
+        ref_date = attendance.get('end_date') or timezone.now().date()
         applicable_adjs = AdjustmentResolverService.get_applicable_adjustments(
-            contract.employee_id, run.end_date
+            contract.employee_id, 
+            ref_date
         )
+        
         total_bonuses = Decimal('0.00')
         total_other_deductions = Decimal('0.00')
         adjustment_lines = []
-
+        
         for adj in applicable_adjs:
             val = PayrollCalculatorService.calculate_adjustment_value(
-                adj['mode'], base_amount, adj['amount'], adj['percentage']
+                adj['mode'], 
+                base_amount, 
+                adj['amount'], 
+                adj['percentage']
             )
             if adj['type'] == 'BONUS':
                 total_bonuses += val
-                adjustment_lines.append({'label': adj['label'], 'amount': val, 'type': 'BONUS'})
-            else: # CONTRIBUTION
-                total_other_deductions += val
-                adjustment_lines.append({'label': adj['label'], 'amount': val, 'type': 'CONTRIBUTION'})
-
-        gross_salary = base_amount + total_bonuses + overtime_pay
-
-        # --- D. Pro-rating for Unpaid Absences (if Fixed Salary) ---
-        if contract.remuneration_type == RemunerationType.FIXED:
-            unpaid_days = Decimal(str(attendance['absence_days'])) + leave['unpaid_leave_days']
-            if unpaid_days > 0:
-                # Deduction logic: Fixed amount (if set) OR Pro-rata divisor
-                if config.fixed_deduction_per_absent_day:
-                    deduction = config.fixed_deduction_per_absent_day * unpaid_days
-                else:
-                    # Divisor logic: Theoretical days from Attendance OR Configured divisor
-                    divisor = config.leave_deduction_divisor or Decimal('26.0')
-                    
-                    if config.use_theoretical_days_from_attendance:
-                        theoretical_days = PayrollIntegrationService.get_theoretical_working_days(
-                            contract.employee_id, run.start_date, run.end_date
-                        )
-                        if theoretical_days > 0:
-                            divisor = theoretical_days
-
-                    deduction = (base_amount / divisor) * unpaid_days
-                
-                base_amount -= deduction
-                gross_salary -= deduction
                 adjustment_lines.append({
-                    'label': f"Absence non payée ({unpaid_days} jrs)", 
-                    'amount': -deduction.quantize(Decimal('0.01')), 
+                    'label': adj['label'],
+                    'amount': val,
+                    'type': 'BONUS'
+                })
+            else:  # CONTRIBUTION
+                total_other_deductions += val
+                adjustment_lines.append({
+                    'label': adj['label'],
+                    'amount': val,
                     'type': 'CONTRIBUTION'
                 })
+        
+        # Important: total_other_deductions are calculated here but 
+        # should be subtracted from Gross or Net depending on their nature
+        gross_salary = base_amount + total_bonuses + overtime_pay
+        
+        return {
+            'base_amount': base_amount,
+            'hourly_rate': hourly_rate,
+            'overtime_pay': overtime_pay,
+            'total_bonuses': total_bonuses,
+            'total_other_deductions': total_other_deductions,
+            'gross_salary': gross_salary,
+            'adjustment_lines': adjustment_lines,
+        }
 
-        # --- D. Retenues Obligatoires (Stage 2: Deductions) ---
-        # 1. Social Contributions (Split Employee vs Employer)
+    @classmethod
+    def _apply_absence_deductions(cls, gross_data, contract, employee_data, config):
+        """
+        Applies pro-rating deduction for unpaid absences (if Fixed Salary).
+        
+        Returns:
+            Updated gross_data dict
+        """
+        if contract.remuneration_type != RemunerationType.FIXED:
+            return gross_data
+        
+        attendance = employee_data['attendance']
+        leave = employee_data['leave']
+        base_amount = gross_data['base_amount']
+        
+        unpaid_days = Decimal(str(attendance['absence_days'])) + leave['unpaid_leave_days']
+        
+        if unpaid_days <= 0:
+            return gross_data
+        
+        # Determine deduction amount
+        if config.fixed_deduction_per_absent_day:
+            deduction = config.fixed_deduction_per_absent_day * unpaid_days
+        else:
+            # Use theoretical days or configured divisor
+            divisor = config.leave_deduction_divisor or Decimal('26.0')
+            
+            if config.use_theoretical_days_from_attendance:
+                theoretical_days = PayrollIntegrationService.get_theoretical_working_days(
+                    contract.employee_id,
+                    attendance['start_date'],
+                    attendance['end_date']
+                )
+                if theoretical_days > 0:
+                    divisor = theoretical_days
+            
+            deduction = (base_amount / divisor) * unpaid_days
+        
+        # Apply deduction
+        gross_data['base_amount'] -= deduction
+        gross_data['gross_salary'] -= deduction
+        gross_data['adjustment_lines'].append({
+            'label': f"Absence non payée ({unpaid_days} jrs)",
+            'amount': -deduction.quantize(Decimal('0.01')),
+            'type': 'CONTRIBUTION'
+        })
+        
+        return gross_data
+
+    @classmethod
+    def _calculate_social_contributions(cls, gross_salary, company_size):
+        """
+        Calculates CNSS, ONEM, INPP contributions for DRC 2026.
+        """
+        # Updated service call: base_salary is no longer needed
         social_data = SocialContributionService.calculate_contributions(
-            gross_amount=gross_salary, 
-            base_salary=base_amount, 
+            gross_amount=gross_salary,
             company_size=company_size
         )
         
@@ -233,116 +384,236 @@ class PayrollOrchestrator:
         onem_amount = Decimal('0.00')
         inpp_amount = Decimal('0.00')
         employer_charges = Decimal('0.00')
-        contribution_details = []
-
+        
         for detail in social_data['details']:
-            if detail['type'] == 'CNSS':
+            if detail['type'] == SocialContributionType.CNSS:
                 cnss_employee = detail['employee_amount']
-            elif detail['type'] == 'ONEM':
-                onem_amount = detail['employee_amount'] or detail['employer_amount'] # ONEM is usually employer-only but captured here
-            elif detail['type'] == 'INPP':
+            elif detail['type'] == SocialContributionType.ONEM:
+                # 100% Employer charge in DRC
+                onem_amount = detail['employer_amount']
+            elif detail['type'] == SocialContributionType.INPP:
+                # 100% Employer charge in DRC
                 inpp_amount = detail['employer_amount']
             
-            # Employer total charges (for audit/payslip visibility)
             employer_charges += detail['employer_amount']
-            contribution_details.append(detail)
-
-        # 2. Taxable Base & IPR
-        initial_taxable_base = gross_salary - cnss_employee
         
+        return {
+            'cnss_employee': cnss_employee,
+            'onem_amount': onem_amount,
+            'inpp_amount': inpp_amount,
+            'employer_charges': employer_charges,
+            'contribution_details': social_data['details'],
+        }
+
+    @classmethod
+    def _calculate_tax_and_allowances(cls, gross_salary, base_salary, cnss_employee, employee_data, config):
+        """
+        Calculates IPR tax and legal allowances following DRC 2026 standards.
+        """
+        attendance = employee_data['attendance']
+        family = employee_data['family']
+        leave = employee_data['leave']
+        
+        # 1. Calculate Allowances first
+        # Critical: Use base_salary for housing threshold (30% rule)
         allowances = LegalAllowanceService.calculate_allowances(
-            worked_days=attendance['regular_days'] + int(leave['paid_leave_days']), 
-            child_count=family['child_count'], 
-            gross_salary=gross_salary,
-            base_salary=base_amount
+            worked_days=attendance['regular_days'] + int(leave['paid_leave_days']),
+            child_count=family['child_count'],
+            base_salary=base_salary
         )
         
-        taxable_base = initial_taxable_base + allowances['taxable_housing_excess']
+        # 2. Taxable base calculation for IPR (DRC Rule)
+        # Base = (Gross - Allowances) + Taxable Housing Excess - CNSS Employee
+        # Simplified here as: (Gross - CNSS) + Housing Excess
+        # We ensure the non-taxable part of allowances is excluded
+        taxable_base = (gross_salary - cnss_employee) + allowances['taxable_housing_excess']
+        
+        # 3. Calculate IPR tax using progressive brackets
         ipr_tax = TaxCalculationService.calculate_progressive_tax(taxable_base)
+        
+        return {
+            'taxable_base': taxable_base,
+            'ipr_tax': ipr_tax,
+            'family_allowance': allowances['family_allowance'],
+            'housing_allowance': allowances['housing_allowance'],
+            'transport_allowance': allowances['transport_allowance'],
+            'total_allowances': allowances['total_allowances'],
+            'allowance_details': allowances.get('details', []),
+        }
 
-        # --- E. Final Calculation (Stage 3: Net) ---
-        active_advance = SalaryAdvance.objects.filter(
-            employee=contract.employee, is_closed=False
-        ).first()
-        advance_deduction = Decimal('0.00')
-        if active_advance:
-            # Pre-advance net is (Gross + Allowances) - Deductions
-            pre_advance_net = (gross_salary + allowances['total_allowances']) - (cnss_employee + ipr_tax)
-            advance_deduction = AdvanceService.calculate_monthly_repayment(active_advance, pre_advance_net)
+    @classmethod
+    def _process_advances(cls, contract, gross_salary, cnss_employee, ipr_tax, 
+                         total_allowances, employee_data, run):
+        """
+        Processes all salary advances for the employee in priority order.
+        
+        Returns:
+            dict with keys: advance_deductions, total_advance_deduction
+        """
+        # Calculate net salary before advances
+        net_before_advances = (
+            (gross_salary + total_allowances) - 
+            (cnss_employee + ipr_tax + employee_data.get('total_other_deductions', Decimal('0.00')))
+        )
+        
+        # Process all advances
+        advance_deductions, total_advance_deduction = AdvanceService.process_advances_for_payslip(
+            employee_id=contract.employee.id,
+            gross_salary=gross_salary,
+            net_salary_before_advances=net_before_advances,
+            payroll_date=run.end_date
+        )
+        
+        return {
+            'advance_deductions': advance_deductions,
+            'total_advance_deduction': total_advance_deduction,
+        }
 
-        # SOLDE NET = (Gains Totaux) - (Retenues Travailleur)
-        net_amount = (gross_salary + allowances['total_allowances']) - (cnss_employee + ipr_tax + advance_deduction + total_other_deductions)
-
-        # --- F. Persistence ---
+    @classmethod
+    def _create_payslip(cls, run, contract, config, gross_data, social_data, 
+                       tax_data, advance_data, employee_data):
+        """
+        Creates and persists the EmployeePayslip object.
+        
+        Returns:
+            EmployeePayslip instance
+        """
+        # Calculate final net amount
+        net_amount = (
+            (gross_data['gross_salary'] + tax_data['total_allowances']) -
+            (social_data['cnss_employee'] + tax_data['ipr_tax'] + 
+             gross_data['total_other_deductions'] + advance_data['total_advance_deduction'])
+        )
+        
         payslip = EmployeePayslip.objects.create(
             payroll_run=run,
             contract=contract,
-            base_salary_snapshot=base_amount,
-            gross_amount=gross_salary,
-            taxable_base=taxable_base,
+            base_salary_snapshot=gross_data['base_amount'],
+            gross_amount=gross_data['gross_salary'],
+            taxable_base=tax_data['taxable_base'],
             
-            cnss_amount=cnss_employee,
-            onem_amount=onem_amount,
-            inpp_amount=inpp_amount,
-            ipr_amount=ipr_tax,
+            cnss_amount=social_data['cnss_employee'],
+            onem_amount=social_data['onem_amount'],
+            inpp_amount=social_data['inpp_amount'],
+            ipr_amount=tax_data['ipr_tax'],
             
-            family_allowance=allowances['family_allowance'],
-            housing_allowance=allowances['housing_allowance'],
-            transport_allowance=allowances['transport_allowance'],
+            family_allowance=tax_data['family_allowance'],
+            housing_allowance=tax_data['housing_allowance'],
+            transport_allowance=tax_data['transport_allowance'],
             
-            total_adjustments=allowances['total_allowances'] - cnss_employee - ipr_tax - advance_deduction - total_other_deductions,
+            total_adjustments=(
+                tax_data['total_allowances'] - social_data['cnss_employee'] - 
+                tax_data['ipr_tax'] - advance_data['total_advance_deduction'] - 
+                gross_data['total_other_deductions']
+            ),
             net_amount=net_amount,
             
-            worked_days=attendance['regular_days'],
-            worked_hours=attendance['total_worked_hours'],
-            paid_leave_days=float(leave['paid_leave_days']),
-            unpaid_leave_days=float(leave['unpaid_leave_days']),
+            worked_days=employee_data['attendance']['regular_days'],
+            worked_hours=employee_data['attendance']['total_worked_hours'],
+            paid_leave_days=float(employee_data['leave']['paid_leave_days']),
+            unpaid_leave_days=float(employee_data['leave']['unpaid_leave_days']),
             
-            # Currency persistence
-            contract_currency=contract_currency,
-            exchange_rate_used=conversion_rate,
+            contract_currency=employee_data['contract_currency'],
+            exchange_rate_used=employee_data['conversion_rate'],
             
             currency=config.currency,
             payment_method=contract.employee.preferred_payment_method or config.default_payment_method
         )
-
-        # Record detail lines
-        PayslipLine.objects.create(payslip=payslip, label="Salaire de Base", amount=base_amount, adjustment_type='BONUS')
         
-        if overtime_pay > 0:
-            PayslipLine.objects.create(payslip=payslip, label="Heures Supplémentaires", amount=overtime_pay, adjustment_type='BONUS')
+        # Record advance repayments
+        if advance_data['advance_deductions']:
+            AdvanceService.record_batch_repayments(payslip, advance_data['advance_deductions'])
+        
+        return payslip
 
-        for adj in adjustment_lines:
-             PayslipLine.objects.create(payslip=payslip, label=adj['label'], amount=adj['amount'], adjustment_type=adj['type'])
-
-        for detail in allowances['details']:
-            PayslipLine.objects.create(payslip=payslip, label=detail['label'], amount=detail['amount'], adjustment_type='BONUS')
-
-        # Record leaves if any
-        if leave['paid_leave_days'] > 0:
-            PayslipLine.objects.create(payslip=payslip, label=f"Maintien de salaire - Congés Payés ({leave['paid_leave_days']} jrs)", amount=Decimal('0.00'), adjustment_type='BONUS')
-
-        # Record exchange rate if applied
-        if contract_currency != Currency.CDF:
-             PayslipLine.objects.create(
-                 payslip=payslip, 
-                 label=f"Taux de change appliqué (1 {contract_currency} = {conversion_rate} CDF)", 
-                 amount=Decimal('0.00'), 
-                 adjustment_type='BONUS'
-             )
-
-        # worker deductions
-        PayslipLine.objects.create(payslip=payslip, label="CNSS (5%)", amount=cnss_employee, adjustment_type='CONTRIBUTION')
-        PayslipLine.objects.create(payslip=payslip, label="IPR", amount=ipr_tax, adjustment_type='CONTRIBUTION')
-            
-        if advance_deduction > 0:
-            AdvanceService.record_repayment(active_advance, payslip, advance_deduction)
+    @classmethod
+    def _record_payslip_lines(cls, payslip, gross_data, social_data, tax_data, 
+                             advance_data, employee_data):
+        """
+        Records all detail lines on the payslip (base, overtime, adjustments, etc).
+        """
+        # Base salary
+        PayslipLine.objects.create(
+            payslip=payslip,
+            label="Salaire de Base",
+            amount=gross_data['base_amount'],
+            adjustment_type='BONUS'
+        )
+        
+        # Overtime
+        if gross_data['overtime_pay'] > 0:
             PayslipLine.objects.create(
-                payslip=payslip, 
-                label=f"Retenue Avance sur Salaire", 
-                amount=advance_deduction, 
-                adjustment_type='CONTRIBUTION'
+                payslip=payslip,
+                label="Heures Supplémentaires",
+                amount=gross_data['overtime_pay'],
+                adjustment_type='BONUS'
+            )
+        
+        # Adjustments
+        for adj in gross_data['adjustment_lines']:
+            PayslipLine.objects.create(
+                payslip=payslip,
+                label=adj['label'],
+                amount=adj['amount'],
+                adjustment_type=adj['type']
+            )
+        
+        # Legal allowances
+        for detail in tax_data['allowance_details']:
+            PayslipLine.objects.create(
+                payslip=payslip,
+                label=detail['label'],
+                amount=detail['amount'],
+                adjustment_type='BONUS'
+            )
+        
+        # Leaves
+        if employee_data['leave']['paid_leave_days'] > 0:
+            PayslipLine.objects.create(
+                payslip=payslip,
+                label=f"Maintien de salaire - Congés Payés ({employee_data['leave']['paid_leave_days']} jrs)",
+                amount=Decimal('0.00'),
+                adjustment_type='BONUS'
+            )
+        
+        # Exchange rate info
+        if employee_data['contract_currency'] != Currency.CDF:
+            PayslipLine.objects.create(
+                payslip=payslip,
+                label=f"Taux de change appliqué (1 {employee_data['contract_currency']} = {employee_data['conversion_rate']} CDF)",
+                amount=Decimal('0.00'),
+                adjustment_type='BONUS'
+            )
+        
+        # Worker deductions
+        PayslipLine.objects.create(
+            payslip=payslip,
+            label="CNSS (5%)",
+            amount=social_data['cnss_employee'],
+            adjustment_type='CONTRIBUTION'
+        )
+        PayslipLine.objects.create(
+            payslip=payslip,
+            label="IPR",
+            amount=tax_data['ipr_tax'],
+            adjustment_type='CONTRIBUTION'
+        )
+        
+        if tax_data.get('taxable_housing_excess', 0) > 0:
+            PayslipLine.objects.create(
+                payslip=payslip,
+                label=f"Dont excédent logement imposable: {tax_data['taxable_housing_excess']} CDF",
+                amount=Decimal('0.00'),
+                adjustment_type='BONUS' 
             )
 
-        return payslip
+        
+        # Advance repayments as detail lines
+        for advance, amount in advance_data['advance_deductions']:
+            PayslipLine.objects.create(
+                payslip=payslip,
+                label=f"Retenue Avance sur Salaire #{advance.id}",
+                amount=amount,
+                adjustment_type='CONTRIBUTION'
+            )
 

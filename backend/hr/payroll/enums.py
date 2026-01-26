@@ -37,6 +37,7 @@ class PayrollStatus(TextChoices):
     VALIDATED = "VALIDATED", _('Validated')
     PAID = "PAID", _('Paid')
     CANCELED = "CANCELED", _('Canceled')
+    PROCESSING = "PROCESSING", _('Processing')
 
 
 class AdjustmentType(TextChoices):
@@ -112,3 +113,20 @@ class ExchangeRateSource(TextChoices):
     MANUAL = "MANUAL", _('Manual Entry')
     BCC = "BCC", _('Banque Centrale du Congo (Official)')
 
+
+class AdvanceDeductionBase(TextChoices):
+    """Determines which salary base the advance deduction is calculated on."""
+    GROSS = "GROSS", _('Gross Salary (Brut)')
+    NET = "NET", _('Net Salary (After deductions)')
+
+
+class AdvanceTaxTiming(TextChoices):
+    """Determines if the advance deduction affects tax calculations."""
+    BEFORE_TAX = "BEFORE_TAX", _('Before Tax Calculation (Reduces taxable base)')
+    AFTER_TAX = "AFTER_TAX", _('After Tax Calculation (No tax impact)')
+
+
+class AdvanceDeductionWindow(TextChoices):
+    """Determines the time period during which deductions are applied."""
+    ALL_MONTHS = "ALL_MONTHS", _('All Months (Until fully repaid)')
+    CUSTOM_PERIOD = "CUSTOM_PERIOD", _('Custom Period (Between defined dates)')

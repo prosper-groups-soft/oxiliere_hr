@@ -4,7 +4,7 @@ from .registry   import RegistryController
 from .scheduling import SchedulingController
 
 
-def get_all_attendance_ctrls() -> Tuple:
+def get_all_ctrls_attendance() -> Tuple:
     """
     Returns a tuple containing all the API controllers related to attendance management.
     """

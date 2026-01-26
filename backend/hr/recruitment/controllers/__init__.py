@@ -5,7 +5,7 @@ from .interview   import InterviewController
 from .job_offer   import JobOfferController
 
 
-def get_all_recruitment_ctrls() -> Tuple:
+def get_all_ctrls_recruitment() -> Tuple:
     return (
         ApplicationController,
         HiringController,

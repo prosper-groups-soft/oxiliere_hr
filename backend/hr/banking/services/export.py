@@ -1,6 +1,6 @@
 import pandas as pd
-from typing import List, Dict
-from django.utils import timezone
+from typing            import List, Dict
+from django.utils      import timezone
 from hr.banking.models import BankAccount
 from hr.payroll.models import EmployeePayslip, PayrollRun
 

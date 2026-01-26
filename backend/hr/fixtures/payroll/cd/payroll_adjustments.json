@@ -1,0 +1,183 @@
+[
+    {
+        "model": "hr_payroll.payrolladjustment",
+        "pk": 1,
+        "fields": {
+            "name": "Allocation de transport",
+            "adjustment_type": "BONUS",
+            "calculation_mode": "PERCENTAGE",
+            "amount": null,
+            "percentage": 0.0,
+            "is_mandatory": true,
+            "is_active": true,
+            "created_at": "2026-01-26T00:00:00Z",
+            "updated_at": "2026-01-26T00:00:00Z"
+        }
+    },
+    {
+        "model": "hr_payroll.payrolladjustment",
+        "pk": 2,
+        "fields": {
+            "name": "Allocation de logement",
+            "adjustment_type": "BONUS",
+            "calculation_mode": "PERCENTAGE",
+            "amount": null,
+            "percentage": 0.0,
+            "is_mandatory": true,
+            "is_active": true,
+            "created_at": "2026-01-26T00:00:00Z",
+            "updated_at": "2026-01-26T00:00:00Z"
+        }
+    },
+    {
+        "model": "hr_payroll.payrolladjustment",
+        "pk": 3,
+        "fields": {
+            "name": "Allocation télétravail",
+            "adjustment_type": "BONUS",
+            "calculation_mode": "FIXED",
+            "amount": 0.0,
+            "percentage": null,
+            "is_mandatory": false,
+            "is_active": true,
+            "created_at": "2026-01-26T00:00:00Z",
+            "updated_at": "2026-01-26T00:00:00Z"
+        }
+    },
+    {
+        "model": "hr_payroll.payrolladjustment",
+        "pk": 4,
+        "fields": {
+            "name": "Allocation repas",
+            "adjustment_type": "BONUS",
+            "calculation_mode": "FIXED",
+            "amount": 0.0,
+            "percentage": null,
+            "is_mandatory": false,
+            "is_active": true,
+            "created_at": "2026-01-26T00:00:00Z",
+            "updated_at": "2026-01-26T00:00:00Z"
+        }
+    },
+    {
+        "model": "hr_payroll.payrolladjustment",
+        "pk": 5,
+        "fields": {
+            "name": "Assurance santé entreprise",
+            "adjustment_type": "BONUS",
+            "calculation_mode": "PERCENTAGE",
+            "amount": null,
+            "percentage": 0.0,
+            "is_mandatory": false,
+            "is_active": true,
+            "created_at": "2026-01-26T00:00:00Z",
+            "updated_at": "2026-01-26T00:00:00Z"
+        }
+    },
+    {
+        "model": "hr_payroll.payrolladjustment",
+        "pk": 6,
+        "fields": {
+            "name": "Assurance invalidité",
+            "adjustment_type": "BONUS",
+            "calculation_mode": "PERCENTAGE",
+            "amount": null,
+            "percentage": 0.0,
+            "is_mandatory": false,
+            "is_active": true,
+            "created_at": "2026-01-26T00:00:00Z",
+            "updated_at": "2026-01-26T00:00:00Z"
+        }
+    },
+    {
+        "model": "hr_payroll.payrolladjustment",
+        "pk": 7,
+        "fields": {
+            "name": "Frais de déplacement",
+            "adjustment_type": "BONUS",
+            "calculation_mode": "FIXED",
+            "amount": 0.0,
+            "percentage": null,
+            "is_mandatory": false,
+            "is_active": true,
+            "created_at": "2026-01-26T00:00:00Z",
+            "updated_at": "2026-01-26T00:00:00Z"
+        }
+    },
+    {
+        "model": "hr_payroll.payrolladjustment",
+        "pk": 8,
+        "fields": {
+            "name": "Allocation rentrée scolaire",
+            "adjustment_type": "BONUS",
+            "calculation_mode": "FIXED",
+            "amount": 0.0,
+            "percentage": null,
+            "is_mandatory": false,
+            "is_active": true,
+            "created_at": "2026-01-26T00:00:00Z",
+            "updated_at": "2026-01-26T00:00:00Z"
+        }
+    },
+    {
+        "model": "hr_payroll.payrolladjustment",
+        "pk": 9,
+        "fields": {
+            "name": "Allocation garde d'enfants",
+            "adjustment_type": "BONUS",
+            "calculation_mode": "FIXED",
+            "amount": 0.0,
+            "percentage": null,
+            "is_mandatory": false,
+            "is_active": true,
+            "created_at": "2026-01-26T00:00:00Z",
+            "updated_at": "2026-01-26T00:00:00Z"
+        }
+    },
+    {
+        "model": "hr_payroll.payrolladjustment",
+        "pk": 10,
+        "fields": {
+            "name": "Aide au logement",
+            "adjustment_type": "BONUS",
+            "calculation_mode": "FIXED",
+            "amount": 0.0,
+            "percentage": null,
+            "is_mandatory": false,
+            "is_active": true,
+            "created_at": "2026-01-26T00:00:00Z",
+            "updated_at": "2026-01-26T00:00:00Z"
+        }
+    },
+    {
+        "model": "hr_payroll.payrolladjustment",
+        "pk": 11,
+        "fields": {
+            "name": "Gratification de fin d'année",
+            "adjustment_type": "BONUS",
+            "calculation_mode": "PERCENTAGE",
+            "amount": null,
+            "percentage": 0.0,
+            "is_mandatory": false,
+            "is_active": true,
+            "created_at": "2026-01-26T00:00:00Z",
+            "updated_at": "2026-01-26T00:00:00Z"
+        }
+    },
+    {
+        "model": "hr_payroll.payrolladjustment",
+        "pk": 12,
+        "fields": {
+            "name": "Prime d'ancienneté",
+            "adjustment_type": "BONUS",
+            "calculation_mode": "PERCENTAGE",
+            "amount": null,
+            "percentage": 0.0,
+            "is_mandatory": true,
+            "is_active": true,
+            "created_at": "2026-01-26T00:00:00Z",
+            "updated_at": "2026-01-26T00:00:00Z"
+        }
+    }
+]
+
