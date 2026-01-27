@@ -7,6 +7,7 @@ from hr.payroll.models import (
     EmployeeAdjustment
 )
 
+
 class AdjustmentResolverService:
     """
     Identifies bonuses and deductions applicable to an employee in DRC.

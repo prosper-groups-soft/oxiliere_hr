@@ -9,6 +9,9 @@ class TaxCalculationService:
 
     @classmethod
     def calculate_progressive_tax(cls, taxable_income: Decimal) -> Decimal:
+        """
+        Calculates the monthly IPR tax based on progressive tax brackets in DRC.
+        """
         if taxable_income <= 0:
             return Decimal('0.00')
 
@@ -44,7 +47,7 @@ class TaxCalculationService:
 
         # 4. Apply DRC legal constraints
         
-        # Minimum Tax Rule (2,000 FC per month as per DRC tax law)
+        # Minimum Tax Rule (2 000 FC per month as per DRC tax law)
         min_tax = Decimal('2000.00')
         if monthly_tax < min_tax:
             monthly_tax = min_tax

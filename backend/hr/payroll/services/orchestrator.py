@@ -21,14 +21,14 @@ from hr.payroll.enums    import (
 from hr.enums import Currency
 
 from .adjustments        import AdjustmentResolverService
-from .advances           import AdvanceService
-from .calculators        import PayrollCalculatorService
-from .taxes              import TaxCalculationService
-from .contributions      import SocialContributionService
-from .legal_allowances   import LegalAllowanceService
+from .advances.advances              import AdvanceService
+from .calculations.calculators       import PayrollCalculatorService
+from .calculations.taxes             import TaxCalculationService
+from .calculations.contributions     import SocialContributionService
+from .calculations.legal_allowances  import LegalAllowanceService
 from hr.payroll.services.integration import PayrollIntegrationService
-from hr.payroll.services.brutage     import GrossUpService
-from hr.payroll.services.exchange    import ExchangeRateService
+from hr.payroll.services.calculations.brutage import GrossUpService
+from hr.payroll.services.integration.exchange import ExchangeRateService
 
 
 class PayrollOrchestrator:
@@ -61,6 +61,11 @@ class PayrollOrchestrator:
         Generates a complete payslip for an employee following DRC legal standards.
         Delegates to specialized sub-methods for clarity and maintainability.
         """
+        # === PREVENT DUPLICATES ===
+        existing = EmployeePayslip.objects.filter(payroll_run=run, contract=contract).first()
+        if existing:
+            return existing
+        
         # === STAGE 1: Data Retrieval ===
         employee_data = cls._retrieve_employee_data(contract, run, config)
         
@@ -82,12 +87,12 @@ class PayrollOrchestrator:
         # === STAGE 4: Social Contributions & Tax ===
         social_data = cls._calculate_social_contributions(
             gross_data['gross_salary'],
-            gross_data['base_amount'],
             employee_data['company_size']
         )
         
         tax_data = cls._calculate_tax_and_allowances(
             gross_data['gross_salary'],
+            gross_data['base_amount'],
             social_data['cnss_employee'],
             employee_data,
             config
@@ -100,6 +105,7 @@ class PayrollOrchestrator:
             social_data['cnss_employee'],
             tax_data['ipr_tax'],
             tax_data['total_allowances'],
+            gross_data['total_other_deductions'],
             employee_data,
             run
         )
@@ -132,9 +138,6 @@ class PayrollOrchestrator:
     def _retrieve_employee_data(cls, contract, run, config):
         """
         Retrieves all necessary employee data from integration services.
-        
-        Returns:
-            dict with keys: attendance, family, leave, company_size, contract_currency, conversion_rate
         """
         attendance = PayrollIntegrationService.get_worked_days_data(
             contract.employee_id, 
@@ -194,10 +197,6 @@ class PayrollOrchestrator:
         """
         Calculates base salary, overtime, bonuses and returns gross salary.
         Handles multi-currency conversion and Brutage (Net → Gross resolution).
-        
-        Returns:
-            dict with keys: base_amount, hourly_rate, overtime_pay, total_bonuses, 
-                           gross_salary, adjustment_lines
         """
         attendance = employee_data['attendance']
         family = employee_data['family']
@@ -324,9 +323,6 @@ class PayrollOrchestrator:
     def _apply_absence_deductions(cls, gross_data, contract, employee_data, config):
         """
         Applies pro-rating deduction for unpaid absences (if Fixed Salary).
-        
-        Returns:
-            Updated gross_data dict
         """
         if contract.remuneration_type != RemunerationType.FIXED:
             return gross_data
@@ -372,9 +368,9 @@ class PayrollOrchestrator:
     @classmethod
     def _calculate_social_contributions(cls, gross_salary, company_size):
         """
-        Calculates CNSS, ONEM, INPP contributions for DRC 2026.
+        Calculates CNSS, ONEM, INPP contributions for DRC.
+        FIX: Removed unused base_salary parameter
         """
-        # Updated service call: base_salary is no longer needed
         social_data = SocialContributionService.calculate_contributions(
             gross_amount=gross_salary,
             company_size=company_size
@@ -408,7 +404,8 @@ class PayrollOrchestrator:
     @classmethod
     def _calculate_tax_and_allowances(cls, gross_salary, base_salary, cnss_employee, employee_data, config):
         """
-        Calculates IPR tax and legal allowances following DRC 2026 standards.
+        Calculates IPR tax and legal allowances following DRC standards.
+        FIX: Added base_salary parameter at correct position (after gross_salary)
         """
         attendance = employee_data['attendance']
         family = employee_data['family']
@@ -443,17 +440,15 @@ class PayrollOrchestrator:
 
     @classmethod
     def _process_advances(cls, contract, gross_salary, cnss_employee, ipr_tax, 
-                         total_allowances, employee_data, run):
+                         total_allowances, total_other_deductions, employee_data, run):
         """
         Processes all salary advances for the employee in priority order.
-        
-        Returns:
-            dict with keys: advance_deductions, total_advance_deduction
+        FIX: Added total_other_deductions parameter (was incorrectly fetched from employee_data)
         """
         # Calculate net salary before advances
         net_before_advances = (
             (gross_salary + total_allowances) - 
-            (cnss_employee + ipr_tax + employee_data.get('total_other_deductions', Decimal('0.00')))
+            (cnss_employee + ipr_tax + total_other_deductions)
         )
         
         # Process all advances
@@ -474,15 +469,23 @@ class PayrollOrchestrator:
                        tax_data, advance_data, employee_data):
         """
         Creates and persists the EmployeePayslip object.
-        
-        Returns:
-            EmployeePayslip instance
         """
         # Calculate final net amount
         net_amount = (
             (gross_data['gross_salary'] + tax_data['total_allowances']) -
             (social_data['cnss_employee'] + tax_data['ipr_tax'] + 
              gross_data['total_other_deductions'] + advance_data['total_advance_deduction'])
+        )
+        
+        # FIX: Corrected total_adjustments logic (should be positive bonuses/allowances)
+        total_adjustments = (
+            tax_data['total_allowances'] + 
+            gross_data['total_bonuses']
+        ) - (
+            social_data['cnss_employee'] + 
+            tax_data['ipr_tax'] + 
+            advance_data['total_advance_deduction'] + 
+            gross_data['total_other_deductions']
         )
         
         payslip = EmployeePayslip.objects.create(
@@ -501,11 +504,7 @@ class PayrollOrchestrator:
             housing_allowance=tax_data['housing_allowance'],
             transport_allowance=tax_data['transport_allowance'],
             
-            total_adjustments=(
-                tax_data['total_allowances'] - social_data['cnss_employee'] - 
-                tax_data['ipr_tax'] - advance_data['total_advance_deduction'] - 
-                gross_data['total_other_deductions']
-            ),
+            total_adjustments=total_adjustments,
             net_amount=net_amount,
             
             worked_days=employee_data['attendance']['regular_days'],

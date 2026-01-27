@@ -39,7 +39,7 @@ from hr.payroll.schemas import (
     AdvanceBalanceOut,
     AdvanceListFilterIn,
 )
-from hr.payroll.services.advances_mgmt import AdvanceManagementService
+from hr.payroll.services.advances.advances_mgmt import AdvanceManagementService
 
 
 logger = logging.getLogger(__name__)

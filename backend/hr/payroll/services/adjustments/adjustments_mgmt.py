@@ -29,15 +29,6 @@ class AdjustmentManagementService:
     def get_adjustment_type(cls, adjustment_id: UUID) -> PayrollAdjustment:
         """
         Retrieve a specific adjustment type by ID.
-        
-        Args:
-            adjustment_id: UUID of the adjustment type
-            
-        Returns:
-            PayrollAdjustment instance
-            
-        Raises:
-            PayrollAdjustment.DoesNotExist: If not found
         """
         logger.debug("[AdjustmentService] Getting adjustment type", extra={"adjustment_id": adjustment_id})
         return PayrollAdjustment.objects.get(id=adjustment_id)
@@ -47,16 +38,6 @@ class AdjustmentManagementService:
     def create_adjustment_type(cls, data: dict, actor=None) -> PayrollAdjustment:
         """
         Create a new adjustment type template.
-        
-        Args:
-            data: Dictionary with adjustment details (name, type, calculation_mode, etc.)
-            actor: User creating the adjustment
-            
-        Returns:
-            Created PayrollAdjustment instance
-            
-        Raises:
-            ValidationError: If data is invalid
         """
         logger.info(
             "[AdjustmentService] Creating adjustment type",
@@ -84,18 +65,6 @@ class AdjustmentManagementService:
     def update_adjustment_type(cls, adjustment_id: UUID, data: dict, actor=None) -> PayrollAdjustment:
         """
         Update an adjustment type.
-        
-        Args:
-            adjustment_id: UUID of adjustment to update
-            data: Dictionary with fields to update
-            actor: User making the update
-            
-        Returns:
-            Updated PayrollAdjustment instance
-            
-        Raises:
-            PayrollAdjustment.DoesNotExist: If not found
-            ValidationError: If data is invalid
         """
         logger.info("[AdjustmentService] Updating adjustment type", extra={"adjustment_id": adjustment_id})
 
@@ -117,14 +86,6 @@ class AdjustmentManagementService:
     def delete_adjustment_type(cls, adjustment_id: UUID, actor=None) -> None:
         """
         Delete an adjustment type (only if no employee adjustments exist).
-        
-        Args:
-            adjustment_id: UUID of adjustment to delete
-            actor: User deleting the adjustment
-            
-        Raises:
-            PayrollAdjustment.DoesNotExist: If not found
-            ValidationError: If employee adjustments exist
         """
         logger.info("[AdjustmentService] Deleting adjustment type", extra={"adjustment_id": adjustment_id})
 
@@ -145,12 +106,6 @@ class AdjustmentManagementService:
     def get_employee_adjustments(cls, employee_id: UUID) -> list[EmployeeAdjustment]:
         """
         Get all adjustments for a specific employee.
-        
-        Args:
-            employee_id: UUID of employee
-            
-        Returns:
-            List of EmployeeAdjustment instances
         """
         logger.debug("[AdjustmentService] Getting employee adjustments", extra={"employee_id": employee_id})
 
@@ -162,15 +117,6 @@ class AdjustmentManagementService:
     def get_employee_adjustment(cls, adjustment_id: UUID) -> EmployeeAdjustment:
         """
         Retrieve a specific employee adjustment by ID.
-        
-        Args:
-            adjustment_id: UUID of the employee adjustment
-            
-        Returns:
-            EmployeeAdjustment instance
-            
-        Raises:
-            EmployeeAdjustment.DoesNotExist: If not found
         """
         logger.debug("[AdjustmentService] Getting employee adjustment", extra={"adjustment_id": adjustment_id})
 
@@ -181,16 +127,6 @@ class AdjustmentManagementService:
     def create_employee_adjustment(cls, data: dict, actor=None) -> EmployeeAdjustment:
         """
         Apply an adjustment to a specific employee.
-        
-        Args:
-            data: Dictionary with employee_id, adjustment_id, amount, dates, etc.
-            actor: User creating the adjustment
-            
-        Returns:
-            Created EmployeeAdjustment instance
-            
-        Raises:
-            ValidationError: If data is invalid
         """
         logger.info(
             "[AdjustmentService] Creating employee adjustment",
@@ -239,18 +175,6 @@ class AdjustmentManagementService:
     def update_employee_adjustment(cls, adjustment_id: UUID, data: dict, actor=None) -> EmployeeAdjustment:
         """
         Update an employee adjustment.
-        
-        Args:
-            adjustment_id: UUID of adjustment to update
-            data: Dictionary with fields to update
-            actor: User making the update
-            
-        Returns:
-            Updated EmployeeAdjustment instance
-            
-        Raises:
-            EmployeeAdjustment.DoesNotExist: If not found
-            ValidationError: If data is invalid
         """
         logger.info("[AdjustmentService] Updating employee adjustment", extra={"adjustment_id": adjustment_id})
 
@@ -280,13 +204,6 @@ class AdjustmentManagementService:
     def delete_employee_adjustment(cls, adjustment_id: UUID, actor=None) -> None:
         """
         Remove an adjustment from an employee.
-        
-        Args:
-            adjustment_id: UUID of adjustment to delete
-            actor: User deleting the adjustment
-            
-        Raises:
-            EmployeeAdjustment.DoesNotExist: If not found
         """
         logger.info("[AdjustmentService] Deleting employee adjustment", extra={"adjustment_id": adjustment_id})
 
@@ -311,13 +228,6 @@ class AdjustmentManagementService:
     ) -> list[EmployeeAdjustment]:
         """
         Get active adjustments for an employee on a specific payroll date.
-        
-        Args:
-            employee_id: UUID of employee
-            payroll_date: The payroll period date
-            
-        Returns:
-            List of active EmployeeAdjustment instances
         """
         logger.debug(
             "[AdjustmentService] Getting active adjustments for payroll",
@@ -341,13 +251,6 @@ class AdjustmentManagementService:
     ) -> Decimal:
         """
         Calculate the actual amount for an adjustment.
-        
-        Args:
-            employee_adjustment: The EmployeeAdjustment instance
-            gross_salary: Gross salary if percentage-based calculation needed
-            
-        Returns:
-            Decimal amount to apply
         """
         # If custom amount is set, use it
         if employee_adjustment.custom_amount:

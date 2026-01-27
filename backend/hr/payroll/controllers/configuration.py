@@ -68,7 +68,7 @@ from hr.payroll.schemas import (
     LegalAllowanceListFilterIn,
 )
 
-from hr.payroll.services.configuration import ConfigurationService
+from hr.payroll.services.integration.configuration import ConfigurationService
 
 
 logger = logging.getLogger(__name__)

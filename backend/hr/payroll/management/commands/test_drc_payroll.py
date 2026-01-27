@@ -1,8 +1,8 @@
 from decimal import Decimal
 from django.core.management.base import BaseCommand
-from hr.payroll.services.taxes import TaxCalculationService
-from hr.payroll.services.contributions import SocialContributionService
-from hr.payroll.services.legal_allowances import LegalAllowanceService
+from hr.payroll.services.calculations.taxes import TaxCalculationService
+from hr.payroll.services.calculations.contributions import SocialContributionService
+from hr.payroll.services.calculations.legal_allowances import LegalAllowanceService
 
 
 class Command(BaseCommand):

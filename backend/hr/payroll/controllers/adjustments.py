@@ -37,7 +37,7 @@ from hr.payroll.schemas import (
     AdjustmentListFilterIn,
     EmployeeAdjustmentListFilterIn,
 )
-from hr.payroll.services.adjustments_mgmt import AdjustmentManagementService
+from hr.payroll.services.adjustments.adjustments_mgmt import AdjustmentManagementService
 
 
 logger = logging.getLogger(__name__)

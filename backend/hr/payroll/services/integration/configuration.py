@@ -51,18 +51,7 @@ class ConfigurationService:
     def create_configuration(cls, data: Dict[str, Any], actor=None) -> PayrollConfiguration:
         """
         Create global payroll configuration (singleton pattern).
-        
         This should be called once during system initialization.
-        
-        Args:
-            data: Dictionary with configuration fields
-            actor: User creating configuration
-            
-        Returns:
-            PayrollConfiguration: Created configuration
-            
-        Raises:
-            ValidationError: If configuration already exists or invalid data
         """
         logger.debug("[Config] Creating payroll configuration", extra={"actor": actor})
 
@@ -88,16 +77,6 @@ class ConfigurationService:
     def update_configuration(cls, data: Dict[str, Any], actor=None) -> PayrollConfiguration:
         """
         Update global payroll configuration.
-        
-        Args:
-            data: Dictionary with fields to update
-            actor: User updating configuration
-            
-        Returns:
-            PayrollConfiguration: Updated configuration
-            
-        Raises:
-            ValidationError: If no configuration exists or invalid data
         """
         logger.debug("[Config] Updating configuration", extra={"actor": actor})
 
@@ -122,22 +101,7 @@ class ConfigurationService:
     def create_smig_rate(cls, data: Dict[str, Any], actor=None) -> SMIGConfiguration:
         """
         Create a new SMIG (minimum wage) rate.
-        
         Used when minimum wage changes occur.
-        
-        Args:
-            data: Dictionary with:
-                - effective_date: Date when rate takes effect
-                - amount: Decimal minimum wage amount
-                - currency: Currency code (CDF/USD)
-                
-            actor: User creating rate
-            
-        Returns:
-            SMIGConfiguration: Created rate
-            
-        Raises:
-            ValidationError: If invalid data
         """
         logger.debug("[SMIG] Creating SMIG rate", extra={"data": data, "actor": actor})
 
@@ -177,18 +141,6 @@ class ConfigurationService:
     ) -> SMIGConfiguration:
         """
         Update an existing SMIG rate.
-        
-        Args:
-            smig_id: UUID of SMIG rate
-            data: Fields to update
-            actor: User updating
-            
-        Returns:
-            SMIGConfiguration: Updated rate
-            
-        Raises:
-            ValidationError: If invalid data
-            SMIGConfiguration.DoesNotExist: If not found
         """
         logger.debug("[SMIG] Updating SMIG rate", extra={"smig_id": smig_id})
 
@@ -220,23 +172,7 @@ class ConfigurationService:
     ) -> SocialContributionRate:
         """
         Create a new social contribution rate.
-        
         Contribution types: CNSS, ONEM, INPP, etc.
-        
-        Args:
-            data: Dictionary with:
-                - contribution_type: Type of contribution
-                - employee_rate: Employee contribution percentage
-                - employer_rate: Employer contribution percentage
-                - is_active: Whether rate is active
-                
-            actor: User creating rate
-            
-        Returns:
-            SocialContributionRate: Created rate
-            
-        Raises:
-            ValidationError: If invalid data or type already exists
         """
         logger.debug("[Contributions] Creating contribution rate", extra={"data": data})
 
@@ -280,18 +216,6 @@ class ConfigurationService:
     ) -> SocialContributionRate:
         """
         Update an existing social contribution rate.
-        
-        Args:
-            rate_id: UUID of rate
-            data: Fields to update
-            actor: User updating
-            
-        Returns:
-            SocialContributionRate: Updated rate
-            
-        Raises:
-            ValidationError: If invalid data
-            SocialContributionRate.DoesNotExist: If not found
         """
         logger.debug("[Contributions] Updating contribution rate", extra={"rate_id": rate_id})
 
@@ -327,20 +251,6 @@ class ConfigurationService:
         
         Rules define multipliers for overtime hours.
         Example: First 2 hours = 130%, subsequent = 160%, holidays = 200%.
-        
-        Args:
-            data: Dictionary with:
-                - rule_type: Type of rule (HOURS, HOLIDAYS, etc.)
-                - starting_hour: Starting hour count for this rule
-                - multiplier: Overtime multiplier (e.g., 1.3 for 130%)
-                
-            actor: User creating rule
-            
-        Returns:
-            OvertimeRule: Created rule
-            
-        Raises:
-            ValidationError: If invalid data
         """
         logger.debug("[Overtime] Creating overtime rule", extra={"data": data})
 
@@ -375,18 +285,6 @@ class ConfigurationService:
     ) -> OvertimeRule:
         """
         Update an existing overtime rule.
-        
-        Args:
-            rule_id: UUID of rule
-            data: Fields to update
-            actor: User updating
-            
-        Returns:
-            OvertimeRule: Updated rule
-            
-        Raises:
-            ValidationError: If invalid data
-            OvertimeRule.DoesNotExist: If not found
         """
         logger.debug("[Overtime] Updating overtime rule", extra={"rule_id": rule_id})
 
@@ -419,23 +317,7 @@ class ConfigurationService:
     def create_tax_bracket(cls, data: Dict[str, Any], actor=None) -> TaxBracket:
         """
         Create a new tax bracket for progressive IPR calculation.
-        
         Used for calculating income tax with progressive rates.
-        
-        Args:
-            data: Dictionary with:
-                - fiscal_year: Year this bracket applies to
-                - min_amount: Minimum salary for this bracket
-                - max_amount: Maximum salary for this bracket
-                - tax_rate: Tax rate for this bracket (percentage)
-                
-            actor: User creating bracket
-            
-        Returns:
-            TaxBracket: Created bracket
-            
-        Raises:
-            ValidationError: If invalid data
         """
         logger.debug("[Taxes] Creating tax bracket", extra={"data": data})
 
@@ -486,18 +368,6 @@ class ConfigurationService:
     ) -> TaxBracket:
         """
         Update an existing tax bracket.
-        
-        Args:
-            bracket_id: UUID of bracket
-            data: Fields to update
-            actor: User updating
-            
-        Returns:
-            TaxBracket: Updated bracket
-            
-        Raises:
-            ValidationError: If invalid data
-            TaxBracket.DoesNotExist: If not found
         """
         logger.debug("[Taxes] Updating tax bracket", extra={"bracket_id": bracket_id})
 
@@ -532,21 +402,6 @@ class ConfigurationService:
     def create_allowance(cls, data: Dict[str, Any], actor=None) -> LegalAllowance:
         """
         Create a new legal allowance (family, housing, transport, etc.).
-        
-        Args:
-            data: Dictionary with:
-                - allowance_type: Type of allowance
-                - base_amount: Fixed amount OR percentage for base calculation
-                - calculation_method: FIXED or PERCENTAGE
-                - is_mandatory: Whether required for all employees
-                
-            actor: User creating allowance
-            
-        Returns:
-            LegalAllowance: Created allowance
-            
-        Raises:
-            ValidationError: If invalid data
         """
         logger.debug("[Allowances] Creating allowance", extra={"data": data})
 
@@ -585,18 +440,6 @@ class ConfigurationService:
     ) -> LegalAllowance:
         """
         Update an existing legal allowance.
-        
-        Args:
-            allowance_id: UUID of allowance
-            data: Fields to update
-            actor: User updating
-            
-        Returns:
-            LegalAllowance: Updated allowance
-            
-        Raises:
-            ValidationError: If invalid data
-            LegalAllowance.DoesNotExist: If not found
         """
         logger.debug("[Allowances] Updating allowance", extra={"allowance_id": allowance_id})
 

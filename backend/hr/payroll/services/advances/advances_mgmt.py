@@ -1,13 +1,3 @@
-"""
-SALARY ADVANCES MANAGEMENT SERVICE
-
-Complete management of salary advances with flexible configuration:
-- Create and approve advances
-- Configure deduction terms (base, timing, window, priority)
-- Track advance balance and repayments
-- Multi-advance priority management
-"""
-
 import logging
 from decimal import Decimal
 from typing import Dict, Any
@@ -39,6 +29,15 @@ class AdvanceManagementService:
     - Track repayment progress
     - Query balance and history
     """
+    """
+    SALARY ADVANCES MANAGEMENT SERVICE
+
+    Complete management of salary advances with flexible configuration:
+    - Create and approve advances
+    - Configure deduction terms (base, timing, window, priority)
+    - Track advance balance and repayments
+    - Multi-advance priority management
+    """
 
     # ===== ADVANCE CRUD =====
 
@@ -47,21 +46,6 @@ class AdvanceManagementService:
     def create_advance(cls, data: Dict[str, Any], actor=None) -> SalaryAdvance:
         """
         Create a new salary advance request.
-        
-        Args:
-            data: Dictionary with:
-                - employee_id: UUID of employee
-                - amount: Decimal advance amount
-                - reason: String reason for advance
-                - advance_type: (Optional) "NORMAL" or "EMERGENCY"
-                
-            actor: User creating the advance (for audit)
-            
-        Returns:
-            SalaryAdvance: Created advance in PENDING status
-            
-        Raises:
-            ValidationError: If employee doesn't exist or amount is invalid
         """
         logger.debug("[Advances] Creating advance", extra={"data": data, "actor": actor})
 
@@ -101,15 +85,6 @@ class AdvanceManagementService:
     def get_advance_detail(self, advance_id: UUID) -> SalaryAdvance:
         """
         Retrieve complete advance details with configuration.
-        
-        Args:
-            advance_id: UUID of advance
-            
-        Returns:
-            SalaryAdvance: Advance with all relationships loaded
-            
-        Raises:
-            SalaryAdvance.DoesNotExist: If advance not found
         """
         logger.debug("[Advances] Getting advance detail", extra={"advance_id": advance_id})
 
@@ -130,18 +105,6 @@ class AdvanceManagementService:
     ) -> SalaryAdvance:
         """
         Update an advance (only PENDING advances can be modified).
-        
-        Args:
-            advance_id: UUID of advance
-            data: Dictionary with fields to update
-            actor: User performing update
-            
-        Returns:
-            SalaryAdvance: Updated advance
-            
-        Raises:
-            ValidationError: If advance is not PENDING
-            SalaryAdvance.DoesNotExist: If advance not found
         """
         logger.debug("[Advances] Updating advance", extra={"advance_id": advance_id})
 
@@ -179,17 +142,6 @@ class AdvanceManagementService:
         Approve a pending advance request.
         
         Status: PENDING → APPROVED
-        
-        Args:
-            advance_id: UUID of advance
-            actor: User approving (stored for audit)
-            
-        Returns:
-            SalaryAdvance: Updated advance
-            
-        Raises:
-            ValidationError: If not PENDING
-            SalaryAdvance.DoesNotExist: If not found
         """
         logger.debug("[Advances] Approving advance", extra={"advance_id": advance_id})
 
@@ -216,18 +168,6 @@ class AdvanceManagementService:
         Reject a pending advance request.
         
         Status: PENDING → REJECTED
-        
-        Args:
-            advance_id: UUID of advance
-            reason: Rejection reason
-            actor: User rejecting
-            
-        Returns:
-            SalaryAdvance: Updated advance
-            
-        Raises:
-            ValidationError: If not PENDING
-            SalaryAdvance.DoesNotExist: If not found
         """
         logger.debug("[Advances] Rejecting advance", extra={"advance_id": advance_id})
 
@@ -253,12 +193,6 @@ class AdvanceManagementService:
     def get_active_advances(cls, employee_id: UUID) -> QuerySet:
         """
         Get all ACTIVE (currently deductible) advances for an employee.
-        
-        Args:
-            employee_id: UUID of employee
-            
-        Returns:
-            QuerySet: Filtered advances ordered by priority
         """
         logger.debug("[Advances] Getting active advances", extra={"employee_id": employee_id})
 
@@ -275,12 +209,6 @@ class AdvanceManagementService:
     def get_employee_advance_history(cls, employee_id: UUID) -> QuerySet:
         """
         Get complete advance history for an employee.
-        
-        Args:
-            employee_id: UUID of employee
-            
-        Returns:
-            QuerySet: All advances ordered by request date (newest first)
         """
         logger.debug("[Advances] Getting advance history", extra={"employee_id": employee_id})
 
@@ -295,20 +223,6 @@ class AdvanceManagementService:
     def get_advance_balance(cls, advance_id: UUID) -> Dict[str, Any]:
         """
         Calculate balance information for an advance.
-        
-        Args:
-            advance_id: UUID of advance
-            
-        Returns:
-            Dict with:
-                - amount: Total requested
-                - deducted_amount: Total repaid
-                - remaining_balance: Still owed
-                - repayment_progress: Percentage
-                - is_closed: Whether advance is fully repaid
-                
-        Raises:
-            SalaryAdvance.DoesNotExist: If not found
         """
         logger.debug("[Advances] Calculating advance balance", extra={"advance_id": advance_id})
 
@@ -344,24 +258,6 @@ class AdvanceManagementService:
         2. Tax timing (BEFORE_TAX or AFTER_TAX)
         3. Deduction window (ALL_MONTHS or CUSTOM_PERIOD)
         4. Priority order (for multi-advance deduction)
-        
-        Args:
-            advance_id: UUID of advance
-            data: Dictionary with configuration fields:
-                - salary_base: "GROSS" or "NET"
-                - tax_timing: "BEFORE_TAX" or "AFTER_TAX"
-                - deduction_window: "ALL_MONTHS" or "CUSTOM_PERIOD"
-                - priority: Integer (lower = deduct first)
-                - deduction_start_date: (Optional) Start date for CUSTOM_PERIOD
-                - deduction_end_date: (Optional) End date for CUSTOM_PERIOD
-                
-            actor: User creating configuration
-            
-        Returns:
-            AdvanceDeductionConfiguration: Created configuration
-            
-        Raises:
-            ValidationError: If advance not found or invalid data
         """
         logger.debug(
             "[Advances] Creating configuration",
@@ -404,15 +300,6 @@ class AdvanceManagementService:
     ) -> AdvanceDeductionConfiguration:
         """
         Retrieve deduction configuration for an advance.
-        
-        Args:
-            advance_id: UUID of advance
-            
-        Returns:
-            AdvanceDeductionConfiguration
-            
-        Raises:
-            AdvanceDeductionConfiguration.DoesNotExist: If not found
         """
         logger.debug(
             "[Advances] Getting configuration",
@@ -433,17 +320,6 @@ class AdvanceManagementService:
     ) -> AdvanceDeductionConfiguration:
         """
         Update advance configuration.
-        
-        Args:
-            advance_id: UUID of advance
-            data: Fields to update
-            actor: User updating
-            
-        Returns:
-            AdvanceDeductionConfiguration: Updated configuration
-            
-        Raises:
-            AdvanceDeductionConfiguration.DoesNotExist: If not found
         """
         logger.debug(
             "[Advances] Updating configuration",
@@ -476,15 +352,6 @@ class AdvanceManagementService:
     def get_repayment_history(cls, advance_id: UUID) -> QuerySet:
         """
         Get repayment history for an advance.
-        
-        Args:
-            advance_id: UUID of advance
-            
-        Returns:
-            QuerySet: RepaymentRecords ordered by date
-            
-        Raises:
-            SalaryAdvance.DoesNotExist: If advance not found
         """
         logger.debug("[Advances] Getting repayment history", extra={"advance_id": advance_id})
 
@@ -506,18 +373,6 @@ class AdvanceManagementService:
     ) -> RepaymentRecord:
         """
         Record a repayment against an advance.
-        
-        Args:
-            advance_id: UUID of advance
-            amount: Decimal repayment amount
-            payslip_id: (Optional) Associated payslip ID
-            actor: User recording repayment
-            
-        Returns:
-            RepaymentRecord: Created repayment record
-            
-        Raises:
-            ValidationError: If amount invalid or advance not found
         """
         logger.debug(
             "[Advances] Recording repayment",

@@ -26,10 +26,7 @@ from .models import (
 )
 
 
-# ============================================================================
-# PAYROLL CONFIGURATION SCHEMAS
-# ============================================================================
-
+# ---------------- PAYROLL CONFIGURATION SCHEMAS  -------------------
 class ConfigurePayrollIn(ModelSchema):
     """Input schema for creating/updating payroll configuration."""
     class Meta:
@@ -97,10 +94,7 @@ class PayrollConfigurationUpdateIn(ModelSchema):
         fields_optional = "__all__"
 
 
-# ============================================================================
-# EMPLOYEE CONTRACT SCHEMAS
-# ============================================================================
-
+# ----------------  EMPLOYEE CONTRACT SCHEMAS  -------------------
 class EmployeeContractCreateIn(ModelSchema):
     """Input schema for creating an employee contract."""
     class Meta:
@@ -163,10 +157,7 @@ class EmployeeContractUpdateIn(ModelSchema):
         fields_optional = "__all__"
 
 
-# ============================================================================
-# PAYROLL ADJUSTMENT SCHEMAS
-# ============================================================================
-
+# ----------------  PAYROLL ADJUSTMENT SCHEMAS  -------------------
 class PayrollAdjustmentCreateIn(ModelSchema):
     """Input schema for defining a payroll adjustment template."""
     class Meta:
@@ -262,10 +253,7 @@ class EmployeeAdjustmentUpdateIn(ModelSchema):
         fields_optional = "__all__"
 
 
-# ============================================================================
-# PAYROLL RUN SCHEMAS
-# ============================================================================
-
+# ----------------  PAYROLL RUN SCHEMAS  -------------------
 class PayrollRunCreateIn(ModelSchema):
     """Input schema for creating a payroll run."""
     class Meta:
@@ -328,10 +316,7 @@ class PayrollRunUpdateIn(ModelSchema):
         fields_optional = "__all__"
 
 
-# ============================================================================
-# PAYSLIP LINE SCHEMAS
-# ============================================================================
-
+# ----------------  PAYSLIP LINE SCHEMAS  -------------------
 class PayslipLineOut(ModelSchema):
     """Output schema for payslip detail lines."""
     class Meta:
@@ -355,10 +340,7 @@ class PayslipLineCreateIn(ModelSchema):
         ]
 
 
-# ============================================================================
-# EMPLOYEE PAYSLIP SCHEMAS
-# ============================================================================
-
+# ----------------  EMPLOYEE PAYSLIP SCHEMAS  -------------------
 class EmployeePayslipOut(ModelSchema):
     """Output schema for complete payslip details."""
     class Meta:
@@ -445,10 +427,7 @@ class EmployeePayslipSummaryOut(ModelSchema):
         ]
 
 
-# ============================================================================
-# SALARY ADVANCE SCHEMAS
-# ============================================================================
-
+# ----------------  SALARY ADVANCE SCHEMAS  -------------------
 class SalaryAdvanceCreateIn(ModelSchema):
     """
     Schema for creating a new salary advance with flexible deduction configuration.
@@ -532,10 +511,7 @@ class SalaryAdvanceDetailOut(ModelSchema):
         ]
 
 
-# ============================================================================
-# ADVANCE DEDUCTION CONFIGURATION SCHEMAS
-# ============================================================================
-
+# ----------------  ADVANCE DEDUCTION CONFIGURATION SCHEMAS  -------------------
 class AdvanceDeductionConfigurationIn(ModelSchema):
     """
     Schema for configuring advance deduction priority and activation.
@@ -596,10 +572,7 @@ class AdvanceDeductionConfigurationUpdateIn(ModelSchema):
         fields_optional = "__all__"
 
 
-# ============================================================================
-# REPAYMENT RECORD SCHEMAS
-# ============================================================================
-
+# ----------------  REPAYMENT RECORD SCHEMAS  -------------------
 class RepaymentRecordOut(ModelSchema):
     """Output schema for salary advance repayment records."""
     class Meta:
@@ -633,10 +606,7 @@ class RepaymentHistoryOut(Schema):
     balance_remaining: Decimal = Decimal('0.00')
 
 
-# ============================================================================
-# WORKED DAYS RECORD SCHEMAS
-# ============================================================================
-
+# ----------------  WORKED DAYS RECORD SCHEMAS  -------------------
 class WorkedDaysRecordOut(ModelSchema):
     """Output schema for worked days and overtime tracking."""
     total_overtime_hours: float = 0.0
@@ -686,10 +656,7 @@ class WorkedDaysRecordUpdateIn(ModelSchema):
         fields_optional = "__all__"
 
 
-# ============================================================================
-# SMIG CONFIGURATION SCHEMAS
-# ============================================================================
-
+# ----------------  SMIG CONFIGURATION SCHEMAS  -------------------
 class SMIGConfigurationCreateIn(ModelSchema):
     """Input schema for creating SMIG configuration."""
     class Meta:
@@ -730,10 +697,7 @@ class SMIGConfigurationUpdateIn(ModelSchema):
         fields_optional = "__all__"
 
 
-# ============================================================================
-# SOCIAL CONTRIBUTION RATE SCHEMAS
-# ============================================================================
-
+# ----------------  SOCIAL CONTRIBUTION RATE SCHEMAS  -------------------
 class SocialContributionRateCreateIn(ModelSchema):
     """Input schema for creating social contribution rates."""
     class Meta:
@@ -788,10 +752,7 @@ class SocialContributionRateUpdateIn(ModelSchema):
         fields_optional = "__all__"
 
 
-# ============================================================================
-# OVERTIME RULE SCHEMAS
-# ============================================================================
-
+# ----------------  OVERTIME RULE SCHEMAS  -------------------
 class OvertimeRuleCreateIn(ModelSchema):
     """Input schema for creating overtime rules."""
     class Meta:
@@ -831,10 +792,7 @@ class OvertimeRuleUpdateIn(ModelSchema):
         fields_optional = "__all__"
 
 
-# ============================================================================
-# LEGAL ALLOWANCE SCHEMAS
-# ============================================================================
-
+# ---------------- LEGAL ALLOWANCE SCHEMAS  -------------------
 class LegalAllowanceCreateIn(ModelSchema):
     """Input schema for creating legal allowances."""
     class Meta:
@@ -883,10 +841,7 @@ class LegalAllowanceUpdateIn(ModelSchema):
         fields_optional = "__all__"
 
 
-# ============================================================================
-# TAX BRACKET SCHEMAS
-# ============================================================================
-
+# ----------------  TAX BRACKET SCHEMAS  -------------------
 class TaxBracketCreateIn(ModelSchema):
     """Input schema for creating tax brackets."""
     class Meta:
@@ -939,10 +894,7 @@ class TaxBracketUpdateIn(ModelSchema):
         fields_optional = "__all__"
 
 
-# ============================================================================
-# FILTER SCHEMAS
-# ============================================================================
-
+# ---------------- FILTER SCHEMAS  -------------------
 class EmployeeContractListFilterIn(FilterSchema):
     """Filter schema for employee contracts listing."""
     employee_id: UUID | None = Field(None, q="employee_id")
@@ -1008,10 +960,7 @@ class AdvanceBalanceOut(Schema):
     estimated_repayment_date: date | None = None
 
 
-# ============================================================================
-# FILTER SCHEMAS FOR CONFIGURATION
-# ============================================================================
-
+# ----------------  CONFIGURATION SCHEMAS  -------------------
 class SMIGConfigurationListFilterIn(FilterSchema):
     """Filter schema for SMIG rates listing."""
     effective_date_from: date | None = Field(None, q="effective_date__gte")

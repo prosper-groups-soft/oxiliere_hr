@@ -12,6 +12,9 @@ class PayrollCalculatorService:
     def calculate_adjustment_value(mode: str, base_value: Decimal, 
                                  config_amount: Decimal = None, 
                                  config_percentage: Decimal = None) -> Decimal:
+        """
+        Calculates the adjustment value based on mode.
+        """
         if mode == CalculationMode.FIXED:
             return config_amount or Decimal('0.00')
         

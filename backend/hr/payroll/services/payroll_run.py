@@ -352,17 +352,6 @@ class PayrollRunService:
         Allows re-processing with corrected parameters.
         Only DRAFT, PROCESSING, or VALIDATED runs can be cancelled.
         Cannot cancel PAID runs.
-        
-        Args:
-            run_id: UUID of run to cancel
-            actor: User cancelling run
-            
-        Returns:
-            PayrollRun: Cancelled run
-            
-        Raises:
-            ValidationError: If run is already PAID
-            PayrollRun.DoesNotExist: If not found
         """
         logger.debug("[PayrollRun] Cancelling payroll run", extra={"run_id": run_id})
 
@@ -388,15 +377,6 @@ class PayrollRunService:
     def get_payslips_for_run(cls, run_id: UUID) -> QuerySet:
         """
         Get all payslips for a payroll run.
-        
-        Args:
-            run_id: UUID of payroll run
-            
-        Returns:
-            QuerySet: Payslips with related contract and employee data
-            
-        Raises:
-            PayrollRun.DoesNotExist: If not found
         """
         logger.debug("[PayrollRun] Getting payslips for run", extra={"run_id": run_id})
 
@@ -426,15 +406,6 @@ class PayrollRunService:
         - Total employee deductions (Taxes + EE CNSS)
         - Total employer liabilities (ER CNSS + INPP + ONEM)
         - Total cost to company (CTC)
-        
-        Args:
-            run_id: UUID of payroll run
-            
-        Returns:
-            Dict with summary statistics
-            
-        Raises:
-            PayrollRun.DoesNotExist: If not found
         """
         logger.debug("[PayrollRun] Getting payroll summary", extra={"run_id": run_id})
 
@@ -495,7 +466,7 @@ class PayrollRunService:
                 "total_gross_salary": total_gross,
                 "total_net_salary": total_net,
                 # Explicit DRC Breakdown
-                "total_ipr_to_pay": total_ipr,           # For DGI
+                "total_ipr_to_pay": total_ipr,          # For DGI
                 "total_cnss_employee": total_ee_cnss,   # For CNSS
                 "total_cnss_employer": total_er_cnss,   # For CNSS
                 "total_inpp": total_inpp,               # For INPP
@@ -511,15 +482,6 @@ class PayrollRunService:
     def count_payslips_by_status(cls, run_id: UUID) -> Dict[str, int]:
         """
         Count payslips in a run by their generation status.
-        
-        Args:
-            run_id: UUID of payroll run
-            
-        Returns:
-            Dict with counts by status
-            
-        Raises:
-            PayrollRun.DoesNotExist: If not found
         """
         logger.debug("[PayrollRun] Counting payslips by status", extra={"run_id": run_id})
 
@@ -538,15 +500,6 @@ class PayrollRunService:
     def get_run_contract_breakdown(cls, run_id: UUID) -> Dict[str, Any]:
         """
         Get a breakdown of payslips within a run by contract demographics (remuneration type, payment period).
-
-        Args:
-            run_id: UUID of payroll run
-
-        Returns:
-            Dict with demographic breakdown statistics
-            
-        Raises:
-            PayrollRun.DoesNotExist: If not found
         """
         logger.debug("[PayrollRun] Getting run contract breakdown", extra={"run_id": run_id})
 

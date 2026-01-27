@@ -1,13 +1,3 @@
-"""
-EMPLOYEE CONTRACT SERVICE
-
-Manages employee employment contracts:
-- Contract creation and termination
-- Salary and compensation tracking
-- Remuneration type management
-- Contract history and audit trail
-"""
-
 import logging
 from decimal import Decimal
 from datetime import date
@@ -36,6 +26,15 @@ class EmployeeContractService:
     - Query contract history and current status
     - Audit trail with actor tracking
     """
+    """
+    EMPLOYEE CONTRACT SERVICE
+
+    Manages employee employment contracts:
+    - Contract creation and termination
+    - Salary and compensation tracking
+    - Remuneration type management
+    - Contract history and audit trail
+    """
 
     # ===== CRUD OPERATIONS =====
 
@@ -43,15 +42,6 @@ class EmployeeContractService:
     def get_contract_by_id(cls, contract_id: UUID) -> EmployeeContract:
         """
         Retrieve a contract by ID.
-        
-        Args:
-            contract_id: UUID of contract
-            
-        Returns:
-            EmployeeContract: Contract with related data loaded
-            
-        Raises:
-            EmployeeContract.DoesNotExist: If not found
         """
         logger.debug("[Contracts] Getting contract by ID", extra={"contract_id": contract_id})
 
@@ -65,28 +55,7 @@ class EmployeeContractService:
     def create_contract(cls, data: Dict[str, Any], actor=None) -> EmployeeContract:
         """
         Create a new employment contract for an employee.
-        
         Automatically marks previous active contracts as inactive when a new contract is created.
-        
-        Args:
-            data: Dictionary with:
-                - employee_id: UUID of employee
-                - start_date: Contract start date
-                - end_date: (Optional) Contract end date
-                - remuneration_type: FIXED, HOURLY, NET_TO_GROSS
-                - amount: Base salary or hourly rate
-                - currency: CDF or USD
-                - contract_type: CDI, CDD, FREELANCE, INTERN
-                - payment_period: MONTHLY, WEEKLY, DAILY
-                - is_active: Whether contract is currently active
-                
-            actor: User creating contract (for audit)
-            
-        Returns:
-            EmployeeContract: Created contract
-            
-        Raises:
-            ValidationError: If employee doesn't exist or invalid data
         """
         logger.debug("[Contracts] Creating contract", extra={"data": data, "actor": actor})
 
@@ -165,18 +134,6 @@ class EmployeeContractService:
         - Payment period
         - Contract dates
         - Currency
-        
-        Args:
-            contract_id: UUID of contract
-            data: Fields to update
-            actor: User updating contract
-            
-        Returns:
-            EmployeeContract: Updated contract
-            
-        Raises:
-            ValidationError: If invalid data
-            EmployeeContract.DoesNotExist: If not found
         """
         logger.debug("[Contracts] Updating contract", extra={"contract_id": contract_id})
 
@@ -214,19 +171,7 @@ class EmployeeContractService:
     def deactivate_contract(cls, contract_id: UUID, actor=None) -> EmployeeContract:
         """
         Deactivate a contract (employee termination).
-        
         Sets is_active=False and optionally sets end_date if not already set.
-        
-        Args:
-            contract_id: UUID of contract
-            actor: User deactivating contract
-            
-        Returns:
-            EmployeeContract: Deactivated contract
-            
-        Raises:
-            ValidationError: If already deactivated
-            EmployeeContract.DoesNotExist: If not found
         """
         logger.debug("[Contracts] Deactivating contract", extra={"contract_id": contract_id})
 
@@ -252,16 +197,7 @@ class EmployeeContractService:
     def delete_contract(cls, contract_id: UUID, actor=None) -> None:
         """
         Delete a contract (hard delete).
-        
         Only allowed for contracts that haven't generated payslips.
-        
-        Args:
-            contract_id: UUID of contract
-            actor: User deleting contract
-            
-        Raises:
-            ValidationError: If contract has payslips
-            EmployeeContract.DoesNotExist: If not found
         """
         logger.debug("[Contracts] Deleting contract", extra={"contract_id": contract_id})
 
@@ -288,15 +224,6 @@ class EmployeeContractService:
     def get_active_contract(cls, employee_id: UUID) -> EmployeeContract:
         """
         Get the currently active contract for an employee.
-        
-        Args:
-            employee_id: UUID of employee
-            
-        Returns:
-            EmployeeContract: Active contract
-            
-        Raises:
-            EmployeeContract.DoesNotExist: If no active contract found
         """
         logger.debug("[Contracts] Getting active contract", extra={"employee_id": employee_id})
 
@@ -312,17 +239,7 @@ class EmployeeContractService:
     def get_employee_contract_history(cls, employee_id: UUID) -> QuerySet:
         """
         Get complete contract history for an employee.
-        
         Returns all contracts (active and inactive) ordered by start date (newest first).
-        
-        Args:
-            employee_id: UUID of employee
-            
-        Returns:
-            QuerySet: All contracts for employee
-            
-        Raises:
-            Employee.DoesNotExist: If employee not found
         """
         logger.debug("[Contracts] Getting contract history", extra={"employee_id": employee_id})
 
@@ -340,15 +257,6 @@ class EmployeeContractService:
     def get_current_salary(cls, employee_id: UUID) -> Decimal:
         """
         Get the current salary/rate from the active contract.
-        
-        Args:
-            employee_id: UUID of employee
-            
-        Returns:
-            Decimal: Current amount (salary or hourly rate)
-            
-        Raises:
-            EmployeeContract.DoesNotExist: If no active contract
         """
         logger.debug("[Contracts] Getting current salary", extra={"employee_id": employee_id})
 
@@ -359,18 +267,7 @@ class EmployeeContractService:
     def get_contract_on_date(cls, employee_id: UUID, target_date: date) -> EmployeeContract:
         """
         Get the contract that was active on a specific date.
-        
         Useful for historical payroll calculations.
-        
-        Args:
-            employee_id: UUID of employee
-            target_date: Date to check
-            
-        Returns:
-            EmployeeContract: Contract active on that date
-            
-        Raises:
-            EmployeeContract.DoesNotExist: If no contract was active
         """
         logger.debug(
             "[Contracts] Getting contract on date",
@@ -389,12 +286,6 @@ class EmployeeContractService:
     def count_active_contracts(cls, employee_id: UUID) -> int:
         """
         Count active contracts for an employee (should be 0 or 1).
-        
-        Args:
-            employee_id: UUID of employee
-            
-        Returns:
-            int: Number of active contracts
         """
         logger.debug("[Contracts] Counting active contracts", extra={"employee_id": employee_id})
 
@@ -411,13 +302,6 @@ class EmployeeContractService:
     ) -> QuerySet:
         """
         Get all contracts of a specific remuneration type.
-        
-        Args:
-            remuneration_type: FIXED, HOURLY, or NET_TO_GROSS
-            is_active_only: Whether to return only active contracts
-            
-        Returns:
-            QuerySet: Matching contracts
         """
         logger.debug(
             "[Contracts] Getting contracts by remuneration",
@@ -432,3 +316,4 @@ class EmployeeContractService:
             qs = qs.filter(is_active=True)
 
         return qs.select_related('employee', 'employee__user')
+
