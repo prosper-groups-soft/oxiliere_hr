@@ -1,7 +1,7 @@
 [
   {
     "model": "hr_payroll.overtimerule",
-    "pk": "019bea5e-f8c7-79d3-b5e7-3eda4b49f201",
+    "pk": "019c03b3598e7d579faf01d5aac790a9",
     "fields": {
       "rule_type": "FIRST_TWO_HOURS",
       "multiplier": "1.30",
@@ -13,7 +13,7 @@
   },
   {
     "model": "hr_payroll.overtimerule",
-    "pk": "019bea5e-f8c7-79d3-b5e7-3eda4b49f202",
+    "pk": "019c03b393c372938503963bbc38b228",
     "fields": {
       "rule_type": "SUBSEQUENT_HOURS",
       "multiplier": "1.60",
@@ -25,7 +25,7 @@
   },
   {
     "model": "hr_payroll.overtimerule",
-    "pk": "019bea5e-f8c7-79d3-b5e7-3eda4b49f203",
+    "pk": "019c03b3d32f7871beb93ec0317c6811",
     "fields": {
       "rule_type": "WEEKEND",
       "multiplier": "2.00",
@@ -37,7 +37,7 @@
   },
   {
     "model": "hr_payroll.overtimerule",
-    "pk": "019bea5e-f8c7-79d3-b5e7-3eda4b49f204",
+    "pk": "019c03b43a2473f4881b0f448782309b",
     "fields": {
       "rule_type": "HOLIDAY",
       "multiplier": "2.00",

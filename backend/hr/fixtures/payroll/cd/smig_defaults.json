@@ -1,7 +1,7 @@
 [
   {
     "model": "hr_payroll.smigconfiguration",
-    "pk": "019bea5e-f8c7-79d3-b5e7-3eda4b49f395",
+    "pk": "019c03b827847b8d9968c6ef9fe1ee7a",
     "fields": {
       "daily_rate": "7075.00",
       "effective_date": "2024-01-01",

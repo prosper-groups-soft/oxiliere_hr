@@ -1,7 +1,7 @@
 [
   {
     "model": "hr_payroll.legalallowance",
-    "pk": "019bea5e-f8c7-79d3-b5e7-3eda4b49f301",
+    "pk": "019c03b25373729c8093ab2ba88ddb60",
     "fields": {
       "allowance_type": "FAMILY",
       "calculation_mode": "FIXED",
@@ -16,7 +16,7 @@
   },
   {
     "model": "hr_payroll.legalallowance",
-    "pk": "019bea5e-f8c7-79d3-b5e7-3eda4b49f302",
+    "pk": "019c03b293027d9ca4e7409c8d91b832",
     "fields": {
       "allowance_type": "HOUSING",
       "calculation_mode": "FIXED",
@@ -31,7 +31,7 @@
   },
   {
     "model": "hr_payroll.legalallowance",
-    "pk": "019bea5e-f8c7-79d3-b5e7-3eda4b49f303",
+    "pk": "019c03b2f8357d8f9ad4131767c56989",
     "fields": {
       "allowance_type": "TRANSPORT",
       "calculation_mode": "FIXED",

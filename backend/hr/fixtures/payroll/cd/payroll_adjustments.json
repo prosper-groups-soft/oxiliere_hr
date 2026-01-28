@@ -1,7 +1,7 @@
 [
     {
         "model": "hr_payroll.payrolladjustment",
-        "pk": 1,
+        "pk": "019c03b55dce7594be251aed3e91e12e",
         "fields": {
             "name": "Allocation de transport",
             "adjustment_type": "BONUS",
@@ -16,7 +16,7 @@
     },
     {
         "model": "hr_payroll.payrolladjustment",
-        "pk": 2,
+        "pk": "019c03b583037fc6b89703726ae053bb",
         "fields": {
             "name": "Allocation de logement",
             "adjustment_type": "BONUS",
@@ -31,7 +31,7 @@
     },
     {
         "model": "hr_payroll.payrolladjustment",
-        "pk": 3,
+        "pk": "019c03b5b4bf7ecc9f8f8f16fc4584c5",
         "fields": {
             "name": "Allocation télétravail",
             "adjustment_type": "BONUS",
@@ -46,7 +46,7 @@
     },
     {
         "model": "hr_payroll.payrolladjustment",
-        "pk": 4,
+        "pk": "019c03b5f97c703998d7023c26a9f8e9",
         "fields": {
             "name": "Allocation repas",
             "adjustment_type": "BONUS",
@@ -61,7 +61,7 @@
     },
     {
         "model": "hr_payroll.payrolladjustment",
-        "pk": 5,
+        "pk": "019c03b62d7f746fa381f3c722e2a737",
         "fields": {
             "name": "Assurance santé entreprise",
             "adjustment_type": "BONUS",
@@ -76,7 +76,7 @@
     },
     {
         "model": "hr_payroll.payrolladjustment",
-        "pk": 6,
+        "pk": "019c03b68d0b7da09d381653af14b23f",
         "fields": {
             "name": "Assurance invalidité",
             "adjustment_type": "BONUS",
@@ -91,7 +91,7 @@
     },
     {
         "model": "hr_payroll.payrolladjustment",
-        "pk": 7,
+        "pk": "019c03b6bca97d7aad100f191c8da8ac",
         "fields": {
             "name": "Frais de déplacement",
             "adjustment_type": "BONUS",
@@ -106,7 +106,7 @@
     },
     {
         "model": "hr_payroll.payrolladjustment",
-        "pk": 8,
+        "pk": "019c03b6ec847ab2ab4316646f74c9b3",
         "fields": {
             "name": "Allocation rentrée scolaire",
             "adjustment_type": "BONUS",
@@ -121,7 +121,7 @@
     },
     {
         "model": "hr_payroll.payrolladjustment",
-        "pk": 9,
+        "pk": "019c03b7163a7a1aa90b5e8938c80699",
         "fields": {
             "name": "Allocation garde d'enfants",
             "adjustment_type": "BONUS",
@@ -136,7 +136,7 @@
     },
     {
         "model": "hr_payroll.payrolladjustment",
-        "pk": 10,
+        "pk": "019c03b7652276ecaed6e6fcb744ac38",
         "fields": {
             "name": "Aide au logement",
             "adjustment_type": "BONUS",
@@ -151,7 +151,7 @@
     },
     {
         "model": "hr_payroll.payrolladjustment",
-        "pk": 11,
+        "pk": "019c03b7ae707fa78ad669f80069f018",
         "fields": {
             "name": "Gratification de fin d'année",
             "adjustment_type": "BONUS",
@@ -166,7 +166,7 @@
     },
     {
         "model": "hr_payroll.payrolladjustment",
-        "pk": 12,
+        "pk": "019c03b7e02b7746a66151c46a3bd937",
         "fields": {
             "name": "Prime d'ancienneté",
             "adjustment_type": "BONUS",

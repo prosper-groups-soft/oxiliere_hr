@@ -1,7 +1,7 @@
 [
   {
     "model": "hr_payroll.socialcontributionrate",
-    "pk": "019bea5e-f8c7-79d3-b5e7-3eda4b49f101",
+    "pk": "019c03b87a2375919001c9e4d9f12419",
     "fields": {
       "contribution_type": "CNSS",
       "rate_percentage": "13.00",
@@ -18,7 +18,7 @@
   },
   {
     "model": "hr_payroll.socialcontributionrate",
-    "pk": "019bea5e-f8c7-79d3-b5e7-3eda4b49f102",
+    "pk": "019c03b8b72275c489ab6e60d26461ed",
     "fields": {
       "contribution_type": "ONEM",
       "rate_percentage": "0.20",
@@ -34,7 +34,7 @@
   },
   {
     "model": "hr_payroll.socialcontributionrate",
-    "pk": "019bea5e-f8c7-79d3-b5e7-3eda4b49f103",
+    "pk": "019c03b8f8297bcfbdcdb37d7f3c1b5a",
     "fields": {
       "contribution_type": "INPP",
       "rate_percentage": "3.00",
@@ -50,7 +50,7 @@
   },
   {
     "model": "hr_payroll.socialcontributionrate",
-    "pk": "019bea5e-f8c7-79d3-b5e7-3eda4b49f104",
+    "pk": "019c03b93a427e24abf0b657460a8c02",
     "fields": {
       "contribution_type": "INPP",
       "rate_percentage": "2.00",
@@ -66,7 +66,7 @@
   },
   {
     "model": "hr_payroll.socialcontributionrate",
-    "pk": "019bea5e-f8c7-79d3-b5e7-3eda4b49f105",
+    "pk": "019c03b97dd2776bbab688a70e0282de",
     "fields": {
       "contribution_type": "INPP",
       "rate_percentage": "1.00",

@@ -1,310 +1,278 @@
-# Module Paie - Oxilière HR
+# Documentation - Module Payroll
 
-## 📖 Vue d'ensemble
+## Vue d'ensemble
 
-Le module **Paie** (Payroll) gère l'intégralité du processus de calcul et de génération des bulletins de salaire selon les normes **légales de la République Démocratique du Congo (RDC) 2026**.
+Le module **Payroll** gère l'ensemble du processus de calcul et de distribution des salaires. Il automatise les calculs complexes de rémunération, les déductions, les allocations légales et les cotisations sociales selon les normes de la RDC et autres juridictions.
 
-### Périmètre fonctionnel
+## Fonctionnalités principales
 
-✅ Calcul du **salaire brut** (fixe/horaire, brutage Net→Brut)  
-✅ Gestion des **heures supplémentaires** (6h à 130%, puis 160%)  
-✅ Déductions pour **absences non payées** (proratisation)  
-✅ Contributions sociales : **CNSS (5%)**, ONEM, INPP  
-✅ Impôt sur le revenu professionnel (**IPR progressif**)  
-✅ **Allocations légales** : familiales, logement (plafond 30%), transport  
-✅ Avances sur salaire avec **priorité de remboursement**  
-✅ Ajustements (primes, déductions personnalisées)  
-✅ **Multi-devises** avec taux de change appliqués  
-✅ Congés payés (maintien de salaire)  
+### 1. Configuration de la paie
+- **Paramètres globaux** : Devise, méthode de paiement par défaut, heures de travail mensuelles
+- **Allocations** : Allocations familiales, allocations logement avec pourcentages minimums
+- **Heures supplémentaires** : Configuration du multiplicateur (défaut 1.5x)
+- **Déductions** : Intégration des congés, jours théoriques d'absence
+- **Conversion de devises** : Taux USD/CDF pour les paiements en devises étrangères
 
----
+### 2. Contrats d'employé
+- Création et gestion des contrats par employé
+- Types de contrats (CDI, CDD, Contrat à l'essai)
+- Périodes de paiement (Hebdomadaire, Bi-hebdomadaire, Mensuel)
+- Salaire de base et modes de calcul (Salaire fixe, Salaire brut)
+- Historique des modifications avec audit trail
 
-## 🏗️ Architecture
+### 3. Calcul de la paie
+- **Heures travaillées** : Enregistrement des jours travaillés et absence
+- **Allocations légales** : Allocations logement, familiales, SMIG
+- **Heures supplémentaires** : Calcul automatique avec coefficient configurable
+- **Cotisations sociales** : INSS, CNSS, taxes selon règles de la RDC
+- **Avances de salaire** : Demandes, approbations et déductions
 
-```
-hr/payroll/
-├── models.py                   # Modèles de données
-├── enums.py                    # Énumérations (statuts, types)
-├── services/
-│   ├── orchestrator.py         # Orchestrateur principal (CŒUR)
-│   ├── payroll_run.py          # Gestion des périodes de paie
-│   ├── contributions.py        # Calcul CNSS/ONEM/INPP
-│   ├── taxes.py                # Calcul IPR progressif
-│   ├── legal_allowances.py     # Allocations légales
-│   ├── advances.py             # Gestion avances sur salaire
-│   ├── adjustments.py          # Résolution ajustements
-│   ├── brutage.py              # Brutage (Net → Brut)
-│   ├── exchange.py             # Taux de change
-│   ├── calculators.py          # Utilitaires calcul
-│   ├── integration.py          # Intégration données externes
-│   └── __init__.py
-├── tests.py                    # Tests unitaires & intégration
-└── admin.py                    # Interface Django Admin
-```
+### 4. Ajustements et corrections
+- Ajustements manuels (bonus, retenues spéciales)
+- Corrections de paie précédente
+- Traçabilité complète des modifications
 
----
+### 5. Bulletins de paie (Payslips)
+- Génération automatique des bulletins
+- Détail ligne par ligne (base, allocations, déductions)
+- Exports en PDF et formats multiples
+- Consultation par employé via portail
 
-## 🔄 Flux de traitement
+### 6. Gestion des avances de salaire
+- Demande et approbation d'avances
+- Configuration du taux de remboursement
+- Déduction automatique du prochain salaire
+- Suivi du solde des avances
 
-### Étape 1: Lancement de la période de paie
-```python
-from hr.payroll.services.payroll_run import PayrollRunService
+## Architecture
 
-run = PayrollRunService.create_payroll_run(
-    start_date=date(2026, 1, 1),
-    end_date=date(2026, 1, 31),
-    description="Paie Janvier 2026"
-)
-```
+### Modèles principaux
 
-### Étape 2: Traitement orchestré
-```python
-from hr.payroll.services.orchestrator import PayrollOrchestrator
+#### PayrollConfiguration
+Configuration globale du système de paie
+- Devise par défaut
+- Méthode de paiement standard
+- Paramètres de calcul (heures, allocations, cotisations)
+- Taux de change
 
-PayrollOrchestrator.process_run(run)
-# ✓ Génère les bulletins pour tous les contrats actifs
-# ✓ Atomique : tout ou rien
-```
-
-### Étape 3: Validation et export
-```python
-# Le statut passe de DRAFT → VALIDATED automatiquement
-# Bulletins disponibles pour export PDF, téléchargement, etc.
-```
-
----
-
-## 📊 Processus détaillé du bulletin
-
-Pour chaque employé, `PayrollOrchestrator._generate_single_payslip()` exécute 7 étapes :
-
-### **STAGE 1: Récupération des données**
-- Jours travaillés / absences / congés  
-- Données familiales (nb enfants)  
-- Taille de la compagnie (pour INPP)  
-- Taux de change (si contrat en devise étrangère)
-
-**Source** : `PayrollIntegrationService`
-
-### **STAGE 2: Calcul du salaire brut**
-```
-Brut = Salaire de Base + Heures Supplémentaires + Primes
-```
-
-**Cas spécifiques :**
-- **Salaire NET contractuel** → Brutage vers Brut (via `GrossUpService`)
-- **Contrat horaire** → Totalisation (heures travaillées + congés payés)
-- **Multi-devise** → Conversion au CDF
-
-**Source** : `_calculate_gross_salary()`
-
-### **STAGE 3: Déductions pour absences**
-Si salaire **FIXE** et absences non payées :
-```
-Déduction = (Brut / Diviseur) × Jours absence
-Diviseur = 26 (jours théoriques) ou configurable
-```
-
-**Source** : `_apply_absence_deductions()`
-
-### **STAGE 4: Contributions & Impôts**
-
-#### Contributions sociales
-```
-CNSS Employee = Brut × 5%
-ONEM Employer = 100% employeur
-INPP Employer = 100% employeur
-```
-
-#### Impôt sur le revenu professionnel
-```
-Base Taxable = (Brut - CNSS) + Excédent Logement Imposable
-IPR = Progressif par tranches (taux DRC 2026)
-```
-
-#### Allocations légales
-- **Familiales** : 5 000 CDF/enfant (plafond 2)
-- **Logement** : 30% du salaire de base (max. 5 000 CDF)
-- **Transport** : 2 000 CDF (fixe)
-
-**Source** : `_calculate_social_contributions()`, `_calculate_tax_and_allowances()`
-
-### **STAGE 5: Avances sur salaire**
-Déduction en priorité :
-1. Avances anciennes (plus de 2 mois)
-2. Avances récentes (solde disponible)
-
-```
-Net avant avances = (Brut + Allocations) - (CNSS + IPR + Déductions)
-Déduction avances = Min(Avances dues, Net avant avances × 20%)
-```
-
-**Source** : `_process_advances()`, `AdvanceService`
-
-### **STAGE 6: Création du bulletin**
-```
-NET FINAL = (Brut + Allocations) - (CNSS + IPR + Avances + Autres déductions)
-```
-
-**Persistance** : `EmployeePayslip` + lignes détail (`PayslipLine`)
-
-### **STAGE 7: Lignes de détail**
-Chaque composant du bulletin est enregistré en ligne détaillée :
+#### EmployeeContract
+Contrat d'emploi d'un employé
+- Lien avec l'employé
+- Type et période de contrat
 - Salaire de base
-- Heures supplémentaires
-- Primes
-- Allocations
-- Contributions
-- Impôts
-- Avances
+- Mode de calcul
+- Statut (Actif, Suspendu, Terminé)
 
----
+#### PayrollRun
+Exécution globale de paie pour une période
+- Code unique généré automatiquement
+- Période couverte
+- Statut (Brouillon, Approuvée, Publiée, Payée)
+- Total des salaires, cotisations, déductions
 
-## 🎯 Cas d'usage : Exemple complet
+#### EmployeePayslip
+Bulletin individuel pour chaque employé
+- Lien avec PayrollRun
+- Salaire brut, net
+- Détail de toutes les lignes
+- Statut de paiement
 
-### Données initiales
-- **Employé** : Jean Doe
-- **Contrat** : Salaire FIXE brut 10 000 CDF
-- **Famille** : 2 enfants
-- **Période** : Janvier 2026 (22 jours travaillés)
-- **Absences** : 0 jour
-- **Avances** : 500 CDF (résiduelle)
+#### PayslipLine
+Détail ligne par ligne du bulletin
+- Type de ligne (Salaire, Allocation, Déduction)
+- Montant
+- Référence (contrat, règle appliquée)
 
-### Traitement
+#### SalaryAdvance
+Gestion des avances de salaire
+- Montant demandé et approuvé
+- Taux de remboursement
+- Statut (Approuvée, Remboursée, Annulée)
 
-**STAGE 2: Salaire brut**
+### Énumérations
+
+- **PaymentMethod** : CASH, BANK_TRANSFER, MOBILE_MONEY, CHECK, PAYPAL, CRYPTOCURRENCY
+- **ContractType** : CDI, CDD, INTERNSHIP, APPRENTICESHIP, SERVICE_PROVIDER
+- **PaymentPeriod** : WEEKLY, BIWEEKLY, MONTHLY, QUARTERLY, SEMI_ANNUAL, ANNUAL
+- **RemunerationType** : FIXED_SALARY, GROSS_SALARY, HOURLY_RATE, DAILY_RATE
+- **PayrollStatus** : DRAFT, APPROVED, PUBLISHED, PAID, CANCELLED, REVERSED
+- **AdjustmentType** : BONUS, PENALTY, ADVANCE_DEDUCTION, CORRECTION
+
+## Endpoints API
+
+### Configuration de paie
+
 ```
-Brut = 10 000 CDF
-```
-
-**STAGE 4: Contributions & Impôts**
-```
-CNSS (5%) = 500 CDF
-Allocations = 500 (enfants) + 1000 (logement) + 200 (transport) = 1700 CDF
-Taxable = (10000 - 500) + 500 = 10 000 CDF
-IPR = 1200 CDF (selon barème progressif)
-```
-
-**STAGE 5: Avances**
-```
-Net avant avances = (10000 + 1700) - (500 + 1200) = 10 000 CDF
-Déduction avance = 500 CDF ✓
-```
-
-**STAGE 6: Net final**
-```
-NET = (10000 + 1700) - (500 + 1200 + 500) = 9500 CDF
-```
-
-### Bulletin final
-| Composant | Montant |
-|-----------|---------|
-| Salaire de Base | 10 000 |
-| **Brut** | **10 000** |
-| Allocations familiales | 500 |
-| Indemnité logement | 1 000 |
-| Frais transport | 200 |
-| **Total Allocations** | **1 700** |
-| CNSS (5%) | -500 |
-| IPR | -1 200 |
-| Avance remboursement | -500 |
-| **NET À PAYER** | **9 500** |
-
----
-
-## ⚙️ Configuration
-
-### Modèle: `PayrollConfiguration`
-
-```python
-config = PayrollConfiguration.objects.first()
-
-# Paramètres clés
-config.currency                          # Devise (CDF)
-config.work_hours_per_month              # Heures/mois théoriques (195)
-config.include_leaves_in_payroll         # Inclure congés (True)
-config.leave_deduction_divisor           # Diviseur absence (26)
-config.fixed_deduction_per_absent_day    # Déduction fixe/jour (optionnel)
-config.default_payment_method            # Virement/Chèque/Liquide
+GET    /api/v1/payroll/config              - Récupérer la configuration
+POST   /api/v1/payroll/config              - Créer la configuration
+PUT    /api/v1/payroll/config/{id}         - Mettre à jour la configuration
+DELETE /api/v1/payroll/config/{id}         - Supprimer la configuration
 ```
 
----
+### Contrats
 
-## 🧪 Tests
-
-### Lancer les tests
-```bash
-python manage.py test hr.payroll.tests
+```
+GET    /api/v1/payroll/contracts           - Lister les contrats
+POST   /api/v1/payroll/contracts           - Créer un contrat
+GET    /api/v1/payroll/contracts/{id}      - Détail d'un contrat
+PUT    /api/v1/payroll/contracts/{id}      - Mettre à jour un contrat
+DELETE /api/v1/payroll/contracts/{id}      - Supprimer un contrat
 ```
 
-### Classes de test
-- `PayrollOrchestratorTestCase` : Tests d'intégration complets
-  - ✅ Génération complète de bulletin
-  - ✅ Prévention des doublons
-  - ✅ Déductions absence
-  - ✅ Contributions sociales
-  - ✅ Impôts & allocations
-  - ✅ Traitement batch multi-employés
+### Exécution de paie
 
----
-
-## 🐛 Dépannage
-
-### Erreur : "Only draft payroll runs can be processed"
-```python
-# Assurez-vous que le PayrollRun a le statut DRAFT
-run.status = PayrollStatus.DRAFT
-run.save()
+```
+GET    /api/v1/payroll/runs                - Lister les exécutions
+POST   /api/v1/payroll/runs                - Créer une exécution
+GET    /api/v1/payroll/runs/{id}           - Détail d'une exécution
+PATCH  /api/v1/payroll/runs/{id}/approve   - Approuver l'exécution
+PATCH  /api/v1/payroll/runs/{id}/publish   - Publier l'exécution
 ```
 
-### Erreur : "attribute 'child_count' missing"
-```python
-# Vérifier que PayrollIntegrationService retourne les données
-# Ou mockerles données dans les tests
+### Bulletins de paie
+
+```
+GET    /api/v1/payroll/payslips            - Lister les bulletins
+GET    /api/v1/payroll/payslips/{id}       - Détail d'un bulletin
+GET    /api/v1/payroll/payslips/{id}/pdf   - Exporter en PDF
+GET    /api/v1/payroll/payslips/employee/{emp_id} - Bulletins d'un employé
 ```
 
-### Bulletin zéro ou négatif
-```python
-# Vérifier:
-# 1. Contrat actif (is_active=True)
-# 2. Salaire base > 0
-# 3. Configuration complète
-# 4. Taux de change correct
+### Avances de salaire
+
+```
+GET    /api/v1/payroll/advances            - Lister les avances
+POST   /api/v1/payroll/advances            - Demander une avance
+GET    /api/v1/payroll/advances/{id}       - Détail d'une avance
+PATCH  /api/v1/payroll/advances/{id}/approve - Approuver une avance
+PATCH  /api/v1/payroll/advances/{id}/reject - Rejeter une avance
 ```
 
----
+### Ajustements
 
-## 📝 Notes légales (DRC 2026)
+```
+GET    /api/v1/payroll/adjustments         - Lister les ajustements
+POST   /api/v1/payroll/adjustments         - Créer un ajustement
+GET    /api/v1/payroll/adjustments/{id}    - Détail d'un ajustement
+PUT    /api/v1/payroll/adjustments/{id}    - Mettre à jour
+DELETE /api/v1/payroll/adjustments/{id}    - Supprimer
+```
 
-### Références légales
-- 📄 **Loi n° 015/2002** : Code du travail (salaire minimum, heures sup)
-- 📄 **Arrêté n° 68/11** : Heures supplémentaires (6h @ 130%, puis 160%)
-- 📄 **Décret n° 14/018** : CNSS (5% employé, 5% employeur)
-- 📄 **Ordonnance n° 70/267** : Allocations familiales (5 000 CDF max)
-- 📄 **Code des impôts 2023** : IPR avec barème progressif
+## Cas d'usage courants
 
-### Points importants
-⚠️ **Salaire minimum** : Vérifier le SMIG actualisé (non géré par ce module)  
-⚠️ **Heures supplémentaires** : Limites légales (max. 10h/jour, 60h/mois)  
-⚠️ **Indemnité logement** : Plafonnée à 30% du salaire  
-⚠️ **Retenues avances** : Max. 20% du net  
+### 1. Créer une configuration de paie
+```json
+POST /api/v1/payroll/config
+{
+  "currency": "CDF",
+  "default_payment_method": "BANK_TRANSFER",
+  "work_hours_per_month": 195,
+  "housing_allowance_min_percentage": 30.0,
+  "family_allowance_min_amount": 262.0,
+  "overtime_multiplier": 1.5,
+  "include_leaves_in_payroll": true,
+  "exchange_rate_usd_cdf": 2850.0
+}
+```
 
----
+### 2. Créer un contrat d'employé
+```json
+POST /api/v1/payroll/contracts
+{
+  "employee_id": "emp_123",
+  "contract_type": "CDI",
+  "payment_period": "MONTHLY",
+  "base_salary": 50000.00,
+  "remuneration_type": "GROSS_SALARY",
+  "status": "ACTIVE",
+  "start_date": "2026-01-01"
+}
+```
 
-## 📞 Support & Améliorations
+### 3. Exécuter une paie
+```json
+POST /api/v1/payroll/runs
+{
+  "period_start": "2026-01-01",
+  "period_end": "2026-01-31",
+  "payment_method": "BANK_TRANSFER"
+}
+```
 
-### À faire
-- [ ] Export PDF personnalisé (templates)
-- [ ] Validation automatique avant clôture
-- [ ] Historique & révisions de bulletin
-- [ ] Intégration comptabilité (journaux paie)
-- [ ] Déclarations sociales (CNSS, IPR)
-- [ ] Dashboard tableau de bord
+### 4. Demander une avance de salaire
+```json
+POST /api/v1/payroll/advances
+{
+  "employee_id": "emp_123",
+  "amount": 10000.00,
+  "repayment_rate": 0.25,
+  "requested_date": "2026-01-15"
+}
+```
 
-### Rapports les plus courants
-1. Liste des bulletins par période
-2. Résumé paie (masse salariale, contributions)
-3. Détail par employé (net, déductions, allocations)
-4. Conformité légale (min, max heures)
+## Processus de paie
 
----
+1. **Préparation** : Créer une exécution de paie pour la période
+2. **Calcul** : Le système calcule automatiquement :
+   - Salaire brut = salaire de base + allocations
+   - Cotisations sociales
+   - Déductions (absences, avances, etc.)
+   - Salaire net = brut - cotisations - déductions
+3. **Révision** : Vérifier et approuver les calculs
+4. **Publication** : Approuver les bulletins pour paiement
+5. **Exécution** : Traiter les paiements selon la méthode configurée
+
+## Intégrations
+
+- **Module Employees** : Données personnelles et contrats
+- **Module Attendance** : Jours travaillés, heures supplémentaires
+- **Module Leaves** : Déduction des congés approuvés
+- **Module Banking** : Comptes bancaires pour virements
+- **Module Calendar** : Jours fériés affectant le calcul
+
+## Configuration avancée
+
+### Allocations familiales
+- Basées sur le SMIG (Salaire Minimum Interprofessionnel Garanti)
+- Montant minimum par enfant (ex: 262 FC)
+- Diviseur SMIG configurable (défaut 27)
+
+### Allocations logement
+- Pourcentage minimum du salaire (défaut 30%)
+- Peut être personnalisée par contrat
+- Validation des minimums
+
+### Cotisations sociales
+- INSS (Institut National de Sécurité Sociale)
+- CNSS (Caisse Nationale de Sécurité Sociale)
+- Taux configurables
+- Plafonds applicables
+
+### Heures supplémentaires
+- Détection automatique des heures au-delà du seuil
+- Multiplicateur configurable (défaut 1.5x)
+- Intégration avec le module Attendance
+
+## Rapports disponibles
+
+- **Registre de paie** : Résumé par employé
+- **Bordereau de virement** : Pour traitement bancaire
+- **Feuille de cotisations sociales** : Récapitulatif des cotisations
+- **Registre des avances** : Suivi des avances accordées
+- **Rapport fiscal** : Déductions à déclarer
+
+## Considérations légales
+
+- Respect des normes de la RDC
+- Audit trail complet des modifications
+- Historique des paies
+- Versionning des configurations
+- Conformité RGPD sur les données sensibles
+
+## Support et dépannage
+
+Pour toute question ou problème :
+1. Vérifier les logs dans `/logs/payroll/`
+2. Consulter la configuration active
+3. Valider les données d'entrée
+4. Contacter l'équipe d'administration RH
