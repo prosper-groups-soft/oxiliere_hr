@@ -1,16 +1,6 @@
 from typing import Optional, Dict, Callable, Iterable
-from django.utils import timezone
 from django.db import models
 import pycountry
-
-
-def get_contract_seq_key():
-    year = timezone.now().year
-    return f"employee_contract_{year}"
-
-
-def get_rotate_value():
-    return timezone.now().strftime("%y%m%d")
 
 
 def create_unset_address(user, model):

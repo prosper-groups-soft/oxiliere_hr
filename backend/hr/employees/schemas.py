@@ -15,11 +15,12 @@ from hr.employees.models import (
     EmployeeEducation,
     EmergencyContact,
     EmployeeDocument,
-    StatusHistory
+    StatusHistory,
+    WorkSite
 )
 
 
-#  -------- Employee Document Schemas -------- #
+#  -------- Employee Document Schemas -------- 
 
 class EmployeeDocumentCreate(ModelSchema):
     """
@@ -49,7 +50,7 @@ class EmployeeDocumentOut(ModelSchema):
         ]
 
 
-#  -------- Employee Address Schemas -------- #
+#  -------- Employee Address Schemas -------- 
 
 class EmployeeAddressCorrectIn(ModelSchema):
     """
@@ -110,7 +111,7 @@ class EmployeeAddressMoveIn(ModelSchema):
         ]
 
 
-#  -------- Employee Children Schemas -------- #
+#  -------- Employee Children Schemas -------- 
 
 class EmployeeChildCreate(ModelSchema):
     class Meta:
@@ -139,7 +140,7 @@ class EmployeeChildOut(ModelSchema):
         ]
 
 
-#  -------- Employee Education Schemas -------- #
+#  -------- Employee Education Schemas -------- 
 
 class EmployeeEducationCreate(ModelSchema):
     class Meta:
@@ -173,7 +174,7 @@ class EmployeeEducationOut(ModelSchema):
         ]
 
 
-#  -------- Employee Emergency Contact Schemas -------- #
+#  -------- Employee Emergency Contact Schemas -------- 
 
 class EmergencyContactCreate(ModelSchema):
     class Meta:
@@ -216,7 +217,7 @@ class EmergencyContactOut(ModelSchema):
         ]
 
 
-#  -------- Employee Schemas -------- #
+#  -------- Employee Schemas -------- 
 
 class StatusHistoryOut(ModelSchema):
     """
@@ -288,7 +289,7 @@ class EmployeeStatusUpdate(Schema):
     can_connect: Optional[bool] = None
     
 
-#  -------- Employee Lifecycle Schemas -------- #
+#  -------- Employee Lifecycle Schemas -------- 
 
 class EmployeeStatusIn(Schema):
     """
@@ -327,7 +328,7 @@ class EmployeeOffboardingIn(Schema):
     reason: str
 
 
-#  -------- Employee List & Detail -------- #
+#  -------- Employee List & Detail -------- 
 
 class EmployeeFullProfileOut(ModelSchema):
     """
@@ -416,4 +417,46 @@ class EmployeeFilterIn(BaseFilter):
         )
         
         return search_query
+
+
+#  -------- Work site --------
+
+class WorkSiteOut(ModelSchema):
+    employees: list[EmployeeOut]
+    
+    class Meta:
+        model = WorkSite
+        fields = [
+            'id',
+            'name',
+            'latitude',
+            'longitude',
+            'allowed_radius'
+        ]
+ 
+class WorkSiteCreateIn(ModelSchema):
+     class Meta:
+         model = WorkSite
+         fields = [
+            'name',
+            'latitude',
+            'longitude',
+            'allowed_radius'         
+         ]
+
+class WorkSiteUpdateIn(ModelSchema):
+    class Meta:
+        model = WorkSite
+        fields = [
+            'name',
+            'latitude',
+            'longitude',
+            'allowed_radius'
+        ]
+        fields_optional = '__all__'
+
+class WorkSiteFilterIn(BaseFilter):
+    
+    def filter_search(self, value: str) -> Q:
+        return Q(name__icontains=value)
 

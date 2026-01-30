@@ -1,12 +1,17 @@
 from __future__ import annotations
-from datetime import timedelta
+import logging
+from datetime   import timedelta
+from django.core.exceptions   import ValidationError
 from django.utils.translation import gettext_lazy as _
-from hr.attendance.models import (
-    TimeSheet, 
-    TimePunch, 
-    AttendanceSettings
-)
-from .scheduling import SchedulingService
+from hr.attendance.models import TimeSheet
+from hr.calendar.services import CalendarService
+from hr.utils.geo import calculate_geo_distance
+from .scheduling  import SchedulingService
+# Cache integration
+from .cache import AttendanceCacheService
+
+
+logger = logging.getLogger(__name__)
 
 
 class ValidationService:
@@ -19,17 +24,24 @@ class ValidationService:
     def validate_punch_sequence(timesheet: TimeSheet) -> list[str]:
         """
         Analyzes the sequence of punches for a specific timesheet to find logical errors.
-        Returns a list of error messages (strings).
+        Uses cached punches and schedules to speed up validation.
         """
         errors = []
-        punches = timesheet.punches.all().order_by('start_at')
         
-        if not punches.exists():
-            return [_("No punches found for this timesheet.")]
+        # 1. Optimization: Use the cache service for punches
+        punches = AttendanceCacheService.get_punches_for_date(
+            timesheet.employee, 
+            timesheet.register.date
+        )
+        
+        if not punches:
+            # Note: Being absent isn't necessarily a "validation error" in itself, 
+            # but for a manual validation check, it's a useful indicator.
+            return []
 
         last_punch = None
         for punch in punches:
-            # 1. Check for overlapping punches
+            # A. Overlap detection (Chronological integrity)
             if last_punch and last_punch.end_at and punch.start_at < last_punch.end_at:
                 errors.append(
                     _("Overlap detected between {last_type} and {current_type} at {time}.").format(
@@ -39,10 +51,8 @@ class ValidationService:
                     )
                 )
 
-            # 2. Check for missing end_at (unclosed segments)
-            # Only the very last punch of the sequence is allowed to have end_at=None 
-            # (if the employee is currently working).
-            if punch != punches.last() and not punch.end_at:
+            # B. Unclosed segments detection (except for the very last punch of an ongoing day)
+            if punch != punches[-1] and not punch.end_at:
                 errors.append(
                     _("Incomplete segment found: {type} started at {time} has no end time.").format(
                         type=punch.get_punch_type_display(),
@@ -52,28 +62,28 @@ class ValidationService:
             
             last_punch = punch
 
-        # 3. Check for excessive duration (Safety/Health rule)
-        # Example: A single punch or total work exceeding 16 hours
+        # 2. Excessive duration check (Health & Safety/Error detection)
         if timesheet.recorded_work > timedelta(hours=16):
             errors.append(_("Total recorded work exceeds 16 hours. Please verify for errors."))
 
-        # 4. Check for break duration exceedance
+        # 3. Break duration anomalies
         schedule = SchedulingService.get_expected_schedule(timesheet.employee, timesheet.register.date)
         if schedule and schedule.break_duration:
+            # If they punched a manual break that is longer than the policy
             if timesheet.recorded_break > schedule.break_duration:
-                overtime_break = timesheet.recorded_break - schedule.break_duration
+                excess = timesheet.recorded_break - schedule.break_duration
                 errors.append(
                     _("Break exceedance detected: {duration} extra minutes.")
-                    .format(duration=overtime_break.seconds // 60)
+                    .format(duration=excess.seconds // 60)
                 )
         
-        # 5. Check for work on non-working days (Holidays)
+        # 4. Non-working day check (Policy compliance)
+        country_code = getattr(timesheet.employee, 'nationality', 'CD')
         is_non_working_day = CalendarService.is_non_working_day(
             timesheet.register.date, 
-            timesheet.employee.country_code
+            country_code
         )
         if is_non_working_day and timesheet.recorded_work > timedelta(0):
-            # This is an info/warning rather than a blocking error
             errors.append(_("Work recorded on a Public Holiday. Verify overtime eligibility."))
 
         return errors
@@ -81,34 +91,58 @@ class ValidationService:
     @staticmethod
     def detect_orphaned_punches(employee, target_date) -> bool:
         """
-        Detects if an employee has punches but no active EmploymentScheme.
-        Useful for flagging payroll risks.
+        Detects if an employee has punches but no active contract/policy (EmploymentScheme).
         """
         scheme = SchedulingService.get_active_scheme_for_date(employee, target_date)
-        
-        has_punches = TimePunch.objects.filter(
-            timesheet__employee=employee,
-            timesheet__register__date=target_date
-        ).exists()
+        punches = AttendanceCacheService.get_punches_for_date(employee, target_date)
 
-        return has_punches and not scheme
+        return bool(punches) and not scheme
 
     @staticmethod
     def can_modify_attendance(timesheet: TimeSheet) -> bool:
         """
-        Centralized check to see if a timesheet is editable.
-        Considers both the Archive Lock and the DailyRegister finalization.
+        Centralized safety check. 
+        Returns False if the record is Locked by Payroll or Finalized by HR.
         """        
-        # Rule 1: Archive Lock
-        lock_date = AttendanceSettings.get_last_lock_date()
+        # Rule 1: Global Archive Lock (High Performance Cache check)
+        lock_date = AttendanceCacheService.get_lock_date()
         if lock_date and timesheet.register.date <= lock_date:
             return False
             
-        # Rule 2: Register Finalization
+        # Rule 2: Daily Register Finalization
         if timesheet.register.is_finalized:
-            # Note: We might allow HR to reopen a register, 
-            # but by default, finalized means locked for calculation.
             return False
 
         return True
+
+    @staticmethod
+    def validate_geo_location(employee, emp_lat, emp_lon):
+        """
+        Validates if the employee's current GPS position is within their work site's radius.
+        """
+        # 1. Verify if the coordinates have been provided by the front-end
+        if emp_lat is None or emp_lon is None:
+            raise ValidationError(_("GPS coordinates are required to punch."))
+
+        # 2. Retrieve the employee's work site
+        work_site = employee.work_site
+        if not work_site:
+            # If no work site is defined, we can either block or allow.
+            # Here, for caution, we allow but log.
+            logger.warning(f"Employee {employee.id} has no assigned work site.")
+            return
+
+        # 3. Calculate the actual distance
+        distance = calculate_geo_distance(
+            float(emp_lat), float(emp_lon), 
+            float(work_site.latitude), float(work_site.longitude)
+        )
+
+        # 4. Compare with the site's allowed radius
+        if distance > work_site.allowed_radius:
+            raise ValidationError(
+                _("Location error: You are {dist}m away from your designated work site. "
+                "Maximum allowed is {max_dist}m.")
+                .format(dist=int(distance), max_dist=work_site.allowed_radius)
+            )
 

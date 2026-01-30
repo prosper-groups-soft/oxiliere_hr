@@ -2,6 +2,7 @@ from .address   import EmployeeAddressService
 from .document  import EmployeeDocumentService
 from .education import EmployeeEducationService
 from .emergency import EmployeeEmergencyService
+from .worksite  import WorkSiteService
 from .family    import EmployeeFamilyService
 from .profile   import EmployeeProfileService
 from .query     import EmployeeQueryService
@@ -16,6 +17,7 @@ __all__ = [
     'EmployeeFamilyService',
     'EmployeeProfileService',
     'EmployeeQueryService',
-    'EmployeeStatusService'
+    'EmployeeStatusService',
+    'WorkSiteService'
 ]
 

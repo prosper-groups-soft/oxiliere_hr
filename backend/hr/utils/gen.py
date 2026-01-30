@@ -1,3 +1,4 @@
+from django.utils import timezone
 import secrets
 import string
 
@@ -9,4 +10,13 @@ def generate_daily_register_code(register_date):
     code = f"DR-{date_str}-{rand}"
     
     return code
+
+
+def get_contract_seq_key():
+    year = timezone.now().year
+    return f"employee_contract_{year}"
+
+
+def get_rotate_value():
+    return timezone.now().strftime("%y%m%d")
 

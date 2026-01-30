@@ -1,37 +1,37 @@
 import logging
-from typing import List
 from datetime import date
+from injector import inject
+from typing   import List
+from ninja    import Query
 
 from django.core.exceptions import ValidationError
 from ninja_extra import (
     api_controller,
     http_get,
     http_post,
-    http_patch,
     paginate,
-    ControllerBase,
+    ControllerBase
 )
 
 from oxutils.pagination.cursor import CursorPagination
 
 from hr.attendance.models import (
     DailyRegister,
-    PeriodArchiveLock,
-    AttendanceSettings,
+    PeriodArchiveLock
 )
 from hr.attendance.schemas import (
     DailyRegisterOut,
     DailyRegisterFinalizeIn,
-    PeriodArchiveLockOut,
-    AttendanceSettingsOut,
-    AttendanceSettingsUpdateIn,
+    DailyRegisterFilter,
+    PeriodArchiveLockOut
 )
 
 from hr.attendance.services import (
     AttendanceService,
     ValidationService,
 )
-from injector import inject
+# Cache integration
+from hr.services.cache_helpers import cache_api_response
 
 
 logger = logging.getLogger(__name__)
@@ -57,17 +57,18 @@ class RegistryController(ControllerBase):
         self.validation_service = validation_service
 
     # Daily registers
-    # -----------------------------------------------------------------
+    # ---------------
     @http_get('/daily-registers', response=List[DailyRegisterOut])
     @paginate(CursorPagination)
-    def list_daily_registers(self):
+    @cache_api_response(key_prefix="daily_register_list", user_specific=False)
+    def list_daily_registers(self, filters: DailyRegisterFilter = Query(...)):
         """
         Return a paginated list of daily registers ordered by most recent date.
         """
         logger.debug("Daily register list requested")
 
         # Simple read-only query, ordered for operational clarity
-        return DailyRegister.objects.all().order_by('-date')
+        return filters.filter(DailyRegister.objects.all())
 
     @http_post('/daily-registers/finalize', response={200: DailyRegisterOut})
     def finalize_day(self, data: DailyRegisterFinalizeIn):
@@ -121,8 +122,10 @@ class RegistryController(ControllerBase):
             raise
 
     # Period locks (payroll protection)
-    # -----------------------------------------------------------------
+    # ---------------------------------
     @http_get('/locks', response=List[PeriodArchiveLockOut])
+    @paginate(CursorPagination)
+    @cache_api_response(key_prefix="period_lock_list", user_specific=False)
     def list_locks(self):
         """
         Retrieve the history of attendance period locks
@@ -169,42 +172,4 @@ class RegistryController(ControllerBase):
         )
 
         return 201, lock
-
-    # Global attendance settings
-    # -----------------------------------------------------------------
-    @http_get('/settings', response=AttendanceSettingsOut)
-    def get_settings(self):
-        """
-        Retrieve global attendance configuration
-        (grace periods, rounding rules, tolerances, etc.).
-        """
-        logger.debug("Attendance settings requested")
-
-        # AttendanceSettings is a singleton
-        return AttendanceSettings.get_solo()
-
-    @http_patch('/settings', response=AttendanceSettingsOut)
-    def update_settings(self, data: AttendanceSettingsUpdateIn):
-        """
-        Update global attendance calculation rules.
-        """
-        logger.info(
-            "Attendance settings update requested",
-            extra={"payload": data.model_dump(exclude_unset=True)},
-        )
-
-        settings = AttendanceSettings.objects.first()
-
-        # Apply only provided fields to the settings instance
-        for attr, value in data.model_dump(exclude_unset=True).items():
-            setattr(settings, attr, value)
-
-        settings.save()
-
-        logger.info(
-            "Attendance settings successfully updated",
-            extra={"settings_id": settings.id},
-        )
-
-        return settings
 

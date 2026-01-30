@@ -14,7 +14,7 @@ from .enums import (
 )
 from hr.enums import CountryCode
 
-from hr.utils import get_country_codes
+from hr.utils.core import get_country_codes
 
 
 # --- HR CONFIGURATION ---

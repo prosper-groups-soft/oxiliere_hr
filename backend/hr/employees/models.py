@@ -19,7 +19,28 @@ from .enums import (
     EmployeeStatus,
     DocumentType,
 )
-from hr.utils import get_country_codes, normalize_names
+from hr.utils.core import get_country_codes, normalize_names
+
+
+class WorkSite(BaseAuditableModel):
+    """
+    Represents a physical work location (e.g., office, factory, warehouse).
+    """
+    name = models.CharField(max_length=100)
+    # GPS coordinates of the building center
+    latitude = models.DecimalField(max_digits=9, decimal_places=6)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6)
+    # The allowed radius in meters (e.g., 100m)
+    allowed_radius = models.PositiveIntegerField(default=100)
+
+    class Meta:
+        db_table = "empl_work_site"
+        indexes = [
+            models.Index(fields=['name']),
+        ]
+
+    def __str__(self):
+        return self.name
 
 
 class Employee(BaseAuditableModel):
@@ -27,6 +48,11 @@ class Employee(BaseAuditableModel):
     Central identity for workforce management.
     Tracks core personal and professional identification data.
     """
+    work_site = models.ForeignKey(
+        WorkSite, on_delete=models.SET_NULL, null=True,
+        help_text=_("Primary work location for this employee."),
+        related_name="employees"
+    )
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

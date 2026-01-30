@@ -4,9 +4,13 @@ Cache helpers and utilities for the HR system.
 Provides decorators and utilities for caching querysets and function results
 using Django's cache framework with Redis backend.
 """
-
+import logging
 from functools import wraps
 from django.core.cache import cache
+from django_redis import get_redis_connection
+
+
+logger = logging.getLogger(__name__)
 
 
 def cache_query(timeout=None, key_prefix="", key_args=None):
@@ -94,6 +98,41 @@ def cache_model_list(timeout=None, key_prefix=""):
     return decorator
 
 
+def cache_api_response(timeout=60*5, key_prefix="api_cache", user_specific=True):
+    """
+    Decorator to cache API responses.
+    
+    Args:
+        timeout: Time in seconds.
+        key_prefix: Prefix for the key.
+        user_specific: If False, the cache is shared between all users 
+                       (ideal for global lists/settings).
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(request, *args, **kwargs):
+            # Construction of the key
+            path = request.get_full_path()
+            
+            if user_specific and request.user.is_authenticated:
+                user_id = request.user.id
+                cache_key = f"{key_prefix}:{user_id}:{path}"
+            else:
+                # Shared key: Fewer keys in Redis, easier to invalidate
+                cache_key = f"{key_prefix}:shared:{path}"
+            
+            cached_data = cache.get(cache_key)
+            if cached_data is not None:
+                return cached_data
+            
+            response_data = func(request, *args, **kwargs)
+            cache.set(cache_key, response_data, timeout)
+            
+            return response_data
+        return wrapper
+    return decorator
+
+
 def generate_cache_key(*parts):
     """
     Generate a cache key from multiple parts.
@@ -153,13 +192,26 @@ def invalidate_cache_pattern(pattern):
     
     Example:
         invalidate_cache_pattern("hr:payroll:contract:123:*")
-    """
-    from django_redis import get_redis_connection
-    
+    """    
     redis_conn = get_redis_connection("default")
     keys = redis_conn.keys(f"*{pattern}*")
     if keys:
         redis_conn.delete(*keys)
+
+
+def invalidate_cache_prefix(prefix: str):
+    """
+    Delete all cache keys starting with the given prefix.
+    Useful for clearing multi-user API caches.
+    """
+    redis_conn = get_redis_connection("default")
+    # We iteratively scan and delete matching keys
+    cursor = '0'
+    while cursor != 0:
+        cursor, keys = redis_conn.scan(cursor=cursor, match=f"{prefix}:*", count=1000)
+        if keys:
+            redis_conn.delete(*keys)
+    logger.info(f"Cache pattern cleared: {prefix}:*")
 
 
 def clear_all_cache():

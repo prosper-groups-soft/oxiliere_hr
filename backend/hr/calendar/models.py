@@ -11,7 +11,7 @@ from .enums import (
     CalendarEventStatus,
 )
 
-from hr.utils import get_country_codes
+from hr.utils.core import get_country_codes
 from .utils import generate_event_code
 
 

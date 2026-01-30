@@ -5,7 +5,7 @@ from typing import Any, Dict
 from django.db import transaction
 
 from hr.employees.models import EmployeeAddress, Employee
-from hr.utils import update_instance
+from hr.utils.core import update_instance
 
 
 logger = logging.getLogger(__name__)

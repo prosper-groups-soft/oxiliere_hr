@@ -1,21 +1,18 @@
 from __future__ import annotations
-
-from datetime import timedelta
-
+from datetime   import timedelta
 from django.conf              import settings
 from django.core.exceptions   import ValidationError
 from django.db                import models
 from django.utils.translation import gettext_lazy as _
-
 from auditlog.registry import auditlog
 
 from hr.models import BaseAuditableModel
 from .enums    import (
     TimeSheetStatus,
-    PunchType,
+    PunchType
 )
-from hr.enums import WeekdayEnum
-from .utils import generate_daily_register_code
+from hr.utils.gen import generate_daily_register_code
+from hr.enums     import WeekdayEnum
 
 
 class ShiftPolicy(BaseAuditableModel):
@@ -193,7 +190,7 @@ class TimeSheet(BaseAuditableModel):
 
 class TimePunch(BaseAuditableModel):
     """
-    Raw time segment (Clock-in/Clock-out). 
+    Raw time segment of activity (Clock-in/Clock-out). 
     Uses DateTimeField to support shifts crossing midnight (Night shifts).
     """
     timesheet = models.ForeignKey(TimeSheet, on_delete=models.CASCADE, related_name="punches")
@@ -212,11 +209,21 @@ class TimePunch(BaseAuditableModel):
         db_table = "atnd_time_punch"
         ordering = ["start_at"]
         verbose_name = _("Time Punch")
+        
+    @property
+    def calculated_duration(self) -> timedelta:
+        if self.start_at and self.end_at:
+            return self.end_at - self.start_at
+        return timedelta(0)
+    
+    def clean(self):
+        from hr.attendance.services.locking import LockingService
+        if LockingService.is_date_locked(self.timesheet.register.date):
+            raise ValidationError("This date is locked and cannot be modified.")
 
     def save(self, *args, **kwargs):
         """Automatically calculates duration if both timestamps are present."""
-        if self.start_at and self.end_at:
-            self.duration = self.end_at - self.start_at
+        self.full_clean()
         super().save(*args, **kwargs)
 
 

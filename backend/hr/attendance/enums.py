@@ -6,7 +6,7 @@ class TimeSheetStatus(TextChoices):
     PRESENT = "PRESENT", _("Present")
     ABSENT = "ABSENT", _("Absent")
     LATE = "LATE", _("Late")
-    PARTIAL = "PARTIAL", _("Partial Absence") # New: present but did not complete required hours
+    PARTIAL = "PARTIAL", _("Partial Absence") # Present but did not complete required hours
     EXCUSED = "EXCUSED", _("Excused")
     ON_LEAVE = "ON_LEAVE", _("On Leave")
     HOLIDAY = "HOLIDAY", _("Public Holiday")

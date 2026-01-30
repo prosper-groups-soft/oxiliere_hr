@@ -1,7 +1,9 @@
-from typing import List
-from uuid import UUID
-from ninja import Query
+from typing   import List
+from uuid     import UUID
+from ninja    import Query
+from injector import inject
 from ninja.pagination import paginate
+
 from ninja_extra import (
     api_controller, 
     http_get, 
@@ -11,7 +13,6 @@ from ninja_extra import (
     ControllerBase
 )
 from oxutils.pagination.cursor import CursorPagination
-from injector import inject
 from hr.leaves.services import (
     LeavePolicyService,
     SeniorityRuleService,

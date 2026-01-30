@@ -9,7 +9,7 @@ from auditlog.registry import auditlog
 from hr.models import BaseAuditableModel
 from hr.jobs.models import Position, Department
 from .enums import ApplicationStatus, InterviewType
-from hr.utils import normalize_names
+from hr.utils.core import normalize_names
 
 
 class JobOffer(BaseAuditableModel):

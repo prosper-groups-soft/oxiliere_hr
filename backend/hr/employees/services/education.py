@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 
 from hr.employees.models import Employee, EmployeeEducation
-from hr.utils import update_instance
+from hr.utils.core import update_instance
 
 
 logger = logging.getLogger(__name__)

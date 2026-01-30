@@ -1,29 +1,36 @@
-import logging
-from typing import Optional
-from uuid import UUID
+import logging 
+from typing   import Optional, List
+from uuid     import UUID
 from datetime import date
+from injector import inject
 
+from ninja.pagination import paginate
 from django.shortcuts import get_object_or_404
-from ninja_extra import (
+from django.utils     import timezone
+from ninja_extra      import (
     api_controller,
     http_get,
     http_post,
+    http_patch,
     ControllerBase,
 )
+from oxutils.pagination.cursor import CursorPagination
 
-from hr.employees.models import Employee
-from hr.attendance.models import ShiftPolicy
-from hr.attendance.schemas import (
+from hr.employees.models    import Employee
+from hr.attendance.services import SchedulingService
+from hr.attendance.models   import ShiftPolicy
+from hr.attendance.schemas  import (
     ShiftPolicyOut,
     ShiftPolicyCreateIn,
+    ShiftPolicyUpdateIn,
     WeeklyPlanningOut,
     RotationCreateIn,
     RotationBackfillIn,
     WorkingDaysPreviewOut,
 )
-
-from hr.attendance.services import SchedulingService
-from injector import inject
+# Cache integration
+from hr.services.cache_helpers import cache_api_response
+from hr.attendance.services    import AttendanceCacheService
 
 
 logger = logging.getLogger(__name__)
@@ -44,7 +51,7 @@ class SchedulingController(ControllerBase):
         self.scheduling_service = scheduling_service
 
     # Shift policies
-    # -----------------------------------------------------------------
+    # --------------
     @http_post('/policies', response={201: ShiftPolicyOut})
     def create_policy(self, data: ShiftPolicyCreateIn):
         """
@@ -87,9 +94,44 @@ class SchedulingController(ControllerBase):
                 status_code=400,
             )
 
+    @http_get('/policies', response=List[ShiftPolicyOut])
+    @paginate(CursorPagination)
+    @cache_api_response(timeout=60*60, key_prefix="policy_list", user_specific=False)
+    def list_policies(self):
+        """
+        Get all shift policies.
+        Uses shared cache as the list is the same for all managers.
+        """
+        return ShiftPolicy.objects.all()
+    
+    @http_patch('/policies/{policy_id}', response={200: ShiftPolicyOut})
+    def update_policy(self, policy_id: UUID, data: ShiftPolicyUpdateIn):
+        """
+        Update a shift policy's basic information.
+        Note: Changing the target hours will affect future overtime calculations.
+        """
+        policy = get_object_or_404(ShiftPolicy, id=policy_id)
+        
+        logger.info(f"Updating shift policy {policy.name} (ID: {policy_id})")
+
+        # Extract provided data
+        update_data = data.model_dump(exclude_unset=True)
+        
+        for attr, value in update_data.items():
+            setattr(policy, attr, value)
+            
+        policy.save()
+
+        # Invalidate cache for policy list is handled automatically by your signals
+        # sender=ShiftPolicy is in your @receiver decorator!
+        logger.info(f"Shift policy {policy.name} (ID: {policy_id}) updated successfully")
+        
+        return 200, policy
+
     # Weekly planning
-    # -----------------------------------------------------------------
+    # ---------------
     @http_get('/planning/{employee_id}', response=WeeklyPlanningOut)
+    @cache_api_response(timeout=60*30, key_prefix="planning", user_specific=True)
     def get_employee_weekly_planning(
         self,
         employee_id: UUID,
@@ -101,7 +143,7 @@ class SchedulingController(ControllerBase):
         """
         # Default to today's date if no start date is provided
         if not start_date:
-            start_date = date.today()
+            start_date = timezone.now().date()
 
         logger.debug(
             "Weekly planning requested",
@@ -134,7 +176,7 @@ class SchedulingController(ControllerBase):
         }
 
     # Rotations
-    # -----------------------------------------------------------------
+    # ---------
     @http_post('/rotations', response={201: dict})
     def setup_rotation(self, data: RotationCreateIn):
         """
@@ -155,9 +197,8 @@ class SchedulingController(ControllerBase):
         employee = get_object_or_404(Employee, id=data.employee_id)
 
         # Load shift policies referenced by the rotation
-        policies = list(
-            ShiftPolicy.objects.filter(id__in=data.policy_ids)
-        )
+        policy_map = {p.id: p for p in ShiftPolicy.objects.filter(id__in=data.policy_ids)}
+        policies = [policy_map[p_id] for p_id in data.policy_ids if p_id in policy_map]
 
         # Apply rotation via the scheduling service
         self.scheduling_service.apply_rotation(
@@ -194,6 +235,8 @@ class SchedulingController(ControllerBase):
         )
 
         logger.info("Rotation backfill completed")
+        
+        AttendanceCacheService.clear_api_cache_prefix("planning")
 
         return {"message": "Backfill process triggered"}
 

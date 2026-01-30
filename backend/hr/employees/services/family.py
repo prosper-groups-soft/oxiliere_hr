@@ -6,7 +6,7 @@ from django.db import transaction
 from django.core.exceptions import ValidationError
 
 from hr.employees.models import Employee, EmployeeChild
-from hr.utils import update_instance
+from hr.utils.core import update_instance
 
 
 logger = logging.getLogger(__name__)

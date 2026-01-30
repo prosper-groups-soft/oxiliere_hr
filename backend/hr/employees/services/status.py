@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from hr.employees.models import Employee, StatusHistory
 from hr.employees.enums import EmployeeStatus
-from hr.utils import update_instance
+from hr.utils.core import update_instance
 
 
 logger = logging.getLogger(__name__)

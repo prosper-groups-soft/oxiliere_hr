@@ -7,7 +7,7 @@ from oxutils.models import (
     SafeDeleteModelMixin
 )
 from uuid6 import uuid7
-from hr.utils import get_country_codes
+from hr.utils.core import get_country_codes
 
 
 class BaseAuditableModel(BaseModelMixin, UserTrackingMixin, SafeDeleteModelMixin):

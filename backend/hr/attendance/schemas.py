@@ -1,9 +1,10 @@
 from datetime import date, datetime, timedelta
+from uuid     import UUID
 from typing   import Optional, List
 
-from ninja     import Schema, Field, FilterSchema, ModelSchema
-from pydantic  import field_validator
 from django.db import models
+from pydantic  import field_validator
+from ninja     import Schema, FilterSchema, ModelSchema
 
 from hr.attendance.models import (
     DailyRegister,
@@ -11,9 +12,11 @@ from hr.attendance.models import (
     PeriodArchiveLock,
     ShiftPolicy,
     ShiftDetail,
-    AttendanceSettings,
+    AttendanceSettings
 )
-from hr.attendance.enums import PunchType
+from hr.employees.schemas import EmployeeOut
+from hr.attendance.enums  import PunchType
+from hr.schemas import BaseFilter
 
 
 class DurationOut(Schema):
@@ -36,11 +39,27 @@ class DailyRegisterOut(ModelSchema):
 
 class DailyRegisterFinalizeIn(Schema):
     date: date
+    
 
+class DailyRegisterFilter(BaseFilter):
+    is_finalized: Optional[bool]
+    date_from: Optional[date]
+    date_to: Optional[date]
+    
+    def filter_date_from(self, value: date):
+        return models.Q(date__gte=value)
+    
+    def filter_date_to(self, value: date):
+        return models.Q(date__lte=value)
+    
+    def filter_search(self, value: str):
+        return models.Q(code__icontains=value)
+    
 
 class TimeSheetOut(Schema):
+    employee: EmployeeOut
+    
     id: int
-    employee_id: int
     register_date: date
 
     recorded_work: timedelta
@@ -55,16 +74,19 @@ class TimeSheetOut(Schema):
 class TimeSheetUpdateIn(Schema):
     remarks: Optional[str] = None
 
-
 class PunchCreateIn(Schema):
     timestamp: datetime
-    punch_type: str = Field(default=PunchType.WORK)
+    punch_type: PunchType = PunchType.WORK
     is_manual: bool = False
+    employee_id: UUID = None # Optional for HR
+    latitude: float = None   # Needed
+    longitude: float = None  # Needed
 
 
 class PunchAdjustIn(Schema):
     start_at: Optional[datetime] = None
     end_at: Optional[datetime] = None
+    punch_type: Optional[PunchType] = None
 
 
 class PunchOut(ModelSchema):
@@ -133,6 +155,12 @@ class ShiftPolicyCreateIn(Schema):
     name: str
     weekly_target_hours: int
     daily_configs: dict
+    
+    
+class ShiftPolicyUpdateIn(Schema):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    weekly_target_hours: Optional[timedelta] = None
 
 
 class EmploymentSchemeAssignIn(Schema):
