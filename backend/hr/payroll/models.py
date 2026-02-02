@@ -6,7 +6,7 @@ from django.utils.translation import gettext_lazy as _
 from auditlog.registry import auditlog
 
 from hr.models.base import BaseAuditableModel
-from .utils import generate_payroll_run_code
+from hr.utils.gen   import generate_payroll_run_code
 from .enums import (
     PaymentMethod,
     ContractType,
@@ -29,100 +29,110 @@ from hr.enums import Currency
 
 
 class PayrollConfiguration(BaseAuditableModel):
-    """
-    Stores global payroll settings and constants for the organization.
-    """
+    """ Global payroll settings and organizational constants. """
     currency = models.CharField(
         max_length=3, 
         default="CDF",
-        help_text=_("The default currency code (ISO 4217) for all payroll calculations.")
+        help_text=_("Default currency (ISO 4217) for all payroll calculations.")
     )
     default_payment_method = models.CharField(
         max_length=20, 
         choices=PaymentMethod.choices, 
         default=PaymentMethod.CASH,
-        help_text=_("The standard payment method used if not specified otherwise.")
+        verbose_name=_("Payment Method"),
+        help_text=_("Standard method used for employee payments.")
     )
     work_hours_per_month = models.PositiveIntegerField(
         default=195,
-        help_text=_("Standard number of working hours in a month for calculation purposes.")
+        verbose_name=_("Work Hours/Month"),
+        help_text=_("Standard monthly working hours for calculation purposes.")
     )
     housing_allowance_min_percentage = models.DecimalField(
         max_digits=5, 
         decimal_places=2, 
         default=30.0,
+        verbose_name=_("Min Housing Allowance %"),
         help_text=_("Minimum housing allowance as a percentage of base salary.")
     )
     family_allowance_min_amount = models.DecimalField(
         max_digits=10, 
         decimal_places=2, 
         default=0.0,
-        help_text=_("Absolute minimum daily amount per child (e.g. 262 FC).")
+        verbose_name=_("Min Family Allowance"),
+        help_text=_("Minimum daily allowance per child.")
     )
     family_allowance_smig_divider = models.DecimalField(
         max_digits=5, 
         decimal_places=2, 
         default=27.0,
-        help_text=_("The factor used to calculate family allowance from SMIG (Daily SMIG / Divider).")
+        verbose_name=_("Family Allowance Divider"),
+        help_text=_("Factor for calculating family allowance from SMIG (Daily SMIG / Divider).")
     )
     overtime_multiplier = models.DecimalField(
         max_digits=4, 
         decimal_places=2, 
         default=1.5,
-        help_text=_("Coefficient applied to the hourly rate for overtime compensation.")
+        verbose_name=_("Overtime Multiplier"),
+        help_text=_("Coefficient applied to the hourly rate for overtime.")
     )
     include_leaves_in_payroll = models.BooleanField(
         default=True,
-        help_text=_("If enabled, approved leaves from the Leaves module will be imported and processed.")
+        verbose_name=_("Include Leaves"),
+        help_text=_("Import approved leaves for payroll processing.")
     )
     leave_deduction_divisor = models.DecimalField(
         max_digits=5,
         decimal_places=2,
         default=26.0,
-        help_text=_("Standard divisor used if dynamic calculation is disabled.")
+        verbose_name=_("Leave Divisor"),
+        help_text=_("Divisor used for leave deductions.")
     )
     use_theoretical_days_from_attendance = models.BooleanField(
         default=False,
-        help_text=_("If enabled, the divisor for deductions will be the exact number of working days scheduled in Attendance.")
+        verbose_name=_("Use Attendance Days"),
+        help_text=_("Use the scheduled working days from Attendance for deductions.")
     )
     fixed_deduction_per_absent_day = models.DecimalField(
         max_digits=12,
         decimal_places=2,
         null=True,
         blank=True,
-        help_text=_("If set, this fixed amount will be deducted for each unpaid absence day, overriding pro-rata.")
+        verbose_name=_("Fixed Absent Deduction"),
+        help_text=_("Fixed amount deducted for each unpaid absence day.")
     )
     exchange_rate_usd_cdf = models.DecimalField(
         max_digits=10, 
         decimal_places=4, 
         default=2850.0000,
-        help_text=_("Exchange rate for USD to CDF conversion (e.g., 2850). Used if pay rule requires conversion.")
+        verbose_name=_("USD/CDF Rate"),
+        help_text=_("Standard USD to CDF exchange rate.")
     )
     exchange_rate_source = models.CharField(
         max_length=15, 
         choices=ExchangeRateSource.choices, 
         default=ExchangeRateSource.MANUAL,
-        help_text=_("Source of the exchange rate. Select BCC for live Central Bank rates.")
+        verbose_name=_("Rate Source"),
+        help_text=_("Source of the exchange rate (e.g., Central Bank or Manual).")
     )
 
     class Meta:
         db_table = "pyrl_payroll_configuration"
+        verbose_name = _("Payroll Configuration")
 
 
 class EmployeeContract(BaseAuditableModel):
-    """
-    Defines the compensation structure and operational rules for an employee's contract.
-    """
+    """ Compensation structure and employment terms for an employee. """
     employee = models.ForeignKey(
         'hr_employees.Employee', 
         on_delete=models.CASCADE, 
         related_name='contracts',
-        help_text=_("Reference to the employee linked to this contract.")
+        verbose_name=_("Employee")
     )
     remuneration_type = models.CharField(
         max_length=10, 
         choices=RemunerationType.choices,
-        help_text=_("Defines how the compensation is calculated (Hourly vs Fixed salary).")
+        verbose_name=_("Remuneration Type"),
+        help_text=_("Basis for compensation (e.g., Hourly or Fixed).")
     )
     payment_period = models.CharField(
         max_length=10, 
@@ -130,53 +140,59 @@ class EmployeeContract(BaseAuditableModel):
         default=PaymentPeriod.MONTHLY,
         null=True, 
         blank=True,
-        help_text=_("Frequency of payment calculation. Defaults to Monthly if not specified.")
+        verbose_name=_("Payment Period")
     )
     contract_type = models.CharField(
         max_length=20, 
         choices=ContractType.choices,
-        help_text=_("The type of employment contract (e.g., CDI, CDD, Internship).")
+        verbose_name=_("Contract Type"),
+        help_text=_("Legal form of employment (CDI, CDD, etc.).")
     )
     base_salary = models.DecimalField(
         max_digits=12, 
         decimal_places=2, 
         null=True, 
         blank=True,
-        help_text=_("Monthly base salary amount (Gross or Net depending on type).")
+        verbose_name=_("Base Salary"),
+        help_text=_("Standard salary amount.")
     )
     salary_base_type = models.CharField(
         max_length=10,
         choices=SalaryBaseType.choices,
         default=SalaryBaseType.GROSS,
-        help_text=_("Indicates if the provided base_salary is Gross or Net.")
+        verbose_name=_("Salary Base Type"),
+        help_text=_("Indicates if the salary is defined as Gross or Net.")
     )
     hourly_rate = models.DecimalField(
         max_digits=10, 
         decimal_places=2, 
         null=True, 
         blank=True,
-        help_text=_("Rate per hour for hourly remuneration types.")
+        verbose_name=_("Hourly Rate")
     )
     currency = models.CharField(
         max_length=3, 
         choices=Currency.choices, 
         default=Currency.CDF, 
-        verbose_name=_("Currency"),
-        help_text=_("Currency of the contract (e.g. CDF, USD).")
+        verbose_name=_("Currency")
     )
-    start_date = models.DateField(help_text=_("Official start date of the contract."))
+    start_date = models.DateField(
+        verbose_name=_("Start Date")
+    )
     end_date = models.DateField(
         null=True, 
         blank=True,
-        help_text=_("Official end date of the contract, if applicable.")
+        verbose_name=_("End Date")
     )
     is_active = models.BooleanField(
         default=True,
-        help_text=_("Indicates if this contract is currently active.")
+        verbose_name=_("Is Active")
     )
 
     class Meta:
         db_table = "pyrl_employee_contract"
+        verbose_name = _("Employee Contract")
+        verbose_name_plural = _("Employee Contracts")
         constraints = [
             models.UniqueConstraint(
                 fields=['employee'], 
@@ -218,22 +234,22 @@ class EmployeeContract(BaseAuditableModel):
 
 
 class PayrollAdjustment(BaseAuditableModel):
-    """
-    Configuration for reusable bonuses, allowances, or deductions (e.g., Transport, Health Insurance).
-    """
+    """ Standard bonuses, allowances, or deductions used in payroll. """
     name = models.CharField(
         max_length=100,
-        help_text=_("The display name of the adjustment.")
+        verbose_name=_("Name")
     )
     adjustment_type = models.CharField(
         max_length=15, 
         choices=AdjustmentType.choices,
-        help_text=_("Determines if this is a bonus (addition) or a contribution (deduction).")
+        verbose_name=_("Type"),
+        help_text=_("Categorizes the adjustment as a bonus or a contribution.")
     )
     calculation_mode = models.CharField(
         max_length=15, 
         choices=CalculationMode.choices,
-        help_text=_("Specifies if the adjustment is a fixed amount or a percentage.")
+        verbose_name=_("Calculation Mode"),
+        help_text=_("Determines if the adjustment is a fixed amount or a percentage.")
     )
     amount = models.DecimalField(
         max_digits=12, 
@@ -252,7 +268,8 @@ class PayrollAdjustment(BaseAuditableModel):
     )
     is_mandatory = models.BooleanField(
         default=False,
-        help_text=_("If true, this adjustment is applied to all eligible employees by default.")
+        verbose_name=_("Is Mandatory"),
+        help_text=_("Apply this adjustment to all eligible employees by default.")
     )
     is_active = models.BooleanField(
         default=True,
@@ -261,6 +278,7 @@ class PayrollAdjustment(BaseAuditableModel):
 
     class Meta:
         db_table = "pyrl_payroll_adjustment"
+        verbose_name = _("Payroll Adjustment")
 
     def save(self, *args, **kwargs):
         self.full_clean()
@@ -268,9 +286,7 @@ class PayrollAdjustment(BaseAuditableModel):
 
 
 class EmployeeAdjustment(BaseAuditableModel):
-    """
-    Specific assignment of a payroll adjustment to an individual employee with potential overrides.
-    """
+    """ Individual assignment of a payroll adjustment to an employee. """
     employee = models.ForeignKey(
         'hr_employees.Employee', 
         on_delete=models.CASCADE,
@@ -281,7 +297,9 @@ class EmployeeAdjustment(BaseAuditableModel):
         on_delete=models.CASCADE,
         help_text=_("The source adjustment configuration.")
     )
-    start_date = models.DateField(help_text=_("The date from which this adjustment becomes effective for the employee."))
+    start_date = models.DateField(
+        verbose_name=_("Start Date")
+    )
     end_date = models.DateField(
         null=True, 
         blank=True,
@@ -292,7 +310,8 @@ class EmployeeAdjustment(BaseAuditableModel):
         decimal_places=2, 
         null=True, 
         blank=True,
-        help_text=_("A custom amount to override the default configuration for this employee.")
+        verbose_name=_("Custom Amount"),
+        help_text=_("Override the standard amount for this employee.")
     )
     is_active = models.BooleanField(
         default=True,
@@ -301,21 +320,24 @@ class EmployeeAdjustment(BaseAuditableModel):
 
     class Meta:
         db_table = "pyrl_employee_adjustment"
+        verbose_name = _("Employee Adjustment")
         unique_together = ('employee', 'adjustment')
 
 
 class PayrollRun(BaseAuditableModel):
-    """
-    Represents a payroll processing session for a defined period.
-    """
+    """ Payroll processing session for a specific period. """
     code = models.CharField(
         max_length=32, 
         unique=True, 
         default=generate_payroll_run_code,
         help_text=_("A unique identifier for the payroll processing run.")
     )
-    start_date = models.DateField(help_text=_("The beginning date of the payroll period."))
-    end_date = models.DateField(help_text=_("The ending date of the payroll period."))
+    start_date = models.DateField(
+        verbose_name=_("Start Date")
+    )
+    end_date = models.DateField(
+        verbose_name=_("End Date")
+    )
     status = models.CharField(
         max_length=15, 
         choices=PayrollStatus.choices, 
@@ -327,11 +349,12 @@ class PayrollRun(BaseAuditableModel):
         decimal_places=4, 
         null=True, 
         blank=True,
-        help_text=_("The USD/CDF exchange rate effective during this payroll run.")
+        verbose_name=_("Applied Exchange Rate")
     )
 
     class Meta:
         db_table = "pyrl_payroll_run"
+        verbose_name = _("Payroll Run")
 
 
 class EmployeePayslip(BaseAuditableModel):
@@ -516,13 +539,11 @@ class PayslipLine(BaseAuditableModel):
 
     class Meta:
         db_table = "pyrl_payslip_line"
+        verbose_name = _("Payslip Line")
 
 
 class SalaryAdvance(BaseAuditableModel):
-    """
-    Records a short-term financial advance granted to an employee to be repaid over time.
-    Supports flexible configuration for how and when deductions are applied.
-    """
+    """ Short-term financial advance granted to an employee. """
     employee = models.ForeignKey(
         'hr_employees.Employee', 
         on_delete=models.PROTECT,
@@ -531,49 +552,52 @@ class SalaryAdvance(BaseAuditableModel):
     amount = models.DecimalField(
         max_digits=12, 
         decimal_places=2,
-        help_text=_("The total principal amount of the advance.")
+        verbose_name=_("Amount"),
+        help_text=_("Total principal amount of the advance.")
     )
     repayment_percentage = models.DecimalField(
         max_digits=5, 
         decimal_places=2,
-        help_text=_("Percentage of the salary to be deducted for each repayment cycle.")
+        verbose_name=_("Repayment %"),
+        help_text=_("Percentage of salary deducted for repayment.")
     )
     
-    # Deduction configuration fields
-    # The salary advance is always deducted from net salary
     salary_base_for_deduction = models.CharField(
         max_length=10,
         choices=AdvanceDeductionBase.choices,
         default=AdvanceDeductionBase.NET,
-        help_text=_("Determines if the advance is deducted from Gross or Net salary.")
+        verbose_name=_("Deduction Base"),
+        help_text=_("Deduction from Gross or Net salary.")
     )
     tax_timing = models.CharField(
         max_length=15,
         choices=AdvanceTaxTiming.choices,
         default=AdvanceTaxTiming.AFTER_TAX,
-        help_text=_("Determines if the advance deduction affects the taxable income.")
+        verbose_name=_("Tax Timing"),
+        help_text=_("Specifies if the deduction affects taxable income.")
     )
     deduction_window = models.CharField(
         max_length=15,
         choices=AdvanceDeductionWindow.choices,
         default=AdvanceDeductionWindow.ALL_MONTHS,
-        help_text=_("Determines the time period for applying deductions.")
+        verbose_name=_("Deduction Window")
     )
     deduction_start_date = models.DateField(
         null=True,
         blank=True,
-        help_text=_("Start date for applying deductions (if deduction_window is CUSTOM_PERIOD).")
+        verbose_name=_("Deduction Start"),
+        help_text=_("Required if window is CUSTOM_PERIOD.")
     )
     deduction_end_date = models.DateField(
         null=True,
         blank=True,
-        help_text=_("End date for applying deductions (if deduction_window is CUSTOM_PERIOD).")
+        verbose_name=_("Deduction End"),
+        help_text=_("Required if window is CUSTOM_PERIOD.")
     )
-    
-    # Status
     is_closed = models.BooleanField(
         default=False,
-        help_text=_("Indicates if the advance has been fully settled.")
+        verbose_name=_("Is Settled"),
+        help_text=_("Indicates if the advance has been fully repaid.")
     )
 
     class Meta:
@@ -583,30 +607,23 @@ class SalaryAdvance(BaseAuditableModel):
 
 
 class AdvanceDeductionConfiguration(BaseAuditableModel):
-    """
-    Manages the priority order and selection of salary advances for deduction.
-    Allows flexible configuration: which advances to deduct and in what order.
-    
-    Example:
-    - Priority 1: Advance A (must be deducted first)
-    - Priority 2: Advance B (deducted after A)
-    - Priority 3: Advance C (deducted only if A & B are satisfied)
-    """
+    """ Priority and selection rules for salary advance deductions. """
     employee = models.ForeignKey(
         'hr_employees.Employee',
         on_delete=models.CASCADE,
         related_name='advance_deduction_config',
-        help_text=_("The employee for this deduction configuration.")
+        verbose_name=_("Employee")
     )
     advance = models.ForeignKey(
         SalaryAdvance,
         on_delete=models.CASCADE,
         related_name='deduction_configs',
-        help_text=_("The salary advance to be managed.")
+        verbose_name=_("Advance")
     )
     priority_order = models.PositiveIntegerField(
         default=0,
-        help_text=_("Order of deduction priority. Lower numbers = higher priority. 0 = first to be deducted.")
+        verbose_name=_("Priority"),
+        help_text=_("Order of deduction (lower numbers = higher priority).")
     )
     is_active = models.BooleanField(
         default=True,
@@ -615,19 +632,16 @@ class AdvanceDeductionConfiguration(BaseAuditableModel):
     
     class Meta:
         db_table = "pyrl_advance_deduction_config"
-        verbose_name = _("Advance Deduction Configuration")
-        verbose_name_plural = _("Advance Deduction Configurations")
+        verbose_name = _("Advance Deduction Setting")
         unique_together = ('employee', 'advance')
         ordering = ['priority_order']
         
     def __str__(self):
-        return f"{self.employee} - Advance Priority #{self.priority_order} - {self.advance.id}"
+        return f"{self.employee} - Priority #{self.priority_order}"
 
 
 class RepaymentRecord(BaseAuditableModel):
-    """
-    Tracks each repayment transaction made against a salary advance, usually tied to a payslip.
-    """
+    """ Repayment transaction against a salary advance. """
     salary_advance = models.ForeignKey(
         SalaryAdvance, 
         on_delete=models.CASCADE, 
@@ -647,25 +661,27 @@ class RepaymentRecord(BaseAuditableModel):
     )
     repayment_date = models.DateField(
         auto_now_add=True,
-        help_text=_("The date when the repayment was processed.")
+        verbose_name=_("Repayment Date")
     )
 
     class Meta:
         db_table = "pyrl_repayment_record"
+        verbose_name = _("Repayment Record")
 
 
 class SMIGConfiguration(BaseAuditableModel):
     """
     Tracks the SMIG (Salaire Minimum Interprofessionnel Garanti) over time.
-    Allows for historical tracking as minimum wage changes.
+    Allows for historical tracking as minimum wage changes. 
     """
     daily_rate = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        help_text=_("Daily minimum wage rate in local currency (e.g., 7075 FC).")
+        verbose_name=_("Daily Rate"),
+        help_text=_("Minimum daily wage in local currency.")
     )
     effective_date = models.DateField(
-        help_text=_("Date from which this SMIG rate becomes effective.")
+        verbose_name=_("Effective Date")
     )
     is_active = models.BooleanField(
         default=True,
@@ -674,6 +690,7 @@ class SMIGConfiguration(BaseAuditableModel):
 
     class Meta:
         db_table = "pyrl_smig_configuration"
+        verbose_name = _("SMIG Configuration")
         ordering = ['-effective_date']
         constraints = [
             models.UniqueConstraint(
@@ -683,96 +700,89 @@ class SMIGConfiguration(BaseAuditableModel):
         ]
 
     def __str__(self):
-        return f"SMIG: {self.daily_rate} FC/day (effective {self.effective_date})"
+        return f"SMIG: {self.daily_rate} FC (from {self.effective_date})"
 
     @property
     def weekly_rate(self):
-        """Calculate weekly SMIG (daily_rate * 6)."""
         return self.daily_rate * 6
 
     @property
     def monthly_rate(self):
-        """Calculate monthly SMIG (daily_rate * 26)."""
         return self.daily_rate * 26
 
     @property
     def annual_rate(self):
-        """Calculate annual SMIG (daily_rate * 312)."""
         return self.daily_rate * 312
 
 
 class SocialContributionRate(BaseAuditableModel):
-    """
-    Configurable social contribution rates (CNSS, ONEM, INPP).
-    Supports company size-based rates (e.g., INPP varies by employee count).
-    """
+    """ Social security and tax contribution rates (CNSS, ONEM, INPP). """
     contribution_type = models.CharField(
         max_length=10,
         choices=SocialContributionType.choices,
-        help_text=_("Type of social contribution.")
+        verbose_name=_("Type")
     )
     rate_percentage = models.DecimalField(
         max_digits=5,
         decimal_places=2,
         validators=[MinValueValidator(0), MaxValueValidator(100)],
-        help_text=_("Total contribution rate as a percentage.")
+        verbose_name=_("Total Rate %")
     )
     employee_portion = models.DecimalField(
         max_digits=5,
         decimal_places=2,
         validators=[MinValueValidator(0), MaxValueValidator(100)],
-        help_text=_("Percentage of the contribution paid by the employee.")
+        verbose_name=_("Employee Portion %")
     )
     employer_portion = models.DecimalField(
         max_digits=5,
         decimal_places=2,
         validators=[MinValueValidator(0), MaxValueValidator(100)],
-        help_text=_("Percentage of the contribution paid by the employer.")
+        verbose_name=_("Employer Portion %")
     )
     company_size_min = models.PositiveIntegerField(
         null=True,
         blank=True,
-        help_text=_("Minimum company size (employee count) for this rate to apply. Used for INPP.")
+        verbose_name=_("Min Company Size")
     )
     company_size_max = models.PositiveIntegerField(
         null=True,
         blank=True,
-        help_text=_("Maximum company size (employee count) for this rate to apply. Used for INPP.")
+        verbose_name=_("Max Company Size")
     )
     ceiling_amount = models.DecimalField(
         max_digits=12,
         decimal_places=2,
         null=True,
         blank=True,
-        help_text=_("Maximum base amount on which this contribution is calculated (e.g., CNSS ceiling).")
+        verbose_name=_("Ceiling Amount"),
+        help_text=_("Maximum base amount for this contribution.")
     )
     effective_date = models.DateField(
         help_text=_("Date from which this rate becomes effective.")
     )
     is_active = models.BooleanField(
         default=True,
-        help_text=_("Indicates if this rate is currently active.")
+        verbose_name=_("Is Active")
     )
 
     class Meta:
         db_table = "pyrl_social_contribution_rate"
+        verbose_name = _("Contribution Rate")
         ordering = ['contribution_type', '-effective_date']
 
     def __str__(self):
-        size_info = ""
-        if self.company_size_min or self.company_size_max:
-            size_info = f" (size: {self.company_size_min or 0}-{self.company_size_max or '∞'})"
-        return f"{self.contribution_type}: {self.rate_percentage}%{size_info}"
+        return f"{self.contribution_type}: {self.rate_percentage}%"
 
     def clean(self):
         if self.employee_portion + self.employer_portion != self.rate_percentage:
             raise ValidationError(
-                _("Employee portion + Employer portion must equal the total rate percentage.")
+                _("Employee portion + Employer portion must equal total rate.")
             )
         if self.company_size_min and self.company_size_max:
             if self.company_size_min > self.company_size_max:
                 raise ValidationError(
-                    _("Minimum company size cannot be greater than maximum company size.")
+                    _("Min size cannot be greater than max size.")
                 )
 
     def save(self, *args, **kwargs):
@@ -789,25 +799,27 @@ class OvertimeRule(BaseAuditableModel):
         max_length=20,
         choices=OvertimeRuleType.choices,
         unique=True,
-        help_text=_("Type of overtime rule.")
+        verbose_name=_("Rule Type")
     )
     multiplier = models.DecimalField(
         max_digits=4,
         decimal_places=2,
         validators=[MinValueValidator(1.0)],
-        help_text=_("Multiplier applied to the base hourly rate (e.g., 1.30 for 130%).")
+        verbose_name=_("Multiplier"),
+        help_text=_("Multiplier applied to the hourly rate (e.g., 1.5).")
     )
     description = models.TextField(
         blank=True,
-        help_text=_("Detailed description of when this rule applies.")
+        verbose_name=_("Description")
     )
     is_active = models.BooleanField(
         default=True,
-        help_text=_("Indicates if this rule is currently active.")
+        verbose_name=_("Is Active")
     )
 
     class Meta:
         db_table = "pyrl_overtime_rule"
+        verbose_name = _("Overtime Rule")
         ordering = ['multiplier']
 
     def __str__(self):
@@ -815,35 +827,32 @@ class OvertimeRule(BaseAuditableModel):
 
 
 class LegalAllowance(BaseAuditableModel):
-    """
-    Configures legal allowances required by DRC law.
-    Examples: Family allowance (1/27 SMIG per child), Housing, Transport.
-    """
+    """ Statutory allowances required by local regulations. """
     allowance_type = models.CharField(
         max_length=15,
         choices=LegalAllowanceType.choices,
         unique=True,
-        help_text=_("Type of legal allowance.")
+        verbose_name=_("Allowance Type")
     )
     calculation_mode = models.CharField(
         max_length=15,
         choices=CalculationMode.choices,
-        help_text=_("How the allowance amount is calculated.")
+        verbose_name=_("Calculation Mode")
     )
     base_amount = models.DecimalField(
         max_digits=12,
         decimal_places=2,
         null=True,
         blank=True,
-        help_text=_("Fixed base amount for the allowance, if applicable.")
+        verbose_name=_("Base Amount")
     )
     formula_description = models.TextField(
         blank=True,
-        help_text=_("Description of the calculation formula (e.g., '1/27 of SMIG per child').")
+        verbose_name=_("Formula Description")
     )
     is_taxable = models.BooleanField(
         default=False,
-        help_text=_("Indicates if this allowance is subject to IPR taxation.")
+        verbose_name=_("Is Taxable")
     )
     taxable_threshold_percentage = models.DecimalField(
         max_digits=5,
@@ -851,15 +860,17 @@ class LegalAllowance(BaseAuditableModel):
         null=True,
         blank=True,
         validators=[MinValueValidator(0), MaxValueValidator(100)],
-        help_text=_("Percentage of gross salary above which this allowance becomes taxable (e.g., 30% for housing).")
+        verbose_name=_("Taxable Threshold %"),
+        help_text=_("% of gross salary above which the allowance is taxed.")
     )
     is_active = models.BooleanField(
         default=True,
-        help_text=_("Indicates if this allowance is currently active.")
+        verbose_name=_("Is Active")
     )
 
     class Meta:
         db_table = "pyrl_legal_allowance"
+        verbose_name = _("Legal Allowance")
         ordering = ['allowance_type']
 
     def __str__(self):
@@ -875,13 +886,13 @@ class WorkedDaysRecord(BaseAuditableModel):
         'hr_employees.Employee',
         on_delete=models.CASCADE,
         related_name='worked_days_records',
-        help_text=_("The employee this record belongs to.")
+        verbose_name=_("Employee")
     )
     payroll_run = models.ForeignKey(
         'PayrollRun',
         on_delete=models.CASCADE,
         related_name='worked_days_records',
-        help_text=_("The payroll run this record is associated with.")
+        verbose_name=_("Payroll Run")
     )
     regular_days = models.PositiveIntegerField(
         default=0,
@@ -890,33 +901,33 @@ class WorkedDaysRecord(BaseAuditableModel):
     overtime_hours_first_tier = models.FloatField(
         default=0,
         validators=[MinValueValidator(0)],
-        help_text=_("Overtime hours at first tier rate (typically 130%).")
+        verbose_name=_("Overtime (Tier 1)")
     )
     overtime_hours_second_tier = models.FloatField(
         default=0,
         validators=[MinValueValidator(0)],
-        help_text=_("Overtime hours at second tier rate (typically 160%).")
+        verbose_name=_("Overtime (Tier 2)")
     )
     overtime_hours_holiday = models.FloatField(
         default=0,
         validators=[MinValueValidator(0)],
-        help_text=_("Overtime hours on holidays/rest days (typically 200%).")
+        verbose_name=_("Overtime (Holiday)")
     )
     absence_days = models.PositiveIntegerField(
         default=0,
-        help_text=_("Number of days absent during the period.")
+        verbose_name=_("Absence Days")
     )
 
     class Meta:
         db_table = "pyrl_worked_days_record"
+        verbose_name = _("Worked Days Record")
         unique_together = ('employee', 'payroll_run')
 
     def __str__(self):
-        return f"{self.employee} - {self.payroll_run.code}: {self.regular_days} days"
+        return f"{self.employee} - {self.payroll_run.code}"
 
     @property
     def total_overtime_hours(self):
-        """Calculate total overtime hours across all tiers."""
         return (
             self.overtime_hours_first_tier +
             self.overtime_hours_second_tier +
@@ -925,27 +936,22 @@ class WorkedDaysRecord(BaseAuditableModel):
 
 
 class TaxBracket(BaseAuditableModel):
-
-    """
-    Stores progressive tax brackets (e.g., IPR in DRC).
-    Example: 0 to 1000 @ 0%, 1001 to 2500 @ 15%, etc.
-    Enhanced with DRC IPR-specific constraints.
-    """
+    """ Income tax brackets and progressive rates (e.g., IPR in DRC). """
     label = models.CharField(
         max_length=100,
-        help_text=_("Descriptive name for this tax bracket.")
+        verbose_name=_("Label")
     )
     lower_limit = models.DecimalField(
         max_digits=12,
         decimal_places=2,
-        help_text=_("Lower bound of the income range for this bracket.")
+        verbose_name=_("Lower Limit")
     )
     upper_limit = models.DecimalField(
         max_digits=12,
         decimal_places=2,
         null=True,
         blank=True,
-        help_text=_("Upper bound of the income range. Leave blank for the highest bracket.")
+        verbose_name=_("Upper Limit")
     )
     rate_percentage = models.DecimalField(
         max_digits=5,
@@ -957,7 +963,7 @@ class TaxBracket(BaseAuditableModel):
         decimal_places=2,
         null=True,
         blank=True,
-        help_text=_("Minimum tax amount (e.g., IPR minimum of 2000 FC).")
+        verbose_name=_("Min Tax Amount")
     )
     max_tax_percentage = models.DecimalField(
         max_digits=5,
@@ -965,28 +971,28 @@ class TaxBracket(BaseAuditableModel):
         null=True,
         blank=True,
         validators=[MinValueValidator(0), MaxValueValidator(100)],
-        help_text=_("Maximum tax as percentage of taxable income (e.g., IPR max 30%).")
+        verbose_name=_("Max Tax % of Income")
     )
     applies_to_taxable_base = models.BooleanField(
         default=True,
-        help_text=_("If true, tax is calculated on base after CNSS deduction (IPR rule).")
+        verbose_name=_("Tax Taxable Base"),
+        help_text=_("Calculate tax on base after social deductions.")
     )
     is_active = models.BooleanField(
         default=True,
-        help_text=_("Indicates if this tax bracket is currently active.")
+        verbose_name=_("Is Active")
     )
 
     class Meta:
         db_table = "pyrl_tax_bracket"
+        verbose_name = _("Tax Bracket")
         ordering = ['lower_limit']
 
     def __str__(self):
         return f"{self.label}: {self.rate_percentage}%"
 
 
-
-# --- AUDIT LOG REGISTRATION ---
-
+# --- Audit log registration ---
 auditlog.register(PayrollConfiguration)
 auditlog.register(EmployeeContract)
 auditlog.register(PayrollAdjustment)

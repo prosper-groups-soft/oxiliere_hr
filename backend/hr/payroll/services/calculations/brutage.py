@@ -5,10 +5,7 @@ from .legal_allowances import LegalAllowanceService
 
 
 class GrossUpService:
-    """
-    Handles 'Net-to-Gross' (Brutage) calculations for DRC.
-    Calculates the Base Salary required to reach a target Net Salary.
-    """
+    """ Handles Net-to-Gross (Brutage) calculations to reach a target net salary. """
 
     @classmethod
     def calculate_base_from_net(
@@ -21,10 +18,7 @@ class GrossUpService:
         std_monthly_hours: Decimal = Decimal('195'),
         tolerance: Decimal = Decimal('1.00')
     ) -> Decimal:
-        """
-        Calculates the required Base Salary to achieve the specified target Net Salary.
-        Uses a binary search approach to iteratively approximate the base salary.
-        """
+        """ Calculates the gross base salary required to achieve a target net amount. """
         
         if target_net <= 0:
             return Decimal('0.00')
@@ -68,10 +62,7 @@ class GrossUpService:
         is_hourly: bool,
         std_monthly_hours: Decimal
     ) -> Decimal:
-        """
-        Simulates the total net salary for a given base salary candidate.
-        Used internally for the binary search in Net-to-Gross calculation.
-        """
+        """ Simulates total net salary for a given gross base salary candidate. """
         # Determine the monthly base salary for simulation
         if is_hourly:
             base_salary = (candidate * std_monthly_hours).quantize(Decimal('0.01'))

@@ -1,22 +1,25 @@
 import logging
+from typing   import List
 from injector import inject
+from ninja.pagination import paginate
+from oxutils.permissions.perms import ScopePermission
+from oxutils.pagination.cursor import CursorPagination
 
 from ninja_extra import (
     api_controller,
     http_post,
+    http_get,
     http_patch,
     ControllerBase,
 )
 from django.core.exceptions import ValidationError
 
-# Schemas
 from hr.recruitment.schemas import (
     InterviewScheduleIn,
     InterviewFeedbackIn,
     InterviewOut,
 )
 
-# Services
 from hr.recruitment.services import InterviewService
 
 
@@ -34,7 +37,17 @@ class InterviewController(ControllerBase):
     def __init__(self, interview_service: InterviewService):
         self.interview_service = interview_service
 
-    @http_post('/', response={201: InterviewOut})
+    @http_get('/', response=List[InterviewOut], permissions=[ScopePermission('recruitment:r')])
+    @paginate(CursorPagination)
+    def list_interviews(self):
+        """
+        Lists all interviews.
+        """
+        logger.info("[API] Listing all interviews")
+        return self.interview_service.get_all_interviews()
+
+    @http_post('/', response={201: InterviewOut}, permissions=[ScopePermission('recruitment:w')])
+    @inject
     def schedule_new_interview(self, data: InterviewScheduleIn):
         """
         Schedules a new interview and transitions the application
@@ -80,7 +93,7 @@ class InterviewController(ControllerBase):
                 status_code=500,
             )
 
-    @http_patch('/{interview_id}/feedback', response=InterviewOut)
+    @http_patch('/{interview_id}/feedback', response=InterviewOut, permissions=[ScopePermission('recruitment:u')])
     def submit_interview_feedback(self, interview_id: int, data: InterviewFeedbackIn):
         """
         Records the interview score and qualitative feedback

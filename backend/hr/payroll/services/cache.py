@@ -1,10 +1,4 @@
-"""
-Payroll caching services.
-
-Handles caching of payroll-related queries and calculations.
-"""
-
-from django.core.cache import cache
+from django.core.cache         import cache
 from hr.services.cache_helpers import generate_cache_key, CacheKeys
 from hr.payroll.models import (
     PayrollConfiguration,
@@ -12,20 +6,20 @@ from hr.payroll.models import (
     PayrollRun,
     SalaryAdvance,
     WorkedDaysRecord,
+    TaxBracket,
+    SocialContributionRate,
+    SMIGConfiguration,
+    LegalAllowance,
+    OvertimeRule,
 )
 
 
 class PayrollCacheService:
-    """Cache operations for payroll module."""
+    """ Cache management for payroll models and calculations. """
     
     @staticmethod
     def get_configuration():
-        """
-        Get payroll configuration (cached - stable data).
-        
-        Returns:
-            PayrollConfiguration instance
-        """
+        """ Gets cached payroll configuration. """
         cache_key = CacheKeys.payroll_config()
         config = cache.get(cache_key)
         
@@ -37,17 +31,69 @@ class PayrollCacheService:
         return config
     
     @staticmethod
+    def get_tax_brackets():
+        """ Gets active tax brackets from cache. """
+        cache_key = generate_cache_key("hr:payroll:tax_brackets")
+        brackets = cache.get(cache_key)
+        
+        if brackets is None:
+            brackets = list(TaxBracket.objects.filter(is_active=True).order_by('lower_limit'))
+            cache.set(cache_key, brackets, timeout=60*60*24)  # 24h
+        
+        return brackets
+
+    @staticmethod
+    def get_social_contribution_rates():
+        """ Gets active social contribution rates from cache. """
+        cache_key = generate_cache_key("hr:payroll:social_rates")
+        rates = cache.get(cache_key)
+        
+        if rates is None:
+            rates = list(SocialContributionRate.objects.filter(is_active=True))
+            cache.set(cache_key, rates, timeout=60*60*24)  # 24h
+        
+        return rates
+
+    @staticmethod
+    def get_smig():
+        """ Gets active SMIG configuration from cache. """
+        cache_key = generate_cache_key("hr:payroll:smig")
+        smig = cache.get(cache_key)
+        
+        if smig is None:
+            smig = SMIGConfiguration.objects.filter(is_active=True).first()
+            if smig:
+                cache.set(cache_key, smig, timeout=60*60*24)  # 24h
+        
+        return smig
+
+    @staticmethod
+    def get_legal_allowances():
+        """ Gets active legal allowances from cache. """
+        cache_key = generate_cache_key("hr:payroll:legal_allowances")
+        allowances = cache.get(cache_key)
+        
+        if allowances is None:
+            allowances = list(LegalAllowance.objects.filter(is_active=True))
+            cache.set(cache_key, allowances, timeout=60*60*24)  # 24h
+        
+        return allowances
+
+    @staticmethod
+    def get_overtime_rules():
+        """ Gets active overtime rules from cache. """
+        cache_key = generate_cache_key("hr:payroll:overtime_rules")
+        rules = cache.get(cache_key)
+        
+        if rules is None:
+            rules = list(OvertimeRule.objects.filter(is_active=True))
+            cache.set(cache_key, rules, timeout=60*60*24)  # 24h
+        
+        return rules
+
+    @staticmethod
     def get_employee_contract_for_date(employee, date):
-        """
-        Get active employee contract for a specific date.
-        
-        Args:
-            employee: Employee instance
-            date: Date to check contract validity
-        
-        Returns:
-            EmployeeContract instance or None
-        """
+        """ Retrieves the active employee contract for a specific date. """
         cache_key = CacheKeys.payroll_contract(employee.id, date)
         contract = cache.get(cache_key)
         
@@ -65,15 +111,7 @@ class PayrollCacheService:
     
     @staticmethod
     def get_employee_contracts(employee):
-        """
-        Get all contracts for an employee (cached).
-        
-        Args:
-            employee: Employee instance
-        
-        Returns:
-            List of EmployeeContract instances
-        """
+        """ Retrieves all contracts for an employee. """
         cache_key = generate_cache_key("hr:payroll:contracts", employee.id)
         contracts = cache.get(cache_key)
         
@@ -88,15 +126,7 @@ class PayrollCacheService:
     
     @staticmethod
     def get_active_contracts(date=None):
-        """
-        Get all active contracts for a date.
-        
-        Args:
-            date: Date to check (default: today)
-        
-        Returns:
-            List of active EmployeeContract instances
-        """
+        """ Retrieves all active contracts for a specific date (default: today). """
         from django.utils import timezone
         
         if date is None:
@@ -117,15 +147,7 @@ class PayrollCacheService:
     
     @staticmethod
     def get_payroll_run(payroll_run_id):
-        """
-        Get payroll run by ID (cached).
-        
-        Args:
-            payroll_run_id: PayrollRun ID or instance
-        
-        Returns:
-            PayrollRun instance
-        """
+        """ Retrieves a payroll run by ID from cache. """
         if isinstance(payroll_run_id, PayrollRun):
             payroll_run_id = payroll_run_id.id
         
@@ -140,15 +162,7 @@ class PayrollCacheService:
     
     @staticmethod
     def get_pending_salary_advances(employee):
-        """
-        Get pending salary advances for employee (short cache).
-        
-        Args:
-            employee: Employee instance
-        
-        Returns:
-            List of SalaryAdvance instances
-        """
+        """ Retrieves pending salary advances for an employee. """
         cache_key = CacheKeys.salary_advance(employee.id)
         advances = cache.get(cache_key)
         
@@ -164,17 +178,7 @@ class PayrollCacheService:
     
     @staticmethod
     def get_worked_days_record(employee, start_date, end_date):
-        """
-        Get worked days record for employee period.
-        
-        Args:
-            employee: Employee instance
-            start_date: Period start
-            end_date: Period end
-        
-        Returns:
-            WorkedDaysRecord instance or None
-        """
+        """ Retrieves the worked days record for an employee in a given period. """
         cache_key = generate_cache_key(
             "hr:payroll:worked_days", employee.id, start_date, end_date
         )
@@ -196,15 +200,21 @@ class PayrollCacheService:
     def clear_config_cache():
         """Clear payroll configuration cache."""
         cache.delete(CacheKeys.payroll_config())
+        cache.delete(generate_cache_key("hr:payroll:tax_brackets"))
+        cache.delete(generate_cache_key("hr:payroll:social_rates"))
+        cache.delete(generate_cache_key("hr:payroll:smig"))
+        cache.delete(generate_cache_key("hr:payroll:legal_allowances"))
+        cache.delete(generate_cache_key("hr:payroll:overtime_rules"))
     
     @staticmethod
     def clear_employee_cache(employee):
         """Clear all cache for an employee."""
-        from django.core.cache import cache
         from django_redis import get_redis_connection
         
+        employee_id = employee.id if hasattr(employee, 'id') else employee
+        
         redis_conn = get_redis_connection("default")
-        pattern = f"*hr:payroll*{employee.id}*"
+        pattern = f"*hr:payroll*{employee_id}*"
         keys = redis_conn.keys(pattern)
         if keys:
             redis_conn.delete(*keys)
@@ -213,3 +223,10 @@ class PayrollCacheService:
     def clear_payroll_run_cache(payroll_run_id):
         """Clear cache for a specific payroll run."""
         cache.delete(CacheKeys.payroll_run(payroll_run_id))
+
+    @staticmethod
+    def clear_contract_cache(contract):
+        """Clear contract-related caches."""
+        PayrollCacheService.clear_employee_cache(contract.employee_id)
+        cache.delete(generate_cache_key("hr:payroll:active_contracts", contract.start_date))
+

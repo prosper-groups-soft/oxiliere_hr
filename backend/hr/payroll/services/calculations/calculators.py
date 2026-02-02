@@ -3,18 +3,11 @@ from hr.payroll.enums import CalculationMode
 
 
 class PayrollCalculatorService:
-    """
-    Service responsible for core mathematical payroll calculations.
-    Does not interact with the database directly.
-    """
+    """ Mathematical utility for payroll calculations. """
 
     @staticmethod
-    def calculate_adjustment_value(mode: str, base_value: Decimal, 
-                                 config_amount: Decimal = None, 
-                                 config_percentage: Decimal = None) -> Decimal:
-        """
-        Calculates the adjustment value based on mode.
-        """
+    def calculate_adjustment_value(mode: str, base_value: Decimal, config_amount: Decimal = None, config_percentage: Decimal = None) -> Decimal:
+        """ Calculates an adjustment amount based on its calculation mode. """
         if mode == CalculationMode.FIXED:
             return config_amount or Decimal('0.00')
         
@@ -25,14 +18,8 @@ class PayrollCalculatorService:
         return Decimal('0.00')
 
     @staticmethod
-    def calculate_overtime_pay(hourly_rate: Decimal, 
-                              std_hours: float, 
-                              hol_hours: float, 
-                              multipliers: dict) -> Decimal:
-        """
-        Calculates total overtime pay based on DRC majorations.
-        Note: In DRC, the first 6 overtime hours of the week are at 130%.
-        """
+    def calculate_overtime_pay(hourly_rate: Decimal, std_hours: float, hol_hours: float, multipliers: dict) -> Decimal:
+        """ Calculates total overtime pay including statutory multipliers. """
         pay = Decimal('0.00')
         std_hours_dec = Decimal(str(std_hours))
         hol_hours_dec = Decimal(str(hol_hours))
@@ -58,9 +45,6 @@ class PayrollCalculatorService:
 
     @staticmethod
     def calculate_hourly_rate(monthly_base_salary: Decimal, hours_per_month: float = 195.0) -> Decimal:
-        """
-        Helper to get hourly rate from monthly salary in DRC.
-        Standard legal hours per month: (45h/week * 52 weeks) / 12 months = 195h.
-        """
+        """ Converts a monthly base salary to an hourly rate. """
         return (monthly_base_salary / Decimal(str(hours_per_month))).quantize(Decimal('0.01'))
 

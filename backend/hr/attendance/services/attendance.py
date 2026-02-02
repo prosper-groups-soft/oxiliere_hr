@@ -22,15 +22,12 @@ logger = logging.getLogger(__name__)
 
 
 class AttendanceService:
-    """
-    Core service for attendance calculations.
-    Optimized to fetch AttendanceSettings directly from cache.
-    """
+    """ Core processing engine for employee attendance and hours calculation. """
 
     @staticmethod
     @transaction.atomic
     def get_or_create_daily_register(target_date: date) -> DailyRegister:
-        """Initializes or retrieves the DailyRegister for a given date."""
+        """ Retrieves or initializes the daily attendance registry. """
         register = AttendanceCacheService.get_daily_register(target_date)
         if not register:
             register, _ = DailyRegister.objects.get_or_create(date=target_date)
@@ -38,9 +35,7 @@ class AttendanceService:
 
     @staticmethod
     def compute_timesheet_totals(timesheet: TimeSheet) -> TimeSheet:
-        """
-        Main calculation engine. Fetches settings internally via CacheService.
-        """
+        """ Calculates total work hours, breaks, overtime, and shortfall for a timesheet. """
         # 1. Theoretical Truth (Schedule & Policies)
         schedule = SchedulingService.get_expected_schedule(timesheet.employee, timesheet.register.date)
         punches = AttendanceCacheService.get_punches_for_date(timesheet.employee, timesheet.register.date)
@@ -48,10 +43,9 @@ class AttendanceService:
         # 2. Raw Presence calculation
         total_work, total_break, has_manual_break = AttendanceService._calculate_durations(punches)
 
-        # 3. AUTOMATIC BREAK DEDUCTION
+        # 3. Automatic break deduction if none recorded
         if not has_manual_break and schedule and schedule.break_duration:
             theoretical_break = schedule.break_duration
-            # Only deduct if they actually stayed long enough (e.g., more than double the break)
             if total_work > (theoretical_break * 2): 
                 total_work -= theoretical_break
                 total_break = theoretical_break
@@ -76,7 +70,7 @@ class AttendanceService:
 
     @staticmethod
     def finalize_daily_register(register: DailyRegister) -> None:
-        """Aggregates daily stats and marks the day as finalized."""
+        """ Consolidates daily statistics and locks the registry for administrative review. """
         sheets = register.sheets.all()
         register.total_absences = sheets.filter(status=TimeSheetStatus.ABSENT).count()
         register.total_employees_expected = sheets.exclude(status=TimeSheetStatus.HOLIDAY).count()
@@ -86,11 +80,11 @@ class AttendanceService:
         master_key = generate_cache_key("hr:attendance:register:master", register.date)
         invalidate_cache_keys(master_key)
 
-    # --- Internal Logic (Private) ---
+    # --- Internal Logic ---
 
     @staticmethod
     def _calculate_durations(punches: list[TimePunch]) -> tuple[timedelta, timedelta, bool]:
-        """Sums durations and detects if any break segment was manually punched."""
+        """ Aggregates work and break durations from punch segments. """
         work_dur = timedelta()
         break_dur = timedelta()
         has_manual_break = False
@@ -108,10 +102,9 @@ class AttendanceService:
 
     @staticmethod
     def _handle_off_day_logic(timesheet: TimeSheet, total_work: timedelta, is_holiday: bool):
-        """Calculates totals for non-scheduled days."""
+        """ Processes attendance for holidays or non-scheduled work days. """
         timesheet.status = TimeSheetStatus.HOLIDAY if is_holiday else \
                           (TimeSheetStatus.PRESENT if total_work > timedelta() else TimeSheetStatus.ABSENT)
-        # On off-days, all work is counted as overtime
         timesheet.overtime = total_work 
         timesheet.shortfall = timedelta(0)
 
@@ -122,7 +115,7 @@ class AttendanceService:
         schedule: ShiftDetail, 
         total_work: timedelta
     ):
-        """Standard scheduled day logic. Fetches global settings from cache internally."""
+        """ Processes attendance for standard scheduled work days. """
         settings = AttendanceCacheService.get_settings()
         work_punches = sorted([p for p in punches if p.punch_type == PunchType.WORK], key=lambda x: x.start_at)
         
@@ -130,19 +123,16 @@ class AttendanceService:
         if not work_punches:
             timesheet.status = TimeSheetStatus.ABSENT
         else:
-            # Shift Start: Combine date and time
             naive_start = datetime.combine(timesheet.register.date, schedule.start_time)
             expected_start = timezone.make_aware(naive_start)
             delay = max(work_punches[0].start_at - expected_start, timedelta(0))
             
-            # Use settings from cache
             timesheet.status = TimeSheetStatus.LATE if delay > settings.late_grace_period else TimeSheetStatus.PRESENT
 
         # 2. Overtime & Shortfall Reconciliation
-        # Calculate theoretical duration (Shift End - Shift Start)
         s_dt = datetime.combine(date.min, schedule.start_time)
         e_dt = datetime.combine(date.min, schedule.end_time)
-        if e_dt < s_dt: e_dt += timedelta(days=1) # Night shift handling
+        if e_dt < s_dt: e_dt += timedelta(days=1) 
         
         expected_duration = e_dt - s_dt
 
@@ -153,7 +143,7 @@ class AttendanceService:
             timesheet.shortfall = expected_duration - total_work
             timesheet.overtime = timedelta(0)
 
-        # 3. Partial Absence Check (using threshold from settings)
+        # 3. Partial Absence Check
         if total_work > timedelta(0) and timesheet.shortfall > settings.partial_absence_threshold:
             timesheet.status = TimeSheetStatus.PARTIAL
 

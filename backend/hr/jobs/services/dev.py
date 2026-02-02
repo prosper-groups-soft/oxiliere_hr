@@ -14,10 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class DevelopmentService:
-    """
-    Service responsible for tracking employee skill development, 
-    certifications, and training history.
-    """
+    """ Manages employee skills development, profesional certifications, and training records. """
 
     def record_training(
         self,
@@ -29,9 +26,7 @@ class DevelopmentService:
         location: Optional[str] = None,
         description: Optional[str] = None
     ) -> Training:
-        """
-        Records a new training or certification for an employee.
-        """
+        """ Logs a new training session or certification for an employee. """
         employee = get_object_or_404(Employee, id=employee_id)
         
         training = Training.objects.create(
@@ -44,14 +39,11 @@ class DevelopmentService:
             description=description
         )
         
-        logger.info(f"Training '{name}' recorded for employee {employee.full_name}")
+        logger.info(f"Training '{name}' recorded for {employee.full_name}")
         return training
 
     def get_upcoming_expirations(self, days: int = 30) -> QuerySet[Training]:
-        """
-        Returns all certifications that will expire within the given timeframe.
-        Useful for HR alerts and planning renewal sessions.
-        """
+        """ Identifies certifications that require renewal within the specified timeframe. """
         today = timezone.now().date()
         limit_date = today + timezone.timedelta(days=days)
         
@@ -60,17 +52,13 @@ class DevelopmentService:
         ).select_related('employee', 'employee__user').order_by('expiry_date')
 
     def get_expired_certifications(self) -> QuerySet[Training]:
-        """
-        Returns all certifications that are already past their expiry date.
-        """
+        """ Lists all certifications that have passed their validity period. """
         return Training.objects.filter(
             expiry_date__lt=timezone.now().date()
         ).select_related('employee').order_by('-expiry_date')
 
     def get_employee_skills_matrix(self, employee_id: UUID) -> Dict[str, Any]:
-        """
-        Aggregates training history and current status.
-        """
+        """ Aggregates an employee's training history and current certification status. """
         employee = get_object_or_404(Employee, id=employee_id)
         trainings = Training.objects.filter(employee=employee)
         today = timezone.now().date()

@@ -15,31 +15,11 @@ from hr.payroll.enums import (
 
 
 class AdvanceService:
-    """
-    Manages salary advances with full flexibility in deduction configuration.
-    
-    Key features:
-    - Get remaining balance for any advance
-    - Calculate monthly repayments with priority ordering
-    - Record repayments and auto-close advances
-    - Retrieve active advances in priority order
-    """
-    """
-    Service for managing salary advances and their flexible repayment lifecycle.
-
-    Supports:
-    - Multiple deduction bases (Gross/Net)
-    - Tax timing flexibility (Before/After)
-    - Configurable deduction windows
-    - Priority-based advance selection
-    """
+    """ Manages salary advances and their flexible repayment lifecycle. """
 
     @classmethod
     def get_remaining_balance(cls, advance: SalaryAdvance) -> Decimal:
-        """
-        Calculates the remaining unpaid balance for a specific advance.
-        Remaining balance (principal - total repaid)
-        """
+        """ Calculates the outstanding balance for a specific advance. """
         total_repaid = advance.repayments.aggregate(
             total=Sum('amount')
         )['total'] or Decimal('0.00')
@@ -47,18 +27,8 @@ class AdvanceService:
         return advance.amount - total_repaid
 
     @classmethod
-    def is_advance_deductible_on_date(
-        cls,
-        advance: SalaryAdvance,
-        payroll_date: date
-    ) -> bool:
-        """
-        Determines if an advance should be deducted during the specified payroll period.
-        
-        Respects the deduction_window configuration:
-        - ALL_MONTHS: Always deductible until closed
-        - CUSTOM_PERIOD: Only between deduction_start_date and deduction_end_date
-        """
+    def is_advance_deductible_on_date(cls, advance: SalaryAdvance, payroll_date: date) -> bool:
+        """ Checks if an advance should be deducted in the current payroll period. """
         if advance.is_closed:
             return False
 
@@ -75,21 +45,8 @@ class AdvanceService:
         return False
 
     @classmethod
-    def get_active_advances_ordered(
-        cls,
-        employee_id: int,
-        payroll_date: date
-    ) -> List[SalaryAdvance]:
-        """
-        Retrieves all active advances for an employee, ordered by priority.
-        
-        Only returns advances that:
-        1. Are not closed
-        2. Have an active AdvanceDeductionConfiguration (is_active=True)
-        3. Are currently deductible (within their deduction_window)
-        
-        Results are ordered by priority_order (lower number = higher priority).
-        """
+    def get_active_advances_ordered(cls, employee_id: int, payroll_date: date) -> List[SalaryAdvance]:
+        """ Retrieves active advances for an employee, sorted by repayment priority. """
         # Get configurations for this employee, ordered by priority
         configs = AdvanceDeductionConfiguration.objects.filter(
             employee_id=employee_id,
@@ -106,20 +63,8 @@ class AdvanceService:
         return active_advances
 
     @classmethod
-    def calculate_advance_deduction(
-        cls,
-        advance: SalaryAdvance,
-        gross_salary: Decimal,
-        net_salary: Decimal
-    ) -> Decimal:
-        """
-        Calculates the deduction amount for a single advance, respecting its configuration.
-        
-        Logic:
-        1. Determines deduction base (Gross or Net) based on advance config
-        2. Calculates repayment_percentage of that base
-        3. Never deducts more than the remaining balance
-        """
+    def calculate_advance_deduction(cls, advance: SalaryAdvance, gross_salary: Decimal, net_salary: Decimal) -> Decimal:
+        """ Calculates the specific deduction amount for an advance based on configured base and limits. """
         balance = cls.get_remaining_balance(advance)
         
         if balance <= 0:
@@ -184,15 +129,8 @@ class AdvanceService:
         return advance_deductions, total_deduction
 
     @classmethod
-    def record_repayment(
-        cls,
-        advance: SalaryAdvance,
-        payslip,
-        amount: Decimal
-    ) -> bool:
-        """
-        Records a repayment transaction and auto-closes advance if fully repaid.
-        """
+    def record_repayment(cls, advance: SalaryAdvance, payslip, amount: Decimal) -> bool:
+        """ Records a repayment and auto-closes the advance if fully settled. """
         if amount <= 0:
             return False
 

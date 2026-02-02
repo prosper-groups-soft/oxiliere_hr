@@ -1,16 +1,6 @@
-"""
-PAYROLL ADJUSTMENTS CONTROLLER
-
-Manages manual adjustments to payroll:
-- Create and manage bonuses and deductions
-- Apply adjustments to employee paychecks
-- Configure mandatory vs optional adjustments
-- Track adjustment history and audit trail
-"""
-
 import logging
-from typing import List
-from uuid import UUID
+from typing   import List
+from uuid     import UUID
 from injector import inject
 
 from django.core.exceptions import ValidationError
@@ -25,6 +15,8 @@ from ninja_extra import (
     ControllerBase,
 )
 from oxutils.pagination.cursor import CursorPagination
+from oxutils.permissions.perms import ScopePermission
+from hr.services.cache_helpers import cache_api_response
 
 from hr.payroll.models import PayrollAdjustment, EmployeeAdjustment
 from hr.payroll.schemas import (
@@ -37,7 +29,7 @@ from hr.payroll.schemas import (
     AdjustmentListFilterIn,
     EmployeeAdjustmentListFilterIn,
 )
-from hr.payroll.services.adjustments.adjustments_mgmt import AdjustmentManagementService
+from hr.payroll.services.adjustments import AdjustmentManagementService
 
 
 logger = logging.getLogger(__name__)
@@ -46,13 +38,13 @@ logger = logging.getLogger(__name__)
 @api_controller('/payroll/adjustments', tags=['Payroll Adjustments'])
 class PayrollAdjustmentsController(ControllerBase):
     """
-    Manage payroll adjustments (bonuses, deductions, special payments).
-    
-    Responsibilities:
-    - Define adjustment types (bonus, deduction, special payment)
-    - Apply adjustments to specific employees
-    - Configure adjustment rules (mandatory, amount, frequency)
-    - Track adjustment history
+    Payroll adjustments controller.
+
+    Manages manual adjustments to payroll:
+    - Create and manage bonuses and deductions
+    - Apply adjustments to employee paychecks
+    - Configure mandatory vs optional adjustments
+    - Track adjustment history and audit trail
     """
 
     @inject
@@ -60,9 +52,9 @@ class PayrollAdjustmentsController(ControllerBase):
         self.adjustment_service = adjustment_service
 
     # ===== PAYROLL ADJUSTMENT TYPES =====
-
-    @http_get('/types/', response=List[PayrollAdjustmentOut])
+    @http_get('/types', response=List[PayrollAdjustmentOut], permissions=[ScopePermission('payroll:r')])
     @paginate(CursorPagination)
+    @cache_api_response(timeout=60*60*24, key_prefix="adjustment_types_list", user_specific=False)
     def list_adjustment_types(self, filters: AdjustmentListFilterIn = Query(...)):
         """
         List all adjustment types (bonuses, deductions, special payments).
@@ -79,7 +71,7 @@ class PayrollAdjustmentsController(ControllerBase):
         # Apply filters
         return filters.filter(qs)
 
-    @http_get('/types/{adjustment_id}', response=PayrollAdjustmentOut)
+    @http_get('/{adjustment_id}', response=PayrollAdjustmentOut, permissions=[ScopePermission('payroll:r')])
     def get_adjustment_type(self, adjustment_id: UUID):
         """
         Retrieve details of a specific adjustment type.
@@ -97,8 +89,8 @@ class PayrollAdjustmentsController(ControllerBase):
                 status_code=404,
             )
 
-    @http_post('/types/', response={201: PayrollAdjustmentOut})
-    def create_adjustment_type(self, data: PayrollAdjustmentCreateIn):
+    @http_post('/types', response={201: PayrollAdjustmentOut}, permissions=[ScopePermission('payroll:w')])
+    def create_adjustment(self, data: PayrollAdjustmentCreateIn):
         """
         Create a new adjustment type (bonus, deduction, special payment).
         
@@ -125,8 +117,8 @@ class PayrollAdjustmentsController(ControllerBase):
             logger.warning("[Adjustments] Validation error", extra={"error": str(e)})
             return self.create_response({"detail": str(e)}, status_code=400)
 
-    @http_patch('/types/{adjustment_id}', response=PayrollAdjustmentOut)
-    def update_adjustment_type(self, adjustment_id: UUID, data: PayrollAdjustmentUpdateIn):
+    @http_patch('/{adjustment_id}', response=PayrollAdjustmentOut, permissions=[ScopePermission('payroll:u')])
+    def update_adjustment(self, adjustment_id: UUID, data: PayrollAdjustmentUpdateIn):
         """
         Update an adjustment type definition.
         """
@@ -152,7 +144,7 @@ class PayrollAdjustmentsController(ControllerBase):
             logger.warning("[Adjustments] Validation error", extra={"error": str(e)})
             return self.create_response({"detail": str(e)}, status_code=400)
 
-    @http_delete('/types/{adjustment_id}')
+    @http_delete('/{adjustment_id}', permissions=[ScopePermission('payroll:d')])
     def delete_adjustment_type(self, adjustment_id: UUID):
         """
         Delete an adjustment type (only if no employee adjustments exist).
@@ -181,7 +173,7 @@ class PayrollAdjustmentsController(ControllerBase):
 
     # ===== EMPLOYEE ADJUSTMENTS =====
 
-    @http_get('/employee/', response=List[EmployeeAdjustmentOut])
+    @http_get('/employees/', response=List[EmployeeAdjustmentOut], permissions=[ScopePermission('payroll:r')])
     @paginate(CursorPagination)
     def list_employee_adjustments(self, filters: EmployeeAdjustmentListFilterIn = Query(...)):
         """
@@ -203,7 +195,7 @@ class PayrollAdjustmentsController(ControllerBase):
         # Apply filters
         return filters.filter(qs)
 
-    @http_get('/employee/{employee_id}', response=List[EmployeeAdjustmentOut])
+    @http_get('/employees/{employee_id}/', response=List[EmployeeAdjustmentOut], permissions=[ScopePermission('payroll:r')])
     def list_employee_specific_adjustments(self, employee_id: UUID):
         """
         List all adjustments for a specific employee.
@@ -215,7 +207,7 @@ class PayrollAdjustmentsController(ControllerBase):
         adjustments = self.adjustment_service.get_employee_adjustments(employee_id)
         return adjustments
 
-    @http_get('/employee/{adjustment_id}', response=EmployeeAdjustmentOut)
+    @http_get('/employee-adjustments/{adjustment_id}', response=EmployeeAdjustmentOut, permissions=[ScopePermission('payroll:r')])
     def get_employee_adjustment(self, adjustment_id: UUID):
         """
         Retrieve details of a specific employee adjustment.
@@ -233,8 +225,8 @@ class PayrollAdjustmentsController(ControllerBase):
                 status_code=404,
             )
 
-    @http_post('/employee/', response={201: EmployeeAdjustmentOut})
-    def apply_adjustment_to_employee(self, data: EmployeeAdjustmentCreateIn):
+    @http_post('/employee-adjustments', response={201: EmployeeAdjustmentOut}, permissions=[ScopePermission('payroll:w')])
+    def assign_adjustment_to_employee(self, data: EmployeeAdjustmentCreateIn):
         """
         Apply an adjustment to a specific employee.
         

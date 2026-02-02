@@ -1,89 +1,56 @@
-"""
-Employees caching services.
-
-Handles caching of employee-related queries.
-"""
-
-from django.core.cache import cache
-from hr.services.cache_helpers import generate_cache_key, CacheKeys
+from django.core.cache         import cache
+from hr.services.cache_helpers import (
+    generate_cache_key, 
+    CacheKeys, 
+    invalidate_cache_prefix
+)
 from hr.employees.models import Employee
 
 
 class EmployeeCacheService:
-    """Cache operations for employees module."""
+    """ Caching performance layer for employees module. """
     
     @staticmethod
     def get_employee_by_matricule(matricule):
-        """
-        Get employee by matricule (frequently used - long cache).
-        
-        Args:
-            matricule: Employee matricule/ID
-        
-        Returns:
-            Employee instance or None
-        """
+        """ Retrieves employee from cache or DB by staff ID. """
         cache_key = CacheKeys.employee_matricule(matricule)
         employee = cache.get(cache_key)
         
         if employee is None:
-            employee = Employee.objects.filter(
-                matricule=matricule
-            ).first()
-            
+            employee = Employee.objects.filter(matricule=matricule).first()
             if employee:
-                cache.set(cache_key, employee, timeout=60*60*24)  # 24h
+                cache.set(cache_key, employee, timeout=60*60*24)
         
         return employee
     
     @staticmethod
     def get_employee_by_id(employee_id):
-        """Get employee by ID (cached)."""
+        """ Retrieves employee from cache or DB by internal ID. """
         cache_key = generate_cache_key("hr:employees:id", employee_id)
         employee = cache.get(cache_key)
         
         if employee is None:
             employee = Employee.objects.filter(id=employee_id).first()
-            
             if employee:
-                cache.set(cache_key, employee, timeout=60*60*24)  # 24h
+                cache.set(cache_key, employee, timeout=60*60*24)
         
         return employee
     
     @staticmethod
-    def get_active_employees(department=None):
-        """
-        Get all active employees (cached).
-        
-        Args:
-            department: Optional Department instance to filter
-        
-        Returns:
-            List of active Employee instances
-        """
-        department_id = None
-        if department:
-            department_id = department.id if hasattr(department, 'id') else department
-        
-        cache_key = CacheKeys.active_employees(department_id)
+    def get_active_employees():
+        """ Returns all currently active personnel from cache. """
+        cache_key = CacheKeys.active_employees()
         employees = cache.get(cache_key)
         
         if employees is None:
-            query = Employee.objects.filter(status='active')
-            
-            if department_id:
-                query = query.filter(
-                    current_position__department_id=department_id
-                )
-            
-            employees = list(query.order_by('last_name', 'first_name'))
-            cache.set(cache_key, employees, timeout=60*60*24)  # 24h
+            employees = list(Employee.objects.filter(is_active=True).order_by('last_name', 'first_name'))
+            cache.set(cache_key, employees, timeout=60*60*24)
         
         return employees
     
     @staticmethod
     def get_all_employees(include_inactive=False):
-        """Get all employees (cached)."""
+        """ Returns complete headcount from cache. """
         cache_key = generate_cache_key(
             "hr:employees:all", "with_inactive" if include_inactive else "active_only"
         )
@@ -91,58 +58,51 @@ class EmployeeCacheService:
         
         if employees is None:
             query = Employee.objects.all()
-            
             if not include_inactive:
-                query = query.filter(status='active')
+                query = query.filter(is_active=True)
             
             employees = list(query.order_by('last_name', 'first_name'))
-            cache.set(cache_key, employees, timeout=60*60*24)  # 24h
+            cache.set(cache_key, employees, timeout=60*60*24)
         
         return employees
     
     @staticmethod
     def get_employee_full_name(employee):
-        """Get employee full name from cached instance."""
-        if hasattr(employee, 'get_full_name'):
-            return employee.get_full_name()
-        
+        """ Formats complete name for display. """
         return f"{employee.first_name} {employee.last_name}"
     
     @staticmethod
-    def get_employee_family(employee):
-        """Get employee family members (cached)."""
+    def get_employee_children(employee):
+        """ Retrieves dependent children for benefits. """
         cache_key = CacheKeys.employee_family(employee.id)
-        family = cache.get(cache_key)
+        children = cache.get(cache_key)
         
-        if family is None:
-            family = list(
-                employee.family_members.all()
-            )
-            
-            cache.set(cache_key, family, timeout=60*60*24)  # 24h
+        if children is None:
+            children = list(employee.children.all())
+            cache.set(cache_key, children, timeout=60*60*24)
         
-        return family
+        return children
     
     @staticmethod
     def get_employee_documents(employee):
-        """Get employee documents (cached)."""
-        cache_key = generate_cache_key(
-            "hr:employees:documents", employee.id
-        )
+        """ Retrieves employee credentials and files. """
+        cache_key = generate_cache_key("hr:employees:documents", employee.id)
         documents = cache.get(cache_key)
         
         if documents is None:
-            documents = list(
-                employee.documents.all()
-            )
-            
-            cache.set(cache_key, documents, timeout=60*60*24)  # 24h
+            documents = list(employee.documents.all())
+            cache.set(cache_key, documents, timeout=60*60*24)
         
         return documents
     
     @staticmethod
+    def clear_api_cache_prefix(prefix: str):
+        """ Invalidates all API responses with specified prefix. """
+        invalidate_cache_prefix(prefix)
+
+    @staticmethod
     def clear_employee_cache(employee):
-        """Clear all cache for an employee."""
+        """ Purges all cached records for a specific employee. """
         if isinstance(employee, Employee):
             employee_id = employee.id
             matricule = employee.matricule
@@ -150,17 +110,20 @@ class EmployeeCacheService:
             employee_id = employee
             matricule = None
         
-        # Clear specific caches
+        # Data Cache
         cache.delete(generate_cache_key("hr:employees:id", employee_id))
-        
         if matricule:
             cache.delete(CacheKeys.employee_matricule(matricule))
         
         cache.delete(CacheKeys.employee_family(employee_id))
         cache.delete(generate_cache_key("hr:employees:documents", employee_id))
         
-        # Clear list caches
+        # Global Lists
         cache.delete(CacheKeys.active_employees())
-        cache.delete(CacheKeys.active_employees("all"))
         cache.delete(generate_cache_key("hr:employees:all", "with_inactive"))
         cache.delete(generate_cache_key("hr:employees:all", "active_only"))
+
+        # API Cache
+        EmployeeCacheService.clear_api_cache_prefix(f"employee_detail_{employee_id}")
+        EmployeeCacheService.clear_api_cache_prefix("employee_list")
+

@@ -1,133 +1,105 @@
-"""
-Banking caching services.
-
-Handles caching of bank and account-related queries.
-"""
-
+import logging
 from django.core.cache import cache
-from hr.services.cache_helpers import generate_cache_key, CacheKeys
+from django_redis      import get_redis_connection
 from hr.banking.models import Bank, BankAccount
+# Cache integration
+from hr.services.cache_helpers import (
+    invalidate_cache_prefix,
+    generate_cache_key,
+    CacheKeys
+)
+
+        
+logger = logging.getLogger(__name__)
 
 
 class BankingCacheService:
-    """Cache operations for banking module."""
+    """ Performance optimization and data caching for the banking module. """
     
     @staticmethod
     def get_bank(bank_id):
-        """Get bank by ID (stable - long cache)."""
+        """ Retrieves a cached bank instance. """
         cache_key = generate_cache_key("hr:banking:bank", bank_id)
         bank = cache.get(cache_key)
         
         if bank is None:
             bank = Bank.objects.filter(id=bank_id).first()
-            
             if bank:
-                cache.set(cache_key, bank, timeout=60*60*24*7)  # 7 days
+                cache.set(cache_key, bank, timeout=60*60*24*7)
         
         return bank
     
     @staticmethod
     def get_bank_by_code(bank_code):
-        """Get bank by code (stable - long cache)."""
+        """ Retrieves a bank by its unique identifier code. """
         cache_key = generate_cache_key("hr:banking:bank_code", bank_code)
         bank = cache.get(cache_key)
         
         if bank is None:
-            bank = Bank.objects.filter(
-                code=bank_code
-            ).first()
-            
+            bank = Bank.objects.filter(code=bank_code).first()
             if bank:
-                cache.set(cache_key, bank, timeout=60*60*24*7)  # 7 days
+                cache.set(cache_key, bank, timeout=60*60*24*7)
         
         return bank
     
     @staticmethod
     def get_all_banks():
-        """Get all banks (stable - long cache)."""
+        """ Provides an optimized list of all registered banks. """
         cache_key = "hr:banking:all_banks"
         banks = cache.get(cache_key)
         
         if banks is None:
             banks = list(Bank.objects.all().order_by('name'))
-            cache.set(cache_key, banks, timeout=60*60*24*7)  # 7 days
+            cache.set(cache_key, banks, timeout=60*60*24*7)
         
         return banks
     
     @staticmethod
     def get_bank_account(account_id):
-        """Get bank account by ID."""
+        """ Retrieves cached details for a specific bank account. """
         cache_key = generate_cache_key("hr:banking:account", account_id)
         account = cache.get(cache_key)
         
         if account is None:
-            account = BankAccount.objects.filter(
-                id=account_id
-            ).first()
-            
+            account = BankAccount.objects.filter(id=account_id).first()
             if account:
-                cache.set(cache_key, account, timeout=60*60)  # 1h
+                cache.set(cache_key, account, timeout=60*60)
         
         return account
     
     @staticmethod
     def get_bank_account_by_iban(iban):
-        """
-        Get bank account by IBAN (frequently used).
-        
-        Args:
-            iban: IBAN string
-        
-        Returns:
-            BankAccount instance or None
-        """
+        """ Finds a bank account using its International Bank Account Number. """
         cache_key = CacheKeys.bank_account_by_iban(iban)
         account = cache.get(cache_key)
         
         if account is None:
-            account = BankAccount.objects.filter(
-                iban=iban
-            ).first()
-            
+            account = BankAccount.objects.filter(iban=iban).first()
             if account:
-                cache.set(cache_key, account, timeout=60*60)  # 1h
+                cache.set(cache_key, account, timeout=60*60)
         
         return account
     
     @staticmethod
     def get_active_bank_accounts():
-        """
-        Get all active bank accounts (short cache due to changes).
-        
-        Returns:
-            List of active BankAccount instances
-        """
+        """ Lists all verified and active bank accounts. """
         cache_key = CacheKeys.active_bank_accounts()
         accounts = cache.get(cache_key)
         
         if accounts is None:
             accounts = list(BankAccount.objects.filter(
-                status='active'
+                is_active=True,
+                verified=True
             ).order_by('bank__name'))
             
-            cache.set(cache_key, accounts, timeout=60*60)  # 1h
+            cache.set(cache_key, accounts, timeout=60*60)
         
         return accounts
     
     @staticmethod
     def get_employee_bank_accounts(employee):
-        """
-        Get all bank accounts for an employee.
-        
-        Args:
-            employee: Employee instance
-        
-        Returns:
-            List of BankAccount instances
-        """
-        cache_key = generate_cache_key(
-            "hr:banking:employee_accounts", employee.id
-        )
+        """ Retrieves all payment accounts associated with an employee. """
+        cache_key = generate_cache_key("hr:banking:employee_accounts", employee.id)
         accounts = cache.get(cache_key)
         
         if accounts is None:
@@ -135,51 +107,47 @@ class BankingCacheService:
                 employee=employee
             ).order_by('-is_primary', 'bank__name'))
             
-            cache.set(cache_key, accounts, timeout=60*60)  # 1h
+            cache.set(cache_key, accounts, timeout=60*60)
         
         return accounts
     
     @staticmethod
     def get_employee_primary_account(employee):
-        """Get primary bank account for employee."""
-        cache_key = generate_cache_key(
-            "hr:banking:primary_account", employee.id
-        )
+        """ Identifies the primary salary account for an employee. """
+        cache_key = generate_cache_key("hr:banking:primary_account", employee.id)
         account = cache.get(cache_key)
         
         if account is None:
             account = BankAccount.objects.filter(
                 employee=employee,
                 is_primary=True,
-                status='active'
+                is_active=True
             ).first()
             
             if account:
-                cache.set(cache_key, account, timeout=60*60)  # 1h
+                cache.set(cache_key, account, timeout=60*60)
         
         return account
     
     @staticmethod
     def get_accounts_by_currency(currency_code):
-        """Get all active accounts for a currency."""
-        cache_key = generate_cache_key(
-            "hr:banking:accounts_currency", currency_code
-        )
+        """ Lists all active accounts filtered by currency. """
+        cache_key = generate_cache_key("hr:banking:accounts_currency", currency_code)
         accounts = cache.get(cache_key)
         
         if accounts is None:
             accounts = list(BankAccount.objects.filter(
                 currency=currency_code,
-                status='active'
+                is_active=True
             ).order_by('bank__name'))
             
-            cache.set(cache_key, accounts, timeout=60*60)  # 1h
+            cache.set(cache_key, accounts, timeout=60*60)
         
         return accounts
     
     @staticmethod
     def clear_account_cache(account):
-        """Clear cache for a bank account."""
+        """ Invalidates all cached records for a bank account and its owner. """
         if isinstance(account, BankAccount):
             account_id = account.id
             iban = account.iban
@@ -189,30 +157,35 @@ class BankingCacheService:
             iban = None
             employee_id = None
         
-        # Clear specific caches
         cache.delete(generate_cache_key("hr:banking:account", account_id))
         
         if iban:
             cache.delete(CacheKeys.bank_account_by_iban(iban))
         
-        # Clear list caches
         cache.delete(CacheKeys.active_bank_accounts())
         
         if employee_id:
-            cache.delete(generate_cache_key(
-                "hr:banking:employee_accounts", employee_id
-            ))
-            cache.delete(generate_cache_key(
-                "hr:banking:primary_account", employee_id
-            ))
+            cache.delete(generate_cache_key("hr:banking:employee_accounts", employee_id))
+            cache.delete(generate_cache_key("hr:banking:primary_account", employee_id))
+    
+    @staticmethod
+    def clear_api_cache_prefix(prefix: str):
+        """ Clears specific API response caches. """
+        invalidate_cache_prefix(prefix)
     
     @staticmethod
     def clear_all_banking_cache():
-        """Clear all banking cache."""
-        from django_redis import get_redis_connection
-        
+        """ Performs a global cleanup of all banking-related cache data. """
         redis_conn = get_redis_connection("default")
+        
         pattern = "*hr:banking*"
-        keys = redis_conn.keys(pattern)
+        keys = list(redis_conn.scan_iter(match=pattern, count=100))
         if keys:
             redis_conn.delete(*keys)
+        
+        BankingCacheService.clear_api_cache_prefix("bank_list")
+        BankingCacheService.clear_api_cache_prefix("account_list")
+        BankingCacheService.clear_api_cache_prefix("account_history")
+        
+        logger.info("All banking cache cleared.")
+

@@ -16,14 +16,10 @@ from hr.enums     import WeekdayEnum
 
 
 class ShiftPolicy(BaseAuditableModel):
-    """
-    Defines a working time policy (e.g., Standard 35h, Night Shift).
-    Acts as a parent template for daily schedules.
-    """
+    """ Template defining working hours and break rules (e.g., Standard 40h). """
     name = models.CharField(max_length=255, unique=True, verbose_name=_("Policy Name"))
     description = models.TextField(blank=True, verbose_name=_("Description"))
     
-    # Contractual weekly hour goal
     weekly_target_hours = models.DurationField(
         default=timedelta(hours=40),
         verbose_name=_("Weekly Target")
@@ -40,10 +36,7 @@ class ShiftPolicy(BaseAuditableModel):
 
 
 class ShiftDetail(BaseAuditableModel):
-    """
-    Daily schedule details for each day of the week within a policy.
-    Defines when the employee is expected to start and finish.
-    """
+    """ Specific daily schedule configuration within a policy. """
     policy = models.ForeignKey(ShiftPolicy, on_delete=models.CASCADE, related_name="details")
     weekday = models.CharField(max_length=15, choices=WeekdayEnum.choices)
     
@@ -52,17 +45,17 @@ class ShiftDetail(BaseAuditableModel):
     
     break_start_time = models.TimeField(
         null=True, blank=True, 
-        verbose_name=_("Scheduled break time")
+        verbose_name=_("Scheduled Break Start")
     )
     break_duration = models.DurationField(
         default=timedelta(minutes=45), 
-        verbose_name=_("Authorized break duration")
+        verbose_name=_("Authorized Break Duration")
     )
     
     is_working_day = models.BooleanField(default=True, verbose_name=_("Is Working Day"))
     flexible_hours = models.BooleanField(
         default=False, 
-        help_text=_("If true, start/end times are used for duration calculation but are not strictly enforced.")
+        help_text=_("If enabled, strict start/end times are ignored for duration calculations.")
     )
 
     class Meta:
@@ -72,10 +65,7 @@ class ShiftDetail(BaseAuditableModel):
 
 
 class EmploymentScheme(BaseAuditableModel):
-    """
-    Link table associating an employee with a shift policy.
-    Handles seasonality (e.g., summer vs. winter contracts) via validity dates.
-    """
+    """ Assigns a shift policy to an employee for a specific period. """
     employee = models.ForeignKey(
         "hr_employees.Employee", 
         on_delete=models.CASCADE, 
@@ -95,15 +85,9 @@ class EmploymentScheme(BaseAuditableModel):
 
 
 class ShiftAssignment(BaseAuditableModel):
-    """
-    Overrides the regular schedule for an employee on a specific date.
-    Useful for rotations, replacements, or unforeseen circumstances.
-    """
+    """ One-time daily schedule override for exceptional work patterns. """
     employee = models.ForeignKey("hr_employees.Employee", on_delete=models.CASCADE)
     date = models.DateField()
-
-    # Links to an existing ShiftDetail (from another policy)
-    # or the hours could be redefined here directly.
     shift_detail = models.ForeignKey(ShiftDetail, on_delete=models.PROTECT)
     
     class Meta:
@@ -112,14 +96,11 @@ class ShiftAssignment(BaseAuditableModel):
 
 
 class RotationPattern(BaseAuditableModel):
-    """
-    Defines the rotation rule for an employee.
-    E.g.: Alternating between 'Team A' and 'Team B'.
-    """
+    """ Defines a recurring cyclic rotation of shift policies. """
     employee = models.ForeignKey("hr_employees.Employee", on_delete=models.CASCADE, related_name="rotations")
-    policies = models.JSONField(help_text=_("List of ShiftPolicy IDs in cycle order"))
-    start_date = models.DateField(help_text=_("Start date of the very first cycle"))
-    end_date = models.DateField(null=True, blank=True, help_text=_("Optional end date for the rotation"))
+    policies = models.JSONField(help_text=_("Ordered list of ShiftPolicy IDs in the rotation cycle."))
+    start_date = models.DateField(help_text=_("Commencement date of the first cycle."))
+    end_date = models.DateField(null=True, blank=True, help_text=_("Optional expiration date for this rotation."))
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -127,14 +108,10 @@ class RotationPattern(BaseAuditableModel):
 
 
 class DailyRegister(BaseAuditableModel):
-    """
-    Master container for a specific date. Groups all employee 
-    attendance sheets for that day.
-    """
+    """ Daily attendance log consolidating all employee entries. """
     date = models.DateField(unique=True, verbose_name=_("Register Date"))
     code = models.CharField(max_length=100, unique=True, editable=False, verbose_name=_("Reference Code"))
     
-    # Global daily statistics
     total_employees_expected = models.PositiveIntegerField(default=0)
     total_absences = models.PositiveIntegerField(default=0)
     is_finalized = models.BooleanField(default=False, verbose_name=_("Finalized"))
@@ -145,25 +122,20 @@ class DailyRegister(BaseAuditableModel):
         verbose_name = _("Daily Register")
 
     def save(self, *args, **kwargs):
-        """Generates a unique code upon creation."""
+        """ Generates a unique reference code on first save. """
         if not self.code:
             self.code = generate_daily_register_code(self.date)
         super().save(*args, **kwargs)
 
 
 class TimeSheet(BaseAuditableModel):
-    """
-    Daily attendance summary for a specific employee.
-    Stores worked totals and calculates deviations (overtime/shortfall).
-    """
+    """ Daily summary of work hours, breaks, and overtime for an individual employee. """
     employee = models.ForeignKey("hr_employees.Employee", on_delete=models.CASCADE)
     register = models.ForeignKey(DailyRegister, on_delete=models.CASCADE, related_name="sheets")
     
-    # Totals calculated via TimePunches
     recorded_work = models.DurationField(default=timedelta(0), verbose_name=_("Effective Work"))
     recorded_break = models.DurationField(default=timedelta(0), verbose_name=_("Total Break"))
     
-    # Comparison with theoretical schedule
     overtime = models.DurationField(default=timedelta(0), verbose_name=_("Overtime"))
     shortfall = models.DurationField(default=timedelta(0), verbose_name=_("Shortfall"))
     
@@ -180,8 +152,7 @@ class TimeSheet(BaseAuditableModel):
         verbose_name = _("Time Sheet")
 
     def clean(self):
-        """Checks if the period is locked by archiving before allowing modifications."""
-        # Note: Ensure AttendanceSettings is imported or defined
+        """ Prevents modification if the period is locked for payroll. """
         lock_date = AttendanceSettings.get_last_lock_date()
         if lock_date and self.register.date <= lock_date:
             raise ValidationError(_("This date is archived and cannot be modified."))
@@ -189,10 +160,7 @@ class TimeSheet(BaseAuditableModel):
 
 
 class TimePunch(BaseAuditableModel):
-    """
-    Raw time segment of activity (Clock-in/Clock-out). 
-    Uses DateTimeField to support shifts crossing midnight (Night shifts).
-    """
+    """ Discrete log of a single clock-in, clock-out, or break segment. """
     timesheet = models.ForeignKey(TimeSheet, on_delete=models.CASCADE, related_name="punches")
     punch_type = models.CharField(max_length=20, choices=PunchType.choices, default=PunchType.WORK)
     
@@ -202,7 +170,7 @@ class TimePunch(BaseAuditableModel):
     duration = models.DurationField(default=timedelta(0), verbose_name=_("Segment Duration"))
     is_manual_entry = models.BooleanField(
         default=False, 
-        help_text=_("Flagged if entry was created or modified manually by an administrator.")
+        help_text=_("Indicates if this punch was manually created or adjusted by an administrator.")
     )
 
     class Meta:
@@ -212,26 +180,25 @@ class TimePunch(BaseAuditableModel):
         
     @property
     def calculated_duration(self) -> timedelta:
+        """ Returns the time difference between start and end timestamps. """
         if self.start_at and self.end_at:
             return self.end_at - self.start_at
         return timedelta(0)
     
     def clean(self):
+        """ Ensures no changes are made to locked attendance periods. """
         from hr.attendance.services.locking import LockingService
         if LockingService.is_date_locked(self.timesheet.register.date):
             raise ValidationError("This date is locked and cannot be modified.")
 
     def save(self, *args, **kwargs):
-        """Automatically calculates duration if both timestamps are present."""
+        """ Validates timestamps and records duration. """
         self.full_clean()
         super().save(*args, **kwargs)
 
 
 class PeriodArchiveLock(BaseAuditableModel):
-    """
-    Defines an immutability barrier. Any data prior to 
-    'locked_until' can no longer be modified (monthly closing).
-    """
+    """ Administrative lock to protect final attendance data from changes. """
     locked_until = models.DateField(unique=True, verbose_name=_("Locked Until Date"))
     reason = models.CharField(max_length=255, blank=True)
     locked_by = models.ForeignKey(
@@ -246,10 +213,7 @@ class PeriodArchiveLock(BaseAuditableModel):
 
 
 class AttendanceSettings(BaseAuditableModel):
-    """
-    Global module configuration (Singleton).
-    Defines universal rules for time calculations and constraints.
-    """
+    """ Global configuration for attendance calculation rules and grace periods. """
     active_archive_lock = models.ForeignKey(
         PeriodArchiveLock, 
         on_delete=models.SET_NULL, 
@@ -258,26 +222,23 @@ class AttendanceSettings(BaseAuditableModel):
         verbose_name=_("Active Archive Lock")
     )
     
-    # Lateness Management (Human-centric approach)
     late_grace_period = models.DurationField(
         default=timedelta(minutes=5),
-        help_text=_("Allowed time after the official start without being flagged as 'Late'."),
+        help_text=_("Tolerance period after the official start time before being flagged as late."),
         verbose_name=_("Late Grace Period")
     )
     
-    # Rounding (Optional)
     rounding_precision = models.PositiveIntegerField(
         default=1,
-        help_text=_("Precision in minutes for final calculations (e.g., 5, 15)."),
+        help_text=_("Precision in minutes for final hour calculations (e.g., 5, 10, 15)."),
         verbose_name=_("Rounding Precision")
     )
 
-    # Technical safeguard to ensure only one settings record exists
     singleton_enforcer = models.IntegerField(default=1, unique=True, editable=False)
 
     partial_absence_threshold = models.DurationField(
         default=timedelta(minutes=30),
-        help_text=_("Minimum shortfall duration to classify a timesheet as 'PARTIAL' instead of 'PRESENT'."),
+        help_text=_("Threshold duration of missing time to classify work as partial rather than present."),
         verbose_name=_("Partial Absence Threshold")
     )
 
@@ -287,23 +248,18 @@ class AttendanceSettings(BaseAuditableModel):
 
     @classmethod
     def load(cls) -> "AttendanceSettings":
-        """
-        Loads the unique settings instance or creates it if it doesn't exist.
-        """
+        """ Retrieves the unique global settings instance. """
         obj, _ = cls.objects.get_or_create(singleton_enforcer=1)
         return obj
 
     @classmethod
     def get_last_lock_date(cls):
-        """
-        Retrieves the current archive lock date for validation purposes.
-        """
+        """ Retrieves the current administrative lock date for the module. """
         st = cls.load()
         return st.active_archive_lock.locked_until if st.active_archive_lock else None
 
 
-# --- AUDIT LOG REGISTRATION ---
-
+# --- Audit log registration ---
 auditlog.register(ShiftPolicy)
 auditlog.register(ShiftDetail)
 auditlog.register(EmploymentScheme)

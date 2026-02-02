@@ -1,8 +1,9 @@
 import logging
-from typing   import List
-from uuid     import UUID
-from ninja    import Query
+from typing import List
+from uuid   import UUID
+from ninja  import Query
 from injector import inject
+from oxutils.permissions.perms import ScopePermission
 
 from django.core.exceptions import ValidationError
 from django.shortcuts       import get_object_or_404
@@ -13,7 +14,7 @@ from ninja_extra import (
     http_post,
     http_patch,
     http_delete,
-    ControllerBase,
+    ControllerBase
 )
 
 from oxutils.pagination.cursor import CursorPagination
@@ -27,7 +28,7 @@ from hr.attendance.schemas import (
     TimeSheetFilter,
     CanModifyOut,
     AttendanceSettingsOut,
-    AttendanceSettingsUpdateIn
+    AttendanceSettingsUpdateIn,
 )
 
 from hr.attendance.services import (
@@ -45,12 +46,7 @@ logger = logging.getLogger(__name__)
 
 @api_controller('/attendance', tags=['Attendance & Timesheets'])
 class AttendanceController(ControllerBase):
-    """
-    API controller responsible for attendance operations:
-    - Punch in / punch out
-    - Timesheet listing
-    - Timesheet modification eligibility checks
-    """
+    """ API controller for attendance operations, including punches and timesheet management. """
 
     @inject
     def __init__(
@@ -59,18 +55,13 @@ class AttendanceController(ControllerBase):
         validation_service: ValidationService,
         punch_service: PunchService
     ):
-        # Inject domain services (business logic stays outside the controller)
         self.attendance_service = attendance_service
         self.validation_service = validation_service
         self.punch_service = punch_service
         
-    # Punch creation (clock-in / clock-out)
-    # -------------------------------------
-    @http_post('/punch', response={201: PunchOut})
-    def create_punch(self, data: PunchCreateIn):
-        """
-        Record a punch with geofencing validation.
-        """
+    @http_post('/punches/clock-in', response={201: PunchOut}, permissions=[ScopePermission('attendance:w')])
+    def clock_in(self, employee_id: UUID, data: PunchCreateIn):
+        """ Records a clock-in punch with location validation. """
         actor = self.context.request.user
 
         logger.debug(
@@ -84,8 +75,6 @@ class AttendanceController(ControllerBase):
         )
 
         try:
-            # We use the PunchService now
-            # Note: We pass latitude and longitude directly from data
             punch = self.punch_service.record_punch(
                 actor_user=actor,
                 timestamp=data.timestamp,
@@ -99,7 +88,6 @@ class AttendanceController(ControllerBase):
             return 201, punch
 
         except ValidationError as e:
-            # We catch geofencing or locking errors here
             return self.create_response(
                 {"detail": str(e.message)},
                 status_code=400,
@@ -108,18 +96,50 @@ class AttendanceController(ControllerBase):
             logger.exception("Critical error in Punch API")
             raise
 
-    @http_patch('/punch/{punch_id}', response={200: PunchOut})
-    def adjust_existing_punch(self, punch_id: UUID, data: PunchAdjustIn):
-        """
-        Endpoint for HR to adjust an existing punch segment.
-        """
+    @http_post('/punches/clock-out', response={200: PunchOut}, permissions=[ScopePermission('attendance:w')])
+    def clock_out(self, employee_id: UUID, data: PunchCreateIn):
+        """ Records a clock-out punch with location validation. """
         actor = self.context.request.user
 
-        # 1. Get the punch to adjust
+        logger.debug(
+            "Incoming punch request",
+            extra={
+                "user_id": actor.id,
+                "lat": data.latitude,
+                "lon": data.longitude,
+                "is_manual": data.is_manual,
+            },
+        )
+
+        try:
+            punch = self.punch_service.record_punch(
+                actor_user=actor,
+                timestamp=data.timestamp,
+                punch_type=data.punch_type,
+                is_manual=data.is_manual,
+                employee_id=getattr(data, 'employee_id', None),
+                latitude=data.latitude,
+                longitude=data.longitude
+            )
+
+            return 200, punch
+
+        except ValidationError as e:
+            return self.create_response(
+                {"detail": str(e.message)},
+                status_code=400,
+            )
+        except Exception as e:
+            logger.exception("Critical error in Punch API")
+            raise
+
+    @http_patch('/punch/{punch_id}', response={200: PunchOut}, permissions=[ScopePermission('attendance:w')])
+    def adjust_existing_punch(self, punch_id: UUID, data: PunchAdjustIn):
+        """ Endpoint for HR to adjust an existing punch segment. """
+        actor = self.context.request.user
         punch = get_object_or_404(TimePunch, id=punch_id)
 
         try:
-            # 2. Delegate adjustment logic to the PunchService
             updated_punch = self.punch_service.adjust_punch(
                 punch=punch,
                 start_at=data.start_at,
@@ -135,6 +155,7 @@ class AttendanceController(ControllerBase):
                     "employee_id": punch.timesheet.employee.id
                 }
             )
+            
             return 200, updated_punch
 
         except ValidationError as e:
@@ -143,18 +164,13 @@ class AttendanceController(ControllerBase):
                 status_code=400,
             )
 
-    @http_delete('/punch/{punch_id}', response={204: None})
+    @http_delete('/punch/{punch_id}', response={204: None}, permissions=[ScopePermission('attendance:d')])
     def delete_existing_punch(self, punch_id: UUID):
-        """
-        HR Endpoint to permanently remove a punch segment.
-        """
+        """ Endpoint for HR to permanently remove a punch segment. """
         actor = self.context.request.user
-
-        # 1. Get the punch to delete
         punch = get_object_or_404(TimePunch, id=punch_id)
 
         try:
-            # 2. Check if the punch is eligible for deletion (i.e., not locked)
             self.punch_service.delete_punch(punch)
             
             logger.info(
@@ -174,13 +190,11 @@ class AttendanceController(ControllerBase):
                 status_code=400,
             )
             
-
-    # Timesheet listing (paginated)
-    # -----------------------------
-    @http_get('/timesheets', response=List[TimeSheetOut])
+    @http_get('/entries', response=List[TimeSheetOut], permissions=[ScopePermission('attendance:r')])
     @paginate(CursorPagination)
-    @cache_api_response(key_prefix="ts_list", user_specific=False)
+    @cache_api_response(timeout=60*15, key_prefix="registry_entries", user_specific=False)
     def list_timesheets(self, filters: TimeSheetFilter = Query(...)):
+        """ List all timesheets with filtering and cursor pagination. """
         qs = TimeSheet.objects.select_related(
             'employee',
             'employee__work_site',
@@ -189,30 +203,18 @@ class AttendanceController(ControllerBase):
 
         return filters.filter(qs)
 
-    # Timesheet modification eligibility
-    # ----------------------------------
-    @http_get('/timesheets/{timesheet_id}/can-modify', response=CanModifyOut)
+    @http_get('/timesheets/{timesheet_id}/can-modify', response=CanModifyOut, permissions=[ScopePermission('attendance:r')])
     def check_modification_status(self, timesheet_id: UUID):
-        """
-        Determine whether a timesheet can still be modified according
-        to business rules (period closure, validation state, etc.).
-        """
-        # Trace access to modification check endpoint
+        """ Formally check if a timesheet can still be modified. """
         logger.debug(
             "Checking timesheet modification rights",
             extra={"timesheet_id": str(timesheet_id)},
         )
 
-        # Load the target timesheet
         timesheet = get_object_or_404(TimeSheet, id=timesheet_id)
-
-        # Delegate decision logic to the validation service
         can_modify = self.validation_service.can_modify_attendance(timesheet)
-        
-        # If can_modify is False, we set a generic or specific reason
         reason = "Period locked or finalized" if not can_modify else "Editable"
 
-        # Log the outcome for audit and traceability
         logger.info(
             "Timesheet modification check completed",
             extra={
@@ -228,24 +230,14 @@ class AttendanceController(ControllerBase):
             "reason": reason,
         }
 
-    # Global attendance settings
-    # --------------------------
-    @http_get('/settings', response=AttendanceSettingsOut)
+    @http_get('/settings', response=AttendanceSettingsOut, permissions=[ScopePermission('attendance:r')])
     def get_settings(self):
-        """
-        Retrieve global attendance configuration
-        (grace periods, rounding rules, tolerances, etc.).
-        """
-        logger.debug("Attendance settings requested")
-
-        # AttendanceSettings is a singleton
+        """ Retrieves global attendance settings and configuration. """
         return AttendanceCacheService.get_settings()
 
-    @http_patch('/settings', response=AttendanceSettingsOut)
+    @http_patch('/settings', response=AttendanceSettingsOut, permissions=[ScopePermission('attendance:a')])
     def update_settings(self, data: AttendanceSettingsUpdateIn):
-        """
-        Update global attendance calculation rules.
-        """
+        """ Updates global attendance calculation rules and configuration. """
         logger.info(
             "Attendance settings update requested",
             extra={"payload": data.model_dump(exclude_unset=True)},
@@ -253,12 +245,10 @@ class AttendanceController(ControllerBase):
 
         settings = AttendanceCacheService.get_settings()
 
-        # Apply only provided fields to the settings instance
         for attr, value in data.model_dump(exclude_unset=True).items():
             setattr(settings, attr, value)
 
         settings.save()
-        
         AttendanceCacheService.clear_global_attendance_cache()
 
         logger.info(

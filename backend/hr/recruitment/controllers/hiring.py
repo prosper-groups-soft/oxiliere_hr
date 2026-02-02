@@ -1,19 +1,15 @@
 import logging
 from injector import inject
-from django.core.exceptions import ValidationError
+from oxutils.permissions.perms import ScopePermission
+from django.core.exceptions    import ValidationError
 from ninja_extra import (
     api_controller, 
     http_post, 
     ControllerBase
 )
 
-# Schemas
-from hr.recruitment.schemas import HireCandidateIn
-
-# Output schema from the Employee module for consistency
-from hr.employees.schemas import EmployeeOut
-
-# Services
+from hr.recruitment.schemas  import HireCandidateIn
+from hr.employees.schemas    import EmployeeOut
 from hr.recruitment.services import HiringService
 
 
@@ -32,7 +28,7 @@ class HiringController(ControllerBase):
     def __init__(self, hiring_service: HiringService):
         self.hiring_service = hiring_service
 
-    @http_post('/{application_id}/execute', response={201: EmployeeOut})
+    @http_post('/{application_id}/execute', response={201: EmployeeOut}, permissions=[ScopePermission('recruitment:w')])
     def hire_candidate(self, application_id: int, data: HireCandidateIn):
         """
         Final action of the recruitment workflow:

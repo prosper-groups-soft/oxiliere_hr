@@ -1,14 +1,14 @@
 import logging
-from decimal import Decimal
+from decimal  import Decimal
 from datetime import date
-from typing import Dict, Any
-from uuid import UUID
+from typing   import Dict, Any
+from uuid     import UUID
 
 from django.db import transaction
 from django.core.exceptions import ValidationError
-from django.db.models import QuerySet
+from django.db.models       import QuerySet
 
-from hr.payroll.models import EmployeeContract
+from hr.payroll.models   import EmployeeContract
 from hr.employees.models import Employee
 
 

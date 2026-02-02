@@ -1,16 +1,16 @@
-from ninja_extra                     import NinjaExtraAPI
-from oxutils.jwt.auth                import get_auth_handlers, basic_no_password_auth
+from ninja_extra      import NinjaExtraAPI
+from oxutils.jwt.auth import get_auth_handlers, basic_no_password_auth
 from oxutils.permissions.controllers import PermissionController
 from oxutils.oxiliere.controllers    import SetupController
 
-from hr.employees.controllers   import get_all_ctrls_employees
-from hr.leaves.controllers      import get_all_ctrls_leaves
-from hr.attendance.controllers  import get_all_ctrls_attendance
-from hr.jobs.controllers        import get_all_ctrls_jobs
-from hr.banking.controllers     import get_all_ctrls_banking
+from hr.employees.controllers  import get_all_ctrls_employees
+from hr.leaves.controllers     import get_all_ctrls_leaves
+from hr.attendance.controllers import get_all_ctrls_attendance
+from hr.jobs.controllers    import get_all_ctrls_jobs
+from hr.banking.controllers import get_all_ctrls_banking
 from hr.recruitment.controllers import get_all_ctrls_recruitment
-from hr.calendar.controllers    import get_all_ctrls_calendar
-from hr.payroll.controllers     import get_all_ctrls_payroll
+from hr.calendar.controllers import get_all_ctrls_calendar
+from hr.payroll.controllers  import get_all_ctrls_payroll
 
 
 api = NinjaExtraAPI(

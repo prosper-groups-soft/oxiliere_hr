@@ -32,10 +32,7 @@ logger = logging.getLogger(__name__)
 
 @api_controller('/employees', tags=['Employee Safety'])
 class EmployeeSafetyController(ControllerBase):
-    """
-    ORCHESTRATION LAYER:
-    Handles critical safety-related data with automatic priority management.
-    """
+    """ API endpoints for employee emergency contacts and safety data. """
 
     @inject
     def __init__(self, safety_service: EmployeeEmergencyService, query_service: EmployeeQueryService):
@@ -44,10 +41,7 @@ class EmployeeSafetyController(ControllerBase):
 
     @http_post('/{employee_id}/emergency-contacts', response={201: EmergencyContactOut})
     def add_emergency_contact(self, employee_id: UUID, data: EmergencyContactCreate):
-        """
-        Duty of Care registration.
-        Reorders priorities automatically if needed.
-        """
+        """ Registers a new emergency contact with priority sequencing. """
         employee = self.query_service.get_employee_by_id(employee_id)
         if not employee:
             return self.create_response("Employee not found", status_code=404)
@@ -56,25 +50,21 @@ class EmployeeSafetyController(ControllerBase):
         logger.info(f"[API] Registering emergency contact for {employee.matricule}")
 
         try:
-            contact = self.safety_service.add_contact(
+            return 201, self.safety_service.add_contact(
                 employee=employee,
                 data=data.model_dump(),
                 actor=actor,
             )
-            return 201, contact
         except ValidationError as e:
             return self.create_response(e.message_dict, status_code=400)
 
     @http_patch('/emergency-contacts/{contact_id}', response=EmergencyContactOut)
     def update_contact(self, contact_id: UUID, data: EmergencyContactUpdate):
-        """
-        Update contact details or priority.
-        Reorders priorities automatically if needed.
-        """
+        """ Updates contact information or call priority. """
         contact = get_object_or_404(EmergencyContact, id=contact_id)
         actor = getattr(self.context.request, 'user', None)
 
-        logger.info(f"[API] Updating emergency contact {contact_id} by {actor}")
+        logger.info(f"[API] Updating emergency contact {contact_id}")
 
         try:
             return self.safety_service.update_contact(
@@ -87,10 +77,7 @@ class EmployeeSafetyController(ControllerBase):
 
     @http_delete('/emergency-contacts/{contact_id}', response={204: None})
     def remove_contact(self, contact_id: UUID):
-        """
-        Remove an emergency contact.
-        Automatically reorders remaining contacts.
-        """
+        """ Removes an emergency contact and reorders remaining ones. """
         contact = get_object_or_404(EmergencyContact, id=contact_id)
         actor = getattr(self.context.request, 'user', None)
         self.safety_service.remove_contact(contact=contact, actor=actor)

@@ -1,299 +1,52 @@
-# Documentation - Module Leaves
+# Documentation - Gestion des Congés (Leaves)
 
 ## Vue d'ensemble
+Le module **Leaves** automatise la gestion du cycle de vie des congés : configurations des droits, soumission des demandes, calcul des soldes et intégration avec la paie.
 
-Le module **Leaves** gère l'ensemble du processus de congés, incluant les demandes, approbations, allocations légales et suivis des congés des employés. Il supporte les congés annuels, congés circonstanciels, et les règles spécifiques de chaque juridiction.
+## Fonctionnalités Clés
+- **Politiques Globales** : Définition des droits annuels par pays et règles de report.
+- **Bonus d'Ancienneté** : Attribution automatique de jours supplémentaires selon les années de service.
+- **Congés Spéciaux** : Gestion des événements familiaux (mariage, naissance, etc.) selon la législation.
+- **Libre-Service** : Soumission et suivi des demandes par les employés.
+- **Digitalisation des Approbations** : Workflow hiérarchique transparent.
 
-## Fonctionnalités principales
+## Architecture & Modèles
 
-### 1. Politique de congés
-- Définition des congés standard par pays/juridiction
-- Nombre de jours annuels (ex: 18, 21, 30 jours)
-- Configuration du report des congés non utilisés
-- Expiration des reports (généralement avant fin mars)
-- Règles d'ancienneté (bonus jours selon années de service)
+### Configuration
+- **LeavePolicy** : Cadre légal annuel (ex: 18 jours pour la RDC, règles de report fin mars).
+- **SeniorityRule** : Barème de jours bonus selon l'ancienneté.
+- **CircumstanceLeaveRule** : Droits spécifiques pour les événements de vie.
 
-### 2. Allocations de congés
-- Calcul automatique par employé
-- Base = jours annuels + bonus ancienneté
-- Ajustements par circonstance (naissance, décès, mariage)
-- Déduction des congés utilisés
-- Solde disponible actualisé
+### Opérations
+- **LeaveBalance** : État actuel des droits d'un employé pour une année donnée.
+- **LeaveRequest** : Dossier de demande de congé (Annuel ou Circonstanciel).
+- **LeaveRecall** : Procédure de rappel d'un employé en congé pour nécessité de service.
+- **LeaveTransaction** : Historique complet de chaque mouvement (attribution, prise, expiration).
+- **LeaveCarryOver** : Suivi précis des jours reportés de l'année précédente.
 
-### 3. Demandes de congés
-- Soumission par employé ou administrateur
-- Types de congés (Annuel, Maladie, Maternité, Circonstanciel)
-- Dates de début et fin
-- Raison et documents justificatifs optionnels
-- Workflow d'approbation hiérarchique
+## Endpoints API principales
 
-### 4. Approbations
-- Validation par manager direct ou RH
-- Statuts multiples (En attente, Approuvé, Rejeté, Annulé)
-- Commentaires et feedback
-- Historique des modifications
-- Permissions et rôles configurables
+### Configuration (Admin)
+- `GET /config/policies` : Lister les politiques de congés.
+- `POST /config/policies` : Créer une nouvelle politique.
+- `GET /config/policies/{id}/seniority-rules` : Barème d'ancienneté.
+- `GET /config/policies/{id}/circumstance-rules` : Règles de congés spéciaux.
 
-### 5. Gestion du solde
-- Suivi du solde actuel par employé
-- Historique des transactions de congés
-- Détail des utilisations
-- Prévisions et planifications
-- Alertes pour surutilisation
+### Gestion des Demandes
+- `POST /leaves` : Soumettre une demande de congé.
+- `GET /leaves/my-requests` : Historique personnel.
+- `PATCH /leaves/{id}/approve` : Validation (Manager/RH).
+- `PATCH /leaves/{id}/reject` : Refus avec motif.
 
-### 6. Intégration avec la paie
-- Déduction automatique des congés approuvés
-- Calcul du salaire pendant congé
-- Paiement du solde non utilisé (le cas échéant)
-- Rapport au module Payroll
-
-## Architecture
-
-### Modèles principaux
-
-#### LeavePolicy
-Politique de congés par pays/juridiction
-- Nom et code pays
-- Nombre de jours annuels standard
-- Configuration du report (permet/interdit, max jours, expiration)
-- Règles d'ancienneté associées
-
-#### SeniorityRule
-Bonus de congés basés sur l'ancienneté
-- Lien avec la politique
-- Années de service requises
-- Nombre de jours bonus
-- Ex: +1 jour après 3 ans, +2 jours après 5 ans
-
-#### CircumstanceLeaveRule
-Congés spéciaux selon circonstances
-- Type (Naissance, Décès, Mariage, Maladie, Maternité)
-- Nombre de jours accordés
-- Justification requise
-- Fréquence (une fois par an, par événement)
-
-#### EmployeeLeaveAllocation
-Allocation annuelle de congés par employé
-- Lien avec employé et politique
-- Année civile
-- Jours alloués (calculé = base + ancienneté)
-- Jours utilisés
-- Solde disponible
-- Jours reportés de l'année précédente
-
-#### LeaveRequest
-Demande de congé soumise par employé
-- Employé demandeur
-- Type de congé
-- Dates (début, fin)
-- Nombre de jours demandés
-- Raison / Description
-- Statut (Brouillon, Soumis, Approuvé, Rejeté, Annulé)
-- Documents justificatifs
-
-#### LeaveApproval
-Approbation hiérarchique d'une demande
-- Lien avec la demande
-- Approbateur (manager, RH)
-- Statut de décision
-- Commentaires
-- Date d'approbation
-- Signature/Validation
-
-#### LeaveTransaction
-Enregistrement de chaque utilisation de congé
-- Type (Allocation, Utilisation, Retour, Ajustement)
-- Nombre de jours
-- Référence (LeaveRequest, PayrollRun)
-- Date de transaction
-- Notes
-
-### Énumérations
-
-- **LeaveCategory** : ANNUAL, SICK, MATERNITY, PATERNITY, BEREAVEMENT, MARRIAGE, CIRCUMSTANCE, UNPAID
-- **LeaveStatus** : DRAFT, SUBMITTED, APPROVED, REJECTED, CANCELLED, EXPIRED
-- **CircumstanceType** : BIRTH, DEATH, MARRIAGE, SERIOUS_ILLNESS, ACCIDENT
-- **LeaveTransactionTypes** : ALLOCATION, USAGE, RETURN, ADJUSTMENT, CARRYOVER
-
-## Endpoints API
-
-### Politiques de congés
-
-```
-GET    /api/v1/leaves/policies                  - Lister les politiques
-POST   /api/v1/leaves/policies                  - Créer une politique
-GET    /api/v1/leaves/policies/{id}             - Détail d'une politique
-PUT    /api/v1/leaves/policies/{id}             - Mettre à jour
-DELETE /api/v1/leaves/policies/{id}             - Supprimer
-```
-
-### Règles d'ancienneté
-
-```
-GET    /api/v1/leaves/policies/{policy_id}/seniority - Lister les règles
-POST   /api/v1/leaves/policies/{policy_id}/seniority - Créer une règle
-PUT    /api/v1/leaves/policies/{policy_id}/seniority/{rule_id} - Mettre à jour
-```
-
-### Allocations de congés
-
-```
-GET    /api/v1/leaves/allocations              - Lister les allocations
-POST   /api/v1/leaves/allocations              - Créer une allocation
-GET    /api/v1/leaves/allocations/{id}         - Détail d'une allocation
-GET    /api/v1/leaves/allocations/employee/{emp_id} - Allocation d'un employé
-GET    /api/v1/leaves/allocations/employee/{emp_id}/year/{year} - Par année
-```
-
-### Demandes de congé
-
-```
-GET    /api/v1/leaves/requests                 - Lister les demandes
-POST   /api/v1/leaves/requests                 - Soumettre une demande
-GET    /api/v1/leaves/requests/{id}            - Détail d'une demande
-PUT    /api/v1/leaves/requests/{id}            - Mettre à jour
-DELETE /api/v1/leaves/requests/{id}            - Annuler
-GET    /api/v1/leaves/requests/employee/{emp_id} - Demandes d'un employé
-```
-
-### Approbations
-
-```
-GET    /api/v1/leaves/approvals                - Lister les approbations
-PATCH  /api/v1/leaves/approvals/{request_id}/approve - Approuver
-PATCH  /api/v1/leaves/approvals/{request_id}/reject  - Rejeter
-GET    /api/v1/leaves/approvals/pending        - Approbations en attente
-```
-
-### Transactions et soldes
-
-```
-GET    /api/v1/leaves/transactions             - Historique des transactions
-GET    /api/v1/leaves/transactions/employee/{emp_id} - Par employé
-GET    /api/v1/leaves/balances/employee/{emp_id} - Solde actuel
-```
-
-## Cas d'usage courants
-
-### 1. Créer une politique de congés
-```json
-POST /api/v1/leaves/policies
-{
-  "name": "Politique RDC Standard",
-  "country_code": "CD",
-  "standard_annual_days": 18,
-  "allows_carry_over": true,
-  "max_carry_over_days": 5,
-  "carry_over_expiration_month": 3
-}
-```
-
-### 2. Ajouter une règle d'ancienneté
-```json
-POST /api/v1/leaves/policies/{policy_id}/seniority
-{
-  "years_of_service": 5,
-  "bonus_days": 2
-}
-```
-
-### 3. Soumettre une demande de congé annuel
-```json
-POST /api/v1/leaves/requests
-{
-  "employee_id": "emp_123",
-  "leave_type": "ANNUAL",
-  "start_date": "2026-02-01",
-  "end_date": "2026-02-15",
-  "reason": "Vacances familiales",
-  "documents": []
-}
-```
-
-### 4. Soumettre une demande de congé circonstanciel
-```json
-POST /api/v1/leaves/requests
-{
-  "employee_id": "emp_123",
-  "leave_type": "CIRCUMSTANCE",
-  "circumstance_type": "BIRTH",
-  "start_date": "2026-02-10",
-  "end_date": "2026-02-12",
-  "reason": "Naissance d'un enfant",
-  "documents": ["birth_certificate.pdf"]
-}
-```
-
-### 5. Approuver une demande
-```json
-PATCH /api/v1/leaves/requests/{request_id}/approve
-{
-  "approver_id": "emp_456",
-  "status": "APPROVED",
-  "comments": "Approuvé - pas de conflit calendaire"
-}
-```
-
-### 6. Vérifier le solde de congés
-```json
-GET /api/v1/leaves/balances/employee/emp_123
-{
-  "employee_id": "emp_123",
-  "year": 2026,
-  "days_allocated": 20,
-  "days_used": 5,
-  "days_available": 15,
-  "days_carried_over": 2,
-  "total_balance": 17
-}
-```
-
-## Processus de congé
-
-### Flux standard
-1. **Demande** : Employé ou RH crée une demande avec dates et type
-2. **Validation** : Système vérifie la disponibilité de jours
-3. **Soumission** : Demande envoyée à l'approbateur
-4. **Approbation** : Manager/RH approuve ou rejette
-5. **Publication** : Demande approuvée devient effective
-6. **Déduction** : Lors du calcul de paie, jours sont déduits
-7. **Clôture** : Marquée comme utilisée après les dates
-
-### Statuts de demande
-- **DRAFT** : Non soumise, peut être modifiée
-- **SUBMITTED** : En attente d'approbation
-- **APPROVED** : Approuvée, congé confirmé
-- **REJECTED** : Refusée par approbateur
-- **CANCELLED** : Annulée par demandeur
-- **EXPIRED** : Dépassée (dates révues)
-
-## Calcul des allocations
-
-### Formule
-```
-Jours alloués = Jours de base + Bonus ancienneté + Ajustements circonstanciels
-```
-
-### Exemple pour RDC
-```
-Employé embauché depuis 2021 (5 ans d'ancienneté):
-- Base: 18 jours
-- Bonus 5 ans: +2 jours
-- Naissance en cours d'année: +3 jours
-- Total allocation: 23 jours
-```
-
-### Solde à date
-```
-Solde = Allocation totale - Jours utilisés - Jours en attente approbation
-```
+### Administration & Soldes
+- `GET /leaves/balances` : Consulter les soldes (Annuel + Reports).
+- `POST /leaves/admin/adjust-balance/{emp_id}` : Correction manuelle de solde.
+- `GET /leaves/transactions` : Audit trail des mouvements de jours.
 
 ## Intégrations
-
-- **Module Employees** : Données employé, politique par employé
-- **Module Payroll** : Déduction des congés approuvés
-- **Module Attendance** : Absence pendant les congés
-- **Module Calendar** : Jours fériés affectant le calcul
+- **Employees** : Source des profils et de l'ancienneté.
+- **Payroll** : Export des absences validées pour la paie.
+- **Calendar** : Décompte des jours ouvrables uniquement.
 
 ## Rapports disponibles
 
@@ -320,12 +73,3 @@ Solde = Allocation totale - Jours utilisés - Jours en attente approbation
 - Interdiction du paiement en remplacement en cas de non-usage
 - Conservation du droit aux congés pendant suspension contrat
 - Calcul correct de l'indemnité en cas de résiliation
-
-## Support et dépannage
-
-Pour toute question ou problème :
-1. Vérifier la politique applicable à l'employé
-2. Vérifier le solde actuel
-3. Consulter l'historique des transactions
-4. Valider les dates et période
-5. Contacter le responsable RH pour les décisions

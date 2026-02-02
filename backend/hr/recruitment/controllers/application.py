@@ -1,32 +1,29 @@
 import logging
-from typing import List
+from typing   import List
 from injector import inject
-
 from django.core.exceptions import ValidationError
-from ninja import File, Form
-from ninja.files import UploadedFile
+from ninja            import File, Form
+from ninja.files      import UploadedFile
 from ninja.pagination import paginate
-from ninja_extra import (
+from ninja_extra      import (
     api_controller,
     http_get,
     http_post,
     http_patch,
     ControllerBase,
 )
+from oxutils.permissions.perms import ScopePermission
 from oxutils.pagination.cursor import CursorPagination
 
-# Schemas
 from hr.recruitment.schemas import (
     ApplicationOut,
     ApplicationCreateIn,
 )
-from hr.recruitment.enums import ApplicationStatus
-
-# Models 
-from hr.recruitment.models import Application
-
-# Services
+from hr.recruitment.enums    import ApplicationStatus
+from hr.recruitment.models   import Application
 from hr.recruitment.services import ApplicationService
+# Cache integration
+from hr.services.cache_helpers import cache_api_response
 
 
 logger = logging.getLogger(__name__)
@@ -43,7 +40,7 @@ class ApplicationController(ControllerBase):
     def __init__(self, application_service: ApplicationService):
         self.application_service = application_service
 
-    @http_post('/{offer_id}/apply', response={201: ApplicationOut}, auth=None)
+    @http_post('/{offer_id}/apply', response={201: ApplicationOut}, permissions=[ScopePermission('recruitment:w')])
     def submit_application(
         self,
         offer_id: int,
@@ -59,15 +56,12 @@ class ApplicationController(ControllerBase):
         )
 
         try:
-            # Pass the data to the service layer
-            # data.model_dump() converts the schema into a dictionary for the service
-            application = self.application_service.submit_application(
+            return 201, self.application_service.submit_application(
                 job_offer_id=offer_id,
                 candidate_data=data.model_dump(),
                 resume_file=resume,
                 cover_letter=data.cover_letter
             )
-            return 201, application
 
         except ValidationError as e:
             return self.create_response({"detail": str(e)}, status_code=400)
@@ -78,8 +72,9 @@ class ApplicationController(ControllerBase):
                 status_code=500
             )
 
-    @http_get('/', response=List[ApplicationOut])
+    @http_get('/', response=List[ApplicationOut], permissions=[ScopePermission('recruitment:r')])
     @paginate(CursorPagination)
+    @cache_api_response(timeout=60*60, key_prefix="applications_list", user_specific=False)
     def list_applications(self, offer_id: int = None):
         """
         Lists applications. Can be filtered by job offer.
@@ -87,13 +82,12 @@ class ApplicationController(ControllerBase):
         if offer_id:
             return self.application_service.get_applications_by_offer(offer_id)
 
-        # If no offer_id is provided, return all applications
         return Application.objects.select_related(
             'candidate',
             'job_offer'
         ).all()
 
-    @http_patch('/{application_id}/status', response=ApplicationOut)
+    @http_patch('/{application_id}/status', response=ApplicationOut, permissions=[ScopePermission('recruitment:u')])
     def update_application_status(
         self,
         application_id: int,
@@ -117,7 +111,7 @@ class ApplicationController(ControllerBase):
         except (ValidationError, ValueError) as e:
             return self.create_response({"detail": str(e)}, status_code=400)
 
-    @http_get('/{application_id}', response=ApplicationOut)
+    @http_get('/{application_id}', response=ApplicationOut, permissions=[ScopePermission('recruitment:r')])
     def get_application_detail(self, application_id: int):
         """
         Detailed view of an application.

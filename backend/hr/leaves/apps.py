@@ -5,3 +5,6 @@ class LeavesConfig(AppConfig):
     name = 'hr.leaves'
     label = 'hr_leaves'
 
+    def ready(self):
+        import hr.leaves.signals
+

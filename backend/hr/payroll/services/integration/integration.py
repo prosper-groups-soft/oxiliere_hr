@@ -1,10 +1,10 @@
-from decimal                           import Decimal
-from datetime                          import date
-from hr.employees.services.family      import EmployeeFamilyService
-from hr.attendance.services.summary    import AttendanceSummaryService
+from decimal  import Decimal
+from datetime import date
+from hr.employees.services.family   import EmployeeFamilyService
+from hr.attendance.services.summary import AttendanceSummaryService
 from hr.attendance.services.scheduling import SchedulingService
-from hr.leaves.services.leave          import LeaveRequestService
-from hr.employees.models               import Employee
+from hr.leaves.services.leave import LeaveRequestService
+from hr.employees.models      import Employee
 
 
 class PayrollIntegrationService:

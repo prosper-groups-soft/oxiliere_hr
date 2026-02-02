@@ -1,12 +1,12 @@
 import logging
 from injector import inject
-from uuid import UUID
-from typing import List
+from uuid     import UUID
+from typing   import List
+from ninja    import Query
 
 from django.core.exceptions import ValidationError
-from ninja import Query
 from ninja.pagination import paginate
-from ninja_extra import (
+from ninja_extra      import (
     api_controller,
     http_get,
     http_post,
@@ -14,6 +14,8 @@ from ninja_extra import (
     ControllerBase,
 )
 from oxutils.pagination.cursor import CursorPagination
+from oxutils.permissions.perms import ScopePermission
+from hr.services.cache_helpers import cache_api_response
 
 # Schemas
 from hr.employees.schemas import (
@@ -36,18 +38,7 @@ logger = logging.getLogger(__name__)
 
 @api_controller('/employees', tags=['Employee Core'])
 class EmployeeController(ControllerBase):
-    """
-    ORCHESTRATION LAYER
-
-    This controller exposes the primary Employee API.
-    It is responsible for:
-    - HTTP validation (Ninja / Pydantic)
-    - Authentication context access
-    - Delegation to domain services
-
-    All business rules (matricule generation, lifecycle transitions,
-    audit tracking) live in the service layer — not here.
-    """
+    """ API endpoints for employee profile and identity management. """
 
     @inject
     def __init__(
@@ -55,24 +46,14 @@ class EmployeeController(ControllerBase):
         profile_service: EmployeeProfileService,
         query_service: EmployeeQueryService,
     ):
-        """
-        Dependency injection of domain services.
-
-        profile_service:
-            - Write-side use cases (onboarding, updates)
-        query_service:
-            - Read-side optimized queries (prefetch, filtering)
-        """
         self.profile_service = profile_service
         self.query_service = query_service
 
-    @http_get('/', response=List[EmployeeOut])
+    @http_get('/', response=List[EmployeeOut], permissions=[ScopePermission('employees:r')])
     @paginate(CursorPagination)
+    @cache_api_response(timeout=60*60*24, key_prefix="employee_list", user_specific=False)
     def list_employees(self, filters: EmployeeFilterIn = Query(...)):
-        """
-        Provides a global workforce directory with advanced filtering
-        (status, department, dates, etc.).
-        """
+        """ Returns a filtered list of all employees in the directory. """
         logger.info("[API] Accessing workforce directory with filters.")
 
         # Optimized base queryset:
@@ -82,11 +63,9 @@ class EmployeeController(ControllerBase):
         # Applies dynamic Q-object filtering defined in the schema
         return filters.filter(qs).distinct()
 
-    @http_post('/', response={201: EmployeeOut})
+    @http_post('/', response={201: EmployeeOut}, permissions=[ScopePermission('employees:w')])
     def onboard_employee(self, data: EmployeeCreate):
-        """
-        Starts the employee's professional journey (Onboarding).
-        """
+        """ Initiates the onboarding journey for a new staff member. """
         actor = getattr(self.context.request, 'user', None)
         logger.info(f"[API] Onboarding initiated by {actor}")
 
@@ -96,16 +75,10 @@ class EmployeeController(ControllerBase):
         )
         return 201, employee
 
-    @http_get('/{employee_id}', response=EmployeeFullProfileOut)
+    @http_get('/{employee_id}', response=EmployeeFullProfileOut, permissions=[ScopePermission('employees:r')])
+    @cache_api_response(timeout=60*60*24, key_prefix="employee_detail_{employee_id}", user_specific=False)
     def get_employee_detail(self, employee_id: UUID):
-        """
-        Provides a 360-degree HR view of a specific employee:
-        - Identity
-        - Address history
-        - Emergency contacts
-        - Education
-        - Status timeline
-        """
+        """ Retrieves full HR dossier and history for a specific employee. """
         logger.debug(f"[API] Retrieving full employee dossier: {employee_id}")
 
         employee = self.query_service.get_employee_by_id(employee_id)
@@ -120,11 +93,9 @@ class EmployeeController(ControllerBase):
 
         return employee
 
-    @http_patch('/{employee_id}/assign-user/{user_id}', response={200: dict})
+    @http_patch('/{employee_id}/assign-user/{user_id}', response={200: dict}, permissions=[ScopePermission('employees:u')])
     def link_user(self, employee_id: UUID, user_id: UUID):
-        """
-        Admin Link: Totally delegates retrieval and logic to the service.
-        """
+        """ Connects a system user account to an employee profile. """
         actor = getattr(self.context.request, 'user', None)
         
         try:
@@ -143,18 +114,16 @@ class EmployeeController(ControllerBase):
         except ValidationError as e:
             return self.create_response({"detail": str(e)}, status_code=400)
 
-    @http_patch('/{employee_id}/revoke-user', response={200: dict})
+    @http_post('/{employee_id}/revoke-user', permissions=[ScopePermission('employees:u')])
     def revoke_user(self, employee_id: UUID):
         """Revokes portal access for this employee."""
         actor = getattr(self.context.request, 'user', None)
         self.profile_service.unlink_user_account(employee_id=employee_id, actor=actor)
         return 200, {"message": "Access revoked successfully."}
 
-    @http_patch('/{employee_id}/personal-info', response=EmployeeOut)
+    @http_patch('/{employee_id}/personal-info', permissions=[ScopePermission('employees:u')])
     def update_personal_info(self, employee_id: UUID, data: EmployeeUpdate):
-        """
-        Updates civil status, contact details, or identity attributes.
-        """
+        """ Updates core identification and civil status data. """
         employee = self.query_service.get_employee_by_id(employee_id)
         if not employee:
             logger.warning(

@@ -11,21 +11,14 @@ except ImportError:
 
 
 class ExchangeRateService:
-    """
-    Service responsible for handling currency conversions for Payroll.
-    Specifically targets the USD -> CDF conversion common in DRC.
-    """
+    """ Handles currency conversions, primarily focused on USD to CDF for payroll. """
     
     # Default fallback rate (example market rate)
     DEFAULT_USD_TO_CDF = Decimal('2100.0')
 
     @classmethod
     def get_exchange_rate(cls, from_currency: str, to_currency: str) -> Decimal:
-        """
-        Retrieves the active exchange rate.
-        For now, this returns a static/configured rate. 
-        Ideally, this would fetch from a DailyRate model or external API.
-        """
+        """ Retrieves the active exchange rate between two currencies. """
         if from_currency == to_currency:
             return Decimal('1.0')
         
@@ -56,9 +49,7 @@ class ExchangeRateService:
 
     @classmethod
     def convert(cls, amount: Decimal, from_currency: str, to_currency: str) -> Decimal:
-        """
-        Converts an amount from one currency to another using the active rate.
-        """
+        """ Converts an amount between currencies using the active exchange rate. """
         if amount is None:
             return Decimal('0.00')
             

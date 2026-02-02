@@ -7,17 +7,19 @@ from injector import inject
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import ValidationError
 from ninja_extra import (
-    api_controller, 
-    ControllerBase, 
+    api_controller,
+    ControllerBase,
     http_post
 )
+
+from oxutils.permissions.perms import ScopePermission
 
 from hr.employees.models import Employee
 from hr.leaves.models import LeaveRequest
 from hr.leaves.services import LeaveRequestService
 from hr.leaves.schemas import (
     BatchLeaveRequestCreate,
-    BatchLeaveRequestResult, 
+    BatchLeaveRequestResult,
     BatchLeaveRequestReport,
     BatchActionSchema
 )
@@ -36,7 +38,7 @@ class LeaveBatchController(ControllerBase):
     def __init__(self, leave_request_service: LeaveRequestService):
         self.leave_request_service = leave_request_service    
     
-    @http_post("/requests/batch", response=BatchLeaveRequestReport)
+    @http_post("/requests/batch", response=BatchLeaveRequestReport, permissions=[ScopePermission('leaves:w')])
     def create_leave_requests_batch(self, data: BatchLeaveRequestCreate):
         """
         HR/Admin: create multiple leave requests at once.
@@ -133,28 +135,28 @@ class LeaveBatchController(ControllerBase):
         return {"results": report}
 
     # --- Batch endpoints ---
-    @http_post("/approve", response=BatchLeaveRequestReport)
+    @http_post("/approve", response=BatchLeaveRequestReport, permissions=[ScopePermission('leaves:a')])
     def approve_batch(self, data: BatchActionSchema):
         """
         Approve multiple leave requests in a single operation.
         """
         return self._process_batch(data.request_ids, action="approve")
 
-    @http_post("/reject", response=BatchLeaveRequestReport)
+    @http_post("/reject", response=BatchLeaveRequestReport, permissions=[ScopePermission('leaves:a')])
     def reject_batch(self, data: BatchActionSchema):
         """
         Reject multiple leave requests in a single operation.
         """
         return self._process_batch(data.request_ids, action="reject", reason=data.reason)
 
-    @http_post("/cancel", response=BatchLeaveRequestReport)
+    @http_post("/cancel", response=BatchLeaveRequestReport, permissions=[ScopePermission('leaves:u')])
     def cancel_batch(self, data: BatchActionSchema):
         """
         Cancel multiple leave requests in a single operation.
         """
         return self._process_batch(data.request_ids, action="cancel")
 
-    @http_post("/recall", response=BatchLeaveRequestReport)
+    @http_post("/recall", response=BatchLeaveRequestReport, permissions=[ScopePermission('leaves:a')])
     def recall_batch(self, data: BatchActionSchema):
         """
         Recall multiple employees from leave in a single operation.

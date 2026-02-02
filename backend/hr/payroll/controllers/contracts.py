@@ -1,23 +1,12 @@
-"""
-EMPLOYEE CONTRACT CONTROLLER
-
-Manages employee compensation agreements:
-- Contract creation / termination
-- Salary adjustments
-- Remuneration type changes (fixed, hourly, net-to-gross)
-- Payment period management
-- Contract history and audit trail
-"""
-
 import logging
-from typing import List
-from uuid import UUID
+from typing   import List
+from uuid     import UUID
 from injector import inject
 
 from django.core.exceptions import ValidationError
 from ninja import Query
 from ninja.pagination import paginate
-from ninja_extra import (
+from ninja_extra      import (
     api_controller,
     http_get,
     http_post,
@@ -26,8 +15,9 @@ from ninja_extra import (
     ControllerBase,
 )
 from oxutils.pagination.cursor import CursorPagination
+from oxutils.permissions.perms import ScopePermission
 
-from hr.payroll.models import EmployeeContract
+from hr.payroll.models  import EmployeeContract
 from hr.payroll.schemas import (
     EmployeeContractCreateIn,
     EmployeeContractOut,
@@ -35,6 +25,8 @@ from hr.payroll.schemas import (
     EmployeeContractListFilterIn,
 )
 from hr.payroll.services.contracts import EmployeeContractService
+# Cache integration
+from hr.services.cache_helpers import cache_api_response
 
 
 logger = logging.getLogger(__name__)
@@ -43,21 +35,23 @@ logger = logging.getLogger(__name__)
 @api_controller('/payroll/contracts', tags=['Employee Contracts'])
 class EmployeeContractController(ControllerBase):
     """
-    Contract management for employee compensation.
-    
-    Responsibilities:
-    - Create new employment contracts
-    - Update contract terms (salary, remuneration type)
-    - Deactivate contracts (termination)
-    - Query contract history and current status
+    Employee contract controller.
+
+    Manages employee compensation agreements:
+    - Contract creation / termination
+    - Salary adjustments
+    - Remuneration type changes (fixed, hourly, net-to-gross)
+    - Payment period management
+    - Contract history and audit trail
     """
 
     @inject
     def __init__(self, contract_service: EmployeeContractService):
         self.contract_service = contract_service
 
-    @http_get('/', response=List[EmployeeContractOut])
+    @http_get('/', response=List[EmployeeContractOut], permissions=[ScopePermission('payroll:r')])
     @paginate(CursorPagination)
+    @cache_api_response(timeout=60*60, key_prefix="employee_contracts_list", user_specific=False)
     def list_contracts(self, filters: EmployeeContractListFilterIn = Query(...)):
         """
         List employee contracts with filtering options.
@@ -79,11 +73,11 @@ class EmployeeContractController(ControllerBase):
         # Apply filter logic
         return filters.filter(qs)
 
-    @http_get('/{contract_id}', response=EmployeeContractOut)
+    @http_get('/{contract_id}', response=EmployeeContractOut, permissions=[ScopePermission('payroll:r')])
+    @cache_api_response(timeout=60*60*24, key_prefix="contract_detail", user_specific=False)
     def get_contract_detail(self, contract_id: UUID):
         """
         Retrieve full details of a specific contract.
-        
         Includes all terms, salary info, and activation status.
         """
         logger.debug("[Contracts] Getting contract detail", extra={"contract_id": contract_id})
@@ -100,10 +94,10 @@ class EmployeeContractController(ControllerBase):
             )
 
     @http_get('/employee/{employee_id}/active', response=EmployeeContractOut)
+    @cache_api_response(timeout=60*60*24, key_prefix="active_contract_employee", user_specific=False)
     def get_active_contract(self, employee_id: UUID):
         """
         Retrieve the currently active contract for an employee.
-        
         Returns the contract marked as is_active=True.
         If no active contract exists, returns 404.
         """
@@ -121,10 +115,10 @@ class EmployeeContractController(ControllerBase):
             )
 
     @http_get('/employee/{employee_id}/history', response=List[EmployeeContractOut])
+    @cache_api_response(timeout=60*60*24, key_prefix="contract_history_employee", user_specific=False)
     def get_contract_history(self, employee_id: UUID):
         """
         Retrieve full contract history for an employee.
-        
         Returns all contracts (active and inactive) ordered by start date.
         """
         logger.debug("[Contracts] Getting contract history", extra={"employee_id": employee_id})
@@ -132,11 +126,10 @@ class EmployeeContractController(ControllerBase):
         contracts = self.contract_service.get_employee_contract_history(employee_id)
         return contracts
 
-    @http_post('/', response={201: EmployeeContractOut})
+    @http_post('/', response={201: EmployeeContractOut}, permissions=[ScopePermission('payroll:w')])
     def create_contract(self, data: EmployeeContractCreateIn):
         """
         Create a new employment contract for an employee.
-        
         Automatically marks previous active contracts as inactive.
         """
         actor = getattr(self.context.request, 'user', None)
@@ -164,7 +157,7 @@ class EmployeeContractController(ControllerBase):
                 status_code=500,
             )
 
-    @http_patch('/{contract_id}', response=EmployeeContractOut)
+    @http_patch('/{contract_id}', response=EmployeeContractOut, permissions=[ScopePermission('payroll:u')])
     def update_contract(self, contract_id: UUID, data: EmployeeContractUpdateIn):
         """
         Update an existing employment contract.
@@ -200,11 +193,10 @@ class EmployeeContractController(ControllerBase):
             logger.warning("[Contracts] Validation error", extra={"error": str(e)})
             return self.create_response({"detail": str(e)}, status_code=400)
 
-    @http_patch('/{contract_id}/deactivate', response=EmployeeContractOut)
+    @http_patch('/{contract_id}/deactivate', response=EmployeeContractOut, permissions=[ScopePermission('payroll:u')])
     def deactivate_contract(self, contract_id: UUID):
         """
         Deactivate a contract (mark end date as today).
-        
         Used when an employee's employment is terminated.
         """
         actor = getattr(self.context.request, 'user', None)
@@ -232,8 +224,7 @@ class EmployeeContractController(ControllerBase):
     @http_delete('/{contract_id}')
     def delete_contract(self, contract_id: UUID):
         """
-        Delete a contract (hard delete).
-        
+        Delete a contract.
         Only allowed for draft contracts that haven't generated payslips.
         """
         actor = getattr(self.context.request, 'user', None)
@@ -257,3 +248,4 @@ class EmployeeContractController(ControllerBase):
         except ValidationError as e:
             logger.warning("[Contracts] Cannot delete contract", extra={"error": str(e)})
             return self.create_response({"detail": str(e)}, status_code=400)
+

@@ -24,60 +24,44 @@ logger = logging.getLogger(__name__)
 
 
 class AttendanceCacheService:
-    """
-    High-performance cache operations for the attendance module.
-    Optimizes schedule lookups, policy details, and employee-specific metrics.
-    """
+    """ Optimized cache operations for attendance policies, schedules, and metrics. """
 
     @staticmethod
     def get_shift_policy(policy_id) -> ShiftPolicy:
-        """
-        Retrieves a shift policy from cache. 
-        Policies are stable, so we use a long-lived 24h cache.
-        """
+        """ Retrieves a shift policy from cache or database. """
         cache_key = generate_cache_key("hr:attendance:shift_policy", policy_id)
         policy = cache.get(cache_key)
         
         if policy is None:
             policy = ShiftPolicy.objects.get(id=policy_id)
-            cache.set(cache_key, policy, timeout=60*60*24)  # 24h
+            cache.set(cache_key, policy, timeout=60*60*24)
         
         return policy
     
     @staticmethod
     def get_shift_details(policy: ShiftPolicy | UUID) -> list[ShiftDetail]:
-        """
-        Fetches all daily configurations (ShiftDetail) linked to a policy.
-        
-        This is a critical optimization for the SchedulingService: it loads the entire 
-        weekly structure into memory at once, avoiding daily SQL queries in loops.
-        """
+        """ Fetches full weekly configuration for a policy to avoid repeated SQL queries. """
         policy_id = policy.id if isinstance(policy, ShiftPolicy) else policy
         
         cache_key = generate_cache_key("hr:attendance:shift_details", policy_id)
         details = cache.get(cache_key)
         
         if details is None:
-            # Load all 7 days in order and convert to list for pickling in cache
             details = list(ShiftDetail.objects.filter(
                 policy_id=policy_id
-            ).order_by('weekday')) # Ordering by weekday helps logic consistency
+            ).order_by('weekday'))
             
-            cache.set(cache_key, details, timeout=60*60*24)  # 24h
+            cache.set(cache_key, details, timeout=60*60*24)
         
         return details
     
     @staticmethod
     def get_employee_shifts(employee, period_start, period_end):
-        """
-        Retrieves the effective shifts for an employee during a specific period.
-        Used primarily for UI displays and weekly planning views.
-        """
+        """ Retrieves effective shifts for an employee during a specific period. """
         cache_key = CacheKeys.employee_shifts(employee.id, period_start, period_end)
         shifts = cache.get(cache_key)
         
         if shifts is None:
-            # Locate the contractually active scheme at the start of the period
             scheme = EmploymentScheme.objects.filter(
                 employee=employee,
                 is_active=True,
@@ -89,32 +73,26 @@ class AttendanceCacheService:
             else:
                 shifts = []
             
-            cache.set(cache_key, shifts, timeout=60*60*24)  # 24h
+            cache.set(cache_key, shifts, timeout=60*60*24)
         
         return shifts
     
     @staticmethod
     def get_daily_register(target_date: date) -> DailyRegister | None:
-        """
-        Accesses the master register for a specific date. 
-        This record is shared across the company for that calendar day.
-        """
+        """ Accesses the consolidated daily registry for a specific date. """
         cache_key = generate_cache_key("hr:attendance:register:master", target_date)
         register = cache.get(cache_key)
         
         if register is None:
             register = DailyRegister.objects.filter(date=target_date).first()
             if register:
-                cache.set(cache_key, register, timeout=60*60) # 1h cache
+                cache.set(cache_key, register, timeout=60*60)
         
         return register
     
     @staticmethod
     def get_punches_for_date(employee, target_date: date):
-        """
-        Retrieves all raw time punches for an employee on a specific date.
-        Uses a short 5-minute cache as punches happen in real-time.
-        """
+        """ Retrieves raw time punches for an employee on a specific date. """
         cache_key = generate_cache_key("hr:attendance:punches", employee.id, target_date)
         punches = cache.get(cache_key)
         
@@ -128,36 +106,30 @@ class AttendanceCacheService:
             else:
                 punches = []
             
-            cache.set(cache_key, punches, timeout=60*5)  # 5m
+            cache.set(cache_key, punches, timeout=60*5)
         
         return punches
     
     @staticmethod
     def get_worked_hours(employee, target_date: date) -> float:
-        """
-        Calculates total hours worked based on punches.
-        Result is cached for 10 minutes to support dashboard widgets.
-        """
+        """ Calculates and caches total hours worked for dashboard metrics. """
         cache_key = CacheKeys.worked_hours(employee.id, target_date)
         hours = cache.get(cache_key)
         
         if hours is None:
             punches = AttendanceCacheService.get_punches_for_date(employee, target_date)
-            
-            # Sum durations and convert seconds to decimal hours
             hours = sum(
                 p.duration.total_seconds() / 3600
                 for p in punches
                 if p.duration
             )
-            
-            cache.set(cache_key, hours, timeout=60*10)  # 10m
+            cache.set(cache_key, hours, timeout=60*10)
         
         return hours
     
     @staticmethod
     def get_settings():
-        """Returns the global attendance settings singleton."""
+        """ Retrieves global attendance settings from cache. """
         return get_from_cache_or_call(
             "hr:attendance:settings",
             AttendanceSettings.load,
@@ -166,7 +138,7 @@ class AttendanceCacheService:
 
     @staticmethod
     def get_lock_date():
-        """Returns the current payroll/attendance lock date."""
+        """ Retrieves the current administrative lock date. """
         return get_from_cache_or_call(
             "hr:attendance:lock_date",
             AttendanceSettings.get_last_lock_date,
@@ -175,47 +147,31 @@ class AttendanceCacheService:
 
     @staticmethod
     def clear_global_attendance_cache():
-        """
-        Invalidates everything global: 
-        1. Low-level settings/dates (Your version)
-        2. High-level API responses (My version)
-        """
-        # 1. Your constant keys (precise and fast)
+        """ Invalidates all global attendance settings and registry lists. """
         invalidate_cache_keys(
             "hr:attendance:settings", 
             "hr:attendance:lock_date"
         )
         
-        # 2. My API patterns (Broad to ensure UI consistency)
         AttendanceCacheService.clear_api_cache_prefix("daily_register_list")
         AttendanceCacheService.clear_api_cache_prefix("period_lock_list")
         AttendanceCacheService.clear_api_cache_prefix("ts_list")
         AttendanceCacheService.clear_api_cache_prefix("policy_list")
+        AttendanceCacheService.clear_api_cache_prefix("working_day_check")
         
-        logger.info("Global attendance cache fully purged (Settings + API Lists).")
+        logger.info("Global attendance cache purged.")
     
     @staticmethod
     def clear_api_cache_prefix(prefix: str):
-        """Clears all cached API responses matching the given prefix."""
+        """ Clears cached API responses matching the given prefix. """
         invalidate_cache_prefix(prefix)
     
     @staticmethod
     def clear_employee_cache(employee):
-        """
-        Forcefully flushes all cached attendance data for a specific employee.
-        
-        Crucial when:
-        1. An EmploymentScheme (policy) is changed.
-        2. A manual override (ShiftAssignment) is added.
-        3. A manual punch correction is made.
-        
-        Uses Redis SCAN for safe key deletion in production.
-        """
+        """ Flushes all attendance-related cache entries for a specific employee. """
         redis_conn = get_redis_connection("default")
-        # Matches all keys containing the employee ID within the attendance namespace
         pattern = f"hr:attendance*:{employee.id}:*"
         
-        # Iteratively fetch keys to avoid blocking the Redis event loop
         keys = list(redis_conn.scan_iter(match=pattern, count=100))
         
         if keys:

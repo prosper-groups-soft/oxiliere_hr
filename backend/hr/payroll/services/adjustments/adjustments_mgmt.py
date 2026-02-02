@@ -13,32 +13,20 @@ logger = logging.getLogger(__name__)
 
 
 class AdjustmentManagementService:
-    """
-    Service for managing payroll adjustments and their application to employees.
-    
-    Responsibilities:
-    - Create and update adjustment types (templates)
-    - Apply adjustments to specific employees
-    - Validate adjustment configurations
-    - Track adjustment history
-    """
+    """ Manages life-cycle and assignment of payroll bonuses and deductions. """
 
     # ===== ADJUSTMENT TYPE MANAGEMENT =====
 
     @classmethod
     def get_adjustment_type(cls, adjustment_id: UUID) -> PayrollAdjustment:
-        """
-        Retrieve a specific adjustment type by ID.
-        """
+        """ Retrieves a specific adjustment type configuration. """
         logger.debug("[AdjustmentService] Getting adjustment type", extra={"adjustment_id": adjustment_id})
         return PayrollAdjustment.objects.get(id=adjustment_id)
 
     @classmethod
     @transaction.atomic
     def create_adjustment_type(cls, data: dict, actor=None) -> PayrollAdjustment:
-        """
-        Create a new adjustment type template.
-        """
+        """ Creates a new adjustment template. """
         logger.info(
             "[AdjustmentService] Creating adjustment type",
             extra={"name": data.get('name'), "type": data.get('adjustment_type')},
@@ -63,9 +51,7 @@ class AdjustmentManagementService:
     @classmethod
     @transaction.atomic
     def update_adjustment_type(cls, adjustment_id: UUID, data: dict, actor=None) -> PayrollAdjustment:
-        """
-        Update an adjustment type.
-        """
+        """ Updates an existing adjustment template. """
         logger.info("[AdjustmentService] Updating adjustment type", extra={"adjustment_id": adjustment_id})
 
         adjustment = PayrollAdjustment.objects.get(id=adjustment_id)
@@ -84,9 +70,7 @@ class AdjustmentManagementService:
     @classmethod
     @transaction.atomic
     def delete_adjustment_type(cls, adjustment_id: UUID, actor=None) -> None:
-        """
-        Delete an adjustment type (only if no employee adjustments exist).
-        """
+        """ Deletes an adjustment template if not currently assigned to any employee. """
         logger.info("[AdjustmentService] Deleting adjustment type", extra={"adjustment_id": adjustment_id})
 
         adjustment = PayrollAdjustment.objects.get(id=adjustment_id)
@@ -104,9 +88,7 @@ class AdjustmentManagementService:
 
     @classmethod
     def get_employee_adjustments(cls, employee_id: UUID) -> list[EmployeeAdjustment]:
-        """
-        Get all adjustments for a specific employee.
-        """
+        """ Retrieves all adjustments assigned to a specific employee. """
         logger.debug("[AdjustmentService] Getting employee adjustments", extra={"employee_id": employee_id})
 
         return EmployeeAdjustment.objects.filter(
@@ -115,9 +97,7 @@ class AdjustmentManagementService:
 
     @classmethod
     def get_employee_adjustment(cls, adjustment_id: UUID) -> EmployeeAdjustment:
-        """
-        Retrieve a specific employee adjustment by ID.
-        """
+        """ Retrieves a specific employee-adjustment assignment by ID. """
         logger.debug("[AdjustmentService] Getting employee adjustment", extra={"adjustment_id": adjustment_id})
 
         return EmployeeAdjustment.objects.select_related('adjustment').get(id=adjustment_id)
@@ -125,9 +105,7 @@ class AdjustmentManagementService:
     @classmethod
     @transaction.atomic
     def create_employee_adjustment(cls, data: dict, actor=None) -> EmployeeAdjustment:
-        """
-        Apply an adjustment to a specific employee.
-        """
+        """ Assigns an adjustment to a specific employee. """
         logger.info(
             "[AdjustmentService] Creating employee adjustment",
             extra={"employee_id": data.get('employee'), "adjustment_id": data.get('adjustment')},
@@ -173,9 +151,7 @@ class AdjustmentManagementService:
     @classmethod
     @transaction.atomic
     def update_employee_adjustment(cls, adjustment_id: UUID, data: dict, actor=None) -> EmployeeAdjustment:
-        """
-        Update an employee adjustment.
-        """
+        """ Updates an existing employee-adjustment assignment. """
         logger.info("[AdjustmentService] Updating employee adjustment", extra={"adjustment_id": adjustment_id})
 
         adjustment = EmployeeAdjustment.objects.get(id=adjustment_id)
@@ -202,9 +178,7 @@ class AdjustmentManagementService:
     @classmethod
     @transaction.atomic
     def delete_employee_adjustment(cls, adjustment_id: UUID, actor=None) -> None:
-        """
-        Remove an adjustment from an employee.
-        """
+        """ Removes an adjustment assignment from an employee. """
         logger.info("[AdjustmentService] Deleting employee adjustment", extra={"adjustment_id": adjustment_id})
 
         adjustment = EmployeeAdjustment.objects.get(id=adjustment_id)
@@ -221,14 +195,8 @@ class AdjustmentManagementService:
     # ===== ACTIVE ADJUSTMENTS FOR PAYROLL =====
 
     @classmethod
-    def get_active_adjustments_for_employee(
-        cls,
-        employee_id: UUID,
-        payroll_date: date,
-    ) -> list[EmployeeAdjustment]:
-        """
-        Get active adjustments for an employee on a specific payroll date.
-        """
+    def get_active_adjustments_for_employee(cls, employee_id: UUID, payroll_date: date) -> list[EmployeeAdjustment]:
+        """ Retrieves all adjustments active for an employee on a specific payroll date. """
         logger.debug(
             "[AdjustmentService] Getting active adjustments for payroll",
             extra={"employee_id": employee_id, "payroll_date": payroll_date},
@@ -244,14 +212,8 @@ class AdjustmentManagementService:
         ).select_related('adjustment').order_by('created_at')
 
     @classmethod
-    def calculate_adjustment_amount(
-        cls,
-        employee_adjustment: EmployeeAdjustment,
-        gross_salary: Decimal = None,
-    ) -> Decimal:
-        """
-        Calculate the actual amount for an adjustment.
-        """
+    def calculate_adjustment_amount(cls, employee_adjustment: EmployeeAdjustment, gross_salary: Decimal = None) -> Decimal:
+        """ Calculates the monetary value of an adjustment based on its configuration. """
         # If custom amount is set, use it
         if employee_adjustment.custom_amount:
             return employee_adjustment.custom_amount

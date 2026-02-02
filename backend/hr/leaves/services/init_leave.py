@@ -34,10 +34,7 @@ DEFAULT_POLICIES = [
 
 
 class LeaveInitializerService:
-    """
-    Service to initialize default leave policies, seniority rules,
-    circumstance leave rules, and public holidays.
-    """
+    """ Pre-configures the system with default leave policies and statutory rules. """
 
     @inject
     def __init__(
@@ -52,20 +49,15 @@ class LeaveInitializerService:
 
     @transaction.atomic
     def initialize_defaults(self):
-        """
-        Initialize all default policies and rules if they do not exist.
-        """
+        """ Installs default leave configurations (e.g., labor law standards) if not already present. """
         for policy_data in DEFAULT_POLICIES:
-            policy_id = policy_data["id"]
-
             if not self.policy_service.exists(
                 name=policy_data["name"],
                 country_code=policy_data["country_code"],
             ):
-
                 policy_fields = {
                     k: v for k, v in policy_data.items()
-                    if k not in ("seniority_rules", "circumstance_rules", "id")
+                    if k not in ("seniority_rules", "circumstance_rules")
                 }
 
                 policy = self.policy_service.create(

@@ -1,17 +1,16 @@
-import uuid
 import uuid6
 from django.db import models
 from django.utils.text import slugify
-from django.utils import timezone
+from django.utils      import timezone
 from django.utils.translation import gettext_lazy as _
 from auditlog.registry import auditlog
 
-from hr.models import BaseAuditableModel
+from hr.models      import BaseAuditableModel
 from hr.jobs.models import Position, Department
-from .enums import ApplicationStatus, InterviewType
-from hr.utils.core import normalize_names
+from .enums         import ApplicationStatus, InterviewType
+from hr.utils.core  import normalize_names
 
-
+    
 class JobOffer(BaseAuditableModel):
     """
     Represents a job offer published by the company.
@@ -199,8 +198,7 @@ class Interview(BaseAuditableModel):
         return f"{self.get_interview_type_display()} - {self.application.candidate}"
 
 
-# --- AUDIT LOG REGISTRATION ---
-
+# --- Audit log registration ---
 auditlog.register(JobOffer)
 auditlog.register(Candidate)
 auditlog.register(Application)

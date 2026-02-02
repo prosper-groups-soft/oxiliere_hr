@@ -5,6 +5,7 @@ from typing import Dict, Any
 from django.db    import transaction
 from django.utils import timezone
 
+from core.services.crud import BaseCRUDService
 from hr.banking.models import (
     Bank,
     BankAccount,
@@ -16,64 +17,66 @@ from hr.banking.enums import BankAccountAction
 logger = logging.getLogger(__name__)
 
 
+# --- Internal CRUD Helpers ---
+class BankCRUD(BaseCRUDService):
+    model = Bank
+
+
+class BankAccountCRUD(BaseCRUDService):
+    model = BankAccount
+
+
 class BankingService:
-    """
-    Unified service for managing Banks and Bank Accounts.
-    Covers creation, updates, verification, and lifecycle management.
-    """
+    """ Unified management of banks and employee payment accounts. """
     
+    def __init__(self):
+        self.bank_crud = BankCRUD()
+        self.account_crud = BankAccountCRUD()
+
     # --- Bank Management ---
 
     @transaction.atomic
     def create_bank(self, data: Dict[str, Any]) -> Bank:
-        """Create a new Bank institution."""
-        bank = Bank(**data)
+        """ Registers a new financial institution in the system. """
+        bank = self.bank_crud.create(data=data)
         bank.full_clean()
         bank.save()
+        
         logger.info(f"Bank created: {bank.name} ({bank.code})")
         return bank
 
     @transaction.atomic
     def update_bank(self, bank_id: UUID, data: Dict[str, Any]) -> Bank:
-        """Update generic Bank details."""
-        bank = Bank.objects.get(id=bank_id)
-        for field, value in data.items():
-            if hasattr(bank, field):
-                setattr(bank, field, value)
-        bank.full_clean()
-        bank.save()
+        """ Updates the metadata for an existing bank. """
+        bank = self.bank_crud.get(id=bank_id)
+        self.bank_crud.update(instance=bank, data=data)
+        
         logger.info(f"Bank updated: {bank.id}")
         return bank
 
     @transaction.atomic
     def delete_bank(self, bank_id: UUID):
-        """Delete a bank (soft delete if configured, else hard delete)."""
-        bank = Bank.objects.get(id=bank_id)
-        bank.delete()
+        """ Removes a bank provider from the catalog. """
+        bank = self.bank_crud.get(id=bank_id)
+        self.bank_crud.delete(instance=bank)
         logger.info(f"Bank deleted: {bank_id}")
 
     # --- Bank Account Management ---
 
     @transaction.atomic
     def create_bank_account(self, employee_id: UUID, bank_id: UUID, account_data: Dict[str, Any], actor=None):
-        """
-        Creates a new bank account and logs the history.
-        Ensures that if it's the first account for a currency, it becomes primary.
-        """
-        # Check if this is the first account for this currency
+        """ Sets up a new payment account for an employee. """
         currency = account_data.get('currency')
         if not currency:
-            # Default to model default if not provided, but usually required in data
             currency = BankAccount._meta.get_field('currency').default
 
-        existing_accounts = BankAccount.objects.filter(
+        existing_accounts = self.account_crud.exists(
             employee_id=employee_id, 
             currency=currency
-        ).exists()
+        )
 
         is_primary = account_data.get('is_primary', not existing_accounts)
 
-        # If we want this to be primary, we must unset others first
         if is_primary:
             BankAccount.objects.filter(
                 employee_id=employee_id, 
@@ -81,29 +84,23 @@ class BankingService:
                 is_primary=True
             ).update(is_primary=False)
 
-        account = BankAccount.objects.create(
-            employee_id=employee_id,
-            bank_id=bank_id,
-            is_primary=is_primary,
-            created_by=actor,
-            **account_data
-        )
-
-        # Log History
+        account_data['employee_id'] = employee_id
+        account_data['bank_id'] = bank_id
+        account_data['is_primary'] = is_primary
+        account_data['created_by'] = actor
+        
+        account = self.account_crud.create(data=account_data)
         self._log_history(account, BankAccountAction.CREATED, actor)
         
-        logger.info(f"Bank account created for employee {employee_id} at bank {bank_id}")
+        logger.info(f"Bank account created for employee {employee_id}")
         return account
 
     @transaction.atomic
     def update_account(self, account_id: UUID, data: Dict[str, Any], actor=None) -> BankAccount:
-        """
-        Update account details with audit logging.
-        """
+        """ Modifies existing bank account details with full audit tracing. """
         account = BankAccount.objects.select_for_update().get(id=account_id)
         changed_fields = {}
         
-        # Prevent direct changes to sensitive flags via generic update
         restricted_fields = {'is_primary', 'verified', 'verified_at', 'employee', 'bank'}
         
         for field, value in data.items():
@@ -135,8 +132,8 @@ class BankingService:
 
     @transaction.atomic
     def verify_account(self, account_id: UUID, actor=None):
-        """Marks an account as verified for payroll processing."""
-        account = BankAccount.objects.get(id=account_id)
+        """ Formally validates a bank account for payroll use. """
+        account = self.account_crud.get(id=account_id)
         if not account.verified:
             account.verified = True
             account.verified_at = timezone.now()
@@ -148,8 +145,8 @@ class BankingService:
 
     @transaction.atomic
     def unverify_account(self, account_id: UUID, actor=None):
-        """Revokes verification status."""
-        account = BankAccount.objects.get(id=account_id)
+        """ Revokes the validation status of a payment account. """
+        account = self.account_crud.get(id=account_id)
         if account.verified:
             account.verified = False
             account.verified_at = None
@@ -161,11 +158,10 @@ class BankingService:
 
     @transaction.atomic
     def set_primary_account(self, account_id: UUID, actor=None):
-        """Switches the primary account for a specific currency."""
-        account = BankAccount.objects.get(id=account_id)
+        """ Designates the main account for salary distribution in a specific currency. """
+        account = self.account_crud.get(id=account_id)
         
         if not account.is_primary:
-            # Unset current primary for the same currency
             BankAccount.objects.filter(
                 employee=account.employee,
                 currency=account.currency,
@@ -182,8 +178,8 @@ class BankingService:
 
     @transaction.atomic
     def activate_account(self, account_id: UUID, actor=None):
-        """Activates a suspended account."""
-        account = BankAccount.objects.get(id=account_id)
+        """ Restores a suspended bank account to active status. """
+        account = self.account_crud.get(id=account_id)
         if not account.is_active:
             account.is_active = True
             if  actor:
@@ -194,8 +190,8 @@ class BankingService:
 
     @transaction.atomic
     def deactivate_account(self, account_id: UUID, actor=None):
-        """Deactivates/Suspends a bank account."""
-        account = BankAccount.objects.get(id=account_id)
+        """ Suspends a bank account from further payroll processing. """
+        account = self.account_crud.get(id=account_id)
         if account.is_active:
             account.is_active = False
             if actor:
@@ -206,19 +202,16 @@ class BankingService:
 
     @transaction.atomic
     def delete_account(self, account_id: UUID, actor=None):
-        """
-        Deletes a bank account. 
-        Logs the deletion in history before removing the record 
-        (if using soft delete, it actually keeps record but marks delete).
-        """
-        account = BankAccount.objects.get(id=account_id)
+        """ Formally removes a bank account record from the system. """
+        account = self.account_crud.get(id=account_id)
         if actor:
             account.updated_by = actor
-        account.delete()
+        
         self._log_history(account, BankAccountAction.DELETED, actor)
+        self.account_crud.delete(instance=account)
 
     def _log_history(self, account, action, actor, changed_fields=None, notes=None):
-        """Internal helper to create audit history."""
+        """ Internal helper to record banking modifications. """
         BankAccountHistory.objects.create(
             bank_account=account,
             action=action,
@@ -228,10 +221,7 @@ class BankingService:
         )
 
     def generate_payroll_export(self, bank_code: str = None, currency: str = "CDF"):
-        """
-        Generates the data ready for a mass transfer.
-        Filters only verified and active accounts.
-        """
+        """ Compiles verified and active account data for mass bank transfers. """
         queryset = BankAccount.objects.filter(
             verified=True,
             is_active=True,
@@ -251,8 +241,9 @@ class BankingService:
                 "branch_code": acc.branch_code or "00000",
                 "account_number": acc.account_number,
                 "currency": acc.currency,
-                "amount": 0.0,  # To be filled by Payroll module
+                "amount": 0.0,
                 "reason": "SALAIRE DU MOIS"
             })
         
         return data
+

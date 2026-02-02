@@ -6,5 +6,5 @@ class AttendanceConfig(AppConfig):
     label = 'hr_attendance'
 
     def ready(self):
-        from . import signals
+        import hr.attendance.signals
         

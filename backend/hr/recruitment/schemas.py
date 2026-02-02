@@ -1,6 +1,6 @@
 from datetime import datetime, date
-from typing import Optional
-from ninja import Schema, ModelSchema, Field
+from typing   import Optional
+from ninja    import Schema, ModelSchema, Field
 from hr.recruitment.models import (
     JobOffer, 
     Candidate, 

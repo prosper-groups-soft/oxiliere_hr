@@ -1,25 +1,20 @@
-"""
-Jobs caching services.
-
-Handles caching of job/organization structure queries.
-"""
-
 from django.core.cache import cache
 from hr.services.cache_helpers import generate_cache_key, CacheKeys
 from hr.jobs.models import (
     JobFamily,
     Position,
     Department,
-    EmploymentPosition,
+    Department,
+    EmployeePositionHistory,
 )
 
 
 class JobsCacheService:
-    """Cache operations for jobs module."""
+    """ Centralized cache management for organizational structure and job data. """
     
     @staticmethod
     def get_department(department_id):
-        """Get department by ID (cached)."""
+        """ Retrieves a cached department instance. """
         cache_key = generate_cache_key("hr:jobs:department", department_id)
         department = cache.get(cache_key)
         
@@ -56,15 +51,7 @@ class JobsCacheService:
     
     @staticmethod
     def get_all_departments(flat=False):
-        """
-        Get all departments.
-        
-        Args:
-            flat: If True, return flat list. If False, return tree structure.
-        
-        Returns:
-            List of departments
-        """
+        """ Retrieves a list of all departments, either flat or as a hierarchy. """
         cache_key = generate_cache_key(
             "hr:jobs:departments", "flat" if flat else "tree"
         )
@@ -82,7 +69,7 @@ class JobsCacheService:
     
     @staticmethod
     def get_job_family(family_id):
-        """Get job family by ID (cached)."""
+        """ Retrieves a cached job family instance. """
         cache_key = generate_cache_key("hr:jobs:job_family", family_id)
         family = cache.get(cache_key)
         
@@ -96,15 +83,7 @@ class JobsCacheService:
     
     @staticmethod
     def get_positions_by_family(family):
-        """
-        Get all positions for a job family (cached).
-        
-        Args:
-            family: JobFamily instance or ID
-        
-        Returns:
-            List of Position instances
-        """
+        """ Retrieves all positions associated with a specific job family. """
         if isinstance(family, JobFamily):
             family_id = family.id
         else:
@@ -124,7 +103,7 @@ class JobsCacheService:
     
     @staticmethod
     def get_position(position_id):
-        """Get position by ID (cached)."""
+        """ Retrieves a cached position instance. """
         cache_key = generate_cache_key("hr:jobs:position", position_id)
         position = cache.get(cache_key)
         
@@ -140,7 +119,7 @@ class JobsCacheService:
     
     @staticmethod
     def get_positions_by_department(department):
-        """Get positions in a department (cached)."""
+        """ Retrieves all positions currently active within a specific department. """
         if isinstance(department, Department):
             department_id = department.id
         else:
@@ -152,8 +131,15 @@ class JobsCacheService:
         positions = cache.get(cache_key)
         
         if positions is None:
+            # We fetch positions that are currently active in this department
+            # This requires a subquery or join through EmployeePositionHistory
+            position_ids = EmployeePositionHistory.objects.filter(
+                department_id=department_id,
+                is_current=True
+            ).values_list('position_id', flat=True).distinct()
+            
             positions = list(Position.objects.filter(
-                department_id=department_id
+                id__in=position_ids
             ).order_by('name'))
             
             cache.set(cache_key, positions, timeout=60*60*24)  # 24h
@@ -162,20 +148,12 @@ class JobsCacheService:
     
     @staticmethod
     def get_current_position(employee):
-        """
-        Get current employment position for employee (cached).
-        
-        Args:
-            employee: Employee instance
-        
-        Returns:
-            EmploymentPosition instance or None
-        """
+        """ Retrieves the employee's current active role. """
         cache_key = CacheKeys.current_position(employee.id)
         position = cache.get(cache_key)
         
         if position is None:
-            position = EmploymentPosition.objects.filter(
+            position = EmployeePositionHistory.objects.filter(
                 employee=employee,
                 is_current=True
             ).first()
@@ -187,16 +165,16 @@ class JobsCacheService:
     
     @staticmethod
     def get_employee_positions(employee):
-        """Get all positions held by employee (cached)."""
+        """ Retrieves the complete career history for an employee. """
         cache_key = generate_cache_key(
             "hr:jobs:employee_positions", employee.id
         )
         positions = cache.get(cache_key)
         
         if positions is None:
-            positions = list(EmploymentPosition.objects.filter(
+            positions = list(EmployeePositionHistory.objects.filter(
                 employee=employee
-            ).order_by('-effective_date'))
+            ).order_by('-start_date'))
             
             cache.set(cache_key, positions, timeout=60*60*12)  # 12h
         
@@ -204,15 +182,33 @@ class JobsCacheService:
     
     @staticmethod
     def clear_department_cache():
-        """Clear department tree cache."""
+        """ Invalidates all department-related caches. """
         cache.delete(CacheKeys.department_tree())
         cache.delete(generate_cache_key("hr:jobs:departments", "flat"))
         cache.delete(generate_cache_key("hr:jobs:departments", "tree"))
     
     @staticmethod
+    def clear_department_positions_cache(department_id):
+        """ Invalidates the list of positions for a specific department. """
+        cache.delete(generate_cache_key("hr:jobs:positions_dept", department_id))
+
+    @staticmethod
     def clear_employee_position_cache(employee):
-        """Clear position cache for employee."""
+        """ Invalidates cache entries for an employee's career records. """
         cache.delete(CacheKeys.current_position(employee.id))
         cache.delete(generate_cache_key(
             "hr:jobs:employee_positions", employee.id
         ))
+
+    @staticmethod
+    def clear_job_family_cache(family_id):
+        """ Invalidates cache entries for a job family and its positions. """
+        cache.delete(generate_cache_key("hr:jobs:job_family", family_id))
+        cache.delete(CacheKeys.positions_by_family(family_id))
+
+    @staticmethod
+    def clear_position_cache(position_id, family_id=None):
+        """ Invalidates cache entries for a specific position. """
+        cache.delete(generate_cache_key("hr:jobs:position", position_id))
+        if family_id:
+            cache.delete(CacheKeys.positions_by_family(family_id))

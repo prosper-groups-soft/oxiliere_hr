@@ -3,16 +3,10 @@ from core.services.crud  import BaseCRUDService
 
 
 class WorkSiteService(BaseCRUDService):
-    """
-    Service for managing Work Sites.
-    Standard CRUD operations are inherited from BaseCRUDService.
-    """
+    """ Service for managing physical work sites. """
     model = WorkSite
     allowed_update_fields = [
-        'name',
-        'latitude',
-        'longitude',
-        'allowed_radius'
+        'name', 'latitude', 'longitude', 'allowed_radius'
     ]
     
     

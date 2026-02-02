@@ -1,6 +1,7 @@
-from django.utils import timezone
+import uuid6
 import secrets
 import string
+from django.utils import timezone
 
 
 def generate_daily_register_code(register_date):
@@ -10,6 +11,15 @@ def generate_daily_register_code(register_date):
     code = f"DR-{date_str}-{rand}"
     
     return code
+
+
+def generate_payroll_run_code():
+    """
+    Generates a unique code for a payroll run.
+    Example: PR-A1B2C3D4
+    """
+    unique_id = uuid6.uuid7().hex[:8].upper()
+    return f"PR-{unique_id}"
 
 
 def get_contract_seq_key():

@@ -36,12 +36,7 @@ logger = logging.getLogger(__name__)
 
 @api_controller('/employees', tags=['Employee Records & Vault'])
 class EmployeeRecordController(ControllerBase):
-    """
-    ORCHESTRATION LAYER:
-    Handles digital vaulting and residential history. Ensures that binary
-    files are correctly linked to employee profiles and that moves
-    are registered with temporal integrity.
-    """
+    """ API endpoints for employee digital documents and residential history. """
 
     @inject
     def __init__(
@@ -54,8 +49,6 @@ class EmployeeRecordController(ControllerBase):
         self.address_service = address_service
         self.query_service = query_service
 
-    # --- DOCUMENT VAULT ---
-
     @http_post('/{employee_id}/documents', response={201: EmployeeDocumentOut})
     def upload_document(
         self,
@@ -63,10 +56,7 @@ class EmployeeRecordController(ControllerBase):
         data: EmployeeDocumentCreate,
         file: File[UploadedFile],
     ):
-        """
-        Digitalization of HR artifacts (KYC).
-        Merges metadata and file stream.
-        """
+        """ Uploads and links a new legal or professional document. """
         employee = self.query_service.get_employee_by_id(employee_id)
         if not employee:
             return self.create_response("Employee not found", status_code=404)
@@ -75,46 +65,34 @@ class EmployeeRecordController(ControllerBase):
         logger.info(f"[API] Uploading {data.document_type} for {employee.matricule}")
 
         try:
-            document = self.doc_service.upload_document(
+            return 201, self.doc_service.upload_document(
                 employee=employee,
                 file_obj=file,
                 data=data.model_dump(),
                 actor=actor,
             )
-            return 201, document
         except ValidationError as e:
             return self.create_response({"detail": str(e.message)}, status_code=400)
 
     @http_patch('/documents/{document_id}/verify', response=EmployeeDocumentOut)
     def verify_document(self, document_id: UUID):
-        """
-        Compliance audit.
-        Service-driven status toggle with audit trail.
-        """
+        """ Marks a document as verified after compliance review. """
         document = get_object_or_404(EmployeeDocument, id=document_id)
         actor = getattr(self.context.request, 'user', None)
 
-        logger.info(f"[API] Verifying document {document_id} (Auditor: {actor})")
+        logger.info(f"[API] Verifying document {document_id}")
         return self.doc_service.verify_document(document=document, actor=actor)
-
-    # --- GEOGRAPHY (ADDRESSES) ---
 
     @http_post('/{employee_id}/addresses/move', response=EmployeeAddressOut)
     def register_move(self, employee_id: UUID, data: EmployeeAddressMoveIn):
-        """
-        Residential history management.
-        
-        Implements a logical "Address Switch". The service closes
-        the current record and opens the new one in a single transaction.
-        """
+        """ Registers a change of residence and archives old address. """
         employee = self.query_service.get_employee_by_id(employee_id)
         if not employee:
             return self.create_response("Employee not found", status_code=404)
 
         actor = getattr(self.context.request, 'user', None)
-        logger.info(f"[API] Residential move registration for {employee.matricule}")
+        logger.info(f"[API] Registering move for {employee.matricule}")
 
-        # The service automatically archives the previous address
         return self.address_service.register_move(
             employee=employee,
             data=data.model_dump(),
@@ -123,31 +101,25 @@ class EmployeeRecordController(ControllerBase):
     
     @http_patch('/addresses/{address_id}', response=EmployeeAddressOut)
     def correct_address(self, address_id: UUID, data: EmployeeAddressCorrectIn):
-        """
-        Correction of an existing address.
-        TECHNICAL: Does NOT change historical 'current' flags or create a new move.
-        """
+        """ Performs administrative corrections on an existing address record. """
         address = get_object_or_404(EmployeeAddress, id=address_id)
         actor = getattr(self.context.request, 'user', None)
 
-        logger.info(f"[API] Correcting address {address_id} for employee {address.employee.matricule}")
+        logger.info(f"[API] Correcting address {address_id}")
 
-        corrected = self.address_service.correct_address(
+        return self.address_service.correct_address(
             address_id=address_id,
             data=data.model_dump(exclude_unset=True),
             actor=actor
         )
-        return corrected
 
     @http_delete('/documents/{document_id}', response={204: None})
     def remove_document(self, document_id: UUID):
-        """
-        Document revocation or cleanup.
-        """
+        """ Deletes a document record and its associated file. """
         document = get_object_or_404(EmployeeDocument, id=document_id)
         actor = getattr(self.context.request, 'user', None)
 
-        logger.warning(f"[API] Removing document {document_id} (Actor: {actor})")
+        logger.warning(f"[API] Removing document {document_id}")
 
         self.doc_service.remove_document(
             document=document,

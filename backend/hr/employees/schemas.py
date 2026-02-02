@@ -23,9 +23,7 @@ from hr.employees.models import (
 #  -------- Employee Document Schemas -------- 
 
 class EmployeeDocumentCreate(ModelSchema):
-    """
-    HR intention: Upload legal/academic documents.
-    """
+    """ Upload legal or academic documents. """
     class Meta:
         model = EmployeeDocument
         fields = [
@@ -53,10 +51,7 @@ class EmployeeDocumentOut(ModelSchema):
 #  -------- Employee Address Schemas -------- 
 
 class EmployeeAddressCorrectIn(ModelSchema):
-    """
-    HR intention: Correct an existing address (typos, missing info).
-    All fields optional. Does not break history or change current address.
-    """
+    """ Correct an existing address record. """
     class Meta:
         model = EmployeeAddress
         fields = [
@@ -93,10 +88,7 @@ class EmployeeAddressOut(ModelSchema):
 
 
 class EmployeeAddressMoveIn(ModelSchema):
-    """
-    HR intention: Record an address change.
-    The service will handle setting the previous address to 'is_current=False'.
-    """
+    """ Record a change of residence. """
     class Meta:
         model = EmployeeAddress
         fields = [
@@ -220,9 +212,7 @@ class EmergencyContactOut(ModelSchema):
 #  -------- Employee Schemas -------- 
 
 class StatusHistoryOut(ModelSchema):
-    """
-    HR Intention: View the historical timeline of an employee's status.
-    """
+    """ Intention: Historical timeline of status changes. """
     class Meta:
         model = StatusHistory
         fields = [
@@ -235,10 +225,7 @@ class StatusHistoryOut(ModelSchema):
 
 
 class EmployeeCreate(ModelSchema):
-    """
-    HR intention: Onboarding a new employee.
-    Matricule, user, and initial status history are handled by the service layer.
-    """
+    """ Onboarding a new employee. """
     class Meta:
         model = Employee
         fields = [
@@ -257,9 +244,7 @@ class EmployeeCreate(ModelSchema):
 
 
 class EmployeeUpdate(ModelSchema):
-    """
-    RH intention: Update civil and personal information.
-    """
+    """ Update core identification and civil status. """
     class Meta:
         model = Employee
         fields = [
@@ -278,10 +263,7 @@ class EmployeeUpdate(ModelSchema):
 
 
 class EmployeeStatusUpdate(Schema):
-    """
-    HR / Admin intention: Formal status change.
-    This should trigger an entry in EmployeeStatusHistory via the service.
-    """
+    """ Manual status change with effective date. """
     new_status: str
     effective_date: date
     reason: Optional[str] = None
@@ -292,28 +274,20 @@ class EmployeeStatusUpdate(Schema):
 #  -------- Employee Lifecycle Schemas -------- 
 
 class EmployeeStatusIn(Schema):
-    """
-    HR intention: Promotion, end of probationary period, or grade change.
-    """
+    """ Employment status evolution. """
     new_status: str
     effective_date: date
     reason: Optional[str] = None
 
 
 class EmployeeSuspensionIn(Schema):
-    """
-    HR intention: Disciplinary or administrative suspension.
-    Disables access to the system.
-    """
+    """ Administrative or disciplinary suspension. """
     reason: str
     effective_date: Optional[date] = Field(default_factory=date.today)
 
 
 class EmployeeReactiveIn(Schema):
-    """
-    HR intention: Reactivate a previously inactive employee.
-    Should set the effective date and optionally restore system access.
-    """
+    """ Reactivate a previously inactive employee. """
     effective_date: Optional[date] = Field(default_factory=date.today)
     reason: Optional[str] = None
     is_active: Optional[bool] = Field(default=True)
@@ -321,9 +295,7 @@ class EmployeeReactiveIn(Schema):
 
 
 class EmployeeOffboardingIn(Schema):
-    """
-    HR intention: Permanent departure (resignation, retirement, dismissal).
-    """
+    """ Permanent company exit. """
     end_date: date
     reason: str
 
@@ -331,10 +303,7 @@ class EmployeeOffboardingIn(Schema):
 #  -------- Employee List & Detail -------- 
 
 class EmployeeFullProfileOut(ModelSchema):
-    """
-    Full 360 view for detail pages
-    HR Intention: Get every piece of information related to an employee in one call.
-    """
+    """ Complete HR dossier for detailed view. """
     addresses: List[EmployeeAddressOut]
     children: List[EmployeeChildOut]
     educations: List[EmployeeEducationOut]
@@ -368,7 +337,7 @@ class EmployeeFullProfileOut(ModelSchema):
 
 
 class EmployeeOut(ModelSchema):
-    """Simple output for listings"""
+    """ Concise profile for directory listings. """
         
     class Meta:
         model = Employee
@@ -386,9 +355,7 @@ class EmployeeOut(ModelSchema):
 
 
 class EmployeeFilterIn(BaseFilter):
-    """
-    Filter the schema
-    """
+    """ Filtering criteria for workforce directory. """
     
     gender: Optional[str] = None
     marital_status: Optional[str] = None

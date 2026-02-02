@@ -3,6 +3,7 @@ from .leave       import LeaveRequestService
 from .consumption import LeaveConsumptionService
 from .init_leave  import LeaveInitializerService
 from .admin       import LeaveAdminService
+from .cache       import LeaveCacheService
 from .config import (
     LeavePolicyService,
     SeniorityRuleService,
@@ -19,5 +20,6 @@ __all__ = [
     'CircumstanceLeaveRuleService',
     'LeaveInitializerService',
     'LeaveAdminService',
+    'LeaveCacheService',
 ]
 

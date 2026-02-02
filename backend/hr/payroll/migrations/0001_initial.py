@@ -2,7 +2,7 @@
 
 import django.core.validators
 import django.db.models.deletion
-import hr.payroll.utils
+from hr.utils.gen import generate_payroll_run_code
 import oxutils.models.fields
 import uuid6
 from django.conf import settings
@@ -120,7 +120,7 @@ class Migration(migrations.Migration):
                 ('is_active', models.BooleanField(default=True, help_text='Whether this record is active')),
                 ('_masked_backup', oxutils.models.fields.MaskedBackupField(default=dict, editable=False)),
                 ('id', models.UUIDField(default=uuid6.uuid7, editable=False, primary_key=True, serialize=False)),
-                ('code', models.CharField(default=hr.payroll.utils.generate_payroll_run_code, help_text='A unique identifier for the payroll processing run.', max_length=32, unique=True)),
+                ('code', models.CharField(default=generate_payroll_run_code, help_text='A unique identifier for the payroll processing run.', max_length=32, unique=True)),
                 ('start_date', models.DateField(help_text='The beginning date of the payroll period.')),
                 ('end_date', models.DateField(help_text='The ending date of the payroll period.')),
                 ('status', models.CharField(choices=[('DRAFT', 'Draft'), ('VALIDATED', 'Validated'), ('PAID', 'Paid'), ('CANCELED', 'Canceled')], default='DRAFT', help_text='The current state of the payroll run (e.g., Draft, Validated, Paid).', max_length=15)),

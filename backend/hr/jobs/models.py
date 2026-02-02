@@ -9,23 +9,23 @@ from .enums import PositionLevel
 
 
 class JobFamily(BaseAuditableModel):
-    """ Engineering, HR, Finance, etc. """
+    """ High-level functional career category (e.g., Engineering, HR, Finance). """
     name = models.CharField(
         max_length=255, 
         unique=True,
-        help_text="Name of the job family (e.g., Engineering, Human Resources)."
+        verbose_name=_("Family Name")
     )
     description = models.TextField(
         blank=True, 
         null=True,
-        help_text="Brief description of the roles and responsibilities within this family."
+        verbose_name=_("Description")
     )
 
     class Meta:
         db_table = "jobs_job_family"
         ordering = ["name"]
-        verbose_name = "Job Family"
-        verbose_name_plural = "Job Families"
+        verbose_name = _("Job Family")
+        verbose_name_plural = _("Job Families")
 
     def clean(self):
         if self.name:
@@ -36,7 +36,7 @@ class JobFamily(BaseAuditableModel):
 
 
 class Position(BaseAuditableModel):
-    """ Seniority levels within a JobFamily. """
+    """ Specific role and seniority level within a Job Family. """
     job_family = models.ForeignKey(
         JobFamily, 
         on_delete=models.CASCADE, 
@@ -51,19 +51,19 @@ class Position(BaseAuditableModel):
         max_length=20,
         choices=PositionLevel,
         default=PositionLevel.JUNIOR,
-        help_text="Seniority or hierarchical level of the position."
+        verbose_name=_("Seniority Level")
     )
     description = models.TextField(
         blank=True, 
         null=True,
-        help_text="Specific requirements or details about this role."
+        verbose_name=_("Job Description")
     )
 
     class Meta:
         db_table = "jobs_position"
         ordering = ["job_family__name", "level", "name"]
-        # Prevents having "Senior Developer" twice in the same family
         unique_together = ('job_family', 'name', 'level')
+        verbose_name = _("Position")
 
     def clean(self):
         if self.name:
@@ -74,11 +74,11 @@ class Position(BaseAuditableModel):
 
 
 class Department(BaseAuditableModel):
-    """ Functional units with hierarchical support. """
+    """ Organizational unit or functional department. """
     name = models.CharField(
         max_length=100, 
         unique=True,
-        help_text="Official name of the department."
+        verbose_name=_("Department Name")
     )
     parent = models.ForeignKey(
         'self', 
@@ -86,7 +86,7 @@ class Department(BaseAuditableModel):
         null=True, 
         blank=True, 
         related_name="sub_departments",
-        help_text="Parent department for hierarchical structure (e.g., Marketing under Global Ops)."
+        verbose_name=_("Parent Department")
     )
     manager = models.ForeignKey(
         "hr_employees.Employee", 
@@ -94,35 +94,36 @@ class Department(BaseAuditableModel):
         null=True,
         blank=True,
         related_name="department_managed",
-        help_text="The employee leading this department."
+        verbose_name=_("Department Manager")
     )
     description = models.TextField(
         blank=True, 
         null=True,
-        help_text="Purpose and focus of this department."
+        verbose_name=_("Mission Description")
     )
 
     class Meta:
         db_table = "jobs_department"
         ordering = ["name"]
+        verbose_name = _("Department")
 
     def __str__(self):
         return self.name
 
 
 class EmployeePositionHistory(BaseAuditableModel):
-    """ Tracks career path. """
+    """ Records an employee's career progression and departmental assignments. """
     employee = models.ForeignKey(
         "hr_employees.Employee",
         on_delete=models.CASCADE,
         related_name="position_history",
-        help_text="The employee associated with this career record."
+        verbose_name=_("Employee")
     )
     position = models.ForeignKey(
         Position,
-        on_delete=models.PROTECT, # Protect position from deletion if used in history
+        on_delete=models.PROTECT,
         related_name="employee_histories",
-        help_text="The position held by the employee during this period."
+        verbose_name=_("Position held")
     )
     department = models.ForeignKey(
         Department,
@@ -130,41 +131,40 @@ class EmployeePositionHistory(BaseAuditableModel):
         null=True,
         blank=True,
         related_name="employee_position_histories",
-        help_text="The department where the employee worked during this period."
+        verbose_name=_("Assigned Department")
     )
     start_date = models.DateField(
         default=timezone.now,
-        help_text="Date when the employee started in this position."
+        verbose_name=_("Start Date")
     )
     end_date = models.DateField(
         null=True, 
         blank=True,
-        help_text="Date when the employee left this position. Leave blank if still active."
+        verbose_name=_("End Date")
     )
     is_current = models.BooleanField(
         default=True,
-        help_text="Indicates if this is the employee's current active position."
+        verbose_name=_("Current Position")
     )
     description = models.TextField(
         blank=True, 
         null=True,
-        help_text="Additional notes about the employee's performance or role changes."
+        verbose_name=_("Assignment Notes")
     )
 
     class Meta:
         db_table = "jobs_employee_position_history"
         ordering = ["-start_date"]
-        verbose_name = "Employee Position History"
-        verbose_name_plural = "Employee Position Histories"
+        verbose_name = _("Position History")
+        verbose_name_plural = _("Position Histories")
 
     def clean(self):
         if self.end_date and self.start_date and self.end_date < self.start_date:
-            raise ValidationError("End date cannot be before start date.")
+            raise ValidationError(_("End date cannot be before start date."))
 
     def save(self, *args, **kwargs):
         self.clean()
         if self.is_current:
-            # Automatically close the previous position if this one is marked as 'current'
             EmployeePositionHistory.objects.filter(
                 employee=self.employee, 
                 is_current=True
@@ -173,52 +173,53 @@ class EmployeePositionHistory(BaseAuditableModel):
 
 
 class Training(BaseAuditableModel):
-    """ Certifications and skills development. """
+    """ Professional certifications and corporate training records. """
     employee = models.ForeignKey(
         "hr_employees.Employee",
         on_delete=models.CASCADE,
         related_name="trainings",
-        help_text="The employee who attended the training."
+        verbose_name=_("Employee")
     )
     name = models.CharField(
         max_length=255,
-        help_text="Name of the training or certification."
+        verbose_name=_("Training Name")
     )
     institute = models.CharField(
         max_length=255, 
         null=True, 
         blank=True,
-        help_text="The organization or institution that provided the training."
+        verbose_name=_("Training Institution")
     )
     start_date = models.DateField(
         default=timezone.now,
-        help_text="Start date of the training session."
+        verbose_name=_("Start Date")
     )
     end_date = models.DateField(
         null=True, 
         blank=True,
-        help_text="Completion date of the training."
+        verbose_name=_("End Date")
     )
     location = models.CharField(
         max_length=255, 
         null=True, 
         blank=True,
-        help_text="Physical or virtual location where the training took place."
+        verbose_name=_("Location")
     )
     description = models.TextField(
         blank=True, 
         null=True,
-        help_text="Brief summary of skills acquired or certification details."
+        verbose_name=_("Content Summary")
     )
     expiry_date = models.DateField(
         null=True, 
         blank=True,
-        help_text=_("Date when this certification or training expires.")
+        verbose_name=_("Expiry Date")
     )
 
     class Meta:
         db_table = "jobs_training"
         ordering = ["-start_date"]
+        verbose_name = _("Training")
         indexes = [
             models.Index(fields=['expiry_date']),
         ]
@@ -232,8 +233,7 @@ class Training(BaseAuditableModel):
                 raise ValidationError(_("Expiry date must be after the start date."))
 
 
-# --- AUDIT LOG REGISTRATION ---
-
+# --- Audit log registration ---
 auditlog.register(JobFamily)
 auditlog.register(Position)
 auditlog.register(Department)

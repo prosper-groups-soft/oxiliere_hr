@@ -1,8 +1,8 @@
 import logging
-from django.db import transaction
-from django.core.exceptions import ValidationError
+from django.db    import transaction
 from django.utils import timezone
-from hr.recruitment.models import Application, JobOffer
+from django.core.exceptions import ValidationError
+from hr.recruitment.models  import Application, JobOffer
 from .candidate import CandidateService
 from hr.recruitment.enums import ApplicationStatus
 

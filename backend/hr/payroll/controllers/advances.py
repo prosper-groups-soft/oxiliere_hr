@@ -1,17 +1,6 @@
-"""
-SALARY ADVANCES CONTROLLER
-
-Manages employee salary advances:
-- Request and approve salary advances
-- Configure advance deduction terms
-- Track advance repayment
-- Multi-advance priority management
-- Advance balance and repayment history
-"""
-
 import logging
-from typing import List
-from uuid import UUID
+from typing   import List
+from uuid     import UUID
 from injector import inject
 
 from django.core.exceptions import ValidationError
@@ -25,6 +14,8 @@ from ninja_extra import (
     ControllerBase,
 )
 from oxutils.pagination.cursor import CursorPagination
+from oxutils.permissions.perms import ScopePermission
+from hr.services.cache_helpers import cache_api_response
 
 from hr.payroll.models import SalaryAdvance, AdvanceDeductionConfiguration
 from hr.payroll.schemas import (
@@ -48,14 +39,14 @@ logger = logging.getLogger(__name__)
 @api_controller('/payroll/advances', tags=['Salary Advances'])
 class SalaryAdvanceController(ControllerBase):
     """
-    Salary advance management and tracking.
-    
-    Responsibilities:
-    - Create and approve salary advances
-    - Configure deduction terms (base, timing, window, priority)
-    - Track advance repayment progress
-    - Query advance balance and history
-    - Manage multiple advances per employee
+    SALARY ADVANCES CONTROLLER
+
+    Manages employee salary advances:
+    - Request and approve salary advances
+    - Configure advance deduction terms
+    - Track advance repayment
+    - Multi-advance priority management
+    - Advance balance and repayment history
     """
 
     @inject
@@ -64,8 +55,9 @@ class SalaryAdvanceController(ControllerBase):
 
     # ===== SALARY ADVANCES =====
 
-    @http_get('/', response=List[SalaryAdvanceOut])
+    @http_get('/', response=List[SalaryAdvanceOut], permissions=[ScopePermission('payroll:r')])
     @paginate(CursorPagination)
+    @cache_api_response(timeout=60*60, key_prefix="salary_advances_list", user_specific=False)
     def list_advances(self, filters: AdvanceListFilterIn = Query(...)):
         """
         List salary advances with filtering.
@@ -87,7 +79,8 @@ class SalaryAdvanceController(ControllerBase):
         # Apply filters
         return filters.filter(qs)
 
-    @http_get('/{advance_id}', response=SalaryAdvanceDetailOut)
+    @http_get('/{advance_id}', response=SalaryAdvanceOut, permissions=[ScopePermission('payroll:r')])
+    @cache_api_response(timeout=60*60*24, key_prefix="advance_detail", user_specific=False)
     def get_advance_detail(self, advance_id: UUID):
         """
         Retrieve detailed information about a salary advance.
@@ -111,11 +104,10 @@ class SalaryAdvanceController(ControllerBase):
                 status_code=404,
             )
 
-    @http_get('/employee/{employee_id}/active', response=List[SalaryAdvanceOut])
+    @http_get('/employee/{employee_id}/active', response=List[SalaryAdvanceOut], permissions=[ScopePermission('payroll:r')])
     def list_active_advances(self, employee_id: UUID):
         """
         List all active (ACTIVE status) advances for an employee.
-        
         Returns advances that are currently deductible from payroll.
         """
         logger.debug("[Advances] Listing active advances", extra={"employee_id": employee_id})
@@ -123,11 +115,10 @@ class SalaryAdvanceController(ControllerBase):
         advances = self.advance_service.get_active_advances(employee_id)
         return advances
 
-    @http_get('/employee/{employee_id}/history', response=List[SalaryAdvanceOut])
+    @http_get('/employee/{employee_id}/history', response=List[SalaryAdvanceOut], permissions=[ScopePermission('payroll:r')])
     def list_advance_history(self, employee_id: UUID):
         """
         List complete advance history for an employee.
-        
         Returns all advances (active and closed) ordered by request date.
         """
         logger.debug("[Advances] Listing advance history", extra={"employee_id": employee_id})
@@ -135,7 +126,7 @@ class SalaryAdvanceController(ControllerBase):
         advances = self.advance_service.get_employee_advance_history(employee_id)
         return advances
 
-    @http_get('/{advance_id}/balance', response=AdvanceBalanceOut)
+    @http_get('/{advance_id}/balance', response=AdvanceBalanceOut, permissions=[ScopePermission('payroll:r')])
     def get_advance_balance(self, advance_id: UUID):
         """
         Get current balance information for an advance.
@@ -159,11 +150,10 @@ class SalaryAdvanceController(ControllerBase):
                 status_code=404,
             )
 
-    @http_post('/', response={201: SalaryAdvanceOut})
-    def request_advance(self, data: SalaryAdvanceCreateIn):
+    @http_post('/', response={201: SalaryAdvanceOut}, permissions=[ScopePermission('payroll:w')])
+    def request_salary_advance(self, data: SalaryAdvanceCreateIn):
         """
         Create a new salary advance request.
-        
         Initial status is PENDING, must be approved before activation.
         """
         actor = getattr(self.context.request, 'user', None)
@@ -184,11 +174,10 @@ class SalaryAdvanceController(ControllerBase):
             logger.warning("[Advances] Validation error", extra={"error": str(e)})
             return self.create_response({"detail": str(e)}, status_code=400)
 
-    @http_patch('/{advance_id}/approve', response=SalaryAdvanceOut)
-    def approve_advance(self, advance_id: UUID):
+    @http_patch('/{advance_id}/approve', response=SalaryAdvanceOut, permissions=[ScopePermission('payroll:a')])
+    def approve_salary_advance(self, advance_id: UUID):
         """
         Approve a pending salary advance request.
-        
         Transitions status from PENDING to APPROVED.
         """
         actor = getattr(self.context.request, 'user', None)
@@ -213,7 +202,7 @@ class SalaryAdvanceController(ControllerBase):
             logger.warning("[Advances] Cannot approve advance", extra={"error": str(e)})
             return self.create_response({"detail": str(e)}, status_code=400)
 
-    @http_patch('/{advance_id}/reject', response=SalaryAdvanceOut)
+    @http_patch('/{advance_id}/reject', response=SalaryAdvanceOut, permissions=[ScopePermission('payroll:a')])
     def reject_advance(self, advance_id: UUID):
         """
         Reject a pending salary advance request.
@@ -242,7 +231,7 @@ class SalaryAdvanceController(ControllerBase):
             logger.warning("[Advances] Cannot reject advance", extra={"error": str(e)})
             return self.create_response({"detail": str(e)}, status_code=400)
 
-    @http_patch('/{advance_id}', response=SalaryAdvanceOut)
+    @http_patch('/{advance_id}', response=SalaryAdvanceOut, permissions=[ScopePermission('payroll:u')])
     def update_advance(self, advance_id: UUID, data: SalaryAdvanceUpdateIn):
         """
         Update an advance (only PENDING advances can be modified).
@@ -269,9 +258,34 @@ class SalaryAdvanceController(ControllerBase):
             logger.warning("[Advances] Cannot update advance", extra={"error": str(e)})
             return self.create_response({"detail": str(e)}, status_code=400)
 
+    @http_get('/{advance_id}', response=SalaryAdvanceDetailOut, permissions=[ScopePermission('payroll:r')])
+    def get_salary_advance_detail(self, advance_id: UUID):
+        """
+        Get a salary advance by its ID.
+        """
+        logger.debug("[Advances] Getting salary advance by ID", extra={"advance_id": advance_id})
+        try:
+            advance = self.advance_service.get_advance_detail(advance_id)
+            return advance
+        except SalaryAdvance.DoesNotExist:
+            logger.warning("[Advances] Salary advance not found", extra={"advance_id": advance_id})
+            return self.create_response(
+                {"detail": "Salary advance not found"},
+                status_code=404,
+            )   
+
     # ===== ADVANCE DEDUCTION CONFIGURATION =====
 
-    @http_get('/{advance_id}/configuration', response=AdvanceDeductionConfigurationOut)
+    @http_get('/deduction-configs/', response=List[AdvanceDeductionConfigurationOut], permissions=[ScopePermission('payroll:r')])
+    def list_deduction_configs(self):
+        """
+        List all advance deduction configurations.
+        """
+        logger.debug("[Advances] Listing all deduction configurations")
+        configs = self.advance_service.list_all_advance_configurations()
+        return configs
+
+    @http_get('/{advance_id}/configuration', response=AdvanceDeductionConfigurationOut, permissions=[ScopePermission('payroll:r')])
     def get_advance_configuration(self, advance_id: UUID):
         """
         Retrieve deduction configuration for a specific advance.
@@ -295,8 +309,8 @@ class SalaryAdvanceController(ControllerBase):
                 status_code=404,
             )
 
-    @http_post('/{advance_id}/configuration', response={201: AdvanceDeductionConfigurationOut})
-    def create_configuration(self, advance_id: UUID, data: AdvanceDeductionConfigurationCreateIn):
+    @http_post('/deduction-configs/', response={201: AdvanceDeductionConfigurationOut}, permissions=[ScopePermission('payroll:w')])
+    def configure_advance_deduction(self, data: AdvanceDeductionConfigurationCreateIn):
         """
         Create or update deduction configuration for an advance.
         
@@ -362,7 +376,6 @@ class SalaryAdvanceController(ControllerBase):
     def list_repayment_history(self, advance_id: UUID):
         """
         List all repayment records for a salary advance.
-        
         Shows the repayment schedule and amounts deducted per payslip.
         """
         logger.debug("[Advances] Listing repayment history", extra={"advance_id": advance_id})

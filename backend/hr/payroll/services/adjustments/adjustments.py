@@ -9,20 +9,11 @@ from hr.payroll.models import (
 
 
 class AdjustmentResolverService:
-    """
-    Identifies bonuses and deductions applicable to an employee in DRC.
-    Manages priority between mandatory global rules and employee-specific overrides.
-    """
+    """ Identifies bonuses and deductions applicable to an employee. """
 
     @classmethod
     def get_applicable_adjustments(cls, employee_id: UUID, reference_date: date) -> List[Dict[str, Any]]:
-        """
-        Retrieves all active adjustments for a given date.
-        
-        Priority:
-        1. Mandatory adjustments are included by default.
-        2. Employee-specific adjustments override global values or add new bonuses/deductions.
-        """
+        """ Retrieves active mandatory and employee-specific adjustments for a specific date. """
         # 1. Retrieval of mandatory global adjustments (e.g., Housing 25%, Transport)
         global_mandatory = PayrollAdjustment.objects.filter(
             is_mandatory=True, 

@@ -21,6 +21,7 @@ from hr.schemas import LightUserOut
 
 #  -------- Leave Policy -------- 
 class LeavePolicyOut(ModelSchema):
+    """ Comprehensive details of a corporate leave policy. """
     class Meta:
         model = LeavePolicy
         fields = [
@@ -35,6 +36,7 @@ class LeavePolicyOut(ModelSchema):
 
 
 class LeavePolicyCreate(ModelSchema):
+    """ Data required to establish a new leave policy. """
     class Meta:
         model = LeavePolicy
         fields = [
@@ -47,6 +49,7 @@ class LeavePolicyCreate(ModelSchema):
 
 
 class LeavePolicyUpdate(ModelSchema):
+    """ Data for modifying an existing leave policy. """
     class Meta:
         model = LeavePolicy
         fields = [
@@ -63,6 +66,7 @@ class LeavePolicyUpdate(ModelSchema):
 
 #  -------- Seniority Rules -------- 
 class SeniorityRuleOut(ModelSchema):
+    """ Details of a seniority-based leave benefit. """
     policy: LeavePolicyOut
     
     class Meta:
@@ -71,31 +75,33 @@ class SeniorityRuleOut(ModelSchema):
 
 
 class SeniorityRuleCreate(ModelSchema):
+    """ Data for creating a new seniority rule. """
     class Meta:
         model = SeniorityRule
         fields = ['years_of_service', 'bonus_days']
 
 
 class SeniorityRuleUpdate(SeniorityRuleCreate):
+    """ Data for updating a seniority rule. """
     class Meta(SeniorityRuleCreate.Meta):
         fields_optional = "__all__"
 
 
 class SeniorityRuleFilter(FilterSchema):
+    """ Filters for searching seniority rules. """
     min_years: Optional[int] = Field(None, q='years_of_service__gte')
     
     # This field uses the custom method below
     exact_years: Optional[int] = None
 
     def filter_exact_years(self, value: int) -> models.Q:
-        """
-        Custom filter logic for an exact number of years of service.
-        """
+        """ Filters by an exact number of years of service. """
         return models.Q(years_of_service=value)
 
 
 #  -------- Circumstance Rules -------- 
 class CircumstanceLeaveRuleOut(ModelSchema):
+    """ Details of a special leave category (e.g., family events). """
     policy: LeavePolicyOut
 
     class Meta:
@@ -104,26 +110,31 @@ class CircumstanceLeaveRuleOut(ModelSchema):
 
 
 class CircumstanceLeaveRuleCreate(ModelSchema):
+    """ Data for defining a new special leave category. """
     class Meta:
         model = CircumstanceLeaveRule
         fields = ['type', 'duration_days', 'is_paid']
 
 
 class CircumstanceLeaveRuleUpdate(CircumstanceLeaveRuleCreate):
+    """ Data for modifying a special leave category. """
     class Meta(CircumstanceLeaveRuleCreate.Meta):
         fields_optional = "__all__"
 
 
 class CircumstanceLeaveRuleFilter(BaseFilter):
+    """ Filters for searching special leave categories. """
     type: Optional[str] = None
     is_paid: Optional[bool] = None
     
     def filter_search(self, value: str) -> models.Q:
+        """ Searches by leave type name. """
         return models.Q(type__icontains=value)
 
 
 #  -------- Leave Balance --------
 class LeaveBalanceOut(ModelSchema):
+    """ Summary of an employee's leave entitlement and usage for a specific year. """
     remaining_days: Decimal   # Computed property
     total_granted: Decimal    # Computed property
     
@@ -139,13 +150,32 @@ class LeaveBalanceOut(ModelSchema):
         ]
 
 
+class CarryOverSchema(Schema):
+    """ Details of leave days carried over from a previous year. """
+    total: Decimal
+    used: Decimal
+    available: Decimal
+    expires_at: date
+
+
+class LeaveBalanceSummary(Schema):
+    """ Combined summary of annual leave and carry-overs. """
+    allocated: Decimal
+    deducted: Decimal
+    available: Decimal
+    carry_over: Optional[CarryOverSchema] = None
+    total_available: Decimal
+
+
 class LeaveBalanceFilter(FilterSchema):
+    """ Filters for searching employee leave balances. """
     employee_id: Optional[int] = None
     year: Optional[int] = None
 
 
 #  -------- Leave Request --------
 class LeaveRequestOut(ModelSchema):
+    """ Detailed information about an individual leave request. """
     class Meta:
         model = LeaveRequest
         fields = [
@@ -163,7 +193,7 @@ class LeaveRequestOut(ModelSchema):
 
 
 class LeaveRequestCreate(ModelSchema):
-    """Used by LeaveRequestService.create_request"""
+    """ Data required to submit a new leave application. """
     category: str
     start_date: date
     end_date: date
@@ -181,13 +211,14 @@ class LeaveRequestCreate(ModelSchema):
     @field_validator("end_date")
     @classmethod
     def validate_dates(cls, v: date, info: ValidationInfo):
+        """ Ensures the start date does not exceed the end date. """
         if 'start_date' in info.data and v < info.data['start_date']:
-            raise ValueError("End date cannot be earlier than start date.")
+            raise ValueError("End date must be after the start date.")
         return v
 
 
 class LeaveRequestUpdate(ModelSchema):
-    """Mainly used for HR modifications via update_request_by_hr"""
+    """ Data for HR to modify an existing leave request. """
     class Meta:
         model = LeaveRequest
         fields = ['start_date', 'end_date', 'comment']
@@ -195,14 +226,13 @@ class LeaveRequestUpdate(ModelSchema):
 
 
 class LeaveRequestFilter(BaseFilter):
+    """ Filters for searching leave applications. """
     employee_id: Optional[int] = None
     status: Optional[str] = None
     category: Optional[str] = None
 
     def filter_search(self, value: str) -> models.Q:
-        """
-        Broad global search across main fields and related models.
-        """
+        """ Broad search across comments and employee names. """
         search_query = (
             models.Q(comment__icontains=value) |
             models.Q(employee__first_name__icontains=value) |
@@ -214,6 +244,7 @@ class LeaveRequestFilter(BaseFilter):
 
 #  -------- Batcj Leave Request --------
 class BatchLeaveRequestItem(Schema):
+    """ Details for a single leave request within a batch submission. """
     employee_id: UUID
     category: str
     start_date: date

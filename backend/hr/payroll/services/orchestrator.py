@@ -32,17 +32,12 @@ from hr.payroll.services.integration.exchange import ExchangeRateService
 
 
 class PayrollOrchestrator:
-    """
-    The main engine that orchestrates the entire payroll process for a given run.
-    """
+    """ Main engine that coordinates the entire payroll processing run. """
 
     @classmethod
     @transaction.atomic
     def process_run(cls, payroll_run: PayrollRun):
-        """
-        Processes all active contracts for a specific payroll run.
-        Uses atomic transaction to ensure data integrity.
-        """
+        """ Processes all active contracts for a specific payroll run. """
         if payroll_run.status != PayrollStatus.DRAFT:
             raise ValueError("Only draft payroll runs can be processed.")
 
@@ -57,10 +52,7 @@ class PayrollOrchestrator:
 
     @classmethod
     def _generate_single_payslip(cls, run, contract, config):
-        """
-        Generates a complete payslip for an employee following DRC legal standards.
-        Delegates to specialized sub-methods for clarity and maintainability.
-        """
+        """ Generates a complete payslip for an employee following DRC legal standards. """
         # === PREVENT DUPLICATES ===
         existing = EmployeePayslip.objects.filter(payroll_run=run, contract=contract).first()
         if existing:
@@ -136,9 +128,7 @@ class PayrollOrchestrator:
 
     @classmethod
     def _retrieve_employee_data(cls, contract, run, config):
-        """
-        Retrieves all necessary employee data from integration services.
-        """
+        """ Retrieves employee data (attendance, family, leaves) for the period. """
         attendance = PayrollIntegrationService.get_worked_days_data(
             contract.employee_id, 
             run.start_date, 
@@ -194,10 +184,7 @@ class PayrollOrchestrator:
 
     @classmethod
     def _calculate_gross_salary(cls, contract, employee_data, config):
-        """
-        Calculates base salary, overtime, bonuses and returns gross salary.
-        Handles multi-currency conversion and Brutage (Net → Gross resolution).
-        """
+        """ Calculates base salary, overtime, and bonuses. Handles multi-currency and net-to-gross. """
         attendance = employee_data['attendance']
         family = employee_data['family']
         leave = employee_data['leave']
@@ -321,9 +308,7 @@ class PayrollOrchestrator:
 
     @classmethod
     def _apply_absence_deductions(cls, gross_data, contract, employee_data, config):
-        """
-        Applies pro-rating deduction for unpaid absences (if Fixed Salary).
-        """
+        """ Applies deductions for unpaid absences based on company policy. """
         if contract.remuneration_type != RemunerationType.FIXED:
             return gross_data
         
@@ -367,10 +352,7 @@ class PayrollOrchestrator:
 
     @classmethod
     def _calculate_social_contributions(cls, gross_salary, company_size):
-        """
-        Calculates CNSS, ONEM, INPP contributions for DRC.
-        FIX: Removed unused base_salary parameter
-        """
+        """ Calculates statutory social security contributions (CNSS, ONEM, INPP). """
         social_data = SocialContributionService.calculate_contributions(
             gross_amount=gross_salary,
             company_size=company_size
@@ -403,10 +385,7 @@ class PayrollOrchestrator:
 
     @classmethod
     def _calculate_tax_and_allowances(cls, gross_salary, base_salary, cnss_employee, employee_data, config):
-        """
-        Calculates IPR tax and legal allowances following DRC standards.
-        FIX: Added base_salary parameter at correct position (after gross_salary)
-        """
+        """ Calculates IPR tax and legal allowances (Housing, Transport, Family). """
         attendance = employee_data['attendance']
         family = employee_data['family']
         leave = employee_data['leave']
@@ -441,10 +420,7 @@ class PayrollOrchestrator:
     @classmethod
     def _process_advances(cls, contract, gross_salary, cnss_employee, ipr_tax, 
                          total_allowances, total_other_deductions, employee_data, run):
-        """
-        Processes all salary advances for the employee in priority order.
-        FIX: Added total_other_deductions parameter (was incorrectly fetched from employee_data)
-        """
+        """ Processes outstanding salary advances in priority order. """
         # Calculate net salary before advances
         net_before_advances = (
             (gross_salary + total_allowances) - 
@@ -467,9 +443,7 @@ class PayrollOrchestrator:
     @classmethod
     def _create_payslip(cls, run, contract, config, gross_data, social_data, 
                        tax_data, advance_data, employee_data):
-        """
-        Creates and persists the EmployeePayslip object.
-        """
+        """ Persists the employee payslip summary. """
         # Calculate final net amount
         net_amount = (
             (gross_data['gross_salary'] + tax_data['total_allowances']) -
@@ -528,9 +502,7 @@ class PayrollOrchestrator:
     @classmethod
     def _record_payslip_lines(cls, payslip, gross_data, social_data, tax_data, 
                              advance_data, employee_data):
-        """
-        Records all detail lines on the payslip (base, overtime, adjustments, etc).
-        """
+        """ Records detailed line items (earnings and deductions) on the payslip. """
         # Base salary
         PayslipLine.objects.create(
             payslip=payslip,

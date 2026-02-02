@@ -19,34 +19,14 @@ logger = logging.getLogger(__name__)
 
 
 class AdvanceManagementService:
-    """
-    Manages salary advances with complete CRUD and workflow operations.
-    
-    Responsibilities:
-    - Create/update/delete advance requests
-    - Approve/reject workflow
-    - Configure deduction parameters (4-level flexibility)
-    - Track repayment progress
-    - Query balance and history
-    """
-    """
-    SALARY ADVANCES MANAGEMENT SERVICE
-
-    Complete management of salary advances with flexible configuration:
-    - Create and approve advances
-    - Configure deduction terms (base, timing, window, priority)
-    - Track advance balance and repayments
-    - Multi-advance priority management
-    """
+    """ Manages salary advances, approvals, and repayment configurations. """
 
     # ===== ADVANCE CRUD =====
 
     @classmethod
     @transaction.atomic
     def create_advance(cls, data: Dict[str, Any], actor=None) -> SalaryAdvance:
-        """
-        Create a new salary advance request.
-        """
+        """ Creates a new salary advance request. """
         logger.debug("[Advances] Creating advance", extra={"data": data, "actor": actor})
 
         # Validate employee
@@ -83,9 +63,7 @@ class AdvanceManagementService:
 
     @classmethod
     def get_advance_detail(self, advance_id: UUID) -> SalaryAdvance:
-        """
-        Retrieve complete advance details with configuration.
-        """
+        """ Retrieves full details and configuration of an advance. """
         logger.debug("[Advances] Getting advance detail", extra={"advance_id": advance_id})
 
         return SalaryAdvance.objects.select_related(
@@ -97,15 +75,8 @@ class AdvanceManagementService:
 
     @classmethod
     @transaction.atomic
-    def update_advance(
-        cls,
-        advance_id: UUID,
-        data: Dict[str, Any],
-        actor=None
-    ) -> SalaryAdvance:
-        """
-        Update an advance (only PENDING advances can be modified).
-        """
+    def update_advance(cls, advance_id: UUID, data: Dict[str, Any], actor=None) -> SalaryAdvance:
+        """ Updates a pending advance request. """
         logger.debug("[Advances] Updating advance", extra={"advance_id": advance_id})
 
         advance = SalaryAdvance.objects.get(id=advance_id)
@@ -140,7 +111,6 @@ class AdvanceManagementService:
     def approve_advance(cls, advance_id: UUID, actor=None) -> SalaryAdvance:
         """
         Approve a pending advance request.
-        
         Status: PENDING → APPROVED
         """
         logger.debug("[Advances] Approving advance", extra={"advance_id": advance_id})
@@ -166,7 +136,6 @@ class AdvanceManagementService:
     def reject_advance(cls, advance_id: UUID, reason: str = '', actor=None) -> SalaryAdvance:
         """
         Reject a pending advance request.
-        
         Status: PENDING → REJECTED
         """
         logger.debug("[Advances] Rejecting advance", extra={"advance_id": advance_id})
@@ -191,9 +160,7 @@ class AdvanceManagementService:
 
     @classmethod
     def get_active_advances(cls, employee_id: UUID) -> QuerySet:
-        """
-        Get all ACTIVE (currently deductible) advances for an employee.
-        """
+        """ Retrieves all currently deductible advances for an employee. """
         logger.debug("[Advances] Getting active advances", extra={"employee_id": employee_id})
 
         return SalaryAdvance.objects.filter(
@@ -207,9 +174,7 @@ class AdvanceManagementService:
 
     @classmethod
     def get_employee_advance_history(cls, employee_id: UUID) -> QuerySet:
-        """
-        Get complete advance history for an employee.
-        """
+        """ Retrieves the full history of advances for an employee. """
         logger.debug("[Advances] Getting advance history", extra={"employee_id": employee_id})
 
         return SalaryAdvance.objects.filter(
@@ -221,9 +186,7 @@ class AdvanceManagementService:
 
     @classmethod
     def get_advance_balance(cls, advance_id: UUID) -> Dict[str, Any]:
-        """
-        Calculate balance information for an advance.
-        """
+        """ Calculates current balance and repayment progress for an advance. """
         logger.debug("[Advances] Calculating advance balance", extra={"advance_id": advance_id})
 
         advance = SalaryAdvance.objects.get(id=advance_id)
@@ -294,13 +257,8 @@ class AdvanceManagementService:
         return config
 
     @classmethod
-    def get_advance_configuration(
-        cls,
-        advance_id: UUID
-    ) -> AdvanceDeductionConfiguration:
-        """
-        Retrieve deduction configuration for an advance.
-        """
+    def get_advance_configuration(cls, advance_id: UUID) -> AdvanceDeductionConfiguration:
+        """ Retrieves the repayment configuration for an advance. """
         logger.debug(
             "[Advances] Getting configuration",
             extra={"advance_id": advance_id}
@@ -312,15 +270,8 @@ class AdvanceManagementService:
 
     @classmethod
     @transaction.atomic
-    def update_advance_configuration(
-        cls,
-        advance_id: UUID,
-        data: Dict[str, Any],
-        actor=None
-    ) -> AdvanceDeductionConfiguration:
-        """
-        Update advance configuration.
-        """
+    def update_advance_configuration(cls, advance_id: UUID, data: Dict[str, Any], actor=None) -> AdvanceDeductionConfiguration:
+        """ Updates the repayment configuration for an advance. """
         logger.debug(
             "[Advances] Updating configuration",
             extra={"advance_id": advance_id}
@@ -350,9 +301,7 @@ class AdvanceManagementService:
 
     @classmethod
     def get_repayment_history(cls, advance_id: UUID) -> QuerySet:
-        """
-        Get repayment history for an advance.
-        """
+        """ Retrieves all repayment transactions for an advance. """
         logger.debug("[Advances] Getting repayment history", extra={"advance_id": advance_id})
 
         # Verify advance exists
@@ -364,16 +313,8 @@ class AdvanceManagementService:
 
     @classmethod
     @transaction.atomic
-    def record_repayment(
-        cls,
-        advance_id: UUID,
-        amount: Decimal,
-        payslip_id: UUID = None,
-        actor=None
-    ) -> RepaymentRecord:
-        """
-        Record a repayment against an advance.
-        """
+    def record_repayment(cls, advance_id: UUID, amount: Decimal, payslip_id: UUID = None, actor=None) -> RepaymentRecord:
+        """ Records a manual or automatic repayment against an advance. """
         logger.debug(
             "[Advances] Recording repayment",
             extra={"advance_id": advance_id, "amount": amount}

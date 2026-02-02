@@ -23,14 +23,10 @@ from hr.utils.core import get_country_codes, normalize_names
 
 
 class WorkSite(BaseAuditableModel):
-    """
-    Represents a physical work location (e.g., office, factory, warehouse).
-    """
+    """ Physical work location for employees. """
     name = models.CharField(max_length=100)
-    # GPS coordinates of the building center
     latitude = models.DecimalField(max_digits=9, decimal_places=6)
     longitude = models.DecimalField(max_digits=9, decimal_places=6)
-    # The allowed radius in meters (e.g., 100m)
     allowed_radius = models.PositiveIntegerField(default=100)
 
     class Meta:
@@ -44,13 +40,10 @@ class WorkSite(BaseAuditableModel):
 
 
 class Employee(BaseAuditableModel):
-    """
-    Central identity for workforce management.
-    Tracks core personal and professional identification data.
-    """
+    """ Main employee profile for identifying workforce. """
     work_site = models.ForeignKey(
         WorkSite, on_delete=models.SET_NULL, null=True,
-        help_text=_("Primary work location for this employee."),
+        help_text=_("Primary work location."),
         related_name="employees"
     )
     user = models.OneToOneField(
@@ -59,20 +52,20 @@ class Employee(BaseAuditableModel):
         null=True,
         blank=True,
         related_name="employee_profile",
-        help_text=_("System user account. Keep empty for manual records without portal access.")
+        help_text=_("Associated system user account.")
     )
 
-    # --- Identification ---
+    # Identifiers
     matricule = models.CharField(
         max_length=16,
         unique=True,
-        help_text=_("Unique Staff ID. Usually generated automatically by the system.")
+        help_text=_("Unique staff ID.")
     )
     first_name = models.CharField(max_length=75)
     middle_name = models.CharField(max_length=75, blank=True, null=True)
     last_name = models.CharField(max_length=75)
     
-    # --- Personal Details ---
+    # Personal details
     gender = models.CharField(
         choices=GenderStatus.choices,
         default=GenderStatus.NOT_SPECIFIED,
@@ -81,7 +74,7 @@ class Employee(BaseAuditableModel):
     birthdate = models.DateField(
         null=True, 
         blank=True,
-        help_text=_("Required for retirement age calculation and legal compliance.")
+        help_text=_("Date of birth for age and legal checks.")
     )
     nationality = models.CharField(
         max_length=2,
@@ -89,53 +82,53 @@ class Employee(BaseAuditableModel):
         default=CountryCode.DRC,
         null=True,
         blank=True,
-        help_text=_("Standard ISO two-letter country code (e.g., CD, FR).")
+        help_text=_("ISO country code.")
     )
     marital_status = models.CharField(
         choices=MaritalStatus.choices,
         default=MaritalStatus.SINGLE,
         max_length=20,
-        help_text=_("Legal status for tax and family benefits allocation.")
+        help_text=_("Marital status for benefits calculation.")
     )
 
-    # --- Contact ---
+    # Contact
     email = models.EmailField(
         unique=True, 
         null=True, 
         blank=True,
-        help_text=_("Professional email used for system notifications.")
+        help_text=_("Professional email address.")
     )
     phone = models.CharField(
         max_length=15, 
         null=True, 
         blank=True,
-        help_text=_("Use international format (e.g., +243...) for SMS notifications.")
+        help_text=_("Contact phone number.")
     )
 
-    # --- Professional Lifecycle ---
+    # Career lifecycle
     hire_date = models.DateField(
         default=timezone.now,
-        help_text=_("Official start date for seniority calculation.")
+        help_text=_("Official hiring date.")
     )
     termination_date = models.DateField(
         null=True, 
         blank=True, 
-        help_text=_("Last legal day of work. Fills automatically upon resignation/termination.")
+        help_text=_("Last day of employment.")
     )
     
-    # --- Flags ---
+    # System flags
     is_active = models.BooleanField(
         default=True,
-        help_text=_("Uncheck this to disable the employee across the entire system.")
+        help_text=_("Global active state in the system.")
     )
     can_connect = models.BooleanField(
         default=True,
-        help_text=_("Controls if the user can log into the self-service portal.")
+        help_text=_("Allows access to the employee portal.")
     )
     description = models.TextField(
         null=True, 
         blank=True,
-        help_text=_("Internal HR notes regarding this employee.")
+        help_text=_("Additional HR notes.")
     )
 
     class Meta:
@@ -158,7 +151,6 @@ class Employee(BaseAuditableModel):
             last_name=self.last_name
         ))
 
-        # Date validation logic
         if self.termination_date and self.hire_date:
             if self.termination_date < self.hire_date:
                 raise ValidationError({
@@ -195,9 +187,7 @@ class Employee(BaseAuditableModel):
 
 
 class StatusHistory(BaseAuditableModel):
-    """
-    Historical log of employment status changes for timeline reporting.
-    """
+    """ History of employment status changes. """
     employee = models.ForeignKey(
         Employee, 
         on_delete=models.CASCADE, 
@@ -206,18 +196,18 @@ class StatusHistory(BaseAuditableModel):
     status = models.CharField(
         choices=EmployeeStatus.choices,
         max_length=30,
-        help_text=_("Lifecycle state (Active, Suspended, etc.). Influences payroll.")
+        help_text=_("Professional status (Active, Suspended, etc.).")
     )
-    start_date = models.DateField(help_text=_("Date when this specific status becomes effective."))
+    start_date = models.DateField(help_text=_("Effective date for this status."))
     end_date = models.DateField(
         null=True, 
         blank=True, 
-        help_text=_("Expected end date for temporary statuses like Suspended or Sick Leave.")
+        help_text=_("End date for temporary statuses.")
     )
     reason = models.TextField(
         null=True, 
         blank=True, 
-        help_text=_("Provide context for audit (e.g., Medical certificate ref).")
+        help_text=_("Context for the status change.")
     )
 
     class Meta:
@@ -227,9 +217,7 @@ class StatusHistory(BaseAuditableModel):
 
 
 class EmployeeDocument(BaseAuditableModel):
-    """
-    Legal and professional document repository with expiration alerts.
-    """
+    """ Repository for legal and professional documents. """
     employee = models.ForeignKey(
         Employee, 
         on_delete=models.CASCADE, 
@@ -243,27 +231,27 @@ class EmployeeDocument(BaseAuditableModel):
     document_number = models.CharField(
         max_length=50, 
         blank=True, 
-        help_text=_("Enter the ID/Passport number or National ID from the Voter Card.")
+        help_text=_("Identification or reference number.")
     )
     issue_date = models.DateField(null=True, blank=True)
     expiry_date = models.DateField(
         null=True, 
         blank=True, 
-        help_text=_("Leave empty for non-expiring documents like Diplomas.")
+        help_text=_("Validity end date.")
     )
     file = models.FileField(
         upload_to="employee_docs/%Y/%m/",
-        help_text=_("Upload a clear scan in PDF or Image format.")
+        help_text=_("Digital scan of the document.")
     )
     is_verified = models.BooleanField(
         default=False,
-        help_text=_("Tick this once you have verified the digital copy against the original.")
+        help_text=_("Confirms digital copy matches the original.")
     )
     issuing_authority = models.CharField(
         max_length=150, 
         blank=True, 
         null=True,
-        help_text=_("The organization or entity that issued the document.")
+        help_text=_("Entity that issued the document.")
     )
 
     class Meta:
@@ -278,9 +266,7 @@ class EmployeeDocument(BaseAuditableModel):
 
 
 class EmployeeAddress(AddressMixin):
-    """
-    Tracking where the employee lives, supporting historical location data.
-    """
+    """ Employee residential and work addresses. """
     employee = models.ForeignKey(
         Employee,
         on_delete=models.CASCADE, 
@@ -288,13 +274,13 @@ class EmployeeAddress(AddressMixin):
     )
     is_current = models.BooleanField(
         default=True,
-        help_text=_("Mark as true to set this as the primary mailing address.")
+        help_text=_("Set as the primary mailing address.")
     )
     move_in_date = models.DateField(null=True, blank=True)
     move_out_date = models.DateField(
         null=True, 
         blank=True,
-        help_text=_("Set this date when the employee moves out.")
+        help_text=_("Date of departure from this address.")
     )
     
     class Meta:
@@ -315,9 +301,7 @@ class EmployeeAddress(AddressMixin):
 
 
 class EmergencyContact(BaseAuditableModel):
-    """
-    Emergency contact information. Ordered by priority.
-    """
+    """ Contacts to notify in case of an incident. """
     employee = models.ForeignKey(
         Employee, 
         on_delete=models.CASCADE, 
@@ -338,7 +322,7 @@ class EmergencyContact(BaseAuditableModel):
     priority = models.IntegerField(
         default=1,
         validators=[MinValueValidator(1), MaxValueValidator(10)],
-        help_text=_("Call order: 1 is the primary contact.")
+        help_text=_("Call order (1 is primary).")
     )
 
     class Meta:
@@ -362,10 +346,7 @@ class EmergencyContact(BaseAuditableModel):
         
 
 class EmployeeChild(BaseAuditableModel):
-    """
-    Dependent (Persons in charge)
-    Tracking children for benefits, insurance, and family records.
-    """
+    """ Information on children for family benefits. """
     parent = models.ForeignKey(
         Employee, 
         on_delete=models.CASCADE, 
@@ -382,7 +363,7 @@ class EmployeeChild(BaseAuditableModel):
     birthdate = models.DateField()
     is_dependent = models.BooleanField(
         default=True,
-        help_text=_("Uncheck if the child is no longer a legal dependent for benefits.")
+        help_text=_("Legal dependent status for benefits.")
     )
 
     class Meta:
@@ -404,9 +385,7 @@ class EmployeeChild(BaseAuditableModel):
         
 
 class EmployeeEducation(BaseAuditableModel):
-    """
-    Detailed academic background for professional verification.
-    """
+    """ Academic and professional training background. """
     employee = models.ForeignKey(
         Employee, 
         on_delete=models.CASCADE, 
@@ -414,7 +393,7 @@ class EmployeeEducation(BaseAuditableModel):
     )
     institute = models.CharField(
         max_length=255,
-        help_text=_("Name of the University, School or Training Center.")
+        help_text=_("University or training center name.")
     )
     degree = models.CharField(
         choices=AcademicLevel.choices,
@@ -425,13 +404,13 @@ class EmployeeEducation(BaseAuditableModel):
         max_length=255, 
         null=True, 
         blank=True,
-        help_text=_("Field of study (e.g., Computer Science, Law).")
+        help_text=_("Field of study.")
     )
-    start_year = models.PositiveSmallIntegerField(help_text=_("Format: YYYY"))
-    end_year = models.PositiveSmallIntegerField(help_text=_("Format: YYYY"))
+    start_year = models.PositiveSmallIntegerField(help_text=_("Year of start."))
+    end_year = models.PositiveSmallIntegerField(help_text=_("Year of completion."))
     location = models.CharField(
         max_length=255,
-        help_text=_("City and Country where the institute is located.")
+        help_text=_("Institute city and country.")
     )
 
     class Meta:
@@ -453,8 +432,7 @@ class EmployeeEducation(BaseAuditableModel):
         super().save(*args, **kwargs)        
 
 
-# --- AUDIT LOG REGISTRATION ---
-
+# --- Audit log registration ---
 auditlog.register(Employee)
 auditlog.register(StatusHistory)
 auditlog.register(EmployeeDocument)

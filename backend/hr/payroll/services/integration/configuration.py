@@ -1,19 +1,7 @@
-"""
-PAYROLL CONFIGURATION SERVICE
-
-Manages payroll system configuration:
-- Global payroll settings
-- SMIG rates (minimum wage)
-- Social contribution rates
-- Overtime rules
-- Tax brackets
-- Legal allowances
-"""
-
 import logging
 from decimal import Decimal
-from typing import Dict, Any
-from uuid import UUID
+from typing  import Dict, Any
+from uuid    import UUID
 
 from django.db import transaction
 from django.core.exceptions import ValidationError
@@ -32,27 +20,14 @@ logger = logging.getLogger(__name__)
 
 
 class ConfigurationService:
-    """
-    Manages payroll system-wide configuration.
-    
-    Responsibilities:
-    - Global payroll settings (currency, payment method, work hours)
-    - SMIG rates management with history
-    - Social contribution rates (CNSS, ONEM, etc.)
-    - Overtime rules and multipliers
-    - Tax brackets for progressive taxation
-    - Legal allowances (family, housing, transport, etc.)
-    """
+    """ Manages system-wide payroll settings, statutory rates, and legal rules. """
 
     # ===== PAYROLL CONFIGURATION =====
 
     @classmethod
     @transaction.atomic
     def create_configuration(cls, data: Dict[str, Any], actor=None) -> PayrollConfiguration:
-        """
-        Create global payroll configuration (singleton pattern).
-        This should be called once during system initialization.
-        """
+        """ Initializes the global payroll configuration. """
         logger.debug("[Config] Creating payroll configuration", extra={"actor": actor})
 
         # Check if configuration already exists
@@ -75,9 +50,7 @@ class ConfigurationService:
     @classmethod
     @transaction.atomic
     def update_configuration(cls, data: Dict[str, Any], actor=None) -> PayrollConfiguration:
-        """
-        Update global payroll configuration.
-        """
+        """ Updates the global payroll configuration settings. """
         logger.debug("[Config] Updating configuration", extra={"actor": actor})
 
         config = PayrollConfiguration.objects.first()
@@ -99,10 +72,7 @@ class ConfigurationService:
     @classmethod
     @transaction.atomic
     def create_smig_rate(cls, data: Dict[str, Any], actor=None) -> SMIGConfiguration:
-        """
-        Create a new SMIG (minimum wage) rate.
-        Used when minimum wage changes occur.
-        """
+        """ Records a new SMIG (minimum wage) rate entry. """
         logger.debug("[SMIG] Creating SMIG rate", extra={"data": data, "actor": actor})
 
         # Validate amount
@@ -133,15 +103,8 @@ class ConfigurationService:
 
     @classmethod
     @transaction.atomic
-    def update_smig_rate(
-        cls,
-        smig_id: UUID,
-        data: Dict[str, Any],
-        actor=None
-    ) -> SMIGConfiguration:
-        """
-        Update an existing SMIG rate.
-        """
+    def update_smig_rate(cls, smig_id: UUID, data: Dict[str, Any], actor=None) -> SMIGConfiguration:
+        """ Updates an existing SMIG rate entry. """
         logger.debug("[SMIG] Updating SMIG rate", extra={"smig_id": smig_id})
 
         smig = SMIGConfiguration.objects.get(id=smig_id)
@@ -165,15 +128,8 @@ class ConfigurationService:
 
     @classmethod
     @transaction.atomic
-    def create_contribution_rate(
-        cls,
-        data: Dict[str, Any],
-        actor=None
-    ) -> SocialContributionRate:
-        """
-        Create a new social contribution rate.
-        Contribution types: CNSS, ONEM, INPP, etc.
-        """
+    def create_contribution_rate(cls, data: Dict[str, Any], actor=None) -> SocialContributionRate:
+        """ Creates a new statutory social contribution rate (CNSS, ONEM, INPP). """
         logger.debug("[Contributions] Creating contribution rate", extra={"data": data})
 
         # Validate percentage rates
@@ -208,15 +164,8 @@ class ConfigurationService:
 
     @classmethod
     @transaction.atomic
-    def update_contribution_rate(
-        cls,
-        rate_id: UUID,
-        data: Dict[str, Any],
-        actor=None
-    ) -> SocialContributionRate:
-        """
-        Update an existing social contribution rate.
-        """
+    def update_contribution_rate(cls, rate_id: UUID, data: Dict[str, Any], actor=None) -> SocialContributionRate:
+        """ Updates an existing social contribution rate. """
         logger.debug("[Contributions] Updating contribution rate", extra={"rate_id": rate_id})
 
         rate = SocialContributionRate.objects.get(id=rate_id)
@@ -246,12 +195,7 @@ class ConfigurationService:
     @classmethod
     @transaction.atomic
     def create_overtime_rule(cls, data: Dict[str, Any], actor=None) -> OvertimeRule:
-        """
-        Create a new overtime rule.
-        
-        Rules define multipliers for overtime hours.
-        Example: First 2 hours = 130%, subsequent = 160%, holidays = 200%.
-        """
+        """ Creates a new rule for calculating overtime multipliers. """
         logger.debug("[Overtime] Creating overtime rule", extra={"data": data})
 
         # Validate multiplier
@@ -277,15 +221,8 @@ class ConfigurationService:
 
     @classmethod
     @transaction.atomic
-    def update_overtime_rule(
-        cls,
-        rule_id: UUID,
-        data: Dict[str, Any],
-        actor=None
-    ) -> OvertimeRule:
-        """
-        Update an existing overtime rule.
-        """
+    def update_overtime_rule(cls, rule_id: UUID, data: Dict[str, Any], actor=None) -> OvertimeRule:
+        """ Updates an existing overtime rule. """
         logger.debug("[Overtime] Updating overtime rule", extra={"rule_id": rule_id})
 
         rule = OvertimeRule.objects.get(id=rule_id)
@@ -315,10 +252,7 @@ class ConfigurationService:
     @classmethod
     @transaction.atomic
     def create_tax_bracket(cls, data: Dict[str, Any], actor=None) -> TaxBracket:
-        """
-        Create a new tax bracket for progressive IPR calculation.
-        Used for calculating income tax with progressive rates.
-        """
+        """ Creates a new tax bracket for progressive income tax (IPR) calculations. """
         logger.debug("[Taxes] Creating tax bracket", extra={"data": data})
 
         # Validate amounts
@@ -360,15 +294,8 @@ class ConfigurationService:
 
     @classmethod
     @transaction.atomic
-    def update_tax_bracket(
-        cls,
-        bracket_id: UUID,
-        data: Dict[str, Any],
-        actor=None
-    ) -> TaxBracket:
-        """
-        Update an existing tax bracket.
-        """
+    def update_tax_bracket(cls, bracket_id: UUID, data: Dict[str, Any], actor=None) -> TaxBracket:
+        """ Updates an existing tax bracket configuration. """
         logger.debug("[Taxes] Updating tax bracket", extra={"bracket_id": bracket_id})
 
         bracket = TaxBracket.objects.get(id=bracket_id)
@@ -400,9 +327,7 @@ class ConfigurationService:
     @classmethod
     @transaction.atomic
     def create_allowance(cls, data: Dict[str, Any], actor=None) -> LegalAllowance:
-        """
-        Create a new legal allowance (family, housing, transport, etc.).
-        """
+        """ Creates a new statutory allowance (Family, Housing, Transport). """
         logger.debug("[Allowances] Creating allowance", extra={"data": data})
 
         # Validate amount
@@ -432,15 +357,8 @@ class ConfigurationService:
 
     @classmethod
     @transaction.atomic
-    def update_allowance(
-        cls,
-        allowance_id: UUID,
-        data: Dict[str, Any],
-        actor=None
-    ) -> LegalAllowance:
-        """
-        Update an existing legal allowance.
-        """
+    def update_allowance(cls, allowance_id: UUID, data: Dict[str, Any], actor=None) -> LegalAllowance:
+        """ Updates an existing statutory allowance configuration. """
         logger.debug("[Allowances] Updating allowance", extra={"allowance_id": allowance_id})
 
         allowance = LegalAllowance.objects.get(id=allowance_id)

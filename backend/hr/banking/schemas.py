@@ -15,58 +15,33 @@ from hr.employees.schemas import EmployeeOut
 # ----------------------- Bank Schemas -----------------------------
 
 class BankCreateIn(ModelSchema):
+    """ Data required to register a new financial institution. """
     class Meta:
         model = Bank
-        fields = [
-            "name", 
-            "code", 
-            "swift_code", 
-            "country_code", 
-            "is_mobile_money", 
-            "is_active"
-        ]
-        fields_optional = [
-            "swift_code", 
-            "country_code", 
-            "is_mobile_money", 
-            "is_active"
-        ]
+        fields = ["name", "code", "swift_code", "country_code", "is_mobile_money", "is_active"]
+        fields_optional = ["swift_code", "country_code", "is_mobile_money", "is_active"]
 
 
 class BankUpdateIn(ModelSchema):
+    """ Schema for updating existing bank metadata. """
     class Meta:
         model = Bank
-        fields = [
-            "name", 
-            "code", 
-            "swift_code", 
-            "country_code", 
-            "is_mobile_money", 
-            "is_active"
-        ]
+        fields = ["name", "code", "swift_code", "country_code", "is_mobile_money", "is_active"]
         fields_optional = "__all__"
 
 
 class BankOut(ModelSchema):
+    """ Public bank details for API responses. """
     id: UUID
     class Meta:
         model = Bank
-        fields = [
-            "id", 
-            "name", 
-            "code", 
-            "swift_code", 
-            "country_code", 
-            "is_mobile_money", 
-            "is_active", 
-            "created_at", 
-            "updated_at"
-        ]
+        fields = ["id", "name", "code", "swift_code", "country_code", "is_mobile_money", "is_active", "created_at", "updated_at"]
 
 
 # ----------------------- BankAccount Schemas --------------------------------
 
 class BankAccountCreateIn(Schema):
+    """ Input data for setting up a new employee payment account. """
     employee_id: UUID
     bank_id: UUID
     account_number: str
@@ -81,6 +56,7 @@ class BankAccountCreateIn(Schema):
     notes: Optional[str] = None
 
 class BankAccountUpdateIn(Schema):
+    """ Parameters for modifying employee bank account settings. """
     bank_id: Optional[UUID] = None
     account_number: Optional[str] = None
     account_name: Optional[str] = None
@@ -92,6 +68,7 @@ class BankAccountUpdateIn(Schema):
     notes: Optional[str] = None
 
 class BankAccountOut(ModelSchema):
+    """ Detailed view of an employee's payment account. """
     id: UUID
     bank: BankOut
     employee_id: EmployeeOut 
@@ -99,26 +76,16 @@ class BankAccountOut(ModelSchema):
     class Meta:
         model = BankAccount
         fields = [
-            "id", 
-            "employee", 
-            "bank", 
-            "account_number", 
-            "account_name", 
-            "account_type", 
-            "currency", 
-            "branch_code", 
-            "iban", 
-            "is_primary", 
-            "verified", 
-            "verified_at", 
-            "is_active", 
-            "created_at", 
-            "updated_at"
+            "id", "employee", "bank", "account_number", "account_name", 
+            "account_type", "currency", "branch_code", "iban", 
+            "is_primary", "verified", "verified_at", "is_active", 
+            "created_at", "updated_at"
         ]
 
 # --------------------  BankAccountHistory Schemas ------------------------
 
 class BankAccountHistoryOut(ModelSchema):
+    """ Audit record for a specific bank account change. """
     id: UUID
     bank_account: BankAccountOut
     created_by: Optional[LightUserOut] = None
@@ -126,12 +93,7 @@ class BankAccountHistoryOut(ModelSchema):
     class Meta:
         model = BankAccountHistory
         fields = [
-            "id", 
-            "action", 
-            "changed_fields", 
-            "notes", 
-            "created_at", 
-            "bank_account", 
-            "created_by"
+            "id", "action", "changed_fields", "notes", 
+            "created_at", "bank_account", "created_by"
         ]
 

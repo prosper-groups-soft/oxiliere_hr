@@ -2,46 +2,60 @@
 
 ## Vue d'ensemble
 
-Le module **Jobs** gère la structure organisationnelle, les familles de métiers, les positions et les départements. Il établit la base hiérarchique et fonctionnelle de l'entreprise, servant de fondation pour le recrutement, les contrats et la gestion des carrières.
+Le module **Jobs** constitue le socle organisationnel d'Oxiliere. Il définit la hiérarchie de l'entreprise, les familles de métiers et les parcours de carrière, permettant une gestion structurée du capital humain.
 
-## Fonctionnalités principales
+## Composants Clés
 
-### 1. Familles de métiers (Job Families)
-- Regroupement des postes par domaines d'expertise
-- Exemples: Ingénierie, Ressources Humaines, Finance, Marketing
-- Description des rôles et responsabilités
-- Base pour l'organisation du recrutement
+### 1. Structure Organisationnelle (Départements)
+- Définition de la hiérarchie fonctionnelle (Arborescence).
+- Gestion des responsables d'unités (Managers).
+- Suivi analytique des effectifs par département.
 
-### 2. Positions
-- Niveaux de séniorité au sein d'une famille
-- Exemples: Développeur Senior, Développeur Junior, Développeur Intern
-- Description spécifique de chaque position
-- Critères et exigences
+### 2. Référentiel Métiers (Familles & Positions)
+- **Familles de métiers** : Regroupement logique par domaine d'expertise (ex: Ingénierie, Ventes).
+- **Positions** : Rôles spécifiques avec niveaux de séniorité gradués (ex: Junior → Senior → Executive).
+- **Parcours de carrière** : Définition des progressions logiques au sein de l'entreprise.
 
-### 3. Départements
-- Structure organisationnelle hiérarchique
-- Sous-département et relations parent-enfant
-- Gestionnaire du département
-- Description des fonctions
+### 3. Gestion des Carrières
+- **Historique** : Traçabilité complète des rôles occupés par chaque collaborateur.
+- **Mobilité** : Gestion des promotions, mutations et changements de département.
+- **Calcul d'ancienneté** : Suivi précis du temps passé dans chaque fonction.
 
-### 4. Carrière et mobilité
-- Parcours de carrière possibles
-- Promotions et transitions
-- Historique des changements de poste
-- Objectifs de développement
+### 4. Développement & Compétences
+- **Formation** : Enregistrement des sessions de formation et certifications professionnelles.
+- **Conformité** : Suivi automatisé des dates de validité et alertes d'expiration des certificats.
+- **Matrice de compétences** : Vue agrégée du profil professionnel de l'employé.
 
-### 5. Gestion du personnel
-- Assignation des employés aux positions
-- Suivi des changements de poste
-- Historique des postes occupés
-- Équipes et reportings
+## Modèles de Données
 
-## Architecture
+| Entité | Rôle Business |
+| :--- | :--- |
+| **JobFamily** | Catégorie de spécialité professionnelle. |
+| **Position** | Définition d'un poste et de son niveau hiérarchique. |
+| **Department** | Unité organisationnelle (Direction, Service, Équipe). |
+| **EmployeePositionHistory** | Journal des affectations et des mouvements de carrière. |
+| **Training** | Registre des formations et certifications acquises. |
 
-### Modèles principaux
+## Niveaux de Séniorité
 
-#### JobFamily
-Catégorie ou domaine de métier
+Oxiliere utilise une échelle standardisée pour harmoniser les carrières :
+- `INTERN` / `JUNIOR` / `CONFIRMED` / `SENIOR` : Progression technique et expertise.
+- `LEAD` / `MANAGER` / `DIRECTOR` / `EXECUTIVE` : Responsabilités d'encadrement et stratégiques.
+
+## Intégrations
+
+Le module Jobs sert de pivot pour :
+- **Employees** : Affectation des nouveaux contrats.
+- **Payroll** : Détermination des structures salariales selon le poste.
+- **Recruitment** : Définition des profils de postes à pourvoir.
+- **Leaves** : Validation hiérarchique basée sur l'organigramme.
+
+## Bonnes Pratiques
+
+1. **Intégrité de l'Organigramme** : Chaque département doit avoir un manager assigné pour garantir les flux d'approbation.
+2. **Standardisation** : Utiliser des titres de postes harmonisés pour faciliter les analyses RH globales.
+3. **Mise à jour en temps réel** : Enregistrer les mouvements de carrière dès leur effet pour maintenir la fiabilité des données historiques.
+ou domaine de métier
 - Nom unique
 - Description
 - Groupement logique des positions

@@ -1,18 +1,7 @@
-"""
-PAYROLL RUN SERVICE
-
-Manages payroll processing cycles:
-- Create and configure payroll runs (monthly, bi-weekly, etc.)
-- Process payslips generation for a run
-- Query payslip data and summaries
-- Manage payroll run status (DRAFT → PROCESSING → COMPLETED)
-- Integration with PayrollOrchestrator for processing
-"""
-
 import logging
 from decimal import Decimal
-from typing import Dict, Any
-from uuid import UUID
+from typing  import Dict, Any
+from uuid    import UUID
 
 from django.db import transaction
 from django.core.exceptions import ValidationError
@@ -24,7 +13,7 @@ from hr.payroll.models import (
     PayslipLine, 
     EmployeeContract
 )
-from .orchestrator import PayrollOrchestrator
+from .orchestrator    import PayrollOrchestrator
 from hr.payroll.enums import PayrollStatus
 
 
@@ -48,27 +37,14 @@ class PayrollRunService:
 
     @classmethod
     def get_run_by_id(cls, run_id: UUID) -> PayrollRun:
-        """
-        Retrieve a payroll run by ID.
-        
-        Args:
-            run_id: UUID of payroll run
-            
-        Returns:
-            PayrollRun: Run with prefetched payslips
-            
-        Raises:
-            PayrollRun.DoesNotExist: If not found
-        """
+        """ Retrieves a payroll run with its associated payslips. """
         logger.debug("[PayrollRun] Getting run by ID", extra={"run_id": run_id})
 
         return PayrollRun.objects.prefetch_related('payslips').get(id=run_id)
     
     @classmethod
     def get_run_detail(cls, run_id: UUID) -> Dict[str, Any]:
-        """
-        Get detailed information about a payroll run.
-        """
+        """ Gets a detailed financial and operational summary of a payroll run. """
         logger.debug("[PayrollRun] Getting run detail", extra={"run_id": run_id})
 
         # Use select_related/prefetch if needed for performance
@@ -113,23 +89,7 @@ class PayrollRunService:
     @classmethod
     @transaction.atomic
     def create_payroll_run(cls, data: Dict[str, Any], actor=None) -> PayrollRun:
-        """
-        Create a new payroll run for a specified period.
-        
-        Args:
-            data: Dictionary with:
-                - start_date: Period start date
-                - end_date: Period end date
-                - exchange_rate_applied: (Optional) USD/CDF exchange rate
-                
-            actor: User creating run
-            
-        Returns:
-            PayrollRun: Created run in DRAFT status
-            
-        Raises:
-            ValidationError: If dates are invalid or run already exists for period
-        """
+        """ Creates a new payroll run for a specific date range. """
         logger.debug("[PayrollRun] Creating payroll run", extra={"data": data, "actor": actor})
 
         # Validate dates
@@ -169,27 +129,8 @@ class PayrollRunService:
 
     @classmethod
     @transaction.atomic
-    def update_payroll_run(
-        cls,
-        run_id: UUID,
-        data: Dict[str, Any],
-        actor=None
-    ) -> PayrollRun:
-        """
-        Update a payroll run (only when in DRAFT status).
-        
-        Args:
-            run_id: UUID of run to update
-            data: Fields to update (exchange_rate_applied, etc.)
-            actor: User updating run
-            
-        Returns:
-            PayrollRun: Updated run
-            
-        Raises:
-            ValidationError: If run is not in DRAFT status
-            PayrollRun.DoesNotExist: If not found
-        """
+    def update_payroll_run(cls, run_id: UUID, data: Dict[str, Any], actor=None) -> PayrollRun:
+        """ Updates a draft payroll run's configuration. """
         logger.debug("[PayrollRun] Updating payroll run", extra={"run_id": run_id})
 
         run = PayrollRun.objects.get(id=run_id)
@@ -216,27 +157,7 @@ class PayrollRunService:
     @classmethod
     @transaction.atomic
     def start_payroll_processing(cls, run_id: UUID, actor=None, orchestrator: PayrollOrchestrator=None) -> Dict[str, Any]:
-        """
-        Start processing a payroll run (DRAFT → PROCESSING → VALIDATED).
-        
-        This triggers payslip generation for all active employee contracts.
-        Delegates to PayrollOrchestrator for actual calculation and bulletin generation.
-        
-        Args:
-            run_id: UUID of run to process
-            actor: User initiating processing
-            orchestrator: PayrollOrchestrator instance (injected in controller)
-            
-        Returns:
-            Dict with:
-                - status: PROCESSING → VALIDATED after completion
-                - total_employees: Count of employees processed
-                - payslips_generated: Count of payslips created
-                
-        Raises:
-            ValidationError: If run is not in DRAFT status
-            PayrollRun.DoesNotExist: If not found
-        """
+        """ Initiates the calculation process for all eligible employee contracts. """
         logger.debug("[PayrollRun] Starting payroll processing", extra={"run_id": run_id})
 
         run = PayrollRun.objects.get(id=run_id)
@@ -301,24 +222,7 @@ class PayrollRunService:
     @classmethod
     @transaction.atomic
     def complete_payroll_run(cls, run_id: UUID, actor=None) -> PayrollRun:
-        """
-        Mark a payroll run as PAID (finalize and lock).
-        
-        This locks the run and prevents further modifications.
-        All payslips must be generated before completion.
-        Status transition: VALIDATED → PAID
-        
-        Args:
-            run_id: UUID of run to complete
-            actor: User completing run
-            
-        Returns:
-            PayrollRun: Updated run
-            
-        Raises:
-            ValidationError: If run is not in VALIDATED status or missing payslips
-            PayrollRun.DoesNotExist: If not found
-        """
+        """ Marks a payroll run as PAID, finalizing and locking all associated data. """
         logger.debug("[PayrollRun] Completing payroll run", extra={"run_id": run_id})
 
         run = PayrollRun.objects.get(id=run_id)
@@ -346,13 +250,7 @@ class PayrollRunService:
     @classmethod
     @transaction.atomic
     def cancel_payroll_run(cls, run_id: UUID, actor=None) -> PayrollRun:
-        """
-        Cancel a payroll run (mark as CANCELED).
-        
-        Allows re-processing with corrected parameters.
-        Only DRAFT, PROCESSING, or VALIDATED runs can be cancelled.
-        Cannot cancel PAID runs.
-        """
+        """ Cancels a payroll run that has not yet been finalized. """
         logger.debug("[PayrollRun] Cancelling payroll run", extra={"run_id": run_id})
 
         run = PayrollRun.objects.get(id=run_id)
@@ -375,9 +273,7 @@ class PayrollRunService:
 
     @classmethod
     def get_payslips_for_run(cls, run_id: UUID) -> QuerySet:
-        """
-        Get all payslips for a payroll run.
-        """
+        """ Retrieves all payslips generated for a specific run. """
         logger.debug("[PayrollRun] Getting payslips for run", extra={"run_id": run_id})
 
         # Verify run exists
@@ -476,6 +372,52 @@ class PayrollRunService:
                 "total_cost_to_company": total_cost_to_company,
             },
             "adjustments": deductions_breakdown,
+        }
+
+    @classmethod
+    def get_payslip_detail(cls, payslip_id: UUID) -> Dict[str, Any]:
+        """ Retrieves the full transactional detail of a single payslip. """
+        logger.debug("[PayrollRun] Getting payslip detail", extra={"payslip_id": payslip_id})
+
+        payslip = EmployeePayslip.objects.select_related(
+            'contract',
+            'contract__employee',
+            'contract__employee__user',
+            'payroll_run'
+        ).prefetch_related('lines').get(id=payslip_id)
+
+        # Compute additional fields for the detail schema
+        employee = payslip.contract.employee
+        
+        return {
+            "id": payslip.id,
+            "payroll_run": payslip.payroll_run_id,
+            "contract": payslip.contract_id,
+            "base_salary_snapshot": payslip.base_salary_snapshot,
+            "gross_amount": payslip.gross_amount,
+            "cnss_amount": payslip.cnss_amount,
+            "onem_amount": payslip.onem_amount,
+            "inpp_amount": payslip.inpp_amount,
+            "ipr_amount": payslip.ipr_amount,
+            "family_allowance": payslip.family_allowance,
+            "housing_allowance": payslip.housing_allowance,
+            "transport_allowance": payslip.transport_allowance,
+            "total_adjustments": payslip.total_adjustments,
+            "net_amount": payslip.net_amount,
+            "worked_days": payslip.worked_days,
+            "worked_hours": payslip.worked_hours,
+            "overtime_hours": payslip.overtime_hours,
+            "paid_leave_days": payslip.paid_leave_days,
+            "unpaid_leave_days": payslip.unpaid_leave_days,
+            "contract_currency": payslip.contract_currency,
+            "exchange_rate_used": payslip.exchange_rate_used,
+            "currency": payslip.currency,
+            "payment_method": payslip.payment_method,
+            "paid_at": payslip.paid_at,
+            "lines": list(payslip.lines.all()),
+            "employee_name": f"{employee.user.first_name} {employee.user.last_name}",
+            "employee_id": employee.id,
+            "net_after_advances": payslip.net_amount, # Net amount already accounts for advances in Orchestrator
         }
 
     @classmethod

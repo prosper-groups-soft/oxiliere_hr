@@ -1,6 +1,6 @@
 from .configuration import ConfigurationService
-from .exchange import ExchangeRateService
-from .integration import PayrollIntegrationService
+from .exchange      import ExchangeRateService
+from .integration   import PayrollIntegrationService
 
 
 __all__ = [

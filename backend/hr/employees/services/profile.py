@@ -21,59 +21,42 @@ logger = logging.getLogger(__name__)
 
 
 class EmployeeProfileService:
-    """
-    Service handling the core identity and lifecycle events.
-    Ensures data normalization and collision-proof identification.
-    """
+    """ Core service for employee identity and lifecycle management. """
     
     @inject
     def __init__(self, query_service: EmployeeQueryService):
         self.query_service = query_service
 
     def _get_matricule_seq_key(self) -> str:
-        """
-        Generates a year-specific key for the sequence counter.
-        Example: 'employee_matricule_2026'
-        """
+        """ Key for yearly sequence counter. """
         year = timezone.now().year
         return f"employee_matricule_{year}"
 
     def _format_matricule(self, number: int, prefix: str = "EMP") -> str:
-        """
-        Formats the final matricule string. 
-        Override this method to change the naming convention (e.g., adding branch codes).
-        """
+        """ Formats final staff ID string. """
         year = timezone.now().year
         return f"{prefix}-{year}-{number:05d}"
 
     def _generate_matricule_value(self) -> str:
-        """
-        Generates a unique matricule using database-level locking.
-        Ensures no duplicates even under heavy concurrent onboarding.
-        """
+        """ Thread-safe generation of unique staff IDs. """
         number = get_next_value(self._get_matricule_seq_key())
         return self._format_matricule(number)
 
     @transaction.atomic
     def onboard_employee(self, data: Dict[str, Any], actor: Any = None) -> Employee:
-        """
-        BUSINESS: Formal onboarding with mandatory initial probation period.
-        """
+        """ Formal onboarding with probation initiation. """
         email = data.get("email", "").strip().lower()
         
         if Employee.objects.filter(email=email).exists():
-            logger.warning(f"Onboarding failed: Email {email} already exists.")
-            raise ValidationError({"email": "This email address is already assigned."})
+            logger.warning(f"Onboarding failed: {email} exists.")
+            raise ValidationError({"email": "Email already assigned."})
 
-        # Data normalization
-        first_name = data.get("first_name", "")
-        last_name = data.get("last_name", "")
-
+        # Create main profile
         employee = Employee.objects.create(
             matricule=self._generate_matricule_value(),
-            first_name=first_name,
-            middle_name=data.get("middle_name", "") if data.get("middle_name") else None,
-            last_name=last_name,
+            first_name=data.get("first_name", ""),
+            middle_name=data.get("middle_name") or None,
+            last_name=data.get("last_name", ""),
             email=email,
             phone=data.get("phone"),
             gender=data.get("gender"),
@@ -84,7 +67,7 @@ class EmployeeProfileService:
             created_by=actor
         )
 
-        # Initial status track
+        # Set initial probation status
         StatusHistory.objects.create(
             employee=employee,
             status=EmployeeStatus.PROBATION,
@@ -98,9 +81,7 @@ class EmployeeProfileService:
 
     @transaction.atomic
     def update_personal_info(self, employee: Employee, data: Dict[str, Any], actor: Any = None) -> Employee:
-        """
-        TECHNICAL: Partial updates with audit tracking.
-        """
+        """ Updates core personal identification data. """
         allowed_fields = [
             "first_name", "middle_name", "last_name", 
             "gender", "marital_status", "phone", 
@@ -124,14 +105,12 @@ class EmployeeProfileService:
         employee_id: Optional[UUID] = None,
         matricule: Optional[str] = None
     ) -> Optional[Employee]:
-        """
-        Technical Intent: Single-query retrieval of the complete employee dossier.
-        """
+        """ Retrieves complete dossier by ID or Staff ID. """
         if not employee_id and not matricule:
-            raise ValueError("Either employee_id or matricule must be provided")
+            raise ValueError("ID or matricule required.")
 
         if employee_id and matricule:
-            raise ValueError("Provide only one identifier")
+            raise ValueError("Provide only one identifier.")
 
         if employee_id:
             return self.query_service.get_employee_by_id(employee_id)
@@ -140,25 +119,15 @@ class EmployeeProfileService:
 
     @transaction.atomic
     def assign_user_account(self, employee_id: UUID, user_id: int, actor: Any = None) -> Employee:
+        """ Links a system user profile for portal access. """
         User = get_user_model()
         employee = get_object_or_404(Employee, id=employee_id)
         new_user = get_object_or_404(User, id=user_id)
 
-        # 1. Validation: The target user must not already be taken elsewhere
+        # Ensure user isn't linked elsewhere
         if Employee.objects.filter(user=new_user).exclude(id=employee.id).exists():
-            raise ValidationError(
-                f"User {new_user.username} is already used by another employee ID."
-            )
+            raise ValidationError("User account already assigned.")
 
-        # 2. Replacement logic (Optional but recommended)
-        if employee.user and employee.user != new_user:
-            logger.info(
-                f"[PROFILE] Replacing account {employee.user.username} "
-                f"with {new_user.username} for {employee.matricule}"
-            )
-            # Here, you could deactivate flags on the old user if necessary
-
-        # 3. Application
         employee.user = new_user
         employee.can_connect = True
         employee.updated_by = actor
@@ -168,23 +137,17 @@ class EmployeeProfileService:
 
     @transaction.atomic
     def unlink_user_account(self, employee_id: UUID, actor: Any = None) -> Employee:
-        """
-        Releases the link between an employee and their user account.
-        Useful for suspending portal access.
-        """
+        """ Revokes system access and portal link. """
         employee = get_object_or_404(Employee, id=employee_id)
         
         if not employee.user:
-            return employee # Already unlinked
+            return employee
 
-        old_username = employee.user.username
         employee.user = None
         employee.can_connect = False
         employee.updated_by = actor
         employee.save(update_fields=['user', 'can_connect', 'updated_by', 'updated_at'])
 
-        logger.warning(
-            f"[PROFILE] Access revoked for {employee.matricule} (former account: {old_username}) by {actor}"
-        )
+        logger.warning(f"[PROFILE] Link revoked for {employee.matricule}")
         return employee
 

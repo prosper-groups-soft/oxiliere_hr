@@ -7,6 +7,7 @@ from hr.leaves.models import (
 
 
 class LeavePolicyService(BaseCRUDService):
+    """ Manages the creation and modification of company-wide leave policies. """
     model = LeavePolicy
     allowed_update_fields = [
         'name', 
@@ -18,6 +19,7 @@ class LeavePolicyService(BaseCRUDService):
 
 
 class SeniorityRuleService(BaseCRUDService):
+    """ Manages rules for bonus leave days based on employee length of service. """
     model = SeniorityRule
     allowed_update_fields = [
         'years_of_service', 
@@ -26,6 +28,7 @@ class SeniorityRuleService(BaseCRUDService):
 
 
 class CircumstanceLeaveRuleService(BaseCRUDService):
+    """ Manages entitlements for special leave events such as marriages or bereavements. """
     model = CircumstanceLeaveRule
     allowed_update_fields = [
         'type', 

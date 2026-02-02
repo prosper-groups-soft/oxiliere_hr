@@ -103,66 +103,66 @@ Gestion des avances de salaire
 ### Configuration de paie
 
 ```
-GET    /api/v1/payroll/config              - Récupérer la configuration
-POST   /api/v1/payroll/config              - Créer la configuration
-PUT    /api/v1/payroll/config/{id}         - Mettre à jour la configuration
-DELETE /api/v1/payroll/config/{id}         - Supprimer la configuration
+GET    /api/payroll/config              - Récupérer la configuration
+POST   /api/payroll/config              - Créer la configuration
+PUT    /api/payroll/config/{id}         - Mettre à jour la configuration
+DELETE /api/payroll/config/{id}         - Supprimer la configuration
 ```
 
 ### Contrats
 
 ```
-GET    /api/v1/payroll/contracts           - Lister les contrats
-POST   /api/v1/payroll/contracts           - Créer un contrat
-GET    /api/v1/payroll/contracts/{id}      - Détail d'un contrat
-PUT    /api/v1/payroll/contracts/{id}      - Mettre à jour un contrat
-DELETE /api/v1/payroll/contracts/{id}      - Supprimer un contrat
+GET    /api/payroll/contracts           - Lister les contrats
+POST   /api/payroll/contracts           - Créer un contrat
+GET    /api/payroll/contracts/{id}      - Détail d'un contrat
+PUT    /api/payroll/contracts/{id}      - Mettre à jour un contrat
+DELETE /api/payroll/contracts/{id}      - Supprimer un contrat
 ```
 
 ### Exécution de paie
 
 ```
-GET    /api/v1/payroll/runs                - Lister les exécutions
-POST   /api/v1/payroll/runs                - Créer une exécution
-GET    /api/v1/payroll/runs/{id}           - Détail d'une exécution
-PATCH  /api/v1/payroll/runs/{id}/approve   - Approuver l'exécution
-PATCH  /api/v1/payroll/runs/{id}/publish   - Publier l'exécution
+GET    /api/payroll/runs                - Lister les exécutions
+POST   /api/payroll/runs                - Créer une exécution
+GET    /api/payroll/runs/{id}           - Détail d'une exécution
+PATCH  /api/payroll/runs/{id}/approve   - Approuver l'exécution
+PATCH  /api/payroll/runs/{id}/publish   - Publier l'exécution
 ```
 
 ### Bulletins de paie
 
 ```
-GET    /api/v1/payroll/payslips            - Lister les bulletins
-GET    /api/v1/payroll/payslips/{id}       - Détail d'un bulletin
-GET    /api/v1/payroll/payslips/{id}/pdf   - Exporter en PDF
-GET    /api/v1/payroll/payslips/employee/{emp_id} - Bulletins d'un employé
+GET    /api/payroll/payslips            - Lister les bulletins
+GET    /api/payroll/payslips/{id}       - Détail d'un bulletin
+GET    /api/payroll/payslips/{id}/pdf   - Exporter en PDF
+GET    /api/payroll/payslips/employee/{emp_id} - Bulletins d'un employé
 ```
 
 ### Avances de salaire
 
 ```
-GET    /api/v1/payroll/advances            - Lister les avances
-POST   /api/v1/payroll/advances            - Demander une avance
-GET    /api/v1/payroll/advances/{id}       - Détail d'une avance
-PATCH  /api/v1/payroll/advances/{id}/approve - Approuver une avance
-PATCH  /api/v1/payroll/advances/{id}/reject - Rejeter une avance
+GET    /api/payroll/advances            - Lister les avances
+POST   /api/payroll/advances            - Demander une avance
+GET    /api/payroll/advances/{id}       - Détail d'une avance
+PATCH  /api/payroll/advances/{id}/approve - Approuver une avance
+PATCH  /api/payroll/advances/{id}/reject - Rejeter une avance
 ```
 
 ### Ajustements
 
 ```
-GET    /api/v1/payroll/adjustments         - Lister les ajustements
-POST   /api/v1/payroll/adjustments         - Créer un ajustement
-GET    /api/v1/payroll/adjustments/{id}    - Détail d'un ajustement
-PUT    /api/v1/payroll/adjustments/{id}    - Mettre à jour
-DELETE /api/v1/payroll/adjustments/{id}    - Supprimer
+GET    /api/payroll/adjustments         - Lister les ajustements
+POST   /api/payroll/adjustments         - Créer un ajustement
+GET    /api/payroll/adjustments/{id}    - Détail d'un ajustement
+PUT    /api/payroll/adjustments/{id}    - Mettre à jour
+DELETE /api/payroll/adjustments/{id}    - Supprimer
 ```
 
 ## Cas d'usage courants
 
 ### 1. Créer une configuration de paie
 ```json
-POST /api/v1/payroll/config
+POST /api/payroll/config
 {
   "currency": "CDF",
   "default_payment_method": "BANK_TRANSFER",
@@ -177,7 +177,7 @@ POST /api/v1/payroll/config
 
 ### 2. Créer un contrat d'employé
 ```json
-POST /api/v1/payroll/contracts
+POST /api/payroll/contracts
 {
   "employee_id": "emp_123",
   "contract_type": "CDI",
@@ -191,7 +191,7 @@ POST /api/v1/payroll/contracts
 
 ### 3. Exécuter une paie
 ```json
-POST /api/v1/payroll/runs
+POST /api/payroll/runs
 {
   "period_start": "2026-01-01",
   "period_end": "2026-01-31",
@@ -201,7 +201,7 @@ POST /api/v1/payroll/runs
 
 ### 4. Demander une avance de salaire
 ```json
-POST /api/v1/payroll/advances
+POST /api/payroll/advances
 {
   "employee_id": "emp_123",
   "amount": 10000.00,
@@ -276,3 +276,4 @@ Pour toute question ou problème :
 2. Consulter la configuration active
 3. Valider les données d'entrée
 4. Contacter l'équipe d'administration RH
+

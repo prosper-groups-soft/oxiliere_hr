@@ -1,17 +1,13 @@
 from decimal import Decimal, ROUND_HALF_UP
-from hr.payroll.models import TaxBracket
+from hr.payroll.services.cache import PayrollCacheService
 
 
 class TaxCalculationService:
-    """
-    Handles the calculation of IPR (Income Tax on Remunerations) for DRC.
-    """
+    """ Handles calculation of progressive income tax (IPR). """
 
     @classmethod
     def calculate_progressive_tax(cls, taxable_income: Decimal) -> Decimal:
-        """
-        Calculates the monthly IPR tax based on progressive tax brackets in DRC.
-        """
+        """ Calculates monthly income tax using progressive brackets and statutory limits. """
         if taxable_income <= 0:
             return Decimal('0.00')
 
@@ -20,9 +16,9 @@ class TaxCalculationService:
         total_annual_tax = Decimal('0.00')
 
         # Retrieve active tax brackets
-        brackets = TaxBracket.objects.filter(is_active=True).order_by('lower_limit')
+        brackets = PayrollCacheService.get_tax_brackets()
         
-        if not brackets.exists():
+        if not brackets:
             return Decimal('0.00')
 
         # 2. Calculate annual tax using progressive brackets
@@ -45,16 +41,26 @@ class TaxCalculationService:
         # 3. Convert back to monthly tax amount
         monthly_tax = total_annual_tax / Decimal('12')
 
-        # 4. Apply DRC legal constraints
-        
-        # Minimum Tax Rule (2 000 FC per month as per DRC tax law)
+        # 4. Apply DRC legal constraints (retrieved from brackets if available)
+        # Defaults for DRC: 2000 FC min, 30% max cap
         min_tax = Decimal('2000.00')
+        max_tax_cap_rate = Decimal('0.30')
+        
+        # We take the constraints from the first active bracket record
+        # In DRC, these are unique system-wide constants usually stored with the brackets
+        first_bracket = brackets[0] if brackets else None
+        if first_bracket:
+            if first_bracket.min_tax_amount is not None:
+                min_tax = first_bracket.min_tax_amount
+            if first_bracket.max_tax_percentage is not None:
+                max_tax_cap_rate = first_bracket.max_tax_percentage / Decimal('100')
+
+        # Minimum Tax Rule
         if monthly_tax < min_tax:
             monthly_tax = min_tax
 
-        # Maximum Tax Cap Rule (Total tax cannot exceed 30% of the taxable base)
+        # Maximum Tax Cap Rule (Total tax cannot exceed X% of the taxable base)
         # Ref: Article 84 of the DRC Tax Code
-        max_tax_cap_rate = Decimal('0.30')
         max_allowed_tax = taxable_income * max_tax_cap_rate
         
         if monthly_tax > max_allowed_tax:

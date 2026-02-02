@@ -1,16 +1,16 @@
 import logging
 from injector import inject
-from uuid import UUID
-from typing import List, Dict
+from uuid     import UUID
+from typing   import List, Dict
 
 from ninja.pagination import paginate
-from ninja_extra import (
+from ninja_extra      import (
     api_controller,
     http_get,
     http_post,
     ControllerBase,
 )
-
+from oxutils.permissions.perms import ScopePermission
 from oxutils.pagination.cursor import CursorPagination
 
 # Schemas
@@ -19,10 +19,12 @@ from hr.jobs.schemas import (
     PositionOut,
     PositionCreateIn
 )
-
+from hr.jobs.models import JobFamily
 # Services
 from hr.jobs.services import JobService
-from hr.jobs.enums import PositionLevel
+from hr.jobs.enums    import PositionLevel
+# Cache integration
+from hr.services.cache_helpers import cache_api_response
 
 
 logger = logging.getLogger(__name__)
@@ -30,35 +32,23 @@ logger = logging.getLogger(__name__)
 
 @api_controller('/jobs', tags=['Job Repository'])
 class JobController(ControllerBase):
-    """
-    ORCHESTRATION LAYER - JOB REPOSITORY
-    
-    Manages the corporate job catalog:
-    - Job Families (Departments/Functional areas)
-    - Positions & Seniority Levels
-    - Career Path Definitions
-    """
+    """ Manages the corporate job catalog, including families and position levels. """
 
     @inject
     def __init__(self, job_service: JobService):
         self.job_service = job_service
 
-    @http_get('/families', response=List[JobFamilyOut])
+    @http_get('/families', response=List[JobFamilyOut], permissions=[ScopePermission('jobs:r')])
     @paginate(CursorPagination)
+    @cache_api_response(timeout=60*60*24, key_prefix="job_families_list", user_specific=False)
     def list_job_families(self):
-        """
-        Returns all job families (e.g., Engineering, Sales, HR).
-        """
-        from hr.jobs.models import JobFamily
+        """ Retrieves all registered job families. """
         return JobFamily.objects.all()
 
-    @http_post('/positions', response={201: PositionOut})
+    @http_post('/positions', response={201: PositionOut}, permissions=[ScopePermission('jobs:w')])
     def create_position(self, data: PositionCreateIn):
-        """
-        Creates a new position and ensures its Job Family exists.
-        Prevents duplicates via service-level logic.
-        """
-        logger.info(f"[API] Creating position '{data.name}' at level {data.level}")
+        """ Defines a new position within the corporate job repository. """
+        logger.info(f"Creating position '{data.name}' at level {data.level}")
         
         position = self.job_service.create_position_with_family(
             name=data.name,

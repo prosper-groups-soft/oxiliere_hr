@@ -1,9 +1,3 @@
-"""
-Cache helpers and utilities for the HR system.
-
-Provides decorators and utilities for caching querysets and function results
-using Django's cache framework with Redis backend.
-"""
 import logging
 from functools import wraps
 from django.core.cache import cache
@@ -258,9 +252,6 @@ def cache_invalidator(*models):
     """
     Create a function that invalidates cache for specific models.
     
-    Args:
-        models: Django model classes
-    
     Returns:
         Function that invalidates cache
     
@@ -315,14 +306,7 @@ def get_cache_stats():
 def get_cache_keys_pattern(pattern):
     """
     Get all cache keys matching a pattern.
-    
-    WARNING: Slow operation. Use for debugging only.
-    
-    Args:
-        pattern: Pattern to match
-    
-    Returns:
-        List of matching keys
+    List of matching keys.
     """
     try:
         from django_redis import get_redis_connection

@@ -1,12 +1,6 @@
-"""
-Recruitment caching services.
-
-Handles caching of recruitment process queries.
-"""
-
-from django.core.cache import cache
+from django.core.cache         import cache
 from hr.services.cache_helpers import generate_cache_key, CacheKeys
-from hr.recruitment.models import (
+from hr.recruitment.models     import (
     JobOffer,
     Candidate,
     Application,
@@ -37,12 +31,6 @@ class RecruitmentCacheService:
     def get_active_job_offers(department=None):
         """
         Get all active job offers (short cache - can change).
-        
-        Args:
-            department: Optional Department instance to filter
-        
-        Returns:
-            List of active JobOffer instances
         """
         department_id = None
         if department:
@@ -114,13 +102,6 @@ class RecruitmentCacheService:
     def get_applications_for_offer(job_offer, status=None):
         """
         Get applications for a job offer (short cache).
-        
-        Args:
-            job_offer: JobOffer instance or ID
-            status: Optional status filter
-        
-        Returns:
-            List of Application instances
         """
         if isinstance(job_offer, JobOffer):
             offer_id = job_offer.id
@@ -147,12 +128,6 @@ class RecruitmentCacheService:
     def get_qualified_candidates(job_offer):
         """
         Get qualified candidates for a job offer (short cache).
-        
-        Args:
-            job_offer: JobOffer instance or ID
-        
-        Returns:
-            List of qualified Candidate instances
         """
         if isinstance(job_offer, JobOffer):
             offer_id = job_offer.id
@@ -257,4 +232,36 @@ class RecruitmentCacheService:
         cache.delete(generate_cache_key(
             "hr:recruitment:applications_offer", offer_id, None
         ))
-        cache.delete(CacheKeys.qualified_candidates(offer_id))
+
+    @staticmethod
+    def clear_application_cache(application):
+        """Clear cache for an application."""
+        cache.delete(generate_cache_key("hr:recruitment:application", application.id))
+        
+        # Clear list on the offer
+        cache.delete(generate_cache_key(
+            "hr:recruitment:applications_offer", application.job_offer_id, None
+        ))
+        cache.delete(generate_cache_key(
+            "hr:recruitment:applications_offer", application.job_offer_id, application.status
+        ))
+        
+        # Clear qualified candidates if applicable
+        if application.status == 'qualified':
+            cache.delete(CacheKeys.qualified_candidates(application.job_offer_id))
+
+    @staticmethod
+    def clear_interview_cache(interview):
+        """Clear cache for an interview."""
+        cache.delete(generate_cache_key("hr:recruitment:interview", interview.id))
+        
+        # Clear pending list
+        cache.delete("hr:recruitment:pending_interviews")
+        
+        # Clear candidate's interviews
+        if interview.application and interview.application.candidate:
+            cache.delete(generate_cache_key(
+                "hr:recruitment:candidate_interviews", 
+                interview.application.candidate.id, 
+                None
+            ))

@@ -25,6 +25,7 @@ from hr.employees.schemas import (
 
 @api_controller('/work-sites', tags=['Work Site'])
 class WorkSiteController(ControllerBase):
+    """ API endpoints for managing physical work locations. """
 
     @inject
     def __init__(self, worksite_service: WorkSiteService):
@@ -33,17 +34,17 @@ class WorkSiteController(ControllerBase):
     @http_get('', response=List[WorkSiteOut])
     @paginate(CursorPagination)
     def list_worksites(self, filters: WorkSiteFilterIn = Query(...)):
-        """List all work sites."""
+        """ Returns a filtered list of all physical work sites. """
         return filters.filter(self.worksite_service.list())
     
     @http_post('', response={201: WorkSiteOut})
     def create_worksite(self, data: WorkSiteCreateIn):
-        """Create a new work site."""
+        """ Registers a new physical work location. """
         return 201, self.worksite_service.create(data=data.model_dump())
 
     @http_patch('/{site_id}', response=WorkSiteOut)
     def update_worksite(self, site_id: UUID, data: WorkSiteUpdateIn):
-        """Partially update a work site using BaseCRUDService."""
+        """ Updates geographic or metadata details for a work site. """
         instance = self.worksite_service.get(id=site_id)
         return self.worksite_service.update(
             instance=instance, 
@@ -51,12 +52,8 @@ class WorkSiteController(ControllerBase):
         )
         
     @http_delete('/{site_id}', response={204: None})
-    def remove_worksite(self, site_id: UUID):
-        """"""
-        
-    @http_delete('/{site_id}', response={204: None})
     def delete_worksite(self, site_id: UUID):
-        """Delete a work site."""
+        """ Removes a work site from the system. """
         instance = self.worksite_service.get(id=site_id)
         self.worksite_service.delete(instance=instance)
         return 204, None

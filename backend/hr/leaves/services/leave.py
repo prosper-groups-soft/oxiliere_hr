@@ -31,10 +31,8 @@ logger = logging.getLogger(__name__)
 # --- Decorator for leave transitions ---
 def leave_transition(action):
     """
-    Decorator to handle leave request transitions:
-    - Validates allowed transitions based on current status
-    - Handles comment logging in French for audit trail
-    - Wraps the transition in a DB transaction
+    Handles status changes for leave requests.
+    Validates allowed transitions and logs approval/rejection comments.
     """
     def decorator(func):
         @wraps(func)
@@ -53,7 +51,7 @@ def leave_transition(action):
                 LeaveStatus.APPROVED: [LeaveStatus.CANCELLED, LeaveStatus.TAKEN]
             }
             if target_status not in valid_transitions.get(current_status, []):
-                raise ValidationError(f"Cannot perform '{action}' from {current_status}")
+                raise ValidationError(f"Invalid transition: {current_status} to {target_status}")
 
             result = func(self, leave_request, *args, **kwargs)
 
@@ -82,7 +80,7 @@ def leave_transition(action):
 
 class LeaveRequestService:
     """
-    Service for managing leave requests with automatic transitions.
+    Manages the full lifecycle of employee leave requests. 
 
     Lifecycle of a leave request:
         PENDING ── APPROVED ──> TAKEN (after end_date)
@@ -94,15 +92,7 @@ class LeaveRequestService:
 
     @transaction.atomic
     def create_request(self, employee: Employee, data, creator):
-        """
-        Create a new leave request.
-
-        Steps:
-        1. Compute total working days.
-        2. Validate overlap with existing requests.
-        3. Validate employee balance (annual or circumstance leave).
-        4. Create the leave request record with PENDING status.
-        """
+        """ Submits a new leave request after validating balance and overlaps. """
         category = data.get('category')
         start_date = data.get('start_date')
         end_date = data.get('end_date')
@@ -113,7 +103,7 @@ class LeaveRequestService:
         )))
 
         if days_total <= 0:
-            raise ValidationError("The period selected does not contain any working days.")
+            raise ValidationError("The selected period contains no working days.")
 
         self._check_overlap(employee, start_date, end_date)
 
@@ -139,38 +129,32 @@ class LeaveRequestService:
 
     @leave_transition('approve')
     def approve_request(self, leave_request: LeaveRequest, user=None, reason=None):
-        """
-        Approve a pending leave request.
-        - Consumes annual leave balance if category is ANNUAL.
-        - Adds an approval comment automatically.
-        """
+        """ Formally approves a leave request and deducts time from the entitlement. """
         if leave_request.category == LeaveCategory.ANNUAL:
             self._consume_annual_leave(leave_request, user)
         return leave_request
 
     @leave_transition('cancel')
     def cancel_request(self, leave_request: LeaveRequest, user=None, reason=None):
-        """Cancel a pending leave request."""
+        """ Cancels a request and restores days if it was already approved. """
         if leave_request.category == LeaveCategory.ANNUAL and leave_request.status == LeaveStatus.APPROVED:
             self._refund_annual_leave(leave_request, user)
         return leave_request
 
     @leave_transition('reject')
     def reject_request(self, leave_request: LeaveRequest, user=None, reason=None):
-        """Reject a pending leave request and log the rejection comment."""
+        """ Rejects a pending request with a justification. """
         return leave_request
 
     @leave_transition('mark_taken')
     def mark_taken_request(self, leave_request: LeaveRequest):
-        """Mark an approved leave as TAKEN after its end date."""
+        """ Archives a completed leave period. """
         return leave_request
 
-    # --- Internal Balance Management ---
+    # --- Internal Management ---
 
     def _consume_annual_leave(self, leave_request: LeaveRequest, actor):
-        """
-        Deduct days and create consumption transactions.
-        """
+        """ Deducts leave days and records the transaction. """
         days_per_year = SchedulingService.get_working_days_by_year(
             leave_request.employee, leave_request.start_date, leave_request.end_date
         )
@@ -179,11 +163,10 @@ class LeaveRequestService:
             amount = Decimal(str(days))
             LeaveConsumptionService.consume(leave_request.employee, year, amount)
             
-            # Audit Trail
             LeaveTransaction.objects.create(
                 employee=leave_request.employee,
                 year=year,
-                amount=-amount,  # Negative for debit
+                amount=-amount,
                 transaction_type=LeaveTransactionTypes.CONSUME,
                 leave_request=leave_request,
                 reason=f"Leave approved: {leave_request.start_date} to {leave_request.end_date}",
@@ -191,9 +174,7 @@ class LeaveRequestService:
             )
 
     def _refund_annual_leave(self, leave_request: LeaveRequest, actor):
-        """
-        Refund days and create refund transactions.
-        """
+        """ Restores leave days and records the refund. """
         days_per_year = SchedulingService.get_working_days_by_year(
             leave_request.employee, leave_request.start_date, leave_request.end_date
         )
@@ -203,9 +184,7 @@ class LeaveRequestService:
             self._refund_balance(leave_request.employee, year, amount, leave_request, actor)
 
     def _refund_balance(self, employee, year, days, leave_request, actor):
-        """
-        Smart refund logic: Annual Balance first, then CarryOver (LIFO-like).
-        """
+        """ Restores days to the annual balance and carry-over as appropriate. """
         remaining = Decimal(str(days))
         total_to_refund = remaining
 
@@ -235,7 +214,6 @@ class LeaveRequestService:
                 co.save(update_fields=["used_days"])
                 remaining -= refund_to_co
 
-        # Audit Trail (One entry per year)
         LeaveTransaction.objects.create(
             employee=employee,
             year=year,
@@ -248,9 +226,7 @@ class LeaveRequestService:
 
     @transaction.atomic
     def recall_employee(self, leave_request: LeaveRequest, recall_date: date, reason: str, recalled_by):
-        """
-        Handles employee recall with balance restoration.
-        """
+        """ Manages an employee's return to work before the scheduled leave end date. """
         if leave_request.status != LeaveStatus.APPROVED:
             raise ValidationError("Only approved requests can be recalled.")
         
@@ -281,10 +257,8 @@ class LeaveRequestService:
             recalled_by=recalled_by
         )
 
-    # --- Validators & Helpers ---
-
     def _check_overlap(self, employee, start_date, end_date):
-        """Check for overlapping leave requests."""
+        """ Ensures no other leave is scheduled for the same period. """
         conflicting = LeaveRequest.objects.filter(
             employee=employee,
             status__in=[LeaveStatus.PENDING, LeaveStatus.APPROVED],
@@ -292,33 +266,28 @@ class LeaveRequestService:
             end_date__gte=start_date
         )
         if conflicting.exists():
-            raise ValidationError("This request overlaps with an existing pending/approved leave.")
+            raise ValidationError("This request overlaps with an already submitted leave.")
 
     def _validate_annual_balance(self, employee, start_date, end_date, days_total):
-        """Validate annual leave balance."""
+        """ Checks if the employee has enough days for the requested period. """
         days_per_year = SchedulingService.get_working_days_by_year(employee, start_date, end_date)
         for year, days in days_per_year.items():
             if not BalanceService.check_eligibility(employee, Decimal(str(days)), year):
-                raise ValidationError(f"Insufficient balance for year {year}.")
+                raise ValidationError(f"Insufficient leave balance for {year}.")
 
     def _validate_circumstance(self, data, days_total):
-        """Validate circumstance leave balance."""
+        """ Ensures the request respects limits for special leave categories. """
         circ_type = data.get('circumstance_type')
         if not circ_type:
-            raise ValidationError("Circumstance type is mandatory.")
+            raise ValidationError("A specific leave type must be selected.")
         rule = CircumstanceLeaveRule.objects.filter(type=circ_type).first()
         if rule and days_total > Decimal(str(rule.duration_days)):
-            raise ValidationError(f"Max {rule.duration_days} days allowed for this category.")
+            raise ValidationError(f"The limit for this category is {rule.duration_days} days.")
 
-    # --- HR update ---
     @transaction.atomic
     def update_request_by_hr(self, leave_request: LeaveRequest, new_data, hr_user):
-        """
-        HR modifies a leave request:
-        - Cancels the old request for audit trail.
-        - Creates a new request with updated data.
-        """
-        logger.info(f"HR {hr_user} modifying request {leave_request.id}. Substitution in progress.")
+        """ Allows HR to adjust a request by replacing it with a new record. """
+        logger.info(f"HR modification in progress for request {leave_request.id}")
         self.cancel_request(leave_request, user=hr_user)
         updated_data = {
             'category': leave_request.category,
@@ -331,30 +300,21 @@ class LeaveRequestService:
         updated_data.update(new_data)
         return self.create_request(leave_request.employee, updated_data, hr_user)
 
-    # --- Add or replace attachment ---
     @transaction.atomic
     def add_attachment(self, leave_request: LeaveRequest, file_obj, user):
-        """
-        Add or replace an attachment for a leave request.
-        - Not allowed if leave is already approved or archived.
-        """
+        """ Attaches a supporting document to a pending leave request. """
         if leave_request.status in [LeaveStatus.APPROVED, LeaveStatus.TAKEN]:
-            raise ValidationError("Cannot modify attachments on an approved or archived leave.")
+            raise ValidationError("Cannot modify attachments for approved or archived requests.")
         
         leave_request.attachment = file_obj
         existing_comment = leave_request.comment or ""
         leave_request.comment = f"{existing_comment}\n[DOC] Pièce jointe ajoutée par {user} le {timezone.now().date()}."
         leave_request.save()
-        logger.info(f"Attachment updated for request {leave_request.id}")
         return leave_request
 
     @staticmethod
     def get_leaves_for_period(employee: Employee, start_date: date, end_date: date):
-        """
-        Retrieves approved leaves for an employee during a specific period.
-        Returns a dictionary with day counts for 'paid_leave' and 'unpaid_leave'.
-        """
-        # Approved or Taken leaves that overlap with the period
+        """ Calculates the number of leave days (paid/unpaid) within a given timeframe. """
         requests = LeaveRequest.objects.filter(
             employee=employee,
             status__in=[LeaveStatus.APPROVED, LeaveStatus.TAKEN],
@@ -369,11 +329,9 @@ class LeaveRequestService:
         }
 
         for req in requests:
-            # Determine actual overlap dates
             overlap_start = max(start_date, req.start_date)
             overlap_end = min(end_date, req.end_date)
             
-            # Count working days in the overlap
             days = Decimal(str(SchedulingService.count_working_days_for_employee(
                 employee, overlap_start, overlap_end
             )))
@@ -381,12 +339,10 @@ class LeaveRequestService:
             if days <= 0:
                 continue
 
-            # Categorize
             is_paid = True
             if req.category == LeaveCategory.UNPAID:
                 is_paid = False
             elif req.category == LeaveCategory.CIRCUMSTANCE:
-                # Check rule for circumstance leave (some might be unpaid in theory)
                 rule = CircumstanceLeaveRule.objects.filter(type=req.circumstance_type).first()
                 if rule:
                     is_paid = rule.is_paid

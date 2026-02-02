@@ -15,6 +15,7 @@ from ninja_extra      import (
     ControllerBase,
 )
 from oxutils.pagination.cursor import CursorPagination
+from oxutils.permissions.perms import ScopePermission
 
 from hr.employees.models    import Employee
 from hr.attendance.services import SchedulingService
@@ -27,6 +28,7 @@ from hr.attendance.schemas  import (
     RotationCreateIn,
     RotationBackfillIn,
     WorkingDaysPreviewOut,
+    WorkingDayCheckOut,
 )
 # Cache integration
 from hr.services.cache_helpers import cache_api_response
@@ -38,25 +40,15 @@ logger = logging.getLogger(__name__)
 
 @api_controller('/scheduling', tags=['Schedules & Rotations'])
 class SchedulingController(ControllerBase):
-    """
-    API controller responsible for:
-    - Shift policy management
-    - Weekly employee planning
-    - Rotation setup and backfill
-    """
+    """ API controller for shift policy management, employee scheduling, and rotation setup. """
 
     @inject
     def __init__(self, scheduling_service: SchedulingService):
-        # Inject scheduling service to keep business logic out of the controller
         self.scheduling_service = scheduling_service
 
-    # Shift policies
-    # --------------
-    @http_post('/policies', response={201: ShiftPolicyOut})
+    @http_post('/shifts', response={201: ShiftPolicyOut}, permissions=[ScopePermission('attendance:w')])
     def create_policy(self, data: ShiftPolicyCreateIn):
-        """
-        Create a shift policy with its complete weekly configuration.
-        """
+        """ Creates a new shift policy with a complete weekly configuration. """
         logger.info(
             "Shift policy creation requested",
             extra={
@@ -66,7 +58,6 @@ class SchedulingController(ControllerBase):
         )
 
         try:
-            # Delegate policy creation to the scheduling service
             policy = self.scheduling_service.create_full_policy(
                 name=data.name,
                 weekly_target=data.weekly_target_hours,
@@ -84,7 +75,6 @@ class SchedulingController(ControllerBase):
             return 201, policy
 
         except Exception:
-            # Unexpected error during policy creation
             logger.exception(
                 "Error while creating shift policy",
                 extra={"policy_name": data.name},
@@ -94,54 +84,36 @@ class SchedulingController(ControllerBase):
                 status_code=400,
             )
 
-    @http_get('/policies', response=List[ShiftPolicyOut])
+    @http_get('/shifts', response=List[ShiftPolicyOut], permissions=[ScopePermission('attendance:r')])
     @paginate(CursorPagination)
     @cache_api_response(timeout=60*60, key_prefix="policy_list", user_specific=False)
     def list_policies(self):
-        """
-        Get all shift policies.
-        Uses shared cache as the list is the same for all managers.
-        """
+        """ Retrieves a list of all available shift policies. """
         return ShiftPolicy.objects.all()
     
-    @http_patch('/policies/{policy_id}', response={200: ShiftPolicyOut})
+    @http_patch('/policies/{policy_id}', response={200: ShiftPolicyOut}, permissions=[ScopePermission('attendance:u')])
     def update_policy(self, policy_id: UUID, data: ShiftPolicyUpdateIn):
-        """
-        Update a shift policy's basic information.
-        Note: Changing the target hours will affect future overtime calculations.
-        """
+        """ Updates core shift policy information. """
         policy = get_object_or_404(ShiftPolicy, id=policy_id)
-        
         logger.info(f"Updating shift policy {policy.name} (ID: {policy_id})")
 
-        # Extract provided data
         update_data = data.model_dump(exclude_unset=True)
-        
         for attr, value in update_data.items():
             setattr(policy, attr, value)
             
         policy.save()
-
-        # Invalidate cache for policy list is handled automatically by your signals
-        # sender=ShiftPolicy is in your @receiver decorator!
         logger.info(f"Shift policy {policy.name} (ID: {policy_id}) updated successfully")
         
         return 200, policy
 
-    # Weekly planning
-    # ---------------
-    @http_get('/planning/{employee_id}', response=WeeklyPlanningOut)
+    @http_get('/planning/{employee_id}', response=WeeklyPlanningOut, permissions=[ScopePermission('attendance:r')])
     @cache_api_response(timeout=60*30, key_prefix="planning", user_specific=True)
     def get_employee_weekly_planning(
         self,
         employee_id: UUID,
         start_date: Optional[date] = None,
     ):
-        """
-        Retrieve the theoretical weekly planning for an employee.
-        Defaults to the current date when not provided.
-        """
-        # Default to today's date if no start date is provided
+        """ Retrieves the expected weekly work schedule for an employee. """
         if not start_date:
             start_date = timezone.now().date()
 
@@ -153,10 +125,7 @@ class SchedulingController(ControllerBase):
             },
         )
 
-        # Ensure the employee exists before computing planning
         employee = get_object_or_404(Employee, id=employee_id)
-
-        # Compute planning via the scheduling service
         planning_days = self.scheduling_service.get_weekly_planning(
             employee,
             start_date,
@@ -175,14 +144,9 @@ class SchedulingController(ControllerBase):
             "days": planning_days,
         }
 
-    # Rotations
-    # ---------
-    @http_post('/rotations', response={201: dict})
+    @http_post('/rotations', response={201: dict}, permissions=[ScopePermission('attendance:w')])
     def setup_rotation(self, data: RotationCreateIn):
-        """
-        Configure a rotation pattern for an employee and optionally
-        backfill past and future planning slots.
-        """
+        """ Configures and applies a recurring shift rotation for an employee. """
         logger.warning(
             "Rotation setup requested",
             extra={
@@ -193,14 +157,10 @@ class SchedulingController(ControllerBase):
             },
         )
 
-        # Resolve employee
         employee = get_object_or_404(Employee, id=data.employee_id)
-
-        # Load shift policies referenced by the rotation
         policy_map = {p.id: p for p in ShiftPolicy.objects.filter(id__in=data.policy_ids)}
         policies = [policy_map[p_id] for p_id in data.policy_ids if p_id in policy_map]
 
-        # Apply rotation via the scheduling service
         self.scheduling_service.apply_rotation(
             employee=employee,
             start_date=data.start_date,
@@ -218,34 +178,61 @@ class SchedulingController(ControllerBase):
 
         return 201, {"message": "Rotation created and backfilled"}
 
-    @http_post('/rotations/backfill', response={200: dict})
+    @http_post('/rotations/backfill', response={200: dict}, permissions=[ScopePermission('attendance:a')])
     def trigger_backfill(self, data: RotationBackfillIn):
-        """
-        Trigger the rotation backfill process to generate
-        future planning entries for all active rotations.
-        """
+        """ Triggers a system-wide backfill of future planning entries for active rotations. """
         logger.info(
             "Rotation backfill triggered",
             extra={"look_ahead_days": data.look_ahead_days},
         )
 
-        # Delegate backfill execution to the scheduling service
         self.scheduling_service.backfill_rotations(
             look_ahead_days=data.look_ahead_days
         )
 
         logger.info("Rotation backfill completed")
-        
         AttendanceCacheService.clear_api_cache_prefix("planning")
 
         return {"message": "Backfill process triggered"}
 
-    @http_get('/preview-working-days', response=WorkingDaysPreviewOut)
+    @http_get('/check-working-day', response=WorkingDayCheckOut, permissions=[ScopePermission('attendance:r')])
+    @cache_api_response(timeout=60*30, key_prefix="working_day_check", user_specific=False)
+    def check_working_day(self, employee_id: UUID, target_date: date):
+        """ Checks if an employee is scheduled to work on a specific date. """
+        logger.debug(
+            "Working day check requested",
+            extra={
+                "employee_id": str(employee_id),
+                "date": target_date
+            }
+        )
+
+        employee = get_object_or_404(Employee, id=employee_id)
+        is_working = self.scheduling_service.is_working_day(employee, target_date)
+        
+        shift = None
+        if is_working:
+            shift = self.scheduling_service.get_expected_schedule(employee, target_date)
+        
+        logger.info(
+            "Working day check completed",
+            extra={
+                "employee_id": str(employee_id),
+                "date": target_date,
+                "is_working": is_working
+            }
+        )
+
+        return {
+            "is_working": is_working,
+            "date": target_date,
+            "employee_id": employee_id,
+            "shift": shift
+        }
+
+    @http_get('/preview-working-days', response=WorkingDaysPreviewOut, permissions=[ScopePermission('attendance:r')])
     def preview_working_days(self, employee_id: UUID, start_date: date, end_date: date):
-        """
-        Preview working days calculation for a given period.
-        Useful for previewing leave consumption.
-        """
+        """ Previews working day calculation for a full period to assist in leave planning. """
         employee = get_object_or_404(Employee, id=employee_id)
 
         total = self.scheduling_service.count_working_days_for_employee(

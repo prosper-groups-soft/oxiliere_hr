@@ -13,10 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class EmployeeFamilyService:
-    """
-    Service managing dependents and legal family records.
-    Crucial for payroll benefits and tax reductions in the DRC context.
-    """
+    """ Manages dependents and legal family registry. """
 
     @transaction.atomic
     def declare_child(
@@ -25,17 +22,10 @@ class EmployeeFamilyService:
         data: Dict[str, Any], 
         actor: Any = None
     ) -> EmployeeChild:
-        """
-        Business Intent: Formal registration of a child for HR benefits and family informations.
-        
-        Rules:
-        - Normalizes names to Title Case.
-        - Validates that the birthdate is in the past.
-        - Automatically marks as a dependent upon creation.
-        """
+        """ Registers a child for benefits and family tracking. """
         birthdate = data.get('birthdate')
         if birthdate and isinstance(birthdate, date) and birthdate > date.today():
-            raise ValidationError({"birthdate": "A child's birthdate cannot be in the future."})
+            raise ValidationError({"birthdate": "Birthdate cannot be in the future."})
 
         child = EmployeeChild.objects.create(
             parent=employee,
@@ -48,7 +38,7 @@ class EmployeeFamilyService:
             created_by=actor
         )
 
-        logger.info(f"[FAMILY] Child {child.first_name} added for employee {employee.matricule} by {actor}")
+        logger.info(f"[FAMILY] Child added: {employee.matricule}")
         return child
 
     @transaction.atomic
@@ -58,17 +48,10 @@ class EmployeeFamilyService:
         data: Dict[str, Any], 
         actor: Any = None
     ) -> EmployeeChild:
-        """
-        Business Intent: Update child details or dependency status.
-        Example: Unchecking 'is_dependent' when a child reaches legal age.
-        """
+        """ Updates child details or dependency status. """
         allowed_fields = [
-            'first_name', 
-            'middle_name', 
-            'last_name', 
-            'gender', 
-            'birthdate', 
-            'is_dependent'
+            'first_name', 'middle_name', 'last_name', 
+            'gender', 'birthdate', 'is_dependent'
         ]
         
         update_instance(
@@ -84,10 +67,7 @@ class EmployeeFamilyService:
 
     @staticmethod
     def get_dependent_count(employee_id: UUID) -> int:
-        """
-        Returns the count of active legal dependents for an employee.
-        Used by the payroll module for allocation calculations.
-        """
+        """ Count of active legal dependents for payroll. """
         return EmployeeChild.objects.filter(
             parent_id=employee_id, 
             is_dependent=True
@@ -95,15 +75,8 @@ class EmployeeFamilyService:
         
     @transaction.atomic
     def remove_child(self, child: EmployeeChild, actor: Any = None) -> None:
-        """
-        Business Intent: Remove a child record (e.g., error in entry).
-        
-        Technical Note: 
-        Uses Soft Delete (SafeDeleteModelMixin). The record will be 
-        masked but preserved for historical payroll audit logs.
-        """
+        """ Removes a child record from the registry. """
         child.updated_by = actor
         child.delete() 
-        
-        logger.warning(f"[FAMILY] Child record {child.id} soft-deleted by {actor}")
+        logger.warning(f"[FAMILY] Removed child: {child.id}")
         

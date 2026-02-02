@@ -237,3 +237,53 @@ class TimeSheetFilter(FilterSchema):
 class WorkingDaysPreviewOut(Schema):
     total_working_days: int
     breakdown: dict[int, int]
+
+
+# --- Maintenance Schemas ---
+
+class MaintenanceDateIn(Schema):
+    date: date
+
+
+class ClosePunchesOut(Schema):
+    """ Results of an automated punch closing operation. """
+    closed_count: int
+    affected_employees: List[EmployeeOut]
+    details: List[dict]
+
+
+class FlagAbsencesOut(Schema):
+    """ Results of an automated absence flagging operation. """
+    flagged_count: int
+    absent_employees: List[EmployeeOut]
+    details: List[dict]
+
+
+# --- Validation Schemas ---
+
+class TimesheetValidationIn(Schema):
+    timesheet_id: UUID
+
+
+class TimesheetValidationOut(Schema):
+    """ Results of a timesheet consistency audit. """
+    is_valid: bool
+    errors: List[str]
+    warnings: List[str]
+    timesheet_summary: dict
+
+
+# --- Extension Schemas ---
+
+class WorkingDayCheckOut(Schema):
+    """ Results of a specific working day check. """
+    is_working: bool
+    date: date
+    employee_id: UUID
+    shift: Optional[ShiftDetailOut] = None
+
+
+class UnlockPeriodOut(Schema):
+    """ Results of an administrative period unlock. """
+    unlocked: bool
+    previous_lock: Optional[PeriodArchiveLockOut] = None

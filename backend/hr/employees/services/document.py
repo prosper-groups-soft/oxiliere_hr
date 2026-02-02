@@ -12,10 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class EmployeeDocumentService:
-    """
-    Service handling digital records and legal proofs (KYC: Know Your Customer).
-    Aligned with the updated EmpDocument model schema.
-    """
+    """ Handles digital records and legal identification validation. """
 
     @transaction.atomic
     def upload_document(
@@ -25,17 +22,10 @@ class EmployeeDocumentService:
         data: Dict[str, Any], 
         actor: Any = None
     ) -> EmployeeDocument:
-        """
-        Business Intent: Add a new legal or academic proof with full metadata.
-        
-        Responsibilities:
-        - Ensures document category is defined.
-        - Captures the Issuing Authority for verification tracking.
-        - Sets initial verification status to False.
-        """
+        """ Saves a new legal or professional document file. """
         document_type = data.get('document_type')
         if not document_type:
-            raise ValidationError("Document type is mandatory.")
+            raise ValidationError("Document type required.")
 
         document = EmployeeDocument.objects.create(
             employee=employee,
@@ -49,10 +39,7 @@ class EmployeeDocumentService:
             created_by=actor
         )
 
-        logger.info(
-            f"[DOC] Document '{document_type}' uploaded for {employee.matricule}"
-            f"(Auth: {document.issuing_authority})"
-        )
+        logger.info(f"[DOC] Uploaded: {document_type} for {employee.matricule}")
         return document
 
     @transaction.atomic
@@ -61,48 +48,36 @@ class EmployeeDocumentService:
         document: EmployeeDocument, 
         actor: Any
     ) -> EmployeeDocument:
-        """
-        Business Intent: Official validation of the digital scan.
-        The auditor (actor) confirms the issuing authority's stamp/signature is valid.
-        """
+        """ Marks a document as reviewed and verified. """
         document.is_verified = True
         document.updated_by = actor
         document.save(update_fields=['is_verified', 'updated_by'])
 
-        logger.info(f"[DOC] Document {document.id} (from {document.issuing_authority}) verified by {actor}")
+        logger.info(f"[DOC] Verified: {document.id}")
         return document
 
     @transaction.atomic
     def remove_document(self, document: EmployeeDocument, actor: Any = None) -> None:
-        """
-        Remove a document using SafeDelete logic AND delete the file on disk.
-        Also cleans up empty folders in the path.
-        """
+        """ Deletes document record and associated file on disk. """
         actor = actor or getattr(document, 'updated_by', None)
-
-        # store file path before deletion
         file_path = Path(document.file.path) if document.file else None
 
-        # soft-delete the DB record
+        # Delete record
         document.updated_by = actor
         document.delete()
 
+        # Delete physical file
         if file_path and file_path.exists():
-            # delete the file
             file_path.unlink()
-            logger.warning(f"[DOC] File {file_path} physically removed by {actor}")
-
-            # recursively remove empty parent directories up to "employee_docs"
+            
+            # Cleanup empty folders
             for parent in file_path.parents:
                 if parent.name == "employee_docs":
-                    break  # stop at base folder
+                    break
                 try:
-                    parent.rmdir()  # only removes if empty
-                    logger.info(f"[DOC] Removed empty folder {parent}")
+                    parent.rmdir() 
                 except OSError:
-                    break  # folder not empty, stop cleanup
-        elif file_path:
-            logger.warning(f"[DOC] File {file_path} not found on disk")
+                    break
 
-        logger.warning(f"[DOC] Document {document.id} soft-deleted by {actor}")
+        logger.warning(f"[DOC] Removed: {document.id}")
 

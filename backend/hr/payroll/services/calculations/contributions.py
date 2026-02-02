@@ -1,24 +1,14 @@
 from decimal import Decimal, ROUND_HALF_UP
-from hr.payroll.models import SocialContributionRate
 from hr.payroll.enums import SocialContributionType
+from hr.payroll.services.cache import PayrollCacheService
 
 
 class SocialContributionService:
-    """
-    Handles calculation of social contributions in DRC (CNSS, ONEM, INPP).
-    Ref: Social Security Law and Professional Training Laws 2026.
-    """
+    """ Handles calculation of statutory social contributions (CNSS, ONEM, INPP). """
 
     @classmethod
     def calculate_contributions(cls, gross_amount: Decimal, company_size: int = 1):
-        """
-        Calculates all active social contributions based on DRC rules.
-        
-        Assumptions for DRC:
-        - All contributions (CNSS, INPP, ONEM) share the same gross base (excluding legal allowances).
-        - CNSS applies a ceiling for the Family branch (252,750 FC).
-        - INPP and ONEM are 100% employer-funded.
-        """
+        """ Calculates employee and employer social contributions based on active rates and ceilings. """
         results = {
             'employee_total': Decimal('0.00'),
             'employer_total': Decimal('0.00'),
@@ -26,7 +16,7 @@ class SocialContributionService:
         }
 
         # Fetch active rates
-        rates = SocialContributionRate.objects.filter(is_active=True)
+        rates = PayrollCacheService.get_social_contribution_rates()
 
         for rate in rates:
             # 1. Base selection

@@ -6,24 +6,18 @@ from hr.payroll.models import EmployeePayslip, PayrollRun
 
 
 class BankFileGenerator:
-    """
-    Generates bank transfer files (Excel/CSV) for a specific payroll run.
-    """
+    """ Generates standardized bank transfer files for payroll processing. """
 
     @classmethod
     def generate_listing(cls, run_id: str, bank_code: str = None, currency: str = "CDF") -> List[Dict]:
-        """
-        Creates a list of transfers by matching Payslip Net Amounts with Employee Bank Accounts.
-        """
+        """ Matches active payslips with verified bank accounts to create a transfer list. """
         run = PayrollRun.objects.get(id=run_id)
         
-        # 1. Fetch valid payslips for this run
         payslips = EmployeePayslip.objects.filter(
             payroll_run=run,
             net_amount__gt=0
         ).select_related('contract__employee')
 
-        # 2. Fetch active bank accounts for these employees
         employee_ids = [p.contract.employee.id for p in payslips]
         accounts = BankAccount.objects.filter(
             employee_id__in=employee_ids,
@@ -35,13 +29,10 @@ class BankFileGenerator:
         if bank_code:
             accounts = accounts.filter(bank__code=bank_code)
 
-        # Map employee_id -> account (prioritize primary if multiple?)
-        # Simple map: last one wins or we filter for specific bank.
-        # Ideally, we should filter for "is_primary=True" first.
+        # Map and prioritize primary accounts
         primary_accounts = accounts.filter(is_primary=True)
         account_map = {acc.employee_id: acc for acc in primary_accounts}
         
-        # Fallback to any account if no primary found (optional logic)
         remaining_accounts = accounts.exclude(id__in=[a.id for a in primary_accounts])
         for acc in remaining_accounts:
             if acc.employee_id not in account_map:
@@ -54,7 +45,7 @@ class BankFileGenerator:
             account = account_map.get(emp.id)
             
             if not account:
-                # Employee has no valid bank account for this currency
+                # Skip employees without valid verified accounts for this currency
                 continue
                 
             export_data.append({
@@ -73,5 +64,6 @@ class BankFileGenerator:
 
     @classmethod
     def to_excel(cls, data: List[Dict]) -> pd.DataFrame:
-        """Converts the list to a DataFrame ready for Excel."""
+        """ Converts the transfer data into a spreadsheet format. """
         return pd.DataFrame(data)
+

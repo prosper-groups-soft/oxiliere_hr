@@ -20,10 +20,7 @@ from .cache import AttendanceCacheService
 
 
 class SchedulingService:
-    """
-    Service responsible for managing employee work schedules, policy assignments,
-    and calculating expected working days with high-performance caching.
-    """
+    """ Manages work schedules, policy assignments, and working day calculations. """
     
     @staticmethod
     @transaction.atomic
@@ -77,20 +74,10 @@ class SchedulingService:
         start_date: date, 
         end_date: date = None
     ) -> EmploymentScheme:
-        """
-        Links an employee to a ShiftPolicy for a specific time period.
-        
-        Overlap Management Logic:
-        - Prevents date inconsistency (start must be before end).
-        - Identifies existing active schemes that conflict with the new date range.
-        - Shortens previous schemes to end the day before the new one starts.
-        - Deactivates older schemes that are completely superseded by the new one.
-        - Clears the employee's attendance cache to ensure new policy rules take immediate effect.
-        """
+        """ Assigns a shift policy to an employee, automatically resolving date overlaps. """
         if end_date and start_date >= end_date:
             raise ValidationError(_("Start date must be before end date."))
 
-        # Identify overlapping active schemes
         overlap_query = Q(employee=employee, is_active=True)
         if end_date:
             overlap_query &= Q(valid_from__lt=end_date) & (Q(valid_until__gt=start_date) | Q(valid_until__isnull=True))
@@ -101,15 +88,12 @@ class SchedulingService:
 
         for scheme in existing_schemes:
             if scheme.valid_from < start_date:
-                # Truncate existing scheme to avoid overlap
                 scheme.valid_until = start_date - timedelta(days=1)
                 scheme.save()
             else:
-                # Deactivate scheme if it starts after the new one
                 scheme.is_active = False
                 scheme.save()
 
-        # INVALIDATION: Ensure stale schedule data is removed from Redis
         AttendanceCacheService.clear_employee_cache(employee)
 
         return EmploymentScheme.objects.create(
@@ -122,10 +106,7 @@ class SchedulingService:
 
     @staticmethod
     def get_active_scheme_for_date(employee, target_date: date) -> EmploymentScheme | None:
-        """
-        Finds the contractually active EmploymentScheme for a given date.
-        Uses select_related('policy') to minimize SQL JOINs when accessing policy details.
-        """
+        """ Retrieves the active employment scheme for a specific date. """
         return EmploymentScheme.objects.filter(
             employee=employee,
             is_active=True,
@@ -136,22 +117,13 @@ class SchedulingService:
 
     @classmethod
     def get_expected_schedule(cls, employee, target_date: date) -> ShiftDetail | None:
-        """
-        Determines what an employee is supposed to do on a specific date based on a 3-tier hierarchy.
-        
-        Priority Hierarchy:
-        0. Global Calendar: Check if it's a Public Holiday (overrides everything).
-        1. Manual Override: Check for a specific ShiftAssignment (specific day planning).
-        2. Default Policy: Retrieve the standard ShiftDetail from the active policy.
-        
-        Performance: Uses cached shift details for tier 2 to avoid repeated DB scans.
-        """
-        # Tier 0: Public Holidays / Company Closures
+        """ Determines the expected work schedule using calendar settings and manual overrides. """
+        # Tier 0: Public Holidays
         country_code = getattr(employee, 'nationality', 'CD') 
         if CalendarService.is_non_working_day(target_date, country_code):
             return None
 
-        # Tier 1: Manual Assignment / Single Day Override
+        # Tier 1: Manual Overrides
         assignment = ShiftAssignment.objects.filter(
             employee=employee, 
             date=target_date
@@ -160,24 +132,19 @@ class SchedulingService:
         if assignment:
             return assignment.shift_detail
 
-        # Tier 2: Recurring Shift Policy
+        # Tier 2: Standard Policy
         scheme = cls.get_active_scheme_for_date(employee, target_date)
         if not scheme:
             return None
 
-        # CACHE ACCESS: Retrieve all 7 days of the policy from Redis at once
         day_name = target_date.strftime('%A').lower()
         details = AttendanceCacheService.get_shift_details(scheme.policy)
         
-        # Match the current day in the cached list using Python (O(1) complexity)
         return next((d for d in details if d.weekday == day_name and d.is_working_day), None)
 
     @staticmethod
     def get_weekly_planning(employee, start_date: date):
-        """
-        Compiles a 7-day schedule view for an employee starting from a given date.
-        Returns a structured list of dictionaries for UI/API consumption.
-        """
+        """ Generates a 7-day schedule overview for an employee. """
         planning = []
         for i in range(7):
             current_day = start_date + timedelta(days=i)
@@ -203,9 +170,7 @@ class SchedulingService:
 
     @staticmethod
     def is_working_day(employee, target_date: date) -> bool:
-        """
-        Boolean helper to quickly verify if an employee is required to work on a specific date.
-        """
+        """ Checks if an employee is scheduled to work on a specific date. """
         schedule = SchedulingService.get_expected_schedule(employee, target_date)
         return schedule is not None and schedule.is_working_day
     
@@ -222,16 +187,8 @@ class SchedulingService:
             Week 3 will return to Morning_Policy, and so on.
         
         weekly_patterns: list of ShiftPolicy objects to rotate through.
-        
-        Optimizations:
-        1. Pre-fetches all ShiftDetails for all policies in the rotation using the cache service.
-        2. Uses bulk_create/update logic instead of individual database hits.
-        3. Clears employee cache once at the end.
         """
         num_patterns = len(weekly_patterns)
-        
-        # 1. Pre-fetch all details for all involved policies in one go (via Cache)
-        # We create a map {(policy_id, weekday): detail} for O(1) access
         details_map = {}
         for policy in weekly_patterns:
             policy_details = AttendanceCacheService.get_shift_details(policy)
@@ -250,7 +207,6 @@ class SchedulingService:
                 
                 detail = details_map.get((current_policy.id, day_name))
                 if detail:
-                    # We use ShiftAssignment objects for bulk operations
                     assignments_to_sync.append(
                         ShiftAssignment(
                             employee=employee,
@@ -261,8 +217,6 @@ class SchedulingService:
             
             current_date += timedelta(days=7)
 
-        # 2. Sync with database: Delete existing in range and bulk create new ones
-        # This is often faster than update_or_create in a loop for large rotations
         end_date = start_date + timedelta(weeks=num_weeks)
         ShiftAssignment.objects.filter(
             employee=employee, 
@@ -270,32 +224,21 @@ class SchedulingService:
         ).delete()
         
         ShiftAssignment.objects.bulk_create(assignments_to_sync)
-
-        # 3. Invalidate cache once
         AttendanceCacheService.clear_employee_cache(employee)
 
     @staticmethod
     @transaction.atomic
     def backfill_rotations(look_ahead_days: int = 30):
-        """
-        System-wide task: Generates ShiftAssignments for all active rotations.
-        
-        Optimizations:
-        1. Uses select_related to avoid N+1 on employees.
-        2. Moves the day-loop inside the rotation loop (corrected logic).
-        3. Uses the Cache Service to avoid hitting ShiftDetail table repeatedly.
-        """
+        """ Automated task to populate shift assignments for active rotations. """
         active_rotations = RotationPattern.objects.filter(is_active=True).select_related('employee')
         today = date.today()
         global_limit = today + timedelta(days=look_ahead_days)
 
         for rotation in active_rotations:
-            # Determine processing range
             effective_end_limit = min(global_limit, rotation.end_date) if rotation.end_date else global_limit
             if effective_end_limit < today:
                 continue
 
-            # Fetch existing dates to respect manual overrides (we don't overwrite them)
             existing_dates = set(
                 ShiftAssignment.objects.filter(
                     employee=rotation.employee,
@@ -303,7 +246,6 @@ class SchedulingService:
                 ).values_list('date', flat=True)
             )
 
-            # Pre-fetch details for this rotation's policies via Cache
             details_map = {}
             for p_id in rotation.policies:
                 policy_details = AttendanceCacheService.get_shift_details(p_id)
@@ -314,10 +256,8 @@ class SchedulingService:
             assignments_to_create = []
             current_day = today
 
-            # Loop through days for this specific rotation
             while current_day <= effective_end_limit:
                 if current_day not in existing_dates and current_day >= rotation.start_date:
-                    # Rotation logic: which week are we in?
                     weeks_diff = (current_day - rotation.start_date).days // 7
                     policy_idx = weeks_diff % len(rotation.policies)
                     policy_id = rotation.policies[policy_idx]
@@ -335,26 +275,16 @@ class SchedulingService:
                 
                 current_day += timedelta(days=1)
             
-            # Bulk save for this employee
             if assignments_to_create:
                 ShiftAssignment.objects.bulk_create(assignments_to_create)
-                # Invalidate this employee's cache
                 AttendanceCacheService.clear_employee_cache(rotation.employee)
 
     @staticmethod
     def count_working_days_for_employee(employee, start_date: date, end_date: date) -> int:
-        """
-        Counts the total number of expected working days within a date range.
-        
-        OPTIMIZATION - Bulk Fetching:
-        Instead of running 1 SQL query per day in a loop (N+1 problem), this method
-        fetches all manual overrides for the entire period in a single query and
-        processes the logic in-memory.
-        """
+        """ Calculates total working days within a date range using optimized lookups. """
         if start_date > end_date:
             return 0
 
-        # Pre-fetch all overrides for the period to avoid DB hits inside the loop
         assignments_map = {
             a.date: a.shift_detail 
             for a in ShiftAssignment.objects.filter(
@@ -365,7 +295,6 @@ class SchedulingService:
         count = 0
         curr = start_date
         while curr <= end_date:
-            # Use the optimized internal helper to process each day
             if SchedulingService._is_working_day_optimized(employee, curr, assignments_map):
                 count += 1
             curr += timedelta(days=1)
@@ -373,21 +302,14 @@ class SchedulingService:
 
     @staticmethod
     def _is_working_day_optimized(employee, target_date: date, assignments_map: dict) -> bool:
-        """
-        Internal high-performance version of is_working_day.
-        Accepts a pre-fetched 'assignments_map' to eliminate database queries during 
-        range-based calculations (e.g., monthly stats or leave requests).
-        """
-        # Check Holiday first (Tier 0)
+        """ Optimized internal check for working days using pre-fetched data. """
         country_code = getattr(employee, 'nationality', 'CD') 
         if CalendarService.is_non_working_day(target_date, country_code):
             return False
 
-        # Check pre-fetched assignments (Tier 1)
         if target_date in assignments_map:
             return assignments_map[target_date].is_working_day
 
-        # Check Active Policy (Tier 2) via Cache
         scheme = SchedulingService.get_active_scheme_for_date(employee, target_date)
         if not scheme:
             return False
@@ -398,19 +320,13 @@ class SchedulingService:
 
     @staticmethod
     def get_working_days_by_year(employee, start_date: date, end_date: date) -> dict[int, int]:
-        """
-        Aggregates working days per calendar year for a given range.
-        Useful for calculating leave balances when a request spans across two years.
-        Example output: {2025: 5, 2026: 2}
-        """
+        """ Aggregates working days per year for multi-year periods. """
         results = {}
         if start_date > end_date:
             return results
 
         curr = start_date
         while curr <= end_date:
-            # Note: For even better performance on very long ranges, this could be 
-            # further optimized to use the assignments_map logic.
             if SchedulingService.is_working_day(employee, curr):
                 year = curr.year
                 results[year] = results.get(year, 0) + 1

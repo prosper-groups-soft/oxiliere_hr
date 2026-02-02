@@ -12,27 +12,22 @@ from hr.jobs.models import (
 from hr.employees.schemas import EmployeeOut
 
 
-# ----------------  JOB REPOSITORY SCHEMAS  -------------------
+# ----------------  JOB CATALOG SCHEMAS  -------------------
 class JobFamilyOut(ModelSchema):
-    """Output schema for Job Families (e.g., Engineering, Sales)."""
+    """ High-level career categories (e.g., Engineering, HR). """
     class Meta:
         model = JobFamily
         fields = ['id', 'name', 'description']
 
 
 class PositionOut(ModelSchema):
-    """Output schema for specific job positions with seniority level details."""
-    job_family: JobFamilyOut   # Nested to provide full family context in lists
-    level_display: str = None  # Returns "Junior" instead of the raw value "JUNIOR"
+    """ Specific roles and seniority levels within a Job Family. """
+    job_family: JobFamilyOut
+    level_display: str = None
 
     class Meta:
         model = Position
-        fields = [
-            'id', 
-            'name', 
-            'level', 
-            'description'
-        ]
+        fields = ['id', 'name', 'level', 'description']
     
     @staticmethod
     def resolve_level_display(obj):
@@ -40,63 +35,53 @@ class PositionOut(ModelSchema):
 
 
 class PositionCreateIn(Schema):
-    """Input schema for creating a new position within a family."""
+    """ Data required to define a new company position. """
     name: str
     family_name: str
     level: str
     description: Optional[str] = None
     
     
-# --------------  ORGANIZATION & HIERARCHY SCHEMAS  ------------------
+# --------------  ORGANIZATIONAL STRUCTURE SCHEMAS  ------------------
 class DepartmentOut(ModelSchema):
-    """Basic department output schema."""
+    """ Information about a functional department. """
     manager: Optional[EmployeeOut] = None
     parent_id: Optional[UUID] = None
 
     class Meta:
         model = Department
-        fields = [
-            'id', 
-            'name', 
-            'description'
-        ]
+        fields = ['id', 'name', 'description']
 
 
 class DepartmentTreeOut(Schema):
-    """Recursive schema for organizational chart visualization."""
+    """ Hierarchical representation of the company organization chart. """
     id: UUID
     name: str
     manager: Optional[str] = None
-    sub_departments: List['DepartmentTreeOut'] = [] # Self-referencing recursion
+    sub_departments: List['DepartmentTreeOut'] = []
 
 
 class DepartmentCreateIn(Schema):
-    """Input schema for creating a new functional unit."""
+    """ Data required to establish a new organizational unit. """
     name: str
     parent_id: Optional[UUID] = None
     manager_id: Optional[UUID] = None
 
 
-# -----------  CAREER TRACKING & MOVEMENTS  --------------
+# -----------  CAREER PROGRESSION  --------------
 class CareerHistoryOut(ModelSchema):
-    """Represents a specific chapter in an employee's career path."""
+    """ Details of an employee's specific role assignment and duration. """
     position: PositionOut
     department: Optional[DepartmentOut]
-    days_spent: Optional[int] = None # Calculated by the service layer
+    days_spent: Optional[int] = None
 
     class Meta:
         model = EmployeePositionHistory
-        fields = [
-            'id', 
-            'start_date', 
-            'end_date', 
-            'is_current', 
-            'description'
-        ]
+        fields = ['id', 'start_date', 'end_date', 'is_current', 'description']
 
 
 class EmployeeMoveIn(Schema):
-    """Schema for handling promotions, demotions, or lateral transfers."""
+    """ Data for processing promotions, transfers, or lateral moves. """
     new_position_id: UUID
     new_department_id: Optional[UUID] = None
     effective_date: Optional[date] = None
@@ -104,41 +89,34 @@ class EmployeeMoveIn(Schema):
 
 
 class InitialAssignmentIn(Schema):
-    """Schema used during the onboarding process for the first job assignment."""
+    """ Initial role assignment during the onboarding process. """
     position_id: UUID
     department_id: UUID
     start_date: Optional[date] = None
 
 
-# -----------  TRAINING & CERTIFICATIONS  -------------
+# -----------  DEVELOPMENT & TRAINING  -------------
 class TrainingOut(ModelSchema):
-    """Output schema for employee skills development and certifications."""
+    """ Records of professional certifications and corporate training. """
     employee: EmployeeOut
     status: str = "Active"
 
     class Meta:
         model = Training
         fields = [
-            'id', 
-            'name', 
-            'institute', 
-            'start_date', 
-            'end_date', 
-            'expiry_date', 
-            'location', 
-            'description'
+            'id', 'name', 'institute', 'start_date', 
+            'end_date', 'expiry_date', 'location', 'description'
         ]
 
     @staticmethod
     def resolve_status(obj):
-        """Calculates if the certification is still valid as of today (2026)."""
         if obj.expiry_date and obj.expiry_date < date.today():
             return "Expired"
         return "Active"
 
 
 class TrainingRecordIn(Schema):
-    """Input schema for recording a new training session or certificate."""
+    """ Data for recording a new training session or certification. """
     name: str
     institute: Optional[str] = None
     start_date: date

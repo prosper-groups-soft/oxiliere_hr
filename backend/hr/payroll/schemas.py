@@ -1,4 +1,4 @@
-from typing               import List
+from typing               import List, Dict
 from decimal              import Decimal
 from uuid                 import UUID
 from datetime             import date
@@ -1018,3 +1018,32 @@ class SalaryAdvanceDetailOut(ModelSchema):
             "updated_at",
         ]
 
+
+# ----------------  PAYROLL SUMMARY SCHEMAS  -------------------
+class PayrollRunSummaryNestedOut(Schema):
+    id: UUID
+    code: str
+    period: str
+    status: str
+
+class PayrollFinancialSummaryOut(Schema):
+    total_employees: int
+    total_gross_salary: Decimal
+    total_net_salary: Decimal
+    total_ipr_to_pay: Decimal
+    total_cnss_employee: Decimal
+    total_cnss_employer: Decimal
+    total_inpp: Decimal
+    total_onem: Decimal
+    total_employer_liabilities: Decimal
+    total_cost_to_company: Decimal
+
+class AdjustmentSummaryItem(Schema):
+    total: Decimal
+    count: int
+
+class PayrollRunSummaryOut(Schema):
+    """Full summary of a payroll run including DRC-specific financial breakdown."""
+    payroll_run: PayrollRunSummaryNestedOut
+    summary: PayrollFinancialSummaryOut
+    adjustments: Dict[str, AdjustmentSummaryItem]
