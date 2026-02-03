@@ -214,8 +214,8 @@ logs
 **/.pnpm-store/
 
 # Environment variables (CRITICAL SECURITY)
-.env
-.env.*
+frontend/.env
+frontend/.env.*
 !frontend/.env.example
 
 # Build and output directories
