@@ -1,0 +1,21 @@
+import { current_user_store } from '$lib/stores/auth';
+import { syncAuthState } from '$lib/utilities/auth-cookies';
+import { browser } from '$app/environment';
+import type { ServerInit } from '@sveltejs/kit';
+
+
+
+export const init: ServerInit = async () => {
+	if (browser) {
+		const isAuthenticated = syncAuthState();
+
+		if (isAuthenticated) {
+			current_user_store.subscribe(user => {
+				if (!user) {
+					// Optional : trigger load_user() here if necessary
+					console.log('User cookie exists but store is empty - may need to reload user data');
+				}
+			});
+		}
+	}
+};
