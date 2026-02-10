@@ -25,11 +25,11 @@
 	{...restProps}
 >
 	{#snippet children({ checked, indeterminate })}
-		<div data-slot="checkbox-indicator" class="text-current transition-none">
+		<div data-slot="checkbox-indicator" class="flex size-full items-center justify-center text-current transition-none">
 			{#if checked}
-				<CheckIcon class="size-3.5" />
+				<CheckIcon class="size-full p-[1px]" />
 			{:else if indeterminate}
-				<MinusIcon class="size-3.5" />
+				<MinusIcon class="size-full p-[1px]" />
 			{/if}
 		</div>
 	{/snippet}

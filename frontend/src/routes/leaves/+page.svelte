@@ -1,25 +1,22 @@
 <script lang="ts">
-  import { createQuery } from '@tanstack/svelte-query';
-  import { monQueryOptions } from '$lib/api/queries/mon-query';
+  import PlaceholderPage from "@/components/layout/elements/PlaceholderPage.svelte";
+  import { CalendarDays } from "@lucide/svelte";
 
-  // Use the configuration defined
-  const query = createQuery(monQueryOptions.list());
+  const features = [
+    "Compteur de solde personnel (Balance Wallet)",
+    "File d'attente d'approbation manager",
+    "Calendrier d'équipe (Team Planner)",
+    "Détection automatique de conflits",
+    "Moteur de règles d'acquisition de congés"
+  ];
 </script>
 
+<PlaceholderPage 
+  title="Congés" 
+  description="Gestion des absences et demandes de congés."
+  icon={CalendarDays}
+  {features} 
+/>
 
-<div class="p-8">
-  <h1 class="text-2xl font-bold">Liste des Items</h1>
 
-  {#if $query.isLoading}
-    <p>Chargement des données depuis l'API...</p>
-  {:else if $query.isError}
-    <p class="text-red-500">Erreur : {$query.error.message}</p>
-  {:else}
-    <ul>
-      {#each $query.data as item}
-        <li>{item.name || 'Item sans nom'}</li>
-      {/each}
-    </ul>
-  {/if}
-</div>
 

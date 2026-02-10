@@ -1,8 +1,7 @@
-import { current_user_store } from '$lib/stores/auth';
-import { syncAuthState } from '$lib/utilities/auth-cookies';
+import { current_user_store } from '@/stores/auth';
+import { syncAuthState } from '@/utilities/auth/auth-cookies';
 import { browser } from '$app/environment';
 import type { ServerInit } from '@sveltejs/kit';
-
 
 
 export const init: ServerInit = async () => {
@@ -19,3 +18,4 @@ export const init: ServerInit = async () => {
 		}
 	}
 };
+

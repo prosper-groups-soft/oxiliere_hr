@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type OxilereError from '$lib/utilities/errors';
+	import type OxilereError from '$lib/utilities/http/errors';
 	import { cn } from '@/utils';
 
 	interface Props {
@@ -102,3 +102,4 @@
 		{/if}
 	</div>
 </div>
+

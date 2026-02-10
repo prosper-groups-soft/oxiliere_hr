@@ -1,25 +1,18 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { Avatar, AvatarFallback, AvatarImage } from '$lib/components/ui/avatar';
-	import { buttonVariants } from '$lib/components/ui/button';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import { current_organization_store, current_user_store } from '$lib/stores/auth';
-	import { logout } from '$lib/utilities/runtime';
-	import { cn } from '$lib/utils';
-	import { organizationQueryOptions } from '$lib/api/queries/organizations';
+	import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+	import { buttonVariants } from '@/components/ui/button';
+	import * as DropdownMenu from '@/components/ui/dropdown-menu';
+	import { current_organization_store, current_user_store } from '@/stores/auth';
+	import { logout } from '@/utilities/app/runtime';
+	import { cn } from '@/utils';
+	import { organizationQueryOptions } from '@/api/queries/organizations';
 	import type { SessionUser } from '@/types/users';
-	import {
-		Building2,
-		Grip,
-		LayoutGrid,
-		LogOut,
-		RefreshCcw,
-		Settings
-	} from '@lucide/svelte';
 	import { createQuery } from '@tanstack/svelte-query';
 	import AlertDialog from './modals/AlertDialog.svelte';
-	import { join_base_url } from '@/utilities/http';
-	import { get_auth_base_url } from '@/utilities/urls';
+	import AppIcon from '@/components/layout/elements/AppIcon.svelte';
+	import { join_base_url } from '@/utilities/http/http';
+	import { get_auth_base_url } from '@/utilities/http/urls';
 
 	const queryOrg = createQuery(
 		{
@@ -67,6 +60,7 @@
 	}
 </script>
 
+
 <AlertDialog
 	bind:isOpen={OpenLogout}
 	onYes={logout}
@@ -74,6 +68,7 @@
 	type="danger"
 	message="Vous etes sûr.e de vouloir vous déconnecter ?"
 ></AlertDialog>
+
 
 {#snippet renderAvatar(clickable: boolean)}
 	<Avatar class={cn(clickable ? 'cursor-pointer' : '')}>
@@ -86,10 +81,11 @@
 	</Avatar>
 {/snippet}
 
+
 {#snippet AppSelector()}
 	<DropdownMenu.Root>
 		<DropdownMenu.Trigger class={cn(buttonVariants({ variant: 'ghost', size: 'icon' }))}>
-			<Grip class="size-4" />
+			<AppIcon name="grip" size={16} />
 		</DropdownMenu.Trigger>
 		<DropdownMenu.Content align="end">
 			<DropdownMenu.Label>Applications</DropdownMenu.Label>
@@ -118,13 +114,14 @@
 	</DropdownMenu.Root>
 {/snippet}
 
+
 {#snippet UserMenu()}
 	<DropdownMenu.Root>
 		<DropdownMenu.Trigger>
 			{#if user}
 				{@render renderAvatar(true)}
 			{:else}
-				{@render renderAvatar(false)}
+				{@render renderAvatar(true)}
 			{/if}
 		</DropdownMenu.Trigger>
 		<DropdownMenu.Content class="w-60" align="end">
@@ -146,19 +143,19 @@
 			<DropdownMenu.Separator />
 			<DropdownMenu.Group>
 				<DropdownMenu.Item class="cursor-pointer" onclick={goto_home}>
-					<LayoutGrid class="mr-2 size-4" />
+					<AppIcon name="grid" size={16} class="mr-2" />
 					<span>Espace Privé</span>
 				</DropdownMenu.Item>
 
 				<DropdownMenu.Item class="cursor-pointer" onclick={goto_my_accounts}>
-					<Settings class="mr-2 size-4" />
+					<AppIcon name="settings" size={16} class="mr-2" />
 					<span>Mon compte</span>
 				</DropdownMenu.Item>
 			</DropdownMenu.Group>
 			<DropdownMenu.Group>
 				<DropdownMenu.Sub>
 					<DropdownMenu.SubTrigger class="flex cursor-pointer items-center">
-						<Building2 class="mr-2 size-4" />
+						<AppIcon name="business" size={16} class="mr-2" />
 						<span class="comet-body-s truncate">
 							{#if $current_organization_store}
 								{$current_organization_store.name}
@@ -180,14 +177,14 @@
 						{#if $queryOrg.isLoading}
 							<DropdownMenu.Item class="gap-2 p-2">
 								<div class="flex size-6 items-center justify-center rounded-md border">
-									<RefreshCcw class="size-3.5 shrink-0" />
+									<AppIcon name="refresh" size={14} class="shrink-0 animate-spin" />
 								</div>
 								Chargement....
 							</DropdownMenu.Item>
 						{:else if $queryOrg.isError}
 							<DropdownMenu.Item class="gap-2 p-2">
 								<div class="flex size-6 items-center justify-center rounded-md border">
-									<RefreshCcw class="size-3.5 shrink-0" />
+									<AppIcon name="refresh" size={14} class="shrink-0" />
 								</div>
 								Erreur de Chargement....
 							</DropdownMenu.Item>
@@ -195,7 +192,7 @@
 							{#each $queryOrg.data.results as org, index}
 								<DropdownMenu.Item onSelect={() => goto_organization(org.slug)} class="gap-2 p-2">
 									<div class="flex size-6 items-center justify-center rounded-md border">
-										<Building2 class="size-3.5 shrink-0" />
+										<AppIcon name="business" size={14} class="shrink-0" />
 									</div>
 									{org.name}
 								</DropdownMenu.Item>
@@ -208,14 +205,17 @@
 			<DropdownMenu.Separator />
 
 			<DropdownMenu.Item onclick={openLogout} class="cursor-pointer">
-				<LogOut class="mr-2 size-4" />
+				<AppIcon name="logout" size={16} class="mr-2" />
 				<span>Se déconnecter</span>
 			</DropdownMenu.Item>
 		</DropdownMenu.Content>
 	</DropdownMenu.Root>
 {/snippet}
 
+
 <div class="flex shrink-0 items-center gap-4">
 	{@render AppSelector()}
 	{@render UserMenu()}
 </div>
+
+

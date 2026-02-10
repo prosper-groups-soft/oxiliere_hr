@@ -1,49 +1,41 @@
 /**
- * useObserveResizeNode.ts
- * Version Svelte 5 de la fonction d'observation des redimensionnements
+ * Hook to observe the resize of an element DOM 
+ * @param onChange Function called when the element is resized
+ * @param observeBody If true, also observes the document body
  */
-
-/**
- * Hook pour observer les changements de taille d'un élément DOM
- * @param onChange Fonction appelée lorsque l'élément est redimensionné
- * @param observeBody Si true, observe également le body du document
- */
-export function useObserveResizeNode<NodeType extends HTMLElement>(
-    onChange: (node: NodeType) => void,
-    observeBody = false,
-  ) {
-    // En Svelte 5, on utilise $state au lieu de useState
-    let node = $state<NodeType | undefined>(undefined);
-    
-    // Fonction pour initialiser l'observateur quand le nœud est disponible
-    $effect(() => {
-      if (node) {
-        const resizeObserver = new ResizeObserver(() => {
-          window.requestAnimationFrame(() => {
-            if (node) {
-              onChange(node);
-            }
-          });
+export function useObserveResizeNode<NodeType extends HTMLElement>(onChange: (node: NodeType) => void, observeBody = false,) {
+  let node = $state<NodeType | undefined>(undefined);
+  
+  // Function to initialize the observer when the node is available
+  $effect(() => {
+    if (node) {
+      const resizeObserver = new ResizeObserver(() => {
+        window.requestAnimationFrame(() => {
+          if (node) {
+            onChange(node);
+          }
         });
-  
-        resizeObserver.observe(node as unknown as Element);
-        if (observeBody) {
-          resizeObserver.observe(window.document.body);
-        }
-  
-        // Nettoyage lors de la destruction du composant
-        return () => {
-          resizeObserver.disconnect();
-        };
+      });
+
+      resizeObserver.observe(node as unknown as Element);
+      if (observeBody) {
+        resizeObserver.observe(window.document.body);
       }
-    });
+
+      // Cleanup when the component is destroyed
+      return () => {
+        resizeObserver.disconnect();
+      };
+    }
+  });
   
-    // En Svelte, on peut simplement retourner une référence à la variable
-    return { 
-      ref: node, 
-      // La fonction pour définir la référence
-      setRef: (element: NodeType) => {
-        node = element;
-      } 
-    };
+  // In Svelte, we can simply return a reference to the variable
+  return { 
+    ref: node, 
+    // The function to set the reference
+    setRef: (element: NodeType) => {
+      node = element;
+    } 
+  };
 }
+

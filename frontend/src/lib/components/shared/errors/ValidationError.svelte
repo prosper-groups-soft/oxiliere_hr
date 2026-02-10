@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type OxilereError from '$lib/utilities/errors';
-	import type { FieldError } from '$lib/utilities/errors';
+	import type OxilereError from '$lib/utilities/http/errors';
+	import type { FieldError } from '$lib/utilities/http/errors';
 	import { cn } from '@/utils';
 
 	interface Props {
@@ -113,3 +113,4 @@
 		</div>
 	</div>
 </div>
+

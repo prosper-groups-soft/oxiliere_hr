@@ -1,7 +1,7 @@
 [project]
 name = "oxiliere_hr"
 version = "0.1.0"
-description = "Add your description here"
+description ="Oxiliere Human Resource Management System"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

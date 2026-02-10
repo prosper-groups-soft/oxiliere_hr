@@ -2,6 +2,7 @@
 export type EventHandler<T = any> = (payload: T) => void;
 export type UnsubscribeFn = () => void;
 
+
 class EventChannel<T= any> {
   private handlers = new Set<EventHandler<T>>();
   
@@ -20,6 +21,7 @@ class EventChannel<T= any> {
     this.handlers.forEach(handler => handler(payload));
   }
 }
+
 
 export class EventSystem {
   private channels = new Map<string, EventChannel<any>>();
@@ -44,23 +46,26 @@ export class EventSystem {
   }
 }
 
+
 // Instance globale
 export const globalEventSystem = new EventSystem();
 
 
 // event-factory.ts
 export type EventDefinition<T> = {
-    publish: (payload: T) => void;
-    subscribe: (handler: (payload: T) => void) => UnsubscribeFn;
-    getType: () => string;
+  publish: (payload: T) => void;
+  subscribe: (handler: (payload: T) => void) => UnsubscribeFn;
+  getType: () => string;
 };
   
+
 export function createEvent<T = void>(type: string) {
-    const channel = globalEventSystem.channel<T>(type);
-  
-    return {
-      publish: (payload: T) => channel.publish(payload),
-      subscribe: (handler: (payload: T) => void) => channel.subscribe(handler),
-      getType: () => type
-    };
+  const channel = globalEventSystem.channel<T>(type);
+
+  return {
+    publish: (payload: T) => channel.publish(payload),
+    subscribe: (handler: (payload: T) => void) => channel.subscribe(handler),
+    getType: () => type
+  };
 }
+

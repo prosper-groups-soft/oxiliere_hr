@@ -309,3 +309,4 @@ Pour toute question ou problème :
 2. S'assurer que les positions existent dans Jobs
 3. Valider que les emails de candidats sont uniques
 4. Contacter le responsable RH pour les décisions complexes
+

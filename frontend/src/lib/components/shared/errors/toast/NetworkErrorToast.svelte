@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type OxilereError from '@/utilities/errors';
+	import type OxilereError from '@/utilities/http/errors';
 	import { WifiOff } from '@lucide/svelte';
 
 	interface Props {
@@ -21,3 +21,4 @@
 		<p class="text-muted-foreground text-xs">{message}</p>
 	</div>
 </div>
+

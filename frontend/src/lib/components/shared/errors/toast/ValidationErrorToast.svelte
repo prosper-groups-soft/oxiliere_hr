@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type OxilereError from '@/utilities/errors';
+	import type OxilereError from '@/utilities/http/errors';
 	import { CircleAlert } from '@lucide/svelte';
 
 	interface Props {
@@ -39,3 +39,4 @@
 		{/if}
 	</div>
 </div>
+

@@ -43,7 +43,7 @@
 <script lang="ts">
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
-	import { isPromise } from '$lib/utilities/func';
+	import { isPromise } from '$lib/utilities/common/func';
 	import { cn } from '@/utils';
 	import { CircleAlert, CircleCheck, Info, TriangleAlert } from '@lucide/svelte';
 
@@ -176,3 +176,4 @@
 		</AlertDialog.Footer>
 	</AlertDialog.Content>
 </AlertDialog.Root>
+

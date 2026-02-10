@@ -1,5 +1,4 @@
-// src/lib/api/endpoints/mon-endpoint.ts
-import APIEndPoint from '@/utilities/rest';
+import APIEndPoint from '@/utilities/http/rest';
 
 
 export const MonEndpoint = {

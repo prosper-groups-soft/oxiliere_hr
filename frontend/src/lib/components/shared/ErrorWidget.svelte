@@ -1,5 +1,5 @@
 <script lang="ts">
-	import OxilereError from '$lib/utilities/errors';
+	import OxilereError from '$lib/utilities/http/errors';
 	import NetworkError from './errors/NetworkError.svelte';
 	import NotFound from './errors/NotFound.svelte';
 	import NotPermitted from './errors/NotPermitted.svelte';
@@ -69,3 +69,4 @@
 		class={className}
 	/>
 {/if}
+

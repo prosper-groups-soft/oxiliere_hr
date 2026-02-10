@@ -1,7 +1,7 @@
 <script lang="ts">
-	import '$lib/css/style.css';
+	import '@/css/app.css';
 	import { browser } from '$app/environment';
-	import PageLayout from '$lib/components/layout/PageLayout.svelte';
+	import PageLayout from '@/components/layout/containers/PageLayout.svelte';
 	import { Toaster } from '@/components/ui/sonner';
 	import { QueryClient, QueryClientProvider } from '@tanstack/svelte-query';
 	import type { Snippet } from 'svelte';
@@ -13,11 +13,12 @@
 		defaultOptions: {
 			queries: {
 				retry: false,
-				enabled: browser, // browser
+				enabled: browser,
 			},
 		}
-	}); 
+	});
 </script>
+
 
 <QueryClientProvider client={queryClient}>
 	<AppModeWatcher />
@@ -26,3 +27,5 @@
 	</PageLayout>
 	<Toaster richColors class="z-50" />
 </QueryClientProvider>
+
+
