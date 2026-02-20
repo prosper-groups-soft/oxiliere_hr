@@ -1,5 +1,9 @@
 <script lang="ts">
-	import { cn, type WithElementRef, type WithoutChildren } from "$lib/utils.js";
+	import { cn } from "@/utilities/common/css";
+  import type { 
+    WithElementRef, 
+    WithoutChildren 
+  } from "@/utilities/common/types";
 	import type { HTMLTextareaAttributes } from "svelte/elements";
 
 	let {
@@ -9,6 +13,7 @@
 		...restProps
 	}: WithoutChildren<WithElementRef<HTMLTextareaAttributes>> = $props();
 </script>
+
 
 <textarea
 	bind:this={ref}
@@ -20,3 +25,4 @@
 	bind:value
 	{...restProps}
 ></textarea>
+

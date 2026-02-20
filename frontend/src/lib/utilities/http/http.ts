@@ -17,7 +17,7 @@ import {
     AUTH_EVENT, 
     AUTH_REQUIRED_EVENT, 
     PERM_REQUIRED_EVENT 
-} from "@/constants/events";
+} from "@/constants/app/events";
 import { 
     get_api_auth_origin, 
     get_api_base_origin 

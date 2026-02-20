@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils.js";
+	import { cn } from "@/utilities/common/css";
+  import type { WithElementRef } from "@/utilities/common/types";
 	import type { HTMLTdAttributes } from "svelte/elements";
 
 	let {
@@ -9,6 +10,7 @@
 		...restProps
 	}: WithElementRef<HTMLTdAttributes> = $props();
 </script>
+
 
 <td
 	bind:this={ref}
@@ -21,3 +23,4 @@
 >
 	{@render children?.()}
 </td>
+

@@ -4,7 +4,7 @@ import {
   ORGANIZATION_VISIBILITY, 
   ORGANIZATION_INDUSTRIES, 
   SUBSCRIPTION_PLANS 
-} from '@/constants/base';
+} from '@/constants/app/base';
 
 
 export const getOrganizationTypeLabel = (type: string) => {

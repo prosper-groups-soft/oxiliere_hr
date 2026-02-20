@@ -1,4 +1,5 @@
 import axios from "axios";
+import { AVATAR_PALETTES } from "@/constants/ui/colors";
 
 /**
  * Example of API response when user needs to verify email:
@@ -86,5 +87,21 @@ export function to_deep_string(val: any): string[] {
   } else {
     return [String(val)];
   }
+}
+
+
+export function getAvatarPalette(name: string) {
+  if (!name) return AVATAR_PALETTES[0];
+
+  // We calculate a "hash" based on the character codes of the name
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+
+  // We use the modulo to stay within the limits of the palette array
+  const index = Math.abs(hash) % AVATAR_PALETTES.length;
+  
+  return AVATAR_PALETTES[index];
 }
 

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { ComponentProps } from "svelte";
-	import { Input } from "$lib/components/ui/input/index.js";
-	import { cn } from "$lib/utils.js";
+	import { Input } from "@/components/ui/input/index.js";
+	import { cn } from "@/utilities/common/css";
 
 	let {
 		ref = $bindable(null),
@@ -11,6 +11,7 @@
 	}: ComponentProps<typeof Input> = $props();
 </script>
 
+
 <Input
 	bind:ref
 	bind:value
@@ -19,3 +20,4 @@
 	class={cn("bg-background h-8 w-full shadow-none", className)}
 	{...restProps}
 />
+

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import ChevronRightIcon from "@lucide/svelte/icons/chevron-right";
-	import { cn, type WithElementRef } from "$lib/utils.js";
+	import { cn } from "@/utilities/common/css";
+	import type { WithElementRef } from "@/utilities/common/types";
 	import type { HTMLLiAttributes } from "svelte/elements";
 
 	let {
@@ -10,6 +11,7 @@
 		...restProps
 	}: WithElementRef<HTMLLiAttributes> = $props();
 </script>
+
 
 <li
 	bind:this={ref}
@@ -25,3 +27,4 @@
 		<ChevronRightIcon />
 	{/if}
 </li>
+

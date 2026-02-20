@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { PinInput as InputOTPPrimitive } from "bits-ui";
-	import { cn } from "$lib/utils.js";
+	import { cn } from "@/utilities/common/css";
 
 	let {
 		ref = $bindable(null),
@@ -9,6 +9,7 @@
 		...restProps
 	}: InputOTPPrimitive.RootProps = $props();
 </script>
+
 
 <InputOTPPrimitive.Root
 	bind:ref
@@ -20,3 +21,4 @@
 	)}
 	{...restProps}
 />
+

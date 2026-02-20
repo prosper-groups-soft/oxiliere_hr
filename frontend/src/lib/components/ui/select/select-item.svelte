@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { cn, type WithoutChild } from '$lib/utils.js';
+	import { cn } from "@/utilities/common/css";
+  import type { WithoutChild } from "@/utilities/common/types";
 	import CheckIcon from '@lucide/svelte/icons/check';
 	import { Select as SelectPrimitive } from 'bits-ui';
 
@@ -12,6 +13,7 @@
 		...restProps
 	}: WithoutChild<SelectPrimitive.ItemProps> = $props();
 </script>
+
 
 <SelectPrimitive.Item
 	bind:ref
@@ -36,3 +38,4 @@
 		{/if}
 	{/snippet}
 </SelectPrimitive.Item>
+

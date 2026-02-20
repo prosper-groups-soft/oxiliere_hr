@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Switch as SwitchPrimitive } from "bits-ui";
-	import { cn, type WithoutChildrenOrChild } from "$lib/utils.js";
+	import { cn } from "@/utilities/common/css";
+  import type { WithoutChildrenOrChild } from "@/utilities/common/types";
 
 	let {
 		ref = $bindable(null),
@@ -9,6 +10,7 @@
 		...restProps
 	}: WithoutChildrenOrChild<SwitchPrimitive.RootProps> = $props();
 </script>
+
 
 <SwitchPrimitive.Root
 	bind:ref
@@ -27,3 +29,4 @@
 		)}
 	/>
 </SwitchPrimitive.Root>
+

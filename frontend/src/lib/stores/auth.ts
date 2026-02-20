@@ -3,7 +3,7 @@ import type { SessionUser } from '@/types/users';
 import { get, writable } from 'svelte/store'
 import type { Writable } from 'svelte/store';
 import {createPersistentStore} from './base';
-import { OXILIERE_LABEL } from '@/constants/base';
+import { OXILIERE_LABEL } from '@/constants/app/base';
 
 
 

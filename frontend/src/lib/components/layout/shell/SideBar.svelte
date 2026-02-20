@@ -1,26 +1,31 @@
 <script lang="ts">
-  import { slide, crossfade } from "svelte/transition";
+  import { slide, fade, scale } from "svelte/transition";
   import { cubicOut } from "svelte/easing";
   import { Button } from "@/components/ui/button";
   import { Separator } from "@/components/ui/separator";
   import TooltipWrapper from "@/components/shared/containers/TooltipWrapper.svelte";
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
-  import { cn } from "@/utils";
+  import { cn } from "@/utilities/common/css";
   import { 
+    NAV_CONFIG,
     MENU_ITEM_TYPE, 
     type MenuItem, 
     MENU_ITEMS, 
     bottomMenuItems 
-  } from "@/constants/navigation";
-  import { page } from "$app/stores";
+  } from "@/constants/features/navigation";
+  
+  // Using the reactive UI store for selected menu item tracking
+  import { ui } from "@/stores/ui.svelte"; 
   import Logo from "./Logo.svelte";
 
   // --- Props ---
-  let { expanded, setExpanded } = $props();
+  // Explicitly receiving state from PageLayout
+  let { 
+    expanded = NAV_CONFIG.defaultExpanded, 
+    setExpanded 
+  } = $props();
 
   // --- State ---
-  let selected_menu: string | null = $state(null);
-  
   let openGroups = $state<Record<string, boolean>>({
     talent_group: true,
     ops_group: true,
@@ -33,51 +38,18 @@
     onboarding_active: 2
   };
 
-  // --- Logic ---
-  const [send, receive] = crossfade({
-    duration: 250,
-    easing: cubicOut
-  });
-
   const toggleGroup = (id: string) => {
     if (!expanded) return; 
     openGroups[id] = !openGroups[id];
   };
 
-  $effect(() => {
-    const pathname = $page.url.pathname;
-    let bestMatchId: string | null = null;
-    let maxMatchLength = -1;
-
-    const checkMatch = (item: MenuItem) => {
-      if (item.type === MENU_ITEM_TYPE.router && item.path) {
-        const itemPath = item.path;
-        // Match if exact path or starts with path + separator (to avoid partial word matches)
-        // Exception: root '/' matches all, so we rely on length to override it with more specific matches
-        const isMatch = pathname === itemPath || 
-                        (pathname.startsWith(itemPath) && (itemPath === '/' || pathname[itemPath.length] === '/'));
-        
-        if (isMatch) {
-          if (itemPath.length > maxMatchLength) {
-            maxMatchLength = itemPath.length;
-            bestMatchId = item.id;
-          }
-        }
-      }
-    };
-
-    MENU_ITEMS.forEach(group => {
-      group.items.forEach(checkMatch);
-    });
-    bottomMenuItems.forEach(checkMatch);
-
-    selected_menu = bestMatchId;
-  });
-
+  /**
+   * Generates tailwind classes based on expansion state
+   */
   const getLinkClasses = (isSubItem = false) => cn(
-    "relative flex h-8 w-full items-center gap-2 rounded-md hover:bg-primary/10 cursor-pointer data-[status=active]:font-medium data-[status=active]:!text-primary transition-all duration-300",
+    "relative flex h-8 w-full items-center gap-2 rounded-md hover:bg-primary/10 cursor-pointer data-[status=active]:font-medium data-[status=active]:!text-primary transition-all",
     expanded ? (isSubItem ? "pl-2 pr-2" : "pl-2.5 pr-3") : "w-9 justify-center",
-    isSubItem && expanded ? "text-[13px]" : "text-[14px]"
+    isSubItem && expanded ? "text-[0.875rem]" : "text-[0.875rem]"
   );
 </script>
 
@@ -86,21 +58,30 @@
   <div class={cn("relative z-10 flex items-center gap-2 w-full", !expanded && "justify-center")}>
     <AppIcon 
       name={item.icon} 
-      class={cn("text-gray-500", selected_menu === item.id && "text-primary")} 
+      size={expanded ? 20 : 22}
+      strokeWidth={
+        (ui.selectedMenuItem === item.id ? 2 : 1.6) + (expanded ? 0 : 0.1)
+      }
+      class={cn(
+        "text-gray-500 transition-colors", 
+        ui.selectedMenuItem === item.id && "text-primary"
+      )} 
     />
     {#if expanded}
-      <div class="grow truncate text-[13.1px]">{item.label}</div>
+      <div in:fade={{ duration: 150, delay: 100 }} class="grow truncate text-[0.89rem]">
+        {item.label}
+      </div>
       {#if item.countKey && countDataMap[item.countKey]}
-        <div class="h-4.5 min-w-4.5 rounded-full bg-primary text-[10.5px] font-medium text-primary-foreground flex items-center justify-center">
+        <div class="h-4.5 min-w-4.5 rounded-full bg-primary text-[0.77rem] font-medium text-primary-foreground flex items-center justify-center">
           {countDataMap[item.countKey]}
         </div>
       {/if}
     {/if}
   </div>
-  {#if selected_menu === item.id}
+  {#if ui.selectedMenuItem === item.id}
     <div
-      in:receive={{ key: "active-item" }}
-      out:send={{ key: "active-item" }}
+      in:scale={{ duration: 200, start: 0.96, easing: cubicOut }}
+      out:fade={{ duration: 150 }}
       class="absolute inset-0 bg-primary/15 rounded-md z-0"
     ></div>
   {/if}
@@ -112,16 +93,16 @@
   <li class="flex list-none">
     {#if item.type === MENU_ITEM_TYPE.router || item.type === MENU_ITEM_TYPE.button}
       <button 
-        data-status={selected_menu === item.id ? "active" : ""} 
+        data-status={ui.selectedMenuItem === item.id ? "active" : ""} 
         onclick={item.onClick} 
-        class={cn(classes, "text-left")}
+        class={cn(classes, "text-left border-none bg-transparent")}
       >
         {@render ItemContent(item)}
       </button>
     {:else}
       <a 
         href={item.path}
-        data-status={selected_menu === item.id ? "active" : ""}
+        data-status={ui.selectedMenuItem === item.id ? "active" : ""}
         class={classes}
       >
         {@render ItemContent(item)}
@@ -135,8 +116,10 @@
   {#if expanded}
     {@render Item(item, isSubItem)}
   {:else}
-    <TooltipWrapper content={item.label} side="right">
-      <div>{@render Item(item, isSubItem)}</div>
+    <TooltipWrapper content={item.label} side="right" asChild={true}>
+      {#snippet children(props: Record<string, any>)}
+        <div {...props}>{@render Item(item, isSubItem)}</div>
+      {/snippet}
     </TooltipWrapper>
   {/if}
 {/snippet}
@@ -146,14 +129,14 @@
   <button 
     onclick={() => toggleGroup(groupId)}
     aria-expanded={isOpen}
-    class="w-full flex items-center justify-between group/title mb-2 pl-2 pr-2 cursor-pointer"
+    class="w-full flex items-center justify-between group/title mb-2 pl-2 pr-2 cursor-pointer border-none bg-transparent"
   >
-    <span class="text-[11px] font-semibold uppercase text-foreground tracking-wide group-hover/title:text-primary transition-colors">
+    <span class="text-[0.82rem] font-semibold uppercase text-foreground/70 tracking-wide group-hover/title:text-primary transition-colors">
       {label}
     </span>
     <AppIcon 
       name="chevron" 
-      size={12} 
+      size={16} 
       class={cn("text-muted-foreground transition-transform duration-200", !isOpen && "-rotate-90")} 
     />
   </button>
@@ -165,33 +148,36 @@
     variant="outline"
     size="icon"
     onclick={() => setExpanded(!expanded)}
-    class="absolute -right-3 top-4 w-6 h-6 rounded-full z-50 bg-background border border-[1px] border-gray-400"
+    class="absolute -right-3 top-4 w-6 h-6 rounded-full z-20 bg-background border border-gray-300 hover:bg-slate-50 transition-all shadow-sm"
   >
     <AppIcon 
       name="prev" 
-      size={14} 
-      class={cn("transition-transform duration-300", !expanded && "rotate-180")} 
+      size={17} 
+      class={cn("transition-transform", !expanded && "rotate-180")} 
+      style="transition-duration: {NAV_CONFIG.transitionSpeed}ms"
     />
   </Button>
 {/snippet}
 
 
 <aside 
-  class={cn(
-    "h-full border-r bg-card transition-all duration-300 relative shrink-0 z-20",
-    expanded ? "w-62" : "w-16"
-  )}
+  class="sidebar-container h-full border-r bg-card relative shrink-0 z-10"
+  class:expanded={expanded}
+  style="
+    --sidebar-width: {NAV_CONFIG.sidebarWidth}px;
+    --sidebar-collapsed: {NAV_CONFIG.sidebarCollapsedWidth}px;
+    --transition-speed: {NAV_CONFIG.transitionSpeed}ms;
+  "
 >
   {@render ToggleButton()}
 
-  <div class={cn("flex flex-col h-full py-4", expanded ? "px-4" : "px-2 items-center")}>
-
-    <div class="flex items-center justify-center mb-5 w-full">
-      <Logo expanded={expanded} />
+  <div class={cn("flex flex-col h-full py-4 transition-all overflow-hidden", expanded ? "px-3" : "px-2 items-center")}>
+    <div class="flex items-center justify-center mb-5 w-full shrink-0 h-10">
+      <Logo {expanded} />
     </div>
 
     <div class="flex-1 overflow-y-auto no-scrollbar w-full">
-      <ul class={cn("flex flex-col gap-4", !expanded && "items-center")}>
+      <ul class={cn("flex flex-col gap-6", !expanded && "items-center")}>
         {#each MENU_ITEMS as group (group.id)}
           {@const isOpen = openGroups[group.id] ?? true}
           {@const hasLabel = !!group.label}
@@ -200,15 +186,15 @@
               {@render GroupHeader(group.label!, isOpen, group.id)}
             {/if}
 
-            {#if !expanded || isOpen}
+            {#if !expanded || (expanded && isOpen)}
               <div 
-                transition:slide={{ duration: 230, easing: cubicOut }} 
+                transition:slide={{ duration: NAV_CONFIG.transitionSpeed - 50, easing: cubicOut }} 
                 class={cn(
                   "overflow-hidden",
-                  expanded && hasLabel && "ml-3.5 border-l border-gray-300 pl-2"
+                  expanded && hasLabel && "ml-3 border-l border-slate-200 pl-2"
                 )}
               >
-                <ul class="flex flex-col gap-1 mt-1 pb-1"> 
+                <ul class="flex flex-col gap-1.5 mt-1 pb-1"> 
                   {#each group.items as item (item.id)}
                     {@render SmartItem(item, hasLabel)}
                   {/each}
@@ -220,9 +206,9 @@
       </ul>
     </div>
 
-    <div class="mt-auto pt-4 flex flex-col gap-2 w-full">
-      <Separator />
-      <ul class={cn("flex flex-col gap-1", !expanded && "items-center")}>
+    <div class="mt-auto pt-4 flex flex-col gap-2 w-full shrink-0">
+      <Separator class="bg-slate-100" />
+      <ul class={cn("flex flex-col gap-1.5", !expanded && "items-center")}>
         {#each bottomMenuItems as item (item.id)}
           {@render SmartItem(item)}
         {/each}
@@ -233,12 +219,21 @@
 
 
 <style>
+  .sidebar-container {
+    width: var(--sidebar-collapsed);
+    transition: width var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .sidebar-container.expanded {
+    width: var(--sidebar-width);
+  }
+
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
   .no-scrollbar {
     -ms-overflow-style: none;
-    scrollbar-width   : none;
+    scrollbar-width: none;
   }
 </style>
 

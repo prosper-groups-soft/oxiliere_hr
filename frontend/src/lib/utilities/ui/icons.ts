@@ -1,4 +1,4 @@
-import { APPS_ICON } from "$lib/constants/icons";
+import { APPS_ICON } from "@/constants/ui/icons";
 import type { Component } from 'svelte';
 import { Package, type IconProps } from '@lucide/svelte';
 

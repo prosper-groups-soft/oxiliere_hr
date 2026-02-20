@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { cn, type WithoutChild } from '$lib/utils.js';
+	import { cn } from "@/utilities/common/css";
+  import type { WithoutChild } from "@/utilities/common/types";
 	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 	import { Select as SelectPrimitive } from 'bits-ui';
 
@@ -14,6 +15,7 @@
 	} = $props();
 </script>
 
+
 <SelectPrimitive.Trigger
 	bind:ref
 	data-slot="select-trigger"
@@ -27,3 +29,4 @@
 	{@render children?.()}
 	<ChevronDownIcon class="size-4 opacity-50" />
 </SelectPrimitive.Trigger>
+

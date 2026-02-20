@@ -1,95 +1,135 @@
 <script lang="ts">
-  import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
-  import { cn } from "@/utils";
+  import { cn } from "@/utilities/common/css";
+  import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+  import * as DropdownMenu from "@/components/ui/dropdown-menu"; // Ajouté
+  import { getInitials } from "@/utilities/common/string";
+  import { getAvatarPalette } from "@/utilities/common/func";
+  import { goto } from '$app/navigation';
+  import AvatarGallery from "@/components/shared/media/AvatarGallery.svelte";
 
   let { employee } = $props();
 
   const statusDotColors: Record<string, string> = {
-    "Actif"         : "bg-emerald-400",
+    "Actif": "bg-emerald-400",
     "En intégration": "bg-amber-400",
-    "Suspendu"      : "bg-rose-400",
-    "Terminé"       : "bg-slate-300"
+    "Suspendu": "bg-rose-400",
+    "Terminé": "bg-slate-300"
   };
 
-  function getInitials(name: string) {
-    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-  }
-
-  const avatarPalettes = [
-    { bg: "bg-indigo-50", text: "text-indigo-600" },
-    { bg: "bg-emerald-50", text: "text-emerald-600" },
-    { bg: "bg-rose-50", text: "text-rose-600" },
-    { bg: "bg-amber-50", text: "text-amber-600" },
-    { bg: "bg-sky-50", text: "text-sky-600" },
-    { bg: "bg-violet-50", text: "text-violet-600" },
-    { bg: "bg-slate-100", text: "text-slate-600" }
-  ];
-
-  function getAvatarPalette(name: string) {
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-      hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const index = Math.abs(hash) % avatarPalettes.length;
-    return avatarPalettes[index];
-  }
-
   const palette = $derived(getAvatarPalette(employee.name));
+
+  function toEmployeeDetails() {
+    goto(`/employees/${employee.id}`);
+  }
+
+  function handleAvatarUpload(file: File) {
+    console.log(`Nouvel avatar pour ${employee.name}:`, file);
+  }
 </script>
 
 
-<div class="group relative flex items-center h-[60px] px-0 bg-white hover:bg-[#F9FAFB] border-b border-[#F3F4F6] transition-colors duration-150 cursor-pointer overflow-hidden">
-  
-  <!-- Column 1: Profile - 35% -->
-  <div class="flex items-center min-w-0 w-[35%]">
-    <div class="w-[120px] shrink-0 flex items-center gap-3">
-      <div class="h-10 w-10 rounded-full border border-slate-100 overflow-hidden flex items-center justify-center bg-slate-50 shrink-0 relative shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]">
-        <Avatar class="h-full w-full">
-          <AvatarImage src={employee.avatarUrl} alt={employee.name} />
-          <AvatarFallback class={cn("font-bold text-[11px]", palette.bg, palette.text)}>
-            {getInitials(employee.name)}
-          </AvatarFallback>
-        </Avatar>
+{#snippet RowActions()}
+  <div class="w-[5%] flex items-center px-4" onclick={(e) => e.stopPropagation()} role="none">
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        {#snippet child({ props })}
+          <button 
+            {...props}
+            class="p-1.5 hover:bg-slate-200/50 rounded-md transition-colors text-slate-800 z-10 cursor-pointer outline-none"
+          >
+            <AppIcon name="more-vertical" size={21} />
+          </button>
+        {/snippet}
+      </DropdownMenu.Trigger>
+
+      <DropdownMenu.Content align="end">
+        <DropdownMenu.Group>          
+          <DropdownMenu.Item onclick={toEmployeeDetails} class="cursor-pointer">
+            <AppIcon name="user" size={20} class="text-slate-500" />
+            <span>Détails du profil</span>
+          </DropdownMenu.Item>
+          
+          <DropdownMenu.Item class="cursor-pointer">
+            <AppIcon name="file-text" size={20} class="text-slate-500" />
+            <span>Générer contrat</span>
+          </DropdownMenu.Item>
+        </DropdownMenu.Group>
+
+        <DropdownMenu.Separator />
+
+        <DropdownMenu.Group>
+          <DropdownMenu.Item class="text-orange-600 hover:text-orange-700! hover:bg-orange-100! cursor-pointer">
+            <AppIcon name="user-minus" size={20} class="text-orange-600 hover:text-orange-700!" />
+            <span>Lancer l'offboarding</span>
+          </DropdownMenu.Item>
+        </DropdownMenu.Group>
+      </DropdownMenu.Content>
+    </DropdownMenu.Root>
+  </div>
+{/snippet}
+
+
+<div 
+  role="link"
+  tabindex="0"
+  onclick={toEmployeeDetails}
+  onkeydown={(e) => e.key === 'Enter' && toEmployeeDetails()}
+  class="group/row relative hover:bg-hover flex items-center h-18.75! shrink-0 px-0 bg-white border-b border-[#F3F4F6] transition-colors duration-150 cursor-pointer overflow-hidden"
+>
+  <div class="flex items-center min-w-0 w-[30%] pl-4"> 
+    <div class="w-15 shrink-0 flex items-center">
+      <div role="none" onclick={(e) => e.stopPropagation()}>
+        <AvatarGallery 
+          name={employee.name}
+          src={employee.avatarUrl}
+          onUpload={handleAvatarUpload}
+          iconSize={16}
+          iconStroke={2}
+          class="h-12 w-12 border rounded-full border-slate-200 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]"
+        >
+          <Avatar class="h-full w-full">
+            <AvatarImage src={employee.avatarUrl} alt={employee.name} />
+            <AvatarFallback class={cn("font-bold text-[0.83rem]", palette.bg, palette.text)}>
+              {getInitials(...employee.name.split(' '))}
+            </AvatarFallback>
+          </Avatar>
+        </AvatarGallery>
       </div>
     </div>
-    <div class="flex flex-col min-w-0">
-      <span class="font-semibold text-[13px] text-[#111] truncate leading-tight">{employee.name}</span>
-      <span class="text-[11px] text-[#666] truncate mt-0.5">{employee.jobTitle}</span>
+    <div class="flex flex-col min-w-0 ml-2"> 
+      <span class="font-semibold text-[0.88rem] text-[#111] truncate leading-tight group-hover/row:text-primary transition-colors">
+        {employee.name}
+      </span>
+      <span class="text-[0.833rem] text-slate-700 truncate mt-0.5">
+        {employee.jobTitle}
+      </span>
     </div>
   </div>
 
-
-  <!-- Column 2: Department - 20% -->
   <div class="flex items-center min-w-0 w-[20%]">
-    <span class="inline-flex items-center px-2 py-0.5 rounded-[8px] bg-[#F3F4F6] text-[#666] text-[11px] font-medium truncate">
+    <span class="inline-flex items-center px-2 py-0.5 rounded-lg bg-[#F3F4F6] text-[#555] text-[0.75rem] font-medium truncate">
       {employee.department}
     </span>
   </div>
 
-  <!-- Column 3: Contract & Join Date - 15% -->
   <div class="flex flex-col min-w-0 w-[15%]">
-    <span class="text-[12px] text-[#111] font-medium truncate">{employee.contractType}</span>
-    <span class="text-[10px] text-[#999] truncate mt-0.5">Depuis {new Date(employee.joinDate).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })}</span>
+    <span class="text-[0.85rem] text-[#111] font-medium truncate">{employee.contractType}</span>
+    <span class="text-[0.83rem] text-slate-600 truncate mt-0.5 text-nowrap">
+        Depuis {new Date(employee.joinDate).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })}
+    </span>
   </div>
-
-  <!-- Column 4: Location - 15% -->
+  
   <div class="flex items-center min-w-0 w-[15%] gap-2">
-    <AppIcon name="location" size={13} class="text-slate-400 shrink-0" />
-    <span class="text-[12px] text-[#666] truncate">{employee.location}</span>
+    <AppIcon name="location" size={19} class="text-slate-500 shrink-0" />
+    <span class="text-[0.83rem] text-slate-700 truncate">{employee.location}</span>
   </div>
 
-  <!-- Column 5: Status - 15% (Extreme right) -->
   <div class="flex items-center gap-2 min-w-0 w-[15%]">
-    <span class={cn("h-2 w-2 rounded-full shrink-0", statusDotColors[employee.status] || "bg-gray-400")}></span>
-    <span class="text-[12px] text-[#666] truncate">{employee.status}</span>
+    <span class={cn("h-2.5 w-2.5 rounded-full shrink-0", statusDotColors[employee.status] || "bg-gray-400")}></span>
+    <span class="text-[0.83rem] text-slate-800 truncate">{employee.status}</span>
   </div>
 
-  <!-- Floating Actions (Hover only) - Overlay effect to save space -->
-  <div class="absolute right-0 top-0 bottom-0 flex items-center px-4 bg-gradient-to-l from-[#F9FAFB] via-[#F9FAFB] to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-    <button class="p-1.5 hover:bg-slate-200/50 rounded-md transition-colors text-slate-500 bg-white border border-slate-100 shadow-sm">
-      <AppIcon name="more-horizontal" size={16} />
-    </button>
-  </div>
+  {@render RowActions()}
 </div>
 

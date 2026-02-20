@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Progress as ProgressPrimitive } from "bits-ui";
-	import { cn, type WithoutChildrenOrChild } from "$lib/utils.js";
+	import { cn } from "@/utilities/common/css";
+  import type { WithoutChildrenOrChild } from "@/utilities/common/types";
 
 	let {
 		ref = $bindable(null),
@@ -10,6 +11,7 @@
 		...restProps
 	}: WithoutChildrenOrChild<ProgressPrimitive.RootProps> = $props();
 </script>
+
 
 <ProgressPrimitive.Root
 	bind:ref
@@ -25,3 +27,4 @@
 		style="transform: translateX(-{100 - (100 * (value ?? 0)) / (max ?? 1)}%)"
 	></div>
 </ProgressPrimitive.Root>
+

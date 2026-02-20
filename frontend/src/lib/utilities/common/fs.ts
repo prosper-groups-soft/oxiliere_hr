@@ -1,117 +1,9 @@
-export const FILE_TYPES: Record<string, Record<string, string>> = {
-  jpg: {
-    type : 'Image',
-    extension: 'jpg',
-    icon: 'ri-image-fill'
-  },
-  jpeg: {
-    type : 'Image',
-    extension: 'jpg',
-    icon: 'ri-image-fill'
-  },
-  svg: {
-    type : 'Image',
-    extension: 'svg',
-    icon: 'ri-image-fill'
-  },
-  png: {
-    type : 'Image',
-    extension: 'png',
-    icon: 'ri-image-fill'
-  },
-  pdf: {
-    type : 'Document PDF',
-    extension: 'pdf',
-    icon: 'ri-file-pdf-fill'
-  },
-  doc: {
-    type : 'Document Word',
-    extension: 'doc',
-    icon: 'ri-file-word-2-line'
-  },
-  docx: {
-    type : 'Document Word',
-    extension: 'docx',
-    icon: 'ri-file-word-2-line'
-  },
-  txt: {
-    type : 'Document Text',
-    extension: 'txt',
-    icon: 'ri-file-text-line'
-  },
-  xlsx: {
-    type : 'Document Excel',
-    extension: 'xlsx',
-    icon: 'ri-file-excel-2-line'
-  },
-  xls: {
-    type : 'Document Excel',
-    extension: 'xls',
-    icon: 'ri-file-excel-2-line'
-  },
-  csv: {
-    type : 'Document CSV',
-    extension: 'csv',
-    icon: 'ri-file-csv-line'
-  },
-  ppt: {
-    type : 'Document Powerpoint',
-    extension: 'ppt',
-    icon: 'ri-file-ppt-2-line'
-  },
-  pptx: {
-    type : 'Document Powerpoint',
-    extension: 'pptx',
-    icon: 'ri-file-ppt-2-line'
-  },
-  zip: {
-    type : 'Fichier Archive',
-    extension: 'zip',
-    icon: 'ri-file-zip-line'
-  },
-  rar: {
-    type : 'Fichier Archive',
-    extension: 'rar',
-    icon: 'ri-file-zip-line'
-  },
-  mp3: {
-    type : 'Audio',
-    extension: 'mp3',
-    icon: 'ri-file-music-line'
-  },
-  mp4: {
-    type : 'Vidéo',
-    extension: 'mp4',
-    icon: 'ri-file-video-line'
-  },
-  webm: {
-    type : 'Vidéo',
-    extension: 'webm',
-    icon: 'ri-file-video-line'
-  },
-  webp: {
-    type : 'Vidéo',
-    extension: 'webp',
-    icon: 'ri-file-video-line'
-  },
-  unknown: {
-    type : 'Fichier',
-    extension: 'unknown',
-    icon: 'ri-file-line'
-  }
-}
-
-
-export const SUPPORTED_FILE_TYPES = [
-  'jpg', 
-  'jpeg', 
-  'png', 
-  'pdf', 
-  'mp3', 
-  'mp4', 
-  'webm', 
-  'webp'
-];
+import { 
+  FILE_TYPES, 
+  SUPPORTED_FILE_TYPES,
+  UNITS_SIZE_FILE
+} from '@/constants/features/files';
+import { type Document } from '@/features/employees/types/types';
 
 
 export function get_file_type(filename: string) {
@@ -125,13 +17,12 @@ export function get_file_type(filename: string) {
 
 export function get_file_size(file: File) {
   let size = file?.size || 0;
-  const units = ['o', 'Ko', 'Mo', 'Go', 'To'];
   let index = 0;
-  while(size > 1024 && index < units.length - 1) {
+  while(size > 1024 && index < UNITS_SIZE_FILE.length - 1) {
     size /= 1024;
     index++;
   }
-  return `${size.toFixed(1)} ${units[index]}`;
+  return `${size.toFixed(1)} ${UNITS_SIZE_FILE[index]}`;
 }
 
 
@@ -146,7 +37,65 @@ export function get_file_icon(filename: string) {
   return (
     ext ? 
     FILE_TYPES[ext]?.icon : 
-    FILE_TYPES['unknown'].icon;
-  )
+    FILE_TYPES['unknown'].icon
+  );
 }
+
+
+/**
+ * Return the icon matching the extension of file
+ */
+export const getFileIconName = (type: string): string => {
+  const lowerType = type.toLowerCase();
+  if (['jpg', 'jpeg', 'png', 'gif', 'svg'].includes(lowerType)) return 'image';
+  if (['pdf'].includes(lowerType)) return 'pdf';
+  if (['doc', 'docx'].includes(lowerType)) return 'doc';
+  if (['xls', 'xlsx'].includes(lowerType)) return 'xls';
+  return 'file';
+};
+
+/**
+ * Calculate the visual status of document according to his expiration date
+ */
+export const getStatusConfig = (doc: Document) => {
+  const today = new Date();
+  
+  if (!doc.expiry) {
+    return { 
+      label: 'Permanent', 
+      class: 'bg-slate-50 text-slate-500 border-slate-100', 
+      icon: 'shield-check' 
+    };
+  }
+  
+  const expiryDate = new Date(doc.expiry);
+  
+  // Cas : Expiré
+  if (expiryDate < today) {
+    return { 
+      label: 'Expiré', 
+      class: 'bg-red-50 text-red-600 border-red-100', 
+      icon: 'alert-circle' 
+    };
+  }
+  
+  // Case : Alert (less than 3 months)
+  const alertThreshold = new Date();
+  alertThreshold.setMonth(today.getMonth() + 3);
+  
+  if (expiryDate < alertThreshold) {
+    return { 
+      label: 'Expire bientôt', 
+      class: 'bg-amber-50 text-amber-600 border-amber-100', 
+      icon: 'alert-triangle' 
+    };
+  }
+  
+  // Case : Valid
+  return { 
+    label: 'Valide', 
+    class: 'bg-emerald-50 text-emerald-600 border-emerald-100', 
+    icon: 'check-circle' 
+  };
+};
 

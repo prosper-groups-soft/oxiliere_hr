@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Separator as SeparatorPrimitive } from "bits-ui";
-	import { cn } from "$lib/utils.js";
+	import { cn } from "@/utilities/common/css";
 
 	let {
 		ref = $bindable(null),
@@ -8,6 +8,7 @@
 		...restProps
 	}: SeparatorPrimitive.RootProps = $props();
 </script>
+
 
 <SeparatorPrimitive.Root
 	bind:ref
@@ -18,3 +19,4 @@
 	)}
 	{...restProps}
 />
+

@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils.js";
+	import { cn } from "@/utilities/common/css";
+  import type { WithElementRef } from "@/utilities/common/types";
 	import type { HTMLAttributes } from "svelte/elements";
 
 	let {
@@ -10,6 +11,7 @@
 	}: WithElementRef<HTMLAttributes<HTMLDivElement>> & {} = $props();
 </script>
 
+
 <div
 	bind:this={ref}
 	data-slot="select-label"
@@ -18,3 +20,4 @@
 >
 	{@render children?.()}
 </div>
+

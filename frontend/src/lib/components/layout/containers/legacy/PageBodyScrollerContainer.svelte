@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { cn } from "@/utils";
+  import { cn } from "@/utilities/common/css";
   import { useObserveResizeNode } from "@/hooks/useObserveResizeNode.svelte";
   import { pageBodyScrollState } from "./usePageBodyScroller.svelte";
-  import { TABLE_WRAPPER_ATTRIBUTE, STICKY_ATTRIBUTE_VERTICAL } from "@/constants/ui";
+  import { TABLE_WRAPPER_ATTRIBUTE, STICKY_ATTRIBUTE_VERTICAL } from "@/constants/ui/ui";
 
   let { 
     children,

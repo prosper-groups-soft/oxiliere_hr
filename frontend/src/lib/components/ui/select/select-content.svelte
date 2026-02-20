@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { cn, type WithoutChild } from '$lib/utils.js';
+	import { cn } from "@/utilities/common/css";
+  import type { WithoutChild } from "@/utilities/common/types";
 	import { Select as SelectPrimitive } from 'bits-ui';
 	import SelectScrollDownButton from './select-scroll-down-button.svelte';
 	import SelectScrollUpButton from './select-scroll-up-button.svelte';
@@ -15,6 +16,7 @@
 		portalProps?: SelectPrimitive.PortalProps;
 	} = $props();
 </script>
+
 
 <SelectPrimitive.Portal {...portalProps}>
 	<SelectPrimitive.Content
@@ -38,3 +40,4 @@
 		<SelectScrollDownButton />
 	</SelectPrimitive.Content>
 </SelectPrimitive.Portal>
+

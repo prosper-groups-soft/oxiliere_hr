@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { HTMLInputAttributes, HTMLInputTypeAttribute } from "svelte/elements";
-	import { cn, type WithElementRef } from "$lib/utils.js";
+	import { cn } from "@/utilities/common/css";
+  import type { WithElementRef } from "@/utilities/common/types";
 
 	type InputType = Exclude<HTMLInputTypeAttribute, "file">;
 
@@ -18,6 +19,7 @@
 		...restProps
 	}: Props = $props();
 </script>
+
 
 {#if type === "file"}
 	<input
@@ -49,3 +51,4 @@
 		{...restProps}
 	/>
 {/if}
+

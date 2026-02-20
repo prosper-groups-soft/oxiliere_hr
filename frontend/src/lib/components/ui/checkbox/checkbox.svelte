@@ -2,7 +2,8 @@
 	import { Checkbox as CheckboxPrimitive } from "bits-ui";
 	import CheckIcon from "@lucide/svelte/icons/check";
 	import MinusIcon from "@lucide/svelte/icons/minus";
-	import { cn, type WithoutChildrenOrChild } from "$lib/utils.js";
+	import { cn } from "@/utilities/common/css";
+	import type { WithoutChildrenOrChild } from "@/utilities/common/types";
 
 	let {
 		ref = $bindable(null),
@@ -12,6 +13,7 @@
 		...restProps
 	}: WithoutChildrenOrChild<CheckboxPrimitive.RootProps> = $props();
 </script>
+
 
 <CheckboxPrimitive.Root
 	bind:ref
@@ -27,10 +29,11 @@
 	{#snippet children({ checked, indeterminate })}
 		<div data-slot="checkbox-indicator" class="flex size-full items-center justify-center text-current transition-none">
 			{#if checked}
-				<CheckIcon class="size-full p-[1px]" />
+				<CheckIcon class="size-full p-px" />
 			{:else if indeterminate}
-				<MinusIcon class="size-full p-[1px]" />
+				<MinusIcon class="size-full p-px" />
 			{/if}
 		</div>
 	{/snippet}
 </CheckboxPrimitive.Root>
+

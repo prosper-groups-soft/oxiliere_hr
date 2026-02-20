@@ -1,7 +1,8 @@
 <script lang="ts">
+  import type { Snippet } from "svelte";
   import { buttonVariants } from "@/components/ui/button";
   import * as Tooltip from "@/components/ui/tooltip";
-  import { cn } from "@/utils";
+  import { cn } from "@/utilities/common/css";
 
   const { 
   content,
@@ -11,34 +12,58 @@
   delayDuration = 300,
   defaultOpen = false,
   stopClickPropagation = true,
+  asChild = false,
+  }: {
+    content: string;
+    children: Snippet<[any]>;
+    side?: "top" | "bottom" | "left" | "right";
+    hotkeys?: [string, number][] | null;
+    delayDuration?: number;
+    defaultOpen?: boolean;
+    stopClickPropagation?: boolean;
+    asChild?: boolean;
   } = $props();
 </script>
 
 
-<Tooltip.Provider>
-  <Tooltip.Root>
-    <Tooltip.Trigger class={cn(buttonVariants({ variant: "ghost" }), 'px-0 w-full cursor-pointer')}>
-      {@render children?.()}
+<Tooltip.Provider {delayDuration}>
+  <Tooltip.Root open={defaultOpen}>
+    <Tooltip.Trigger>
+      {#snippet child({ props })}
+        {#if asChild}
+          {@render children?.(props)}
+        {:else}
+          <button 
+            {...props} 
+            class={cn(buttonVariants({ variant: "ghost" }), 'px-0 w-full cursor-pointer')}
+          >
+            {@render children?.(undefined)}
+          </button>
+        {/if}
+      {/snippet}
     </Tooltip.Trigger>
-    <Tooltip.Content class="z-[200]" side={side} collisionPadding={16} {...(stopClickPropagation && { onClick: (event: Event) => event.stopPropagation() })}>
-      {content}
+    <Tooltip.Content 
+      class="z-200" 
+      side={side} 
+      collisionPadding={16} 
+      {...(stopClickPropagation && { onClick: (event: Event) => event.stopPropagation() })}
+    >
+      <div class="flex items-center gap-3">
+        <span class="text-[0.83rem]">{content}</span>
 
-      {#if hotkeys}
-        <div class="ml-2 flex gap-1">
-          {#each hotkeys as [hotkey, idx] (idx)}
-            <div class="flex h-5 min-w-5 items-center justify-center rounded-sm border border-light-slate px-1 text-light-slate">
-              {hotkey}
-            </div>
-            {#if idx < hotkeys.length - 1}
-              <div class="text-light-slate">+</div>
-            {/if}
-          {/each}
-        </div>
-      {/if}
-
-      {#if hotkeys?.length} 
-        ARROW
-      {/if}
+        {#if hotkeys}
+          <div class="flex gap-1">
+            {#each hotkeys as [hotkey, idx] (idx)}
+              <div class="flex h-5 min-w-5 items-center justify-center rounded-sm border border-slate-700 bg-slate-800 px-1 text-[0.83rem] text-slate-400">
+                {hotkey}
+              </div>
+              {#if idx < hotkeys.length - 1}
+                <span class="text-slate-500">+</span>
+              {/if}
+            {/each}
+          </div>
+        {/if}
+      </div>
     </Tooltip.Content>
   </Tooltip.Root>
 </Tooltip.Provider>

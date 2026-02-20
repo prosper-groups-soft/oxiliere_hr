@@ -1,4 +1,7 @@
-import type { Employee, EmployeeFilters } from "../types/types";
+import type { 
+  Employee, 
+  EmployeeFilters 
+} from "../types/types";
 
 
 // Mock Data
@@ -6,142 +9,179 @@ const MOCK_EMPLOYEES: Employee[] = [
   { 
     id: 1, 
     name: "Alice Dupont", 
-    jobTitle: "Ingénieur Frontend Senior", 
-    department: "Ingénierie", 
-    status: "Actif", 
-    location: "Siège Paris", 
-    contractType: "CDI",
+    jobTitle: "Senior Frontend Engineer", 
+    department: "Engineering", 
+    status: "Active", 
+    location: "Paris HQ", 
+    contractType: "Permanent", // CDI
     joinDate: "2021-03-15",
-    avatarUrl: "" 
+    phone: "0895105540",
+    email: "kibangula.prosper@oxiliere.com",
+    avatarUrl: "",
+    role: "Software Engineer",
   },
   { 
     id: 2, 
     name: "Bob Martin", 
-    jobTitle: "Chef de Produit", 
-    department: "Produit", 
-    status: "Actif", 
-    location: "Télétravail", 
-    contractType: "CDI",
+    jobTitle: "Product Manager", 
+    department: "Product", 
+    status: "Active", 
+    location: "Remote", 
+    contractType: "Permanent",
     joinDate: "2022-06-01",
-    avatarUrl: "" 
+    phone: "0895105540",
+    email: "kibangula.prosper@oxiliere.com",
+    avatarUrl: "",
+    role: "Software Engineer",
   },
   { 
     id: 3, 
     name: "Charlie Durand", 
-    jobTitle: "Représentant Commercial", 
-    department: "Vente", 
-    status: "En intégration", 
-    location: "Agence Lyon", 
-    contractType: "CDD",
+    jobTitle: "Sales Representative", 
+    department: "Sales", 
+    status: "Onboarding", 
+    location: "Lyon Office", 
+    contractType: "Fixed-term", // CDD
     joinDate: "2024-02-10",
-    avatarUrl: "" 
+    phone: "0895105540",
+    email: "kibangula.prosper@oxiliere.com",
+    avatarUrl: "",
+    role: "Software Engineer",
   },
   { 
     id: 4, 
     name: "David Leroy", 
-    jobTitle: "Spécialiste Marketing", 
+    jobTitle: "Marketing Specialist", 
     department: "Marketing", 
-    status: "Actif", 
-    location: "Siège Paris", 
-    contractType: "CDI",
+    status: "Active", 
+    location: "Paris HQ", 
+    contractType: "Permanent",
     joinDate: "2023-11-20",
-    avatarUrl: "" 
+    phone: "0895105540",
+    email: "kibangula.prosper@oxiliere.com",
+    avatarUrl: "",
+    role: "Software Engineer",
   },
   { 
     id: 5, 
     name: "Eve Moreau", 
-    jobTitle: "Coordinateur RH", 
-    department: "Ressources Humaines", 
-    status: "Suspendu", 
-    location: "Hub Bordeaux", 
-    contractType: "CDI",
+    jobTitle: "HR Coordinator", 
+    department: "Human Resources", 
+    status: "Suspended", 
+    location: "Bordeaux Hub", 
+    contractType: "Permanent",
     joinDate: "2022-09-12",
-    avatarUrl: "" 
+    phone: "0895105540",
+    email: "kibangula.prosper@oxiliere.com",
+    avatarUrl: "",
+    role: "Software Engineer",
   },
   { 
     id: 6, 
     name: "Frank Petit", 
-    jobTitle: "Analyste Financier", 
+    jobTitle: "Financial Analyst", 
     department: "Finance", 
-    status: "Terminé", 
-    location: "Siège Paris", 
+    status: "Terminated", 
+    location: "Paris HQ", 
     contractType: "Freelance",
     joinDate: "2020-05-15",
-    avatarUrl: "" 
+    phone: "0895105540",
+    email: "kibangula.prosper@oxiliere.com",
+    avatarUrl: "",
+    role: "Software Engineer",
   },
   { 
     id: 7, 
     name: "Grace Thomas", 
-    jobTitle: "Développeur Backend", 
-    department: "Ingénierie", 
-    status: "Actif", 
-    location: "Télétravail", 
-    contractType: "CDI",
+    jobTitle: "Backend Developer", 
+    department: "Engineering", 
+    status: "Active", 
+    location: "Remote", 
+    contractType: "Permanent",
     joinDate: "2023-01-10",
-    avatarUrl: "" 
+    phone: "0895105540",
+    email: "kibangula.prosper@oxiliere.com",
+    avatarUrl: "",
+    role: "Software Engineer",
   },
   { 
     id: 8, 
     name: "Hugo Richard", 
-    jobTitle: "Designer UX", 
-    department: "Produit", 
-    status: "Actif", 
-    location: "Agence Lyon", 
-    contractType: "Apprentissage",
+    jobTitle: "UX Designer", 
+    department: "Product", 
+    status: "Active", 
+    location: "Lyon Office", 
+    contractType: "Apprenticeship",
     joinDate: "2024-01-05",
-    avatarUrl: "" 
+    phone: "0895105540",
+    email: "kibangula.prosper@oxiliere.com",
+    avatarUrl: "",
+    role: "Software Engineer",
+    
   },
   { 
     id: 9, 
     name: "Ivy Bernard", 
-    jobTitle: "Ingénieur DevOps", 
-    department: "Ingénierie", 
-    status: "Actif", 
-    location: "Siège Paris", 
-    contractType: "CDI",
+    jobTitle: "DevOps Engineer", 
+    department: "Engineering", 
+    status: "Active", 
+    location: "Paris HQ", 
+    contractType: "Permanent",
     joinDate: "2021-12-01",
-    avatarUrl: "" 
+    phone: "0895105540",
+    email: "kibangula.prosper@oxiliere.com",
+    avatarUrl: "",
+    role: "Software Engineer",
   },
   { 
     id: 10, 
     name: "Jack Simon", 
-    jobTitle: "Responsable de Compte", 
-    department: "Vente", 
-    status: "Actif", 
-    location: "Hub Bordeaux", 
-    contractType: "CDI",
+    jobTitle: "Account Manager", 
+    department: "Sales", 
+    status: "Active", 
+    location: "Bordeaux Hub", 
+    contractType: "Permanent",
     joinDate: "2022-04-18",
-    avatarUrl: "" 
+    phone: "0895105540",
+    email: "kibangula.prosper@oxiliere.com",
+    avatarUrl: "",
+    role: "Software Engineer",
   },
   { 
     id: 11, 
     name: "Kelly Rose", 
-    jobTitle: "Rédacteur de Contenu", 
+    jobTitle: "Content Writer", 
     department: "Marketing", 
-    status: "Actif", 
-    location: "Télétravail", 
-    contractType: "Stage",
+    status: "Active", 
+    location: "Remote", 
+    contractType: "Internship",
     joinDate: "2024-01-15",
-    avatarUrl: "" 
+    phone: "0895105540",
+    email: "kibangula.prosper@oxiliere.com",
+    avatarUrl: "",
+    role: "Software Engineer",
   },
   { 
     id: 12, 
     name: "Leo Michel", 
-    jobTitle: "Lead Technique", 
-    department: "Ingénierie", 
-    status: "Actif", 
-    location: "Agence Lyon", 
-    contractType: "CDI",
+    jobTitle: "Tech Lead", 
+    department: "Engineering", 
+    status: "Active", 
+    location: "Lyon Office", 
+    contractType: "Permanent",
     joinDate: "2019-10-25",
-    avatarUrl: "" 
+    phone: "0895105540",
+    email: "kibangula.prosper@oxiliere.com",
+    avatarUrl: "",
+    role: "Software Engineer",
   },
 ];
 
 
 export class EmployeeStore {
-  // State
-
+  // --- State ---
   searchQuery = $state("");
+  sortBy = $state("name"); // Added sorting state
   filters = $state<EmployeeFilters>({
     department: [],
     status: [],
@@ -150,9 +190,14 @@ export class EmployeeStore {
   currentPage = $state(1);
   perPage = $state(8);
 
-  // Derived
+  // --- Derived ---
+  
+  /**
+   * Centralized logic: Filtering -> Sorting
+   */
   filteredEmployees = $derived.by(() => {
-    return MOCK_EMPLOYEES.filter(emp => {
+    // 1. Filtering
+    let result = MOCK_EMPLOYEES.filter(emp => {
       const searchLower = this.searchQuery.toLowerCase();
       const matchesSearch = emp.name.toLowerCase().includes(searchLower) || 
                             emp.jobTitle.toLowerCase().includes(searchLower) ||
@@ -163,6 +208,21 @@ export class EmployeeStore {
       const matchesLoc = this.filters.location.length === 0 || this.filters.location.includes(emp.location);
         
       return matchesSearch && matchesDept && matchesStatus && matchesLoc;
+    });
+
+    // 2. Sorting (Create a copy using [...] to avoid mutating MOCK_EMPLOYEES)
+    return [...result].sort((a, b) => {
+      if (this.sortBy === "name") {
+        return a.name.localeCompare(b.name);
+      }
+      if (this.sortBy === "joinDate") {
+        // Descending sort (most recent first)
+        return new Date(b.joinDate).getTime() - new Date(a.joinDate).getTime();
+      }
+      if (this.sortBy === "status") {
+        return a.status.localeCompare(b.status);
+      }
+      return 0;
     });
   });
 
@@ -178,7 +238,13 @@ export class EmployeeStore {
     this.filters.location.length
   );
 
-  // Actions
+  // --- Actions ---
+
+  setSort(criterion: string) {
+    this.sortBy = criterion;
+    this.currentPage = 1; // Reset to page 1 when sorting changes
+  }
+
   setSearchQuery(query: string) {
     this.searchQuery = query;
     this.currentPage = 1;
@@ -202,7 +268,7 @@ export class EmployeeStore {
 
   setPerPage(val: number) {
     this.perPage = val;
-    this.currentPage = 1; // Reset to first page when changing perPage
+    this.currentPage = 1;
   }
 
   nextPage() {
@@ -224,11 +290,15 @@ export class EmployeeStore {
       location: []
     };
     this.searchQuery = "";
+    this.sortBy = "name"; // Also reset sorting
     this.currentPage = 1;
+  }
+
+  getById(id: string | number): Employee | undefined {
+    const numId = typeof id === 'string' ? parseInt(id, 10) : id;
+    return MOCK_EMPLOYEES.find(emp => emp.id === numId);
   }
 }
 
 
-// Create a global instance if needed, or instantiate in component context context
 export const employeeStore = new EmployeeStore();
-

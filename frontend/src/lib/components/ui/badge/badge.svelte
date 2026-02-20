@@ -24,7 +24,8 @@
 
 <script lang="ts">
 	import type { HTMLAnchorAttributes } from "svelte/elements";
-	import { cn, type WithElementRef } from "$lib/utils.js";
+	import { cn } from "@/utilities/common/css";
+	import type { WithElementRef } from "@/utilities/common/types";
 
 	let {
 		ref = $bindable(null),
@@ -38,6 +39,7 @@
 	} = $props();
 </script>
 
+
 <svelte:element
 	this={href ? "a" : "span"}
 	bind:this={ref}
@@ -48,3 +50,4 @@
 >
 	{@render children?.()}
 </svelte:element>
+

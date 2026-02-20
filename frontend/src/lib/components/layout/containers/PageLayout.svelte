@@ -1,33 +1,89 @@
 <script lang="ts">
+  import { page } from '$app/state';
+  import { settings } from "@/stores/settings.svelte";
+  import { ui } from "@/stores/ui.svelte";
+  import { employeeStore } from '@/features/employees/stores/employees.svelte';
+  import { PAGE_LABELS } from '@/constants/features/navigation';
+  
   import SideBar from "@/components/layout/shell/SideBar.svelte";
   import TopBar from "@/components/layout/shell/TopBar.svelte";
-  import { sideBarExpanded } from "@/stores/ui";
+  import BreadCrumb from "@/components/layout/shell/BreadCrumb.svelte";
+  import PageTitle from "@/components/layout/shell/title/PageTitle.svelte";
+  import AnimateSpin from '../elements/AnimateSpin.svelte';
 
-  let expanded = $state(true);
   let { children } = $props();
 
-  const setExpanded = (_expanded: boolean) => {
-    sideBarExpanded.set(_expanded);
-    expanded = _expanded;
+  // --- Sidebar management via centralized settings store ---
+  // We use the settings store to persist the user's preference
+  const setExpanded = (val: boolean) => settings.update('sidebarExpanded', val);
+
+  /**
+   * Helper: Transforms a URL segment into a human-readable label
+   * 1. Checks the static dictionary (PAGE_LABELS)
+   * 2. Checks the employee database (for dynamic IDs)
+   * 3. Falls back to raw text formatting
+   */
+  function getLabel(segment: string) {
+    if (PAGE_LABELS[segment]) return PAGE_LABELS[segment];
+    const emp = employeeStore.getById(segment);
+    if (emp) return emp.name;
+    return segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' ');
   }
+
+  /**
+   * PURE DERIVED STATE: Computes navigation data (Breadcrumb & Title)
+   * This is triggered automatically whenever 'page.url.pathname' changes.
+   * Logic for 'ui.selectedMenuItem' is now handled exclusively by the Root Layout.
+   */
+  const navigationData = $derived.by(() => {
+    const segments = page.url.pathname.split('/').filter(Boolean);
+    let path = '';
+
+    const items = segments.map((segment) => {
+      path += `/${segment}`;
+      return {
+        label: getLabel(segment),
+        href: path
+      };
+    });
+
+    return {
+      items,
+      currentTitle: items.length > 0 
+        ? items[items.length - 1].label 
+        : 'Dashboard'
+    };
+  });
 </script>
 
 
 <div class="flex h-screen w-screen overflow-hidden">
-    
-  <aside class="shrink-0 z-[100] relative bg-white h-full">
-    <SideBar {expanded} {setExpanded} />
-  </aside>
+  <!-- The SideBar state is driven by the global settings store -->
+  <SideBar 
+    expanded={settings.current.sidebarExpanded} 
+    {setExpanded} 
+  />
 
-  <div class="flex flex-col flex-1 min-w-0 overflow-hidden" style="background-color: #ffffff;">
-    <header class="z-50 bg-white">
+  <div class="flex flex-col flex-1 min-w-0 overflow-hidden bg-white">
+    <header class="bg-white">
       <TopBar />
+      <!-- Injecting computed breadcrumb and title into header components -->
+      <BreadCrumb items={navigationData.items} />
+      <PageTitle title={navigationData.currentTitle} actions={ui.pageActions}/>
     </header>
         
-    <main class="flex-1 min-w-0 overflow-y-auto py-2 sm:px-6">
-      <div class="mx-auto max-w-7xl h-full flex flex-col">
-        {@render children?.()}
-      </div>
+    <main class="flex-1 min-w-0 overflow-y-auto py-4 px-6">
+      {#if ui.initialLoading}
+        <!-- Loading state feedback -->
+        <div class="text-sm h-full flex justify-center items-center">
+          <AnimateSpin 
+            text="Chargement..."
+          />
+        </div>
+      {:else}
+      {@render children?.()}
+      {/if}
+      
     </main>
   </div>
 </div>

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { getAppIcon } from '$lib/utilities/ui/icons';
-  import { cn } from '$lib/utils';
+  import { getAppIcon } from '@/utilities/ui/icons';
+  import { cn } from '@/utilities/common/css';
   import type { IconProps } from '@lucide/svelte';
   import type { Component } from 'svelte';
 
@@ -19,7 +19,7 @@
     class: className = '', 
     size = 18, 
     color, 
-    strokeWidth = 2,
+    strokeWidth = 1.6,
     fallback,
     ...rest 
   }: Props = $props();

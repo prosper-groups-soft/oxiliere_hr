@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Avatar as AvatarPrimitive } from "bits-ui";
-	import { cn } from "$lib/utils.js";
+	import { cn } from "@/utilities/common/css";
 
 	let {
 		ref = $bindable(null),
@@ -10,6 +10,7 @@
 	}: AvatarPrimitive.RootProps = $props();
 </script>
 
+
 <AvatarPrimitive.Root
 	bind:ref
 	bind:loadingStatus
@@ -17,3 +18,4 @@
 	class={cn("relative flex size-8 shrink-0 overflow-hidden rounded-full", className)}
 	{...restProps}
 />
+

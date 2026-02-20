@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { cn } from "@/utils";
+  import { cn } from "@/utilities/common/css";
   import StartSpinner from "./StartSpinner.svelte";
 
   type LoaderProps = {

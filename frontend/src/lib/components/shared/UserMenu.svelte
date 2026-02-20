@@ -3,9 +3,12 @@
 	import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 	import { buttonVariants } from '@/components/ui/button';
 	import * as DropdownMenu from '@/components/ui/dropdown-menu';
-	import { current_organization_store, current_user_store } from '@/stores/auth';
+	import { 
+    current_organization_store, 
+    current_user_store 
+  } from '@/stores/auth';
 	import { logout } from '@/utilities/app/runtime';
-	import { cn } from '@/utils';
+	import { cn } from '@/utilities/common/css';
 	import { organizationQueryOptions } from '@/api/queries/organizations';
 	import type { SessionUser } from '@/types/users';
 	import { createQuery } from '@tanstack/svelte-query';
@@ -93,7 +96,7 @@
 			<DropdownMenu.Group>
 				<DropdownMenu.Item class="flex cursor-pointer flex-row gap-3" onclick={handleSwitchToEM}>
 					<span
-						class="flex size-6 items-center justify-center rounded-[6px] bg-[#6C6FF7] text-[8px] font-medium text-white"
+						class="flex size-6 items-center justify-center rounded-md bg-[#6C6FF7] text-[8px] font-medium text-white"
 					>
 						CPT
 					</span>
@@ -102,7 +105,7 @@
 
 				<DropdownMenu.Item class="flex cursor-pointer flex-row gap-3">
 					<span
-						class="flex size-6 items-center justify-center rounded-[6px] bg-[#52AEA4] text-[8px] font-medium text-white"
+						class="flex size-6 items-center justify-center rounded-md bg-[#52AEA4] text-[8px] font-medium text-white"
 					>
 						RH
 					</span>
@@ -132,30 +135,30 @@
 					{@render renderAvatar(false)}
 				{/if}
 				{#if user}
-					<span class="comet-body-s-accented text-secondary-foreground truncate">
+					<span class="comet-body-s-accented text-secondary-foreground truncate text-[0.875rem]">
 						{user.first_name}
 						{user.last_name}
 					</span>
 				{:else}
-					<span class="comet-body-s-accented text-secondary-foreground truncate"> Anonyme </span>
+					<span class="comet-body-s-accented text-secondary-foreground truncate text-[0.875rem]"> Anonyme </span>
 				{/if}
 			</div>
 			<DropdownMenu.Separator />
 			<DropdownMenu.Group>
 				<DropdownMenu.Item class="cursor-pointer" onclick={goto_home}>
-					<AppIcon name="grid" size={16} class="mr-2" />
+					<AppIcon name="grid" size={20} class="mr-2" />
 					<span>Espace Privé</span>
 				</DropdownMenu.Item>
 
 				<DropdownMenu.Item class="cursor-pointer" onclick={goto_my_accounts}>
-					<AppIcon name="settings" size={16} class="mr-2" />
+					<AppIcon name="settings" size={20} class="mr-2" />
 					<span>Mon compte</span>
 				</DropdownMenu.Item>
 			</DropdownMenu.Group>
 			<DropdownMenu.Group>
 				<DropdownMenu.Sub>
 					<DropdownMenu.SubTrigger class="flex cursor-pointer items-center">
-						<AppIcon name="business" size={16} class="mr-2" />
+						<AppIcon name="business" size={20} class="mr-2" />
 						<span class="comet-body-s truncate">
 							{#if $current_organization_store}
 								{$current_organization_store.name}
@@ -177,14 +180,14 @@
 						{#if $queryOrg.isLoading}
 							<DropdownMenu.Item class="gap-2 p-2">
 								<div class="flex size-6 items-center justify-center rounded-md border">
-									<AppIcon name="refresh" size={14} class="shrink-0 animate-spin" />
+									<AppIcon name="refresh" size={20} class="shrink-0 animate-spin" />
 								</div>
 								Chargement....
 							</DropdownMenu.Item>
 						{:else if $queryOrg.isError}
 							<DropdownMenu.Item class="gap-2 p-2">
 								<div class="flex size-6 items-center justify-center rounded-md border">
-									<AppIcon name="refresh" size={14} class="shrink-0" />
+									<AppIcon name="refresh" size={20} class="shrink-0" />
 								</div>
 								Erreur de Chargement....
 							</DropdownMenu.Item>
@@ -192,7 +195,7 @@
 							{#each $queryOrg.data.results as org, index}
 								<DropdownMenu.Item onSelect={() => goto_organization(org.slug)} class="gap-2 p-2">
 									<div class="flex size-6 items-center justify-center rounded-md border">
-										<AppIcon name="business" size={14} class="shrink-0" />
+										<AppIcon name="business" size={20} class="shrink-0" />
 									</div>
 									{org.name}
 								</DropdownMenu.Item>
@@ -205,7 +208,7 @@
 			<DropdownMenu.Separator />
 
 			<DropdownMenu.Item onclick={openLogout} class="cursor-pointer">
-				<AppIcon name="logout" size={16} class="mr-2" />
+				<AppIcon name="logout" size={20} class="mr-2" />
 				<span>Se déconnecter</span>
 			</DropdownMenu.Item>
 		</DropdownMenu.Content>
@@ -217,5 +220,4 @@
 	{@render AppSelector()}
 	{@render UserMenu()}
 </div>
-
 

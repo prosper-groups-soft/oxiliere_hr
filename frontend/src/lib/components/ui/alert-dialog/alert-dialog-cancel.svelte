@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { AlertDialog as AlertDialogPrimitive } from "bits-ui";
 	import { buttonVariants } from "@/components/ui/button/index.js";
-	import { cn } from "$lib/utils.js";
+	import { cn } from "@/utilities/common/css";
 
 	let {
 		ref = $bindable(null),
@@ -10,9 +10,11 @@
 	}: AlertDialogPrimitive.CancelProps = $props();
 </script>
 
+
 <AlertDialogPrimitive.Cancel
 	bind:ref
 	data-slot="alert-dialog-cancel"
 	class={cn(buttonVariants({ variant: "outline" }), className)}
 	{...restProps}
 />
+

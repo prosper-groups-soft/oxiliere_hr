@@ -1,7 +1,8 @@
 <script lang="ts">
 	import type { HTMLAnchorAttributes } from "svelte/elements";
 	import type { Snippet } from "svelte";
-	import { cn, type WithElementRef } from "$lib/utils.js";
+	import { cn } from "@/utilities/common/css";  
+	import type { WithElementRef } from "@/utilities/common/types";
 
 	let {
 		ref = $bindable(null),
@@ -22,6 +23,7 @@
 	});
 </script>
 
+
 {#if child}
 	{@render child({ props: attrs })}
 {:else}
@@ -29,3 +31,4 @@
 		{@render children?.()}
 	</a>
 {/if}
+

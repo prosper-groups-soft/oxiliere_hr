@@ -1,8 +1,13 @@
 <script lang="ts">
   import { Button } from "@/components/ui/button";
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
-  import { cn } from "@/utils";
-  import { DEFAULT_PAGE_SIZE_OPTIONS, PAGINATION_LABELS } from "@/constants/pagination";
+  import { cn } from "@/utilities/common/css";
+  import { crossfade } from 'svelte/transition';
+  import { cubicInOut } from 'svelte/easing';
+  import { 
+    DEFAULT_PAGE_SIZE_OPTIONS, 
+    PAGINATION_LABELS 
+  } from "@/constants/ui/pagination";
 
   interface Props {
     currentCount: number;
@@ -14,7 +19,7 @@
     onPerPageChange: (size: number) => void;
     onNext: () => void;
     onPrev: () => void;
-    unitLabel?: string; // Optionnel, ex: "profils", "documents"
+    unitLabel?: string;
   }
 
   let { 
@@ -29,38 +34,50 @@
     onPrev,
     unitLabel = PAGINATION_LABELS.PROFILS
   }: Props = $props();
+
+  // Sliding background animation
+  const [send, receive] = crossfade({
+    duration: 250,
+    easing: cubicInOut
+  });
 </script>
 
 
 <div class="flex items-center justify-between px-0 py-4 mt-0 border-t border-[#F3F4F6]">
   <div class="flex items-center gap-6">
-    <div class="text-[11px] shrink-0 tracking-tight flex items-center gap-1">
-      <span class="font-bold text-indigo-600 text-[13px] inline-block min-w-[1.2rem] text-center">
+    <div class="text-[0.875rem] shrink-0 tracking-tight flex items-center gap-1">
+      <span class="font-bold text-indigo-600 text-[0.875rem] inline-block min-w-[1.2rem] text-center">
         {currentCount}
       </span>
-      <span class="text-slate-600 font-normal text-[13px]">{PAGINATION_LABELS.SUR}</span>
-      <span class="font-bold text-indigo-600 text-[13px] inline-block min-w-[1.2rem] text-center">
+      <span class="text-slate-800 font-normal text-[0.875rem]">{PAGINATION_LABELS.SUR}</span>
+      <span class="font-bold text-indigo-600 text-[0.875rem] inline-block min-w-[1.2rem] text-center">
         {totalCount}
       </span>
-      <span class="text-slate-600 font-normal text-[13px]">{unitLabel}</span>
+      <span class="text-slate-800 font-normal text-[0.875rem]">{unitLabel}</span>
     </div>
 
-    <div class="h-4 w-[1px] bg-slate-300"></div>
+    <div class="h-4 w-px bg-slate-300"></div>
 
     <div class="flex items-center gap-2">
-      <span class="text-[11px] text-slate-700 font-medium uppercase tracking-wider">{PAGINATION_LABELS.LIGNES}</span>
-      <div class="flex items-center bg-slate-50 p-0.5 rounded-lg border border-slate-100">
+      <span class="text-[0.8rem] text-slate-700 font-medium uppercase tracking-wider">{PAGINATION_LABELS.LIGNES}</span>
+      <div class="relative flex items-center p-0.5 rounded-lg border border-slate-300 bg-white">
         {#each DEFAULT_PAGE_SIZE_OPTIONS as size}
           <button 
             class={cn(
-              "h-6 px-2 text-[11px] cursor-pointer font-bold rounded-md transition-all",
-              perPage === size 
-                ? "bg-indigo-600 text-white shadow-sm shadow-indigo-100" 
-                : "text-slate-500 hover:text-indigo-600"
+              "relative h-6.5 w-6.5 text-[0.8rem] cursor-pointer rounded-md transition-colors z-10",
+              perPage === size ? "text-white font-semibold" : "text-slate-600 hover:text-indigo-600"
             )}
             onclick={() => onPerPageChange(size)}
           >
             {size}
+
+            {#if perPage === size}
+              <div 
+                in:receive={{ key: 'active-size' }}
+                out:send={{ key: 'active-size' }}
+                class="absolute inset-0 bg-indigo-600 rounded-md -z-10"
+              ></div>
+            {/if}
           </button>
         {/each}
       </div>
@@ -71,7 +88,7 @@
     <Button 
       variant="ghost" 
       size="sm"
-      class="h-8 w-8 p-0 text-slate-400 hover:text-indigo-600 rounded-[6px] border border-transparent hover:border-indigo-100 hover:bg-indigo-50/50 transition-all disabled:opacity-30 disabled:pointer-events-auto disabled:cursor-not-allowed"
+      class="h-7 w-7 p-0 hover:text-indigo-600 rounded-md border border-transparent hover:border-indigo-100 hover:bg-indigo-50/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:pointer-events-auto"
       onclick={onPrev}
       disabled={currentPage === 1}
     >
@@ -80,26 +97,33 @@
     
     <div class="flex items-center gap-1.5 px-1">
       {#each Array(totalPages) as _, i}
-        <Button 
-          variant="ghost"
-          size="sm"
+        {@const pageNum = i + 1}
+        <button 
           class={cn(
-            "h-8 w-8 p-0 text-[12px] font-bold rounded-[6px] border transition-all",
-            currentPage === i + 1 
-              ? "bg-indigo-600 border-indigo-600 text-white shadow-indigo-200" 
-              : "border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300"
+            "relative h-7 w-7 flex items-center justify-center font-bold rounded-md border text-[0.875rem] cursor-pointer",
+            currentPage === pageNum 
+              ? "text-white border-indigo-600 font-semibold transition-none bg-indigo-600" 
+              : "border-slate-200 text-slate-900 hover:bg-slate-50 hover:border-slate-300 transition-all"
           )}
-          onclick={() => onPageChange(i + 1)}
+          onclick={() => onPageChange(pageNum)}
         >
-          <span class="inline-block w-4 text-center">{i + 1}</span>
-        </Button>
+          <span class="z-10 text-[0.84rem]">{pageNum}</span>
+
+          {#if currentPage === pageNum}
+            <div 
+              in:receive={{ key: 'active-page' }}
+              out:send={{ key: 'active-page' }}
+              class="absolute inset-0 bg-indigo-600 rounded-[5px] -z-10"
+            ></div>
+          {/if}
+        </button>
       {/each}
     </div>
 
     <Button 
       variant="ghost" 
       size="sm"
-      class="h-8 w-8 p-0 flex items-center justify-center text-slate-400 hover:text-indigo-600 rounded-[6px] border border-transparent hover:border-indigo-100 hover:bg-indigo-50/50 transition-all disabled:opacity-30 disabled:pointer-events-auto disabled:cursor-not-allowed"
+      class="h-7 w-7 p-0 flex items-center justify-center hover:text-indigo-600 rounded-md border border-transparent hover:border-indigo-100 hover:bg-indigo-50/50 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-auto"
       onclick={onNext}
       disabled={currentPage === totalPages}
     >

@@ -91,8 +91,9 @@ export const ORGANIZATION_INDUSTRIES = {
 };
 
 
-export const OXILIERE_LABEL = "Oxiliere Entreprise - RH";
+export const OXILIERE_LABEL = "Oxiliere RH";
 
+export const ORGANIZATION_NAME = "Mon Entreprise";
 
 export const UNDEFINED_ATTR = "Non renseingné.e";
 

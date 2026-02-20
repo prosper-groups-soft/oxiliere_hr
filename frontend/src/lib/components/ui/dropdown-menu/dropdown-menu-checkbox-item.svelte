@@ -2,7 +2,8 @@
 	import { DropdownMenu as DropdownMenuPrimitive } from "bits-ui";
 	import CheckIcon from "@lucide/svelte/icons/check";
 	import MinusIcon from "@lucide/svelte/icons/minus";
-	import { cn, type WithoutChildrenOrChild } from "$lib/utils.js";
+	import { cn } from "@/utilities/common/css";
+	import type { WithoutChildrenOrChild } from "@/utilities/common/types";
 	import type { Snippet } from "svelte";
 
 	let {
@@ -17,13 +18,14 @@
 	} = $props();
 </script>
 
+
 <DropdownMenuPrimitive.CheckboxItem
 	bind:ref
 	bind:checked
 	bind:indeterminate
 	data-slot="dropdown-menu-checkbox-item"
 	class={cn(
-		"focus:bg-accent focus:text-accent-foreground outline-hidden relative flex cursor-default select-none items-center gap-2 rounded-sm py-1.5 pl-8 pr-2 text-sm data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+		"focus:bg-accent focus:text-accent-foreground outline-hidden relative flex cursor-default select-none items-center gap-2 rounded-sm py-1.5 pl-8 pr-2 text-[0.88rem]! *:[font-size:inherit]! data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
 		className
 	)}
 	{...restProps}
@@ -39,3 +41,4 @@
 		{@render childrenProp?.()}
 	{/snippet}
 </DropdownMenuPrimitive.CheckboxItem>
+

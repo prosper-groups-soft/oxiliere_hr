@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { Tabs as TabsPrimitive } from "bits-ui";
-	import { cn, type WithElementRef } from "$lib/utils.js";
-    import { tv, type VariantProps } from "tailwind-variants";
+	import { cn } from "@/utilities/common/css";
+  import type { WithElementRef } from "@/utilities/common/types";
+  import { tv, type VariantProps } from "tailwind-variants";
 
 
 	const TabsTriggerVariants = tv(
@@ -29,9 +30,9 @@
 	);
 
 	type TabTriggerProps = WithElementRef<
-        TabsPrimitive.TriggerProps &
-        VariantProps<typeof TabsTriggerVariants> 
-    >
+    TabsPrimitive.TriggerProps &
+    VariantProps<typeof TabsTriggerVariants> 
+  >
 
 	let {
 		ref = $bindable(null),
@@ -42,6 +43,7 @@
 	}: TabTriggerProps = $props();
 </script>
 
+
 <TabsPrimitive.Trigger
 	bind:ref
 	data-slot="tabs-trigger"
@@ -51,3 +53,4 @@
 	)}
 	{...restProps}
 />
+

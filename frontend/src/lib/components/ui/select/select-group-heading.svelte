@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Select as SelectPrimitive } from "bits-ui";
-	import { cn } from "$lib/utils.js";
+	import { cn } from "@/utilities/common/css";
 	import type { ComponentProps } from "svelte";
 
 	let {
@@ -11,6 +11,7 @@
 	}: ComponentProps<typeof SelectPrimitive.GroupHeading> = $props();
 </script>
 
+
 <SelectPrimitive.GroupHeading
 	bind:ref
 	data-slot="select-group-heading"
@@ -19,3 +20,4 @@
 >
 	{@render children?.()}
 </SelectPrimitive.GroupHeading>
+

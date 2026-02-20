@@ -1,7 +1,7 @@
 <script lang="ts">
-	import type OxilereError from '$lib/utilities/http/errors';
-	import type { FieldError } from '$lib/utilities/http/errors';
-	import { cn } from '@/utils';
+	import type OxilereError from '@/utilities/http/errors';
+	import type { FieldError } from '@/utilities/http/errors';
+	import { cn } from '@/utilities/common/css';
 
 	interface Props {
 		error: OxilereError;

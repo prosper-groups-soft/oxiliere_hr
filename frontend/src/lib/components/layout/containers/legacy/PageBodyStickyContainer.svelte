@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { cn } from "$lib/utils";
-  import { STICKY_ATTRIBUTE_VERTICAL, STICKY_DIRECTION } from "@/constants/ui";
+  import { cn } from "@/utilities/common/css";
+  import { STICKY_ATTRIBUTE_VERTICAL, STICKY_DIRECTION } from "@/constants/ui/ui";
 
   let { 
     children,

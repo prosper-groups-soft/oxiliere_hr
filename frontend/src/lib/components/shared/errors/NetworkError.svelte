@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type OxilereError from '$lib/utilities/http/errors';
-	import { cn } from '@/utils';
+	import { cn } from '@/utilities/common/css';
 
 	interface Props {
 		error: OxilereError;

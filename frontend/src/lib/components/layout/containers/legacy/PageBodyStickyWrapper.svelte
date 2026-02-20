@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { TABLE_WRAPPER_ATTRIBUTE } from "@/constants/ui";
+  import { TABLE_WRAPPER_ATTRIBUTE } from "@/constants/ui/ui";
 
   let { children } = $props();
 </script>

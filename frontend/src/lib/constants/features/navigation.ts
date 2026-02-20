@@ -1,5 +1,6 @@
 import { goto } from "$app/navigation";
 
+
 export enum MENU_ITEM_TYPE {
     link = "link",
     router = "router",
@@ -30,7 +31,7 @@ export const MENU_ITEMS: MenuItemGroup[] = [
         id: "home", 
         path: "/", 
         type: MENU_ITEM_TYPE.router, 
-        icon: "dashboard", 
+        icon: "layout-dashboard", 
         label: "Tableau de bord", 
         onClick: () => goto("/") 
       },
@@ -162,3 +163,42 @@ export const bottomMenuItems: MenuItem[] = [
   },
 ];
 
+export const PAGE_LABELS: Record<string, string> = {
+  'employees': 'Employés',
+  'vault': 'Documents',
+  'family': 'Famille',
+  'settings': 'Paramètres',
+  'onboarding': 'Recrutement',
+  'dashboard': 'Tableau de bord'
+};
+
+export const NAV_CONFIG = {
+  // Dimensions
+  sidebarWidth: 260,
+  sidebarCollapsedWidth: 68,
+  topBarHeight: 64,
+  
+  // Behaviors
+  transitionSpeed: 250,
+  mobileBreakpoint: 768,
+    
+  // Initial state
+  defaultExpanded: true,
+
+  // Limits
+  maxBreadcrumbItems: 4
+};
+
+export const APP_STORAGE_KEY = 'hr_app_user_settings';
+
+/**
+ * Default values for persistent storage.
+ * Note: sidebarExpanded now uses NAV_CONFIG.defaultExpanded
+ */
+export const DEFAULT_SETTINGS = {
+  sidebarExpanded: NAV_CONFIG.defaultExpanded,
+  theme: 'light' as 'light' | 'dark',
+  language: 'fr',
+};
+
+export type UserSettings = typeof DEFAULT_SETTINGS;

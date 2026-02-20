@@ -2,10 +2,11 @@
   import { createQuery } from '@tanstack/svelte-query';
 	import { appModeManager } from '@/hooks/is-organization.svelte';
 	import { organizationQueryOptions } from '@/api/queries/organizations';
+  import { browser } from '$app/environment';
 	import { current_organization_store } from '@/stores/auth';
 	
   $effect(() => {
-    if (appModeManager.isOrganizationMode){
+    if (browser && appModeManager.isOrganizationMode){
       if ($current_organization_store && $current_organization_store.slug == appModeManager.orgSlug){
         return;
       }
