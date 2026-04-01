@@ -2,16 +2,16 @@
 
 Inspiré par Linear, le calendrier ne doit pas être un simple tableau statique.
 
-    Affichage Multi-Niveaux : Une vue "Année" pour la vision globale (détection des ponts et périodes de paie courtes) et une vue "Mois" pour le détail opérationnel.
-    Indicateurs d'Impact : Les jours "Non travaillables" (fériés, fermetures) sont marqués par une couleur de fond subtile (ex: gris léger ou hachures) pour que les RH visualisent immédiatement les trous dans la production.
-    Drag-to-Create : Possibilité de cliquer et glisser sur plusieurs jours pour créer une "Fermeture Entreprise" (pont, congés techniques) instantanément.
+- Affichage Multi-Niveaux : Une vue "Année" pour la vision globale (détection des ponts et périodes de paie courtes) et une vue "Mois" pour le détail opérationnel.
+- Indicateurs d'Impact : Les jours "Non travaillables" (fériés, fermetures) sont marqués par une couleur de fond subtile (ex: gris léger ou hachures) pour que les RH visualisent immédiatement les trous dans la production.
+- Drag-to-Create : Possibilité de cliquer et glisser sur plusieurs jours pour créer une "Fermeture Entreprise" (pont, congés techniques) instantanément.
 
 ## 2. Le Gestionnaire de Récurrence
 
 Une interface dédiée à la maintenance annuelle.
 
-    Smart Suggestions : Un panneau latéral qui propose d'importer les jours fériés nationaux basés sur le CountryCode (via une bibliothèque externe ou API).
-    Tableau de Bord des Événements : Une liste haute densité permettant de voir d'un coup d'œil quels événements sont récurrents et lesquels sont ponctuels.
+- Smart Suggestions : Un panneau latéral qui propose d'importer les jours fériés nationaux basés sur le CountryCode (via une bibliothèque externe ou API).
+- Tableau de Bord des Événements : Une liste haute densité permettant de voir d'un coup d'œil quels événements sont récurrents et lesquels sont ponctuels.
 
 ## 3. Le "Impact Previewer" (Aperçu de l'impact)
 
@@ -30,4 +30,3 @@ C'est la touche "haute performance" du module.
     Calendar : Le composant de base, étendu pour supporter les points de couleur sous les dates (événements multiples).
     Popover : Pour afficher les détails d'un événement au survol ou au clic sans changer de page.
     Switch : Pour activer/désactiver rapidement le statut "Travaillable" dans le formulaire de création.
-

@@ -1,24 +1,8 @@
 <script lang="ts">
-  import PlaceholderPage from "@/components/layout/elements/PlaceholderPage.svelte";
-  import { Landmark } from "@lucide/svelte";
+  import { goto } from '$app/navigation';
 
-  const features = [
-    "Vault des coordonnées bancaires employés",
-    "Répertoire des institutions financières",
-    "Centre de vérification et conformité",
-    "Génération des fichiers de virement SEPA/SWIFT",
-    "Rapports de paiement"
-  ];
+  // Redirect to the default sub-route
+  $effect(() => {
+    goto('/banking/accounts', { replaceState: true });
+  });
 </script>
-
-
-<PlaceholderPage 
-  title="Comptes Bancaires" 
-  description="Gestion des coordonnées bancaires et paiements."
-  icon={Landmark}
-  {features} 
-/>
-
-
-
-

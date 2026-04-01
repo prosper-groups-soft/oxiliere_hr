@@ -35,7 +35,7 @@
         {:else}
           <button 
             {...props} 
-            class={cn(buttonVariants({ variant: "ghost" }), 'px-0 w-full cursor-pointer')}
+            class={cn(buttonVariants({ variant: "ghost" }), 'px-0 w-full cursor-pointer hover:bg-white!')}
           >
             {@render children?.(undefined)}
           </button>

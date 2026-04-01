@@ -4,13 +4,7 @@
   import AppIcon from '@/components/layout/elements/AppIcon.svelte';
   import { Button } from "@/components/ui/button";
   import { Separator } from "@/components/ui/separator";
-  import type { Snippet } from 'svelte';
-
-  interface Props {
-    extraActions?: Snippet | null; // To add page-specific buttons
-  }
-
-  let { extraActions }: Props = $props();
+  import { ui } from "@/stores/ui.svelte";
 
   // Navigation logic
   const canGoBack = $derived(page.url.pathname !== '/');
@@ -27,24 +21,32 @@
         variant="ghost" 
         size="sm" 
         onclick={handleBack}
-        class="h-8 px-2 flex items-center gap-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100/50 group transition-all"
+        class="h-8 px-2 flex items-center gap-2 hidden text-slate-400 hover:text-slate-600 hover:bg-slate-100/50 group transition-all"
       >
         <AppIcon name="prev" size={16} class="group-hover:-translate-x-0.5 transition-transform" />
         <span class="text-[0.65rem] font-bold uppercase tracking-widest opacity-70 group-hover:opacity-100">
-          Back
+          Retour
         </span>
       </Button>
     </div>
-    {#if extraActions}
-      <Separator orientation="vertical" class="h-4 bg-slate-200 mx-1.5" />
+    
+    <!-- Separator logic: visible if there is at least one action in the stack -->
+    {#if ui.pageActions.length > 0}
+      <Separator orientation="vertical" class="h-4 bg-slate-200 mx-1.5 hidden" />
     {/if}
   {/if}
     
-  <!-- Area for specific actions (Snippet) -->
-  {#if extraActions}
-    <div class="flex items-center gap-1 mr-1">
-      {@render extraActions()}
-    </div>
-  {/if}
+  <!-- 
+    DYNAMIC ACTION STACK 
+    We iterate through the array of snippets registered in the UI store.
+    This prevents child tabs from overwriting parent actions.
+  -->
+  <div class="flex items-center gap-2 mr-1">
+    {#each ui.pageActions as actionSnippet}
+      <div in:fade={{ duration: 200 }}>
+        {@render actionSnippet()}
+      </div>
+    {/each}
+  </div>
 </div>
 

@@ -3,21 +3,27 @@
 ## Hooks disponibles
 
 ### `detectMode(pathname: string): AppMode`
+
 Fonction utilitaire pour détecter le mode depuis un pathname.
 
 ### `extractOrgSlug(pathname: string): string | null`
+
 Fonction utilitaire pour extraire le slug d'organisation depuis un pathname.
 
 ### `useAppMode`
+
 Rune `$derived` qui retourne le mode actuel ('user' | 'organization').
 
 ### `useOrgSlug`
+
 Rune `$derived` qui retourne le slug de l'organisation ou null.
 
 ### `useIsOrganizationMode`
+
 Rune `$derived` qui retourne true si on est en mode organisation.
 
 ### `useModeInfo`
+
 Rune `$derived.by()` qui retourne toutes les informations du mode.
 
 ## Exemples d'utilisation
@@ -101,18 +107,18 @@ Rune `$derived.by()` qui retourne toutes les informations du mode.
 ```svelte
 <script lang="ts">
     import { useModeInfo } from '$lib/hooks/is-organization.svelte';
-    
+
     // Titre adaptatif avec $derived
     const pageTitle = $derived(
-        useModeInfo.isOrganization 
-            ? `Organisation ${useModeInfo.orgSlug}` 
+        useModeInfo.isOrganization
+            ? `Organisation ${useModeInfo.orgSlug}`
             : 'Mon compte'
     );
 
     // URL d'API adaptative avec $derived
     const apiBaseUrl = $derived(
-        useModeInfo.isOrganization 
-            ? `/api/organizations/${useModeInfo.orgSlug}` 
+        useModeInfo.isOrganization
+            ? `/api/organizations/${useModeInfo.orgSlug}`
             : '/api/user'
     );
 </script>
@@ -143,33 +149,35 @@ Rune `$derived.by()` qui retourne toutes les informations du mode.
 import { useModeInfo } from '$lib/hooks/is-organization.svelte';
 
 export const contextualApiUrl = $derived.by(() => {
-    const baseUrl = '/api';
-    
-    if (useModeInfo.isOrganization && useModeInfo.orgSlug) {
-        return `${baseUrl}/organizations/${useModeInfo.orgSlug}`;
-    }
-    
-    return `${baseUrl}/user`;
+	const baseUrl = '/api';
+
+	if (useModeInfo.isOrganization && useModeInfo.orgSlug) {
+		return `${baseUrl}/organizations/${useModeInfo.orgSlug}`;
+	}
+
+	return `${baseUrl}/user`;
 });
 
 export const contextualTitle = $derived.by(() => {
-    if (useModeInfo.isOrganization && useModeInfo.orgSlug) {
-        return `Organisation ${useModeInfo.orgSlug}`;
-    }
-    
-    return 'Mon compte personnel';
+	if (useModeInfo.isOrganization && useModeInfo.orgSlug) {
+		return `Organisation ${useModeInfo.orgSlug}`;
+	}
+
+	return 'Mon compte personnel';
 });
 ```
 
 ## Patterns d'URL supportés
 
 ### Mode utilisateur
+
 - `/` → Mode utilisateur
 - `/applications` → Mode utilisateur
 - `/settings` → Mode utilisateur
 - `/profile` → Mode utilisateur
 
 ### Mode organisation
+
 - `/o/mon-org` → Mode organisation, slug: "mon-org"
 - `/o/mon-org/applications` → Mode organisation, slug: "mon-org"
 - `/o/mon-org/settings` → Mode organisation, slug: "mon-org"

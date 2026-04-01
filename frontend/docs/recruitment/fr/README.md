@@ -30,4 +30,3 @@ Inspiré par les interfaces de support client haut de gamme.
     Dialog : Pour remplir rapidement une fiche d'évaluation après un entretien.
     Sheet (Tiroir) : Pour créer une nouvelle JobOffer sans quitter la vue du pipeline.
     Scroll Area : Pour gérer les longues listes de candidats dans les colonnes du Kanban.
-

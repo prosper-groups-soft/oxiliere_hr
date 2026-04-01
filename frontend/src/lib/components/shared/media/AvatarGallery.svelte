@@ -73,7 +73,7 @@
 {#if isExpanded}
   <div 
     transition:fade={{ duration: 200 }}
-    class="fixed inset-0 bg-black/80 flex flex-col items-center justify-center p-4 cursor-default z-100"
+    class="fixed inset-0 bg-black/70 flex flex-col items-center justify-center p-4 cursor-default z-100"
     onclick={toggleExpand}
     role="presentation"
   >

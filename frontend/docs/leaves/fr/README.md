@@ -33,4 +33,3 @@ Une interface technique mais claire pour les RH.
     Sheet (Side Drawer) : Pour le formulaire de demande de congé (évite de quitter la page actuelle).
     Popover : Pour afficher le motif d'un refus ou le justificatif d'un congé de circonstance.
     Calendar : En mode sélection de plage (range) pour choisir les dates de début et de fin.
-

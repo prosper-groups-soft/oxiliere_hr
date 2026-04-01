@@ -1,40 +1,57 @@
-import { settings } from "./settings.svelte";
-import { type Snippet } from "svelte";
+import { settings } from './settings.svelte';
+import { type Snippet, untrack } from 'svelte';
 
 
-// --- VOLATILE STATES (Reset on page refresh) ---
+interface RegisteredAction {
+	id: string;
+	snippet: Snippet;
+}
+
+
 class UiStore {
-  // Selected menu ID (updated by the Root Layout based on the URL)
-  selectedMenuItem = $state<string | null>("home");
-  // Global title actions
-  pageActions = $state<Snippet | null>(null);
-  
-  // Initial application loading state
-  initialLoading = $state(true);
+	selectedMenuItem = $state<string | null>('home');
+	initialLoading = $state(true);
 
-  // --- PERSISTENT STATES (Shortcuts to the settings store) ---
-  
-  /**
-   * Getter to retrieve the sidebar expansion state
-   */
-  get isExpanded() {
-    return settings.current.sidebarExpanded;
-  }
+	// Use a private state for the stack
+	private _actionsStack = $state<RegisteredAction[]>([]);
 
-  /**
-   * Setter to modify the expansion state (auto-saved via settings)
-   */
-  setExpanded(val: boolean) {
-    settings.update('sidebarExpanded', val);
-  }
+	/**
+	 * Getter: Returns snippets.
+	 * Svelte 5 will only re-run effects using this when _actionsStack actually changes.
+	 */
+	get pageActions() {
+		return this._actionsStack.map((a) => a.snippet);
+	}
 
-  /**
-   * Setter to modify the global actions shown in page title
-   */
-  setActions(actions: Snippet | null) {
-    this.pageActions = actions;
-  }
+	/**
+	 * Adds an action without triggering a reactive dependency loop
+	 */
+	addActions(id: string, snippet: Snippet) {
+		untrack(() => {
+			if (!this._actionsStack.find((a) => a.id === id)) {
+				this._actionsStack.push({ id, snippet });
+			}
+		});
+	}
+
+	/**
+	 * Removes an action without triggering a reactive dependency loop
+	 */
+	removeActions(id: string) {
+		untrack(() => {
+			this._actionsStack = this._actionsStack.filter((a) => a.id !== id);
+		});
+	}
+
+	// --- PERSISTENT STATES ---
+	get isExpanded() {
+		return settings.current.sidebarExpanded;
+	}
+	setExpanded(val: boolean) {
+		settings.update('sidebarExpanded', val);
+	}
 }
 
 
 export const ui = new UiStore();
+

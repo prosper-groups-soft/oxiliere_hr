@@ -44,16 +44,21 @@ class EmployeeProfileService:
 
     @transaction.atomic
     def onboard_employee(self, data: Dict[str, Any], actor: Any = None) -> Employee:
-        """ Formal onboarding with probation initiation. """
+        """ Formal onboarding with probation initiation and optional user account. """
         email = data.get("email", "").strip().lower()
+        create_account = data.get("create_account", False)
+        group_slug = data.get("group_slug")
         
         if Employee.objects.filter(email=email).exists():
             logger.warning(f"Onboarding failed: {email} exists.")
             raise ValidationError({"email": "Email already assigned."})
 
+        # Generate matricule
+        matricule = self._generate_matricule_value()
+
         # Create main profile
         employee = Employee.objects.create(
-            matricule=self._generate_matricule_value(),
+            matricule=matricule,
             first_name=data.get("first_name", ""),
             middle_name=data.get("middle_name") or None,
             last_name=data.get("last_name", ""),
@@ -75,6 +80,33 @@ class EmployeeProfileService:
             reason="Intégration initiale.",
             created_by=actor
         )
+
+        # Optional: User Account Creation
+        if create_account:
+            User = get_user_model()
+            if User.objects.filter(email=email).exists():
+                logger.warning(f"User account creation skipped: {email} already has a system user.")
+            else:
+                # Create user with matricule as default password
+                user = User.objects.create_user(
+                    email=email,
+                    username=email, # Assuming email is used as username
+                    password=matricule,
+                    first_name=employee.first_name,
+                    last_name=employee.last_name,
+                )
+                employee.user = user
+                employee.can_connect = True
+                employee.save(update_fields=['user', 'can_connect'])
+
+                # Assign permission group
+                if group_slug:
+                    from oxutils.permissions.utils import assign_group
+                    try:
+                        assign_group(user, group_slug)
+                        logger.info(f"Assigned group '{group_slug}' to new user {email}")
+                    except Exception as e:
+                        logger.error(f"Failed to assign group {group_slug} to {email}: {e}")
 
         logger.info(f"[PROFILE] Onboarded: {employee.matricule} by {actor}")
         return employee

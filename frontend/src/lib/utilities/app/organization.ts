@@ -1,9 +1,9 @@
-import { 
-  ORGANIZATION_TYPES, 
-  ORGANIZATION_SIZES, 
-  ORGANIZATION_VISIBILITY, 
-  ORGANIZATION_INDUSTRIES, 
-  SUBSCRIPTION_PLANS 
+import {
+	ORGANIZATION_TYPES,
+	ORGANIZATION_SIZES,
+	ORGANIZATION_VISIBILITY,
+	ORGANIZATION_INDUSTRIES,
+	SUBSCRIPTION_PLANS
 } from '@/constants/app/base';
 
 
@@ -28,6 +28,6 @@ export const getIndustryLabel = (industry: string) => {
 
 
 export const getSubscriptionLabel = (plan: string) => {
-	return SUBSCRIPTION_PLANS[plan as keyof typeof SUBSCRIPTION_PLANS] || "Gratuit";
+	return SUBSCRIPTION_PLANS[plan as keyof typeof SUBSCRIPTION_PLANS] || 'Gratuit';
 };
 

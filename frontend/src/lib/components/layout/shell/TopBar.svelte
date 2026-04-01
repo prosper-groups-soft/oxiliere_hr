@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Separator } from "@/components/ui/separator";
-  import UserMenu from "$lib/components/shared/UserMenu.svelte";
-  import { current_organization_store } from "@/stores/auth";
+  import UserMenu from "./UserMenu.svelte";
+  import { auth } from "@/features/auth/stores/auth.svelte";
   import { OXILIERE_LABEL, ORGANIZATION_NAME } from '@/constants/app/base';
   import { NAV_CONFIG } from "@/constants/features/navigation";
 </script>
@@ -12,12 +12,12 @@
   style="height: {NAV_CONFIG.topBarHeight}px;"
 >
   <div class="min-w-0 flex-1">
-    {#if $current_organization_store}
+    {#if auth.currentOrganization}
       <a 
-        href="/o/{$current_organization_store.slug}" 
+        href="/o/{auth.currentOrganization.slug}" 
         class="flex items-center font-bold text-lg text-slate-900 gap-2 hover:text-primary transition-colors truncate"
       >
-        <span class="truncate">{$current_organization_store.name}</span>
+        <span class="truncate">{auth.currentOrganization.name}</span>
       </a>
     {:else}
       <div class="flex items-center font-bold text-lg text-slate-900 gap-2">

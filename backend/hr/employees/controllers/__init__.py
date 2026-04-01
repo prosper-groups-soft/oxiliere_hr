@@ -5,6 +5,7 @@ from .lifecycle import EmployeeLifecycleController
 from .records   import EmployeeRecordController
 from .safety    import EmployeeSafetyController
 from .worksite  import WorkSiteController
+from .account   import UserController
 
 
 def get_all_ctrls_employees() -> Tuple:
@@ -17,7 +18,8 @@ def get_all_ctrls_employees() -> Tuple:
         EmployeeLifecycleController,
         EmployeeRecordController,
         EmployeeSafetyController,
-        WorkSiteController
+        WorkSiteController,
+        UserController
     )
 
 
@@ -27,5 +29,7 @@ __all__ = [
     'EmployeeLifecycleController',
     'EmployeeRecordController',
     'EmployeeSafetyController',
-    'WorkSiteController'
+    'WorkSiteController',
+    'UserController'
 ]
+

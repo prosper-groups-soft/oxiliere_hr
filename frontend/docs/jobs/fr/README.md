@@ -30,4 +30,3 @@ Une interface dédiée aux mouvements de personnel.
     Command Menu : Pour rechercher instantanément un département ou une position (CMD+K > "Backend").
     Badge : Pour identifier visuellement les niveaux de séniorité avec un code couleur (ex: Purple pour C-LEVEL, Blue pour Senior).
     Dialog (Modal) : Pour créer rapidement une nouvelle JobFamily sans quitter la vue d'ensemble.
-

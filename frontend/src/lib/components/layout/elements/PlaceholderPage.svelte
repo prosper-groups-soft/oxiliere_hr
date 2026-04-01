@@ -20,6 +20,7 @@
   }: Props = $props();
 </script>
 
+
 <div class="space-y-6">
   <header class="flex items-start justify-between">
     <div class="space-y-1">

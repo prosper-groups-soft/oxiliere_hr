@@ -32,4 +32,3 @@ Un espace dédié à la protection sociale.
     Avatar : Composant central avec fallback automatique sur les initiales de l'employé.
     DataTable : Avec pagination et tri côté serveur (via TanStack Table) pour gérer des milliers d'employés sans ralentissement.
     Hover Card : Pour afficher un résumé rapide (téléphone, manager, poste) sans cliquer sur le profil.
-

@@ -29,5 +29,3 @@ Une vue dédiée aux gestionnaires RH/Trésorerie pour valider les nouveaux comp
     Context Menu : Sur chaque compte pour des actions rapides (Set as Primary, Deactivate, View Audit).
     Dialog (Modal) : Pour la création de compte, avec une validation Zod en temps réel (ex: vérifier la longueur du numéro de compte selon la banque sélectionnée).
     Alert Dialog : Pour les actions irréversibles comme le blocage d'un compte.
-
-

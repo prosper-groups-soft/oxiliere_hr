@@ -1,107 +1,107 @@
 <script lang="ts">
-    import * as Dialog from "$lib/components/ui/dialog/index.js";
-    import { Button } from "$lib/components/ui/button/index.js";
-    import { Input } from "$lib/components/ui/input/index.js";
-    import { Label } from "$lib/components/ui/label/index.js";
-    import { Spinner } from "$lib/components/ui/spinner/index.js";
-    import { AuthEndpoint, MFAEndpoint } from "$lib/api/endpoints/auth";
-    import { Lock, Smartphone } from "@lucide/svelte";
-    import { toast } from "svelte-sonner";
+  import * as Dialog from "@/components/ui/dialog/index.js";
+  import { Button } from "@/components/ui/button/index.js";
+  import { Input } from "@/components/ui/input/index.js";
+  import { Label } from "@/components/ui/label/index.js";
+  import { Spinner } from "@/components/ui/spinner/index.js";
+  import { AuthEndpoint } from "@/features/auth/api/auth.endpoints";
+  import { Lock, Smartphone } from "@lucide/svelte";
+  import { toast } from "svelte-sonner";
 
-    interface Props {
-        mode: 'password' | 'totp';
-        isOpen: boolean;
-        onSuccess?: () => void;
-        onCancel?: () => void;
-        title?: string;
-        description?: string;
-    }
+  interface Props {
+    mode: 'password' | 'totp';
+    isOpen: boolean;
+    onSuccess?: () => void;
+    onCancel?: () => void;
+    title?: string;
+    description?: string;
+  }
 
-    let {
-        mode = $bindable('password'),
-        isOpen = $bindable(false),
-        onSuccess,
-        onCancel,
-        title = mode === 'password' ? 'Confirmer votre mot de passe' : 'Code d\'authentification',
-        description = mode === 'password' 
-            ? 'Veuillez saisir votre mot de passe pour continuer'
-            : 'Veuillez saisir votre code d\'authentification à 6 chiffres'
-    }: Props = $props();
+  let {
+    mode = $bindable('password'),
+    isOpen = $bindable(false),
+    onSuccess,
+    onCancel,
+    title = mode === 'password' ? 'Confirmer votre mot de passe' : 'Code d\'authentification',
+    description = mode === 'password' 
+      ? 'Veuillez saisir votre mot de passe pour continuer'
+      : 'Veuillez saisir votre code d\'authentification à 6 chiffres'
+  }: Props = $props();
 
-    let password = $state('');
-    let totpCode = $state('');
-    let loading = $state(false);
-    let error = $state('');
+  let password = $state('');
+  let totpCode = $state('');
+  let loading = $state(false);
+  let error = $state('');
 
-    function closeModal() {
-        isOpen = false;
-        password = '';
-        totpCode = '';
-        error = '';
-        onCancel?.();
-    }
+  function closeModal() {
+    isOpen = false;
+    password = '';
+    totpCode = '';
+    error = '';
+    onCancel?.();
+  }
 
-    async function handleSubmit() {
-        if (loading) return;
-        
-        error = '';
-        loading = true;
+  async function handleSubmit() {
+    if (loading) return;
+      
+    error = '';
+    loading = true;
 
-        try {
-            if (mode === 'password') {
-                if (!password.trim()) {
-                    error = 'Le mot de passe est requis';
-                    return;
-                }
-
-                await AuthEndpoint.reauthenticate.create({
-                    password: password
-                });
-                
-                toast.success('Authentification réussie');
-                onSuccess?.();
-                closeModal();
-            } else {
-                if (!totpCode.trim() || totpCode.length !== 6) {
-                    error = 'Le code doit contenir 6 chiffres';
-                    return;
-                }
-
-                await MFAEndpoint.reauthenticate.create({
-                    code: totpCode
-                });
-                toast.success('Code TOTP validé');
-                onSuccess?.();
-                closeModal();
-            }
-        } catch (err: any) {
-            console.error('Erreur de ré-authentification:', err);
-            
-            if (err.response?.status === 400) {
-                error = mode === 'password' 
-                    ? 'Mot de passe incorrect'
-                    : 'Code d\'authentification invalide';
-            } else {
-                error = 'Une erreur est survenue. Veuillez réessayer.';
-            }
-        } finally {
-            loading = false;
+    try {
+      if (mode === 'password') {
+        if (!password.trim()) {
+          error = 'Le mot de passe est requis';
+          return;
         }
-    }
 
-    function handleKeydown(event: KeyboardEvent) {
-        if (event.key === 'Enter') {
-            handleSubmit();
+        await AuthEndpoint.reauthenticate.create({
+          password: password
+        });
+              
+        toast.success('Authentification réussie');
+        onSuccess?.();
+        closeModal();
+      } else {
+        if (!totpCode.trim() || totpCode.length !== 6) {
+          error = 'Le code doit contenir 6 chiffres';
+          return;
         }
-    }
 
-    function switchMode() {
-        // Réinitialiser les champs et erreurs lors du changement de mode
-        password = '';
-        totpCode = '';
-        error = '';
-        mode = mode === 'password' ? 'totp' : 'password';
+        await MFAEndpoint.reauthenticate.create({
+          code: totpCode
+        });
+        toast.success('Code TOTP validé');
+        onSuccess?.();
+        closeModal();
+      }
+    } catch (err: any) {
+      console.error('Erreur de ré-authentification:', err);
+          
+      if (err.response?.status === 400) {
+        error = mode === 'password' 
+          ? 'Mot de passe incorrect'
+          : 'Code d\'authentification invalide';
+      } else {
+        error = 'Une erreur est survenue. Veuillez réessayer.';
+      }
+    } finally {
+      loading = false;
     }
+  }
+
+  function handleKeydown(event: KeyboardEvent) {
+    if (event.key === 'Enter') {
+      handleSubmit();
+    }
+  }
+
+  function switchMode() {
+    // Réinitialiser les champs et erreurs lors du changement de mode
+    password = '';
+    totpCode = '';
+    error = '';
+    mode = mode === 'password' ? 'totp' : 'password';
+  }
 </script>
 
 <Dialog.Root bind:open={isOpen}>
@@ -131,13 +131,13 @@
                 <div class="space-y-2">
                     <Label for="password">Mot de passe</Label>
                     <Input
-                        id="password"
-                        type="password"
-                        bind:value={password}
-                        placeholder="Saisissez votre mot de passe"
-                        disabled={loading}
-                        onkeydown={handleKeydown}
-                        class="w-full"
+                      id="password"
+                      type="password"
+                      bind:value={password}
+                      placeholder="Saisissez votre mot de passe"
+                      disabled={loading}
+                      onkeydown={handleKeydown}
+                      class="w-full"
                     />
                 </div>
             {:else}

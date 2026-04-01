@@ -1,7 +1,8 @@
 <script lang="ts">
   import { cn } from "@/utilities/common/css";
   import type { WithElementRef } from "@/utilities/common/types";
-  import type { VariantProps, tv } from "tailwind-variants";
+  import { tv } from "tailwind-variants";
+  import type { VariantProps } from "tailwind-variants";
   import type { SvelteComponent } from "svelte";
   import type { HTMLButtonAttributes } from "svelte/elements";
 
@@ -10,6 +11,7 @@
     base: "animate-spin text-white mx-3", 
     variants: {
       size: {
+        xs: "size-4",
         small: "size-6",
         medium: "size-8",
         large: "size-12",

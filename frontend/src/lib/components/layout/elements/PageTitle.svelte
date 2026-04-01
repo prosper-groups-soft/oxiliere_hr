@@ -1,9 +1,11 @@
-<script lang='ts'>
-  import { getOrganizationName } from "@/stores/auth";
+<script lang="ts">
+  import { auth } from "@/features/auth/stores/auth.svelte";
 
-  const {title} : {title: string} = $props();
+  const { title }: { title: string } = $props();
 </script>
 
+
 <svelte:head>
-  <title>{title} | {getOrganizationName()}</title>
+  <title>{title} | {auth.organizationName}</title>
 </svelte:head>
+

@@ -1,24 +1,8 @@
 <script lang="ts">
-  import PlaceholderPage from "@/components/layout/elements/PlaceholderPage.svelte";
-  import { Clock } from "@lucide/svelte";
+  import { goto } from '$app/navigation';
 
-  const features = [
-    "Dashboard Opérationnel (Indicateurs temps réel)",
-    "Registre Journalier (Grille haute performance)",
-    "Timeline journalière visuelle par employé",
-    "Configuration des Cycles et Rotations",
-    "Command Palette pour pointage rapide"
-  ];
+  // Redirect to the default tab if someone navigates to /attendance directly
+  $effect(() => {
+    goto('/attendance/register', { replaceState: true });
+  });
 </script>
-
-
-<PlaceholderPage 
-  title="Présences" 
-  description="Gestion du temps et suivi des présences."
-  icon={Clock}
-  {features} 
-/>
-
-
-
-

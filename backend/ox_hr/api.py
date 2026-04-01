@@ -30,7 +30,7 @@ api.register_controllers(
     *get_all_ctrls_attendance(),  # Attendance Module
     *get_all_ctrls_jobs(),        # Jobs Module
     *get_all_ctrls_recruitment(), # Recruitment Module
-    *get_all_ctrls_banking(),     # Banking Module
+    *get_all_ctrls_banking(),     # Banking Module 
     *get_all_ctrls_calendar(),    # Calendar Module
     *get_all_ctrls_payroll(),     # Payroll Module
 )

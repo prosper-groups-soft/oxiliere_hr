@@ -2,11 +2,10 @@
 import { queryOptions } from '@tanstack/svelte-query';
 import { MonEndpoint } from '../endpoints/MonEndpoint';
 
-
 export const monQueryOptions = {
-  list: () => queryOptions({
-    queryKey: ['items'],
-    queryFn: () => MonEndpoint.items.list(),
-  }),
+	list: () =>
+		queryOptions({
+			queryKey: ['items'],
+			queryFn: () => MonEndpoint.items.list()
+		})
 };
-

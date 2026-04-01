@@ -14,6 +14,7 @@
   import { QueryClient, QueryClientProvider } from '@tanstack/svelte-query';
   import type { Snippet } from 'svelte';
   import AppModeWatcher from './AppModeWatcher.svelte';
+  import ConfirmDialog from '@/components/shared/modals/ConfirmDialog.svelte';
 
   let { children }: { children: Snippet } = $props();
 
@@ -66,5 +67,6 @@
     {@render children()}
   </PageLayout>
   <Toaster richColors class="pointer-events-auto" />
+  <ConfirmDialog />
 </QueryClientProvider>
 

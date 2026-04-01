@@ -31,7 +31,7 @@
 	} from '@tanstack/table-core';
 	import type { Snippet } from 'svelte';
 	import Empty from '../Empty.svelte';
-	import ErrorWidget from '../ErrorWidget.svelte';
+	import ErrorWidget from '../errors/ErrorWidget.svelte';
 	import Loader from '../Loader.svelte';
 	import type { SearchProps, setFilterFn } from './types';
 

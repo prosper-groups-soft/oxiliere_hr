@@ -7,7 +7,7 @@
   export const alertDialogVariants = tv({
     slots: {
       iconContainer: 'flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-white z-10 transition-transform duration-300',
-      confirmButton: 'inline-flex h-9 w-full sm:w-[50%] rounded-md text-sm font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all outline-none focus-visible:ring-2 focus-visible:ring-offset-2 items-center justify-center min-w-[150px] cursor-pointer hover:brightness-110 active:scale-95'
+      confirmButton: 'inline-flex h-9 w-full sm:w-[50%] rounded-md text-sm font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all outline-none focus-visible:ring-2 focus-visible:ring-offset-2 items-center justify-center min-w-[150px] cursor-pointer hover:brightness-110'
     },
     variants: {
       type: {
@@ -64,12 +64,17 @@
   const circumference = normalizedRadius * 2 * Math.PI;
 
   const baseColors = { 
-    info: '#3b82f6', danger: '#ef4444', warning: '#f59e0b', success: '#10b981' 
+    info: '#3b82f6', danger: '#fca5a5', warning: '#f59e0b', success: '#10b981' 
+  };
+
+  const progressColors = {
+    info: '#3b82f6', danger: '#ef4444', warning: '#f59e0b', success: '#10b981'
   };
 
   // Reactive Derived Values
   const strokeDashoffset = $derived(circumference - (progress / 100) * circumference);
   const activeColor = $derived(baseColors[type ?? 'info']);
+  const progressColor = $derived(progressColors[type ?? 'info']);
 
   /**
    * Main logic effect: handle auto-close and body scrolling
@@ -135,16 +140,16 @@
     onInteractOutside={(e) => e.preventDefault()}
     style="--pulse-color: {activeColor}80; --active-color: {activeColor};"
     class={cn(
-      'z-50 shadow-2xl bg-white p-8 border-none rounded-3xl transition-all duration-300',
+      'z-50 shadow-2xl bg-white px-0 py-7 border-none rounded-2xl transition-all duration-300',
       isPulsing && 'pulse-animation',
       className
     )}
     onanimationend={() => (isPulsing = false)}
   >
-    <div class="flex flex-col items-center text-center space-y-6">
+    <div class="flex flex-col items-center text-center space-y-3">
       {#if show_icon}
         <!-- Container with Flex centering for the Icon and Absolute for SVG -->
-        <div class="relative h-24 w-24 flex items-center justify-center">
+        <div class="relative h-26 w-26 flex items-center justify-center">
           {#if autoCloseMs > 0}
             <!-- SVG uses viewBox 100 100 for perfect relative centering -->
             <svg class="absolute inset-0 -rotate-90 transform z-0 w-full h-full" viewBox="0 0 100 100">
@@ -152,7 +157,7 @@
               <circle 
                 cx="50" cy="50" r={normalizedRadius} 
                 fill="transparent" 
-                stroke="var(--active-color)" 
+                stroke={progressColor} 
                 stroke-width={stroke} 
                 stroke-dasharray={circumference}
                 stroke-dashoffset={strokeDashoffset}
@@ -164,29 +169,30 @@
           
           <div class={cn(styles.iconContainer(), isPulsing && 'icon-shake-animation')}>
             <AppIcon 
-              name={type === 'danger' ? 'shield-alert' : type === 'warning' ? 'alert-triangle' : type === 'success' ? 'check-circle' : 'info'} 
-              size={36} 
+              name={type === 'danger' ? 'shield-alert' : type === 'warning' ? 'alert-triangle' : type === 'success' ? 'circle-check' : 'info'} 
+              size={44} 
+              strokeWidth={0.8}
               style="color: var(--active-color)"
             />
           </div>
         </div>
       {/if}
 
-      <div class="space-y-2">
-        <AlertDialog.Title class="text-xl font-black text-slate-900 tracking-tight leading-none">
+      <div class="space-y-2 mt-2">
+        <AlertDialog.Title class="text-[0.95rem] font-bold text-slate-900 tracking-tight leading-none">
           {title}
         </AlertDialog.Title>
-        <AlertDialog.Description class="text-slate-600 text-[0.875rem] max-w-md mx-auto leading-relaxed">
+        <AlertDialog.Description class="text-slate-600 text-[0.86rem] max-w-md mx-auto leading-relaxed">
           {message}
         </AlertDialog.Description>
       </div>
 
-      <AlertDialog.Footer class="w-full flex flex-col sm:flex-row justify-center gap-3">
+      <AlertDialog.Footer class="w-full flex flex-col sm:flex-row sm:justify-center items-center gap-3 mt-4">
         {#if showCancel}
           <button 
             type="button" 
             onclick={handleNo} 
-            class="h-9 text-sm px-4 w-full sm:w-[50%] font-medium rounded-md shadow-sm hover:bg-slate-50 border border-slate-200 transition-all cursor-pointer active:scale-95"
+            class="h-8 text-[0.85rem] font-medium rounded-lg shadow-fine hover:bg-slate-50 border border-slate-200 transition-all cursor-pointer w-[40%]!"
           >
             {noText}
           </button>
@@ -195,9 +201,9 @@
           type="button" 
           onclick={handleYes} 
           disabled={loading} 
-          class={cn(styles.confirmButton())}
+          class={cn(styles.confirmButton(), 'h-8 text-[0.85rem] rounded-lg w-[40%]!')}
         >
-          {#if loading}<Spinner size="small" class="mr-2 border-white" />{/if}
+          {#if loading}<Spinner size="xs" class="border-white" />{/if}
           {yesText}
         </button>
       </AlertDialog.Footer>

@@ -3,11 +3,11 @@
 	import { appModeManager } from '@/hooks/is-organization.svelte';
 	import { organizationQueryOptions } from '@/api/queries/organizations';
   import { browser } from '$app/environment';
-	import { current_organization_store } from '@/stores/auth';
+	import { auth } from '@/features/auth/stores/auth.svelte';
 	
   $effect(() => {
     if (browser && appModeManager.isOrganizationMode){
-      if ($current_organization_store && $current_organization_store.slug == appModeManager.orgSlug){
+      if (auth.currentOrganization && auth.currentOrganization.slug == appModeManager.orgSlug){
         return;
       }
 
@@ -15,7 +15,7 @@
 
       const unsub = currentOrgQuery.subscribe((value) => {
         if (value.isSuccess){
-          current_organization_store.set(value.data)
+          auth.currentOrganization = value.data;
         }
       });
 
@@ -23,7 +23,7 @@
         unsub();
       }
     } else {
-      current_organization_store.set(null);
+      auth.currentOrganization = null;
     }
   });
 </script>

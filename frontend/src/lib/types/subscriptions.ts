@@ -21,7 +21,6 @@ export interface SubscriptionPlan {
 	sort_order: number;
 }
 
-
 export interface UserSubscription {
 	id: string;
 	subscription_plan: SubscriptionPlan;
@@ -34,38 +33,42 @@ export interface UserSubscription {
 	next_billing_date?: string;
 }
 
-
 export interface StartTrialRequest {
 	plan_name: string;
 	billing_cycle: 'monthly' | 'yearly';
 }
-
 
 export interface UpgradeSubscriptionRequest {
 	plan_name: string;
 	billing_cycle: 'monthly' | 'yearly';
 }
 
-
 export type BillingCycle = 'monthly' | 'yearly';
 export type CurrencyCode = 'USD' | 'CDF';
 export type PaymentMethod = 'card' | 'bank_transfer';
 
-export type PlanName = 'free' | 'trial' | 'individual' | 'micro' | 'small' | 'medium' | 'large' | 'enterprise';
+export type PlanName =
+	| 'free'
+	| 'trial'
+	| 'individual'
+	| 'micro'
+	| 'small'
+	| 'medium'
+	| 'large'
+	| 'enterprise';
 
 export interface Billing {
-  is_active: boolean;
-  billing_name: string;
-  billing_email: string;
-  company_name: string;
-  tax_number: string;
-  street_address: string;
-  city: string;
-  postal_code: string;
-  country: 'CD';
-  preferred_currency: CurrencyCode;
-  preferred_payment_method: PaymentMethod;
-  auto_pay: boolean;
-  invoice_notes: string;
-};
-
+	is_active: boolean;
+	billing_name: string;
+	billing_email: string;
+	company_name: string;
+	tax_number: string;
+	street_address: string;
+	city: string;
+	postal_code: string;
+	country: 'CD';
+	preferred_currency: CurrencyCode;
+	preferred_payment_method: PaymentMethod;
+	auto_pay: boolean;
+	invoice_notes: string;
+}

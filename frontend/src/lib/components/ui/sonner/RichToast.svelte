@@ -12,7 +12,7 @@
   } = $props<{
     id: string | number;
     message: string;
-    type?: 'success' | 'error' | 'info';
+    type?: 'success' | 'error' | 'info' | 'warning';
     duration?: number;
   }>();
 
@@ -52,10 +52,12 @@
     switch (type) {
       case 'error': 
         return { icon: 'alert', color: 'text-red-600', bar: 'bg-red-600' };
+      case 'warning': 
+        return { icon: 'triangle-alert', color: 'text-amber-600', bar: 'bg-amber-600' };
       case 'info': 
         return { icon: 'info', color: 'text-blue-600', bar: 'bg-blue-600' };
       default: 
-        return { icon: 'check', color: 'text-emerald-600', bar: 'bg-emerald-600' };
+        return { icon: 'circle-check', color: 'text-emerald-600', bar: 'bg-emerald-600' };
     }
   });
 
@@ -69,32 +71,25 @@
   }
 </script>
 
-<div class="relative w-full bg-white dark:bg-slate-900 border rounded-xl shadow-lg overflow-hidden min-w-100">
+
+<div class="relative w-full bg-white dark:bg-slate-900 border rounded-t-lg shadow-fine overflow-hidden min-w-98 flex justify-between items-center">
   <div class="p-4 flex items-start gap-3">
     <div class={cn("mt-0.5", config.color)}>
-      <AppIcon name={config.icon} size={40} strokeWidth={1} />
+      <AppIcon name={config.icon} size={44} strokeWidth={0.8} />
     </div>
     
-    <div class="flex-1 space-y-2">
+    <div class="flex-1">
       <div class="flex items-center justify-between">
         <p class="font-bold text-slate-900 text-[0.9rem] dark:text-white leading-tight">
           {message}
         </p>
-        <div class="flex items-center gap-1">
-          <button 
-            onclick={() => sonnerToast.dismiss(id)}
-            class="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors text-slate-500 cursor-pointer"
-          >
-            <AppIcon name="x" size={20} />
-          </button>
-        </div>
       </div>
       
-      <p class="text-sm text-slate-700 leading-normal">
-        Fermeture dans <span class="font-bold text-sm text-slate-700 dark:text-slate-300">{secondsLeft}</span> secondes. 
+      <p class="text-[0.8rem] text-slate-700 leading-normal">
+        Fermeture dans <span class="font-bold text-[0.8rem] text-slate-700 dark:text-slate-300">{secondsLeft}</span> secondes. 
         <button 
           onclick={togglePause}
-          class="font-bold hover:underline cursor-pointer ml-1 text-sm"
+          class="font-bold hover:underline cursor-pointer ml-1 text-[0.8rem]"
         >
           {isPaused ? 'Reprendre.' : 'Arrêter.'}
         </button>
@@ -102,7 +97,16 @@
     </div>
   </div>
 
-  <div class="absolute bottom-0 left-0 h-1 w-full bg-slate-100 dark:bg-slate-800">
+  <div class="flex items-center gap-1 mr-4">
+    <button 
+      onclick={() => sonnerToast.dismiss(id)}
+      class="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors text-slate-500 cursor-pointer"
+    >
+      <AppIcon name="x" size={20} />
+    </button>
+  </div>
+
+  <div class="absolute bottom-0 left-0 h-[5px] w-full bg-slate-100 dark:bg-slate-800">
     <div 
       class={cn("absolute bottom-0 left-0 h-full transition-all duration-75 ease-linear", config.bar)}
       style="width: {progress}%"

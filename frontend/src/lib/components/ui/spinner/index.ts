@@ -1,3 +1,3 @@
-import Root from "./spinner.svelte";
+import Root from './spinner.svelte';
 
-export {Root as Spinner};
+export { Root as Spinner };

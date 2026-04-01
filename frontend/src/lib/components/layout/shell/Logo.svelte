@@ -28,7 +28,7 @@
 
 <img
   class={cn(
-    "h-10 object-contain transition-all duration-300", 
+    "h-8 object-contain transition-all duration-300", 
     expanded 
       ? "object-left -ml-0.75 mr-0.75 w-auto" 
       : "w-5 object-center"

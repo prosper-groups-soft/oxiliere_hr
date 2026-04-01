@@ -36,7 +36,7 @@
       <!-- Stable Home Anchor: Never animates to provide a visual focal point -->
       <Breadcrumb.Item>
         <Breadcrumb.Link href="/" class="flex items-center px-1 hover:text-primary transition-colors">
-          <AppIcon name="home" size={16} class="text-slate-600"/>
+          <AppIcon name="home" size={17} class="text-slate-600"/>
         </Breadcrumb.Link>
       </Breadcrumb.Item>
 
@@ -61,13 +61,13 @@
             {#if item.isEllipsis}
               <Breadcrumb.Ellipsis class="size-4 text-slate-500" />
             {:else if i === displayItems.length - 1}
-              <Breadcrumb.Page class="text-[0.84rem] font-medium text-slate-900 leading-none px-1">
+              <Breadcrumb.Page class="text-[0.845rem] font-medium text-slate-900 leading-none px-1">
                 {item.label}
               </Breadcrumb.Page>
             {:else}
               <Breadcrumb.Link 
                 href={item.href} 
-                class="text-[0.84rem] text-slate-700 hover:text-indigo-800 transition-colors leading-none px-1"
+                class="text-[0.845rem] text-slate-700 hover:text-indigo-800 transition-colors leading-none px-1"
               >
                 {item.label}
               </Breadcrumb.Link>

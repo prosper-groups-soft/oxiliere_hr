@@ -104,7 +104,26 @@ def cache_api_response(timeout=60*5, key_prefix="api_cache", user_specific=True)
     """
     def decorator(func):
         @wraps(func)
-        def wrapper(request, *args, **kwargs):
+        def wrapper(*args, **kwargs):
+            # Intelligent detection of the request object
+            request = None
+            
+            # Case 1: First argument is the request (simple function)
+            if args and hasattr(args[0], 'get_full_path'):
+                request = args[0]
+            # Case 2: First argument is 'self' (Ninja Extra Controller)
+            elif args and hasattr(args[0], 'context') and hasattr(args[0].context, 'request'):
+                request = args[0].context.request
+            # Case 3: Search in kwargs (fallback)
+            else:
+                request = kwargs.get('request')
+
+            if not request:
+                raise AttributeError(
+                    f"Cache decorator: Could not find HttpRequest object in "
+                    f"arguments or controller context for {func.__name__}"
+                )
+
             # Construction of the key
             path = request.get_full_path()
             
@@ -119,7 +138,7 @@ def cache_api_response(timeout=60*5, key_prefix="api_cache", user_specific=True)
             if cached_data is not None:
                 return cached_data
             
-            response_data = func(request, *args, **kwargs)
+            response_data = func(*args, **kwargs)
             cache.set(cache_key, response_data, timeout)
             
             return response_data

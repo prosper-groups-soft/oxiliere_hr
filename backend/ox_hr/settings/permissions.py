@@ -36,10 +36,6 @@ PERMISSION_PRESET = {
             "slug": "hr_manager"
         },
         {
-            "name": "Gestionnaire de Paie", 
-            "slug": "payroll_manager"
-        },
-        {
             "name": "Employé", 
             "slug": "employee"
         },
@@ -58,17 +54,20 @@ PERMISSION_PRESET = {
         {
             "name": "Direction RH",
             "slug": "hr_dir",
-            "roles": ["hr_manager", "payroll_manager"]
+            "roles": ["hr_manager"]
         },
     ],
     "role_grants": [
         # --- ROLE: ADMIN ---
-        # Full access to all scopes
-        {
-            "role": "admin",
-            "scope": "*",
-            "actions": ["r", "w", "d", "u", "a"],
-        },
+        # Full access to all specified scopes
+        *[
+            {
+                "role": "admin",
+                "scope": scope,
+                "actions": ["r", "w", "d", "u", "a"],
+            }
+            for scope in ACCESS_SCOPES
+        ],
 
         # --- ROLE: HR MANAGER ---
         # Full operational management + Read access to access
@@ -111,24 +110,6 @@ PERMISSION_PRESET = {
             "role": "hr_manager", 
             "scope": "payroll", 
             "actions": ["r", "a"] # Final consultation and validation
-        },
-
-        # --- ROLE: PAYROLL MANAGER ---
-        # Focus on payroll, banking, and employees (read only)
-        {
-            "role": "payroll_manager", 
-            "scope": "payroll", 
-            "actions": ["r", "w", "u", "d", "a"]
-        },
-        {
-            "role": "payroll_manager", 
-            "scope": "banking", 
-            "actions": ["r", "w", "u", "d"]
-        },
-        {
-            "role": "payroll_manager", 
-            "scope": "employees", 
-            "actions": ["r"] # Read only for payslips
         },  
 
         # --- ROLE: EMPLOYEE ---

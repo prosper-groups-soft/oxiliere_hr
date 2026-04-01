@@ -22,9 +22,9 @@ import OxilereError from '@/utilities/errors';
 
 // Avec n'importe quelle erreur
 try {
-  await someApiCall();
+	await someApiCall();
 } catch (error) {
-  showError(error); // Détecte automatiquement le type d'erreur
+	showError(error); // Détecte automatiquement le type d'erreur
 }
 
 // Avec une OxilereError spécifique
@@ -42,9 +42,9 @@ import OxilereError from '@/utilities/errors';
 const error = OxilereError.parse(response);
 
 toast.error(ValidationErrorToast, {
-  duration: 5000,
-  dismissible: true,
-  componentProps: { error }
+	duration: 5000,
+	dismissible: true,
+	componentProps: { error }
 });
 ```
 
@@ -55,10 +55,10 @@ import { createMutation } from '@tanstack/svelte-query';
 import { showError } from '@/utilities/toast-error';
 
 const mutation = createMutation({
-  mutationFn: updateUser,
-  onError: (error) => {
-    showError(error);
-  }
+	mutationFn: updateUser,
+	onError: (error) => {
+		showError(error);
+	}
 });
 ```
 
@@ -73,6 +73,7 @@ const mutation = createMutation({
 ## Design
 
 Tous les composants suivent la même structure :
+
 - Icône colorée à gauche (5x5)
 - Titre en gras (text-sm)
 - Message descriptif (text-xs text-muted-foreground)

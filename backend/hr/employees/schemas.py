@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Optional, List
 from datetime import date
+from uuid import UUID
 from pydantic import Field as PydanticField
 
 from ninja import Field, Schema
@@ -225,7 +226,10 @@ class StatusHistoryOut(ModelSchema):
 
 
 class EmployeeCreate(ModelSchema):
-    """ Onboarding a new employee. """
+    """ Creation of a new employee profile. """
+    create_account: bool = False
+    group_slug: Optional[str] = None
+
     class Meta:
         model = Employee
         fields = [
@@ -426,4 +430,31 @@ class WorkSiteFilterIn(BaseFilter):
     
     def filter_search(self, value: str) -> Q:
         return Q(name__icontains=value)
+
+
+#  -------- User Management Schemas --------
+
+class UserOut(Schema):
+    id: UUID
+    email: str
+    username: str
+    first_name: str
+    last_name: str
+    is_active: bool
+    groups: List[str]
+
+class UserCreateIn(Schema):
+    email: str
+    first_name: str
+    last_name: str
+    password: Optional[str] = None
+    is_active: bool = True
+    groups: List[str] = []
+
+class UserUpdateIn(Schema):
+    email: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    is_active: Optional[bool] = None
+    groups: Optional[List[str]] = None
 

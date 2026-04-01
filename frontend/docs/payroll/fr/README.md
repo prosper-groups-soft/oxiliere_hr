@@ -32,4 +32,3 @@ Une interface dédiée au suivi des prêts et remboursements.
     Separator : Pour structurer les différentes sections du bulletin de paie de manière élégante.
     Tooltip : Pour expliquer les acronymes légaux (ex: "CNSS : Caisse Nationale de Sécurité Sociale").
     Stats Card : Pour afficher les totaux globaux (Net total, Total cotisations) en haut de page.
-

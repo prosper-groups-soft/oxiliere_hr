@@ -21,14 +21,6 @@ Pour les cycles et rotations, oubliez les formulaires classiques.
     Visualiseur de Cycles : Une vue en calendrier ou en "timeline" infinie où l'on fait glisser les Shifts sur les Employés.
     Preview de Conformité : Un panneau qui calcule en temps réel l'impact d'une rotation sur le coût estimé des heures supp' avant même de sauvegarder.
 
-## 4. La "Command Palette" (Le secret du haut niveau)
-
-Intégrez une barre de recherche globale (Ctrl+K) permettant de :
-
-    Pointage manuel rapide : > Punch In [Nom de l'employé]
-    Navigation : > Go to Timesheets
-    Action système : > Lock current period
-
 ## 5. Choix de composants (Stack technique)
 
 Puisque vous utilisez bits-ui et shadcn/ui, voici les composants à prioriser :
