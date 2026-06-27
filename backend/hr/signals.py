@@ -12,18 +12,18 @@ def employee_post_save(sender, instance, created, **kwargs):
     """
     Signal handler to create or update CareerHistory records when an Employee is saved.
     
-    When an employee is created or their department/position changes, a new CareerHistory
+    When an employee is created or their organization unity/position changes, a new CareerHistory
     record is created to track these changes.
     """
     # Check if we need to create a new CareerHistory entry
     create_new_entry = False
     
     if created:
-        # For newly created employees with a department or position
-        if instance.department is not None or instance.position is not None:
+        # For newly created employees with a organization unity or position
+        if instance.org_unit is not None or instance.position is not None:
             create_new_entry = True
     else:
-        # For existing employees, check if department or position has changed
+        # For existing employees, check if  or position has changed
         try:
             # Get the latest career history for this employee
             latest_history = CareerHistory.objects.filter(
@@ -31,24 +31,24 @@ def employee_post_save(sender, instance, created, **kwargs):
             ).order_by('-start_date').first()
             
             if latest_history:
-                # Check if department or position changed
-                dept_changed = latest_history.department != instance.department
+                # Check if organization unity or position changed
+                org_unit_changed = latest_history.org_unit != instance.org_unit
                 pos_changed = latest_history.position != instance.position
                 
-                if dept_changed or pos_changed:
+                if org_unit_changed or pos_changed:
                     # Close the current entry by setting end_date
                     with transaction.atomic():
                         latest_history.end_date = timezone.now().date()
                         latest_history.save()
                     create_new_entry = True
             else:
-                # No history exists yet, but employee has department or position
-                if instance.department is not None or instance.position is not None:
+                # No history exists yet, but employee has organization unity or position
+                if instance.org_unit is not None or instance.position is not None:
                     create_new_entry = True
                     
         except CareerHistory.DoesNotExist:
-            # No history exists yet, but employee has department or position
-            if instance.department is not None or instance.position is not None:
+            # No history exists yet, but employee has organization unity or position
+            if instance.org_unit is not None or instance.position is not None:
                 create_new_entry = True
     
     # Create a new CareerHistory if needed
@@ -56,7 +56,7 @@ def employee_post_save(sender, instance, created, **kwargs):
         with transaction.atomic():
             CareerHistory.objects.create(
                 employee=instance,
-                department=instance.department,
+                org_unit=instance.org_unit,
                 position=instance.position,
                 start_date=timezone.now().date(),
                 end_date=None,  # Current position has no end date

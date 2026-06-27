@@ -1,3 +1,4 @@
+
 import logging
 from functools import wraps
 from django.core.cache import cache
@@ -216,15 +217,21 @@ def invalidate_cache_prefix(prefix: str):
     """
     Delete all cache keys starting with the given prefix.
     Useful for clearing multi-user API caches.
+    
+    Note: Django adds version prefix like ":1:" to cache keys,
+    so we match *:{prefix}:* not just {prefix}:*
     """
     redis_conn = get_redis_connection("default")
-    # We iteratively scan and delete matching keys
+    
+    pattern = f"*{prefix}*".encode()
     cursor = '0'
+    deleted_count = 0
     while cursor != 0:
-        cursor, keys = redis_conn.scan(cursor=cursor, match=f"{prefix}:*", count=1000)
+        cursor, keys = redis_conn.scan(cursor=cursor, match=pattern, count=1000)
         if keys:
             redis_conn.delete(*keys)
-    logger.info(f"Cache pattern cleared: {prefix}:*")
+            deleted_count += len(keys)
+    logger.info(f"Cache pattern cleared: *{prefix}* (deleted {deleted_count} keys)")
 
 
 def clear_all_cache():
@@ -388,8 +395,8 @@ class CacheKeys:
         return generate_cache_key("hr:employees:matricule", matricule)
     
     @staticmethod
-    def active_employees(department_id=None):
-        return generate_cache_key("hr:employees:active", department_id or "all")
+    def active_employees(org_unit_id=None):
+        return generate_cache_key("hr:employees:active", org_unit_id or "all")
     
     @staticmethod
     def employee_family(employee_id):
@@ -397,8 +404,8 @@ class CacheKeys:
     
     # JOBS
     @staticmethod
-    def department_tree():
-        return "hr:jobs:department_tree"
+    def org_tree():
+        return "hr:jobs:org_tree"
     
     @staticmethod
     def positions_by_family(family_id):
@@ -428,8 +435,8 @@ class CacheKeys:
     
     # RECRUITMENT
     @staticmethod
-    def active_job_offers(department_id=None):
-        return generate_cache_key("hr:recruitment:offers", department_id or "all")
+    def active_job_offers(org_unit_id=None):
+        return generate_cache_key("hr:recruitment:offers", org_unit_id or "all")
     
     @staticmethod
     def qualified_candidates(job_offer_id):

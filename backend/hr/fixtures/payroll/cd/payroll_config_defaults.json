@@ -1,0 +1,24 @@
+[
+  {
+    "model": "hr_payroll.payrollconfiguration",
+    "pk": "00000000-0000-0000-0000-000000000001",
+    "fields": {
+      "currency": "CDF",
+      "default_payment_method": "CASH",
+      "work_hours_per_week": 45,
+      "work_hours_per_month": 195,
+      "housing_allowance_min_percentage": "30.00",
+      "family_allowance_min_amount": "0.00",
+      "family_allowance_smig_divider": "27.00",
+      "overtime_multiplier": "1.50",
+      "include_leaves_in_payroll": true,
+      "leave_deduction_divisor": "26.00",
+      "use_theoretical_days_from_attendance": false,
+      "exchange_rate_usd_cdf": "2950.0000",
+      "created_at": "2026-01-26T00:00:00Z",
+      "updated_at": "2026-01-26T00:00:00Z",
+      "fixed_deduction_per_absent_day": null
+    }
+  }
+]
+

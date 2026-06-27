@@ -21,19 +21,22 @@ from hr.employees.schemas import (
     UserOut, 
     UserCreateIn, 
     UserUpdateIn,
-    BaseFilter
+    BaseFilter,
+    UserFilter,
+    SystemUserOut
 )
-from oxutils.permissions.models import Grant
+from oxutils.permissions.models import UserGroup, Grant
 from oxutils.permissions.perms import ScopePermission
 from oxutils.permissions.utils import assign_group
+from oxutils.oxiliere.utils import get_tenant_user_model
 from django.shortcuts import get_object_or_404
-
+            
 
 User = get_user_model()
-
+TenantUser = get_tenant_user_model()
 
 @api_controller(
-    '/users',
+    '/account',
     tags=['User Management'],
     permissions=[IsAuthenticated & ScopePermission('access:r')]
 )
@@ -42,28 +45,53 @@ class UserController(ControllerBase):
     Controller for managing system users and their accounts.
     """
 
-    @http_get('', response=PaginatedResponseSchema[UserOut])
+    @http_get('', response=PaginatedResponseSchema[SystemUserOut])
     @paginate(PageNumberPaginationExtra, page_size=20)
-    def list_users(self, filters: BaseFilter = Query(...)):
+    def list_users(self, filters: UserFilter = Query(...)):
         """
         List all system users with their assigned group slugs.
+        Returns data in SystemUser format for frontend compatibility.
         """
         queryset = User.objects.all().order_by('-date_joined')
         queryset = filters.filter(queryset)
+        
+        # Get TenantUser data for is_admin/is_owner lookup
+        tenant_users = {tu.user_id: tu for tu in TenantUser.objects.all()}
                 
         users_data = []
         for user in queryset:
-            groups = list(Grant.objects.filter(user_id=user.id, user_group__isnull=False)
-                          .values_list('user_group__group__slug', flat=True).distinct())
+            # Use UserGroup directly to avoid duplicates from multiple Grants per group
+            groups = list(UserGroup.objects.filter(user_id=user.id)
+                          .values_list('group__slug', flat=True).distinct())
             
-            users_data.append({
+            # Get tenant user data if exists
+            tu = tenant_users.get(user.id)
+            is_admin = tu.is_admin if tu else False
+            is_owner = tu.is_owner if tu else False
+            tenant_id = tu.id if tu else user.id
+            
+            # Build nested user object
+            user_data = {
                 "id": user.id,
+                "oxi_id": user.id,  # Same as id for now
                 "email": user.email,
                 "username": user.username,
                 "first_name": user.first_name,
                 "last_name": user.last_name,
                 "is_active": user.is_active,
+                "photo": None,
                 "groups": groups
+            }
+                  
+            users_data.append({
+                "id": tenant_id,
+                "user": user_data,
+                "is_admin": is_admin,
+                "is_owner": is_owner,
+                "status": "active" if user.is_active else "inactive",
+                "is_active": user.is_active,
+                "first_name": user.first_name,  # For convenience
+                "last_name": user.last_name
             })
             
         return users_data
@@ -102,8 +130,9 @@ class UserController(ControllerBase):
         Get details for a specific user including groups.
         """
         user = get_object_or_404(User, id=user_id)
-        groups = list(Grant.objects.filter(user_id=user.id, user_group__isnull=False)
-                      .values_list('user_group__group__slug', flat=True).distinct())
+        # Use UserGroup directly to avoid duplicates from multiple Grants per group
+        groups = list(UserGroup.objects.filter(user_id=user.id)
+                      .values_list('group__slug', flat=True).distinct())
         
         return {
             "id": user.id,
@@ -135,9 +164,6 @@ class UserController(ControllerBase):
 
         # Sync groups if provided
         if data.groups is not None:
-            from oxutils.permissions.models import Grant
-            from oxutils.permissions.utils import assign_group
-            
             # Clear existing groups
             Grant.objects.filter(user_id=user.id, user_group__isnull=False).delete()
             

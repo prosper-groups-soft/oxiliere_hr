@@ -109,6 +109,32 @@ class RegistryController(ControllerBase):
             )
             raise
 
+    @http_post('/daily-registers/unfinalize', response={200: DailyRegisterOut}, permissions=[ScopePermission('attendance:w')])
+    def unfinalize_day(self, data: DailyRegisterFinalizeIn):
+        """ Re-opens a finalized daily register for HR corrections. """
+        logger.info(
+            "Daily register unfinalization requested",
+            extra={"date": data.date},
+        )
+
+        try:
+            register = DailyRegister.objects.get(date=data.date, is_finalized=True)
+        except DailyRegister.DoesNotExist:
+            return self.create_response(
+                {"detail": "No finalized register found for this date."},
+                status_code=404,
+            )
+
+        register.is_finalized = False
+        register.save()
+
+        logger.info(
+            "Daily register successfully unfinalized",
+            extra={"date": data.date, "register_id": register.id},
+        )
+
+        return 200, register
+
     @http_get('/locks', response=List[PeriodArchiveLockOut], permissions=[ScopePermission('attendance:r')])
     @paginate(CursorPagination)
     @cache_api_response(key_prefix="period_lock_list", user_specific=False)

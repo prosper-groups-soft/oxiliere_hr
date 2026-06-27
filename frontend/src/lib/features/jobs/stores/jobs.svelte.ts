@@ -1,212 +1,85 @@
 import type {
-	Department,
 	JobPosition,
 	Vacancy,
 	SeniorityLevelDefinition,
 	Transition,
-	SeniorityLevel
+	JobFamily
 } from '../types/types';
+import type { 
+	OrgUnit, 
+	OrgUnitCreate, 
+	OrgUnitUpdate 
+} from '../types/org.types';
+import { orgService } from '../services/org.service';
 
-const USE_JOBS_MOCK_DATA = false;
 
-// Shared constants for defaults (Localized for RDC)
-export const DEFAULT_SENIORITY_LEVELS: SeniorityLevelDefinition[] = [
-	{ id: 's1', name: 'DÉBUTANT', rank: 1, requirements: ['Diplôme de graduat minimum'] },
-	{
-		id: 's2',
-		name: 'INTERMÉDIAIRE',
-		rank: 2,
-		requirements: ["2+ ans d'expérience", 'Maîtrise des outils de base']
-	},
-	{
-		id: 's3',
-		name: 'CONFIRMÉ',
-		rank: 3,
-		requirements: ["5+ ans d'expérience", 'Autonomie complète']
-	},
-	{
-		id: 's4',
-		name: 'CADRE',
-		rank: 4,
-		requirements: ["10+ ans d'expérience", 'Expérience en management']
-	},
-	{
-		id: 's5',
-		name: 'DIRECTION',
-		rank: 5,
-		requirements: ["15+ ans d'expérience", 'Vision stratégique']
-	}
-];
-
+// Couleurs statiques pour les niveaux de séniorité
 export const STATIC_SENIORITY_COLORS: Record<string, string> = {
-	DÉBUTANT: 'bg-blue-50 text-blue-700 border-blue-200',
-	INTERMÉDIAIRE: 'bg-amber-50 text-amber-700 border-amber-200',
-	CONFIRMÉ: 'bg-green-50 text-green-700 border-green-200',
-	CADRE: 'bg-purple-50 text-purple-700 border-purple-200',
-	DIRECTION: 'bg-red-50 text-red-700 border-red-200'
+	// Débutant (bleu)
+	TRAINEE: 'bg-blue-50 text-blue-700 border-blue-200',
+	APPRENTICE: 'bg-blue-100 text-blue-800 border-blue-300',
+	JUNIOR: 'bg-blue-200 text-blue-900 border-blue-400',
+	// Intermédiaire (ambre)
+	INTERMEDIATE: 'bg-amber-50 text-amber-700 border-amber-200',
+	// Confirmé (vert)
+	SENIOR: 'bg-green-50 text-green-700 border-green-200',
+	// Cadre (violet)
+	LEAD: 'bg-purple-50 text-purple-700 border-purple-200',
+	MANAGER: 'bg-purple-100 text-purple-800 border-purple-300',
+	// Direction (rouge)
+	DIRECTOR: 'bg-red-50 text-red-700 border-red-200',
+	EXECUTIVE: 'bg-red-100 text-red-800 border-red-300'
 };
 
+
 class JobsStore {
-	// Reactive states
-	departments = $state<Department[]>([]);
+	// Reactive states - Org Units
+	orgUnits = $state<OrgUnit[]>([]);
 	positions = $state<JobPosition[]>([]);
 	seniorityLevels = $state<SeniorityLevelDefinition[]>([]);
+	jobFamilies = $state<JobFamily[]>([]);
 	vacancies = $state<Vacancy[]>([]);
 	transitions = $state<Transition[]>([]);
 
 	// Selection/UI states
-	selectedDeptId = $state<string | null>(null);
+	selectedOrgUnitId = $state<string | null>(null);
 	searchQuery = $state('');
 
 	constructor() {
-		// Initialize with defaults if not provided (or mock)
-		const useMockData = USE_JOBS_MOCK_DATA;
-		if (useMockData) {
-			this.initializeMockData();
-		} else {
-			this.seniorityLevels = [...DEFAULT_SENIORITY_LEVELS];
-		}
+		// Les niveaux de séniorité sont chargés dynamiquement depuis le backend
+		this.seniorityLevels = [];
 	}
 
-	/**
-	 * Mock data initialization for development
-	 */
-	private initializeMockData() {
-		this.departments = [
-			{
-				id: '1',
-				name: 'Direction Générale',
-				type: 'DEPARTMENT',
-				parentId: null,
-				managerId: 'm1',
-				managerName: 'Jean Dupont',
-				affointId: null,
-				authorizedHeadcount: 5
-			},
-			{
-				id: '2',
-				name: 'Technique',
-				type: 'DEPARTMENT',
-				parentId: '1',
-				managerId: 'm2',
-				managerName: 'Alice Martin',
-				affointId: 'm6',
-				authorizedHeadcount: 25
-			},
-			{
-				id: '3',
-				name: 'Produit',
-				type: 'DEPARTMENT',
-				parentId: '1',
-				managerId: 'm3',
-				managerName: 'Bob Smith',
-				affointId: null,
-				authorizedHeadcount: 12
-			},
-			{
-				id: '4',
-				name: 'Frontend',
-				type: 'TEAM',
-				parentId: '2',
-				managerId: 'm4',
-				managerName: 'Charlie Brown',
-				affointId: null,
-				authorizedHeadcount: 10
-			},
-			{
-				id: '5',
-				name: 'Backend',
-				type: 'TEAM',
-				parentId: '2',
-				managerId: 'm5',
-				managerName: 'Diana Prince',
-				affointId: null,
-				authorizedHeadcount: 15
-			}
-		];
+	// Charger les niveaux de séniorité depuis le backend
+	setSeniorityLevels(levels: SeniorityLevelDefinition[]) {
+		this.seniorityLevels = levels;
+	}
 
-		this.positions = [
-			{
-				id: 'p1',
-				title: 'Senior Frontend Dev',
-				departmentId: '4',
-				seniority: 'CONFIRMÉ',
-				salaryRange: { min: 45000, max: 65000, currency: 'EUR' },
-				requirements: ['Vue.js', 'TypeScript', 'Svelte 5'],
-				skills: [
-					{ name: 'Javascript', level: 5 },
-					{ name: 'UI/UX', level: 4 }
-				]
-			},
-			{
-				id: 'p2',
-				title: 'Junior Frontend Dev',
-				departmentId: '4',
-				seniority: 'DÉBUTANT',
-				salaryRange: { min: 35000, max: 42000, currency: 'EUR' },
-				requirements: ['Javascript', 'CSS'],
-				skills: [{ name: 'Javascript', level: 3 }]
-			}
-		];
-
-		this.seniorityLevels = [...DEFAULT_SENIORITY_LEVELS];
-
-		this.vacancies = [
-			{
-				id: 'v1',
-				positionId: 'p2',
-				openedDate: '2026-02-01',
-				priority: 'HIGH',
-				status: 'OPEN'
-			}
-		];
-
-		this.transitions = [
-			{
-				id: 't1',
-				employeeId: 'e1',
-				type: 'PROMOTION',
-				date: '2026-01-15',
-				fromPositionId: 'p2',
-				toPositionId: 'p1',
-				fromDepartmentId: '4',
-				toDepartmentId: '4',
-				reason: 'Excellente performance annuelle'
-			},
-			{
-				id: 't2',
-				employeeId: 'e2',
-				type: 'TRANSFER',
-				date: '2026-02-10',
-				fromPositionId: 'p1',
-				toPositionId: 'p1',
-				fromDepartmentId: '5',
-				toDepartmentId: '4',
-				reason: 'Renforcement équipe frontend'
-			}
-		];
+	// Charger les familles de métiers depuis le backend
+	setJobFamilies(families: JobFamily[]) {
+		this.jobFamilies = families;
 	}
 
 	// --- Derived states ---
 
 	/**
-	 * Returns a map of departments by parentId for tree building
+	 * Returns a map of org units by parentId for tree building
 	 */
-	get departmentsByParent() {
-		const map = new Map<string | null, Department[]>();
-		this.departments.forEach((dept) => {
-			const children = map.get(dept.parentId) || [];
-			children.push(dept);
-			map.set(dept.parentId, children);
+	get orgUnitsByParent() {
+		const map = new Map<string | null, OrgUnit[]>();
+		this.orgUnits.forEach((orgUnit) => {
+			const children = map.get(orgUnit.parentId) || [];
+			children.push(orgUnit);
+			map.set(orgUnit.parentId, children);
 		});
 		return map;
 	}
 
 	/**
-	 * Root departments (parentId === null)
+	 * Root org units (parentId === null)
 	 */
-	get rootDepartments() {
-		return this.departments.filter((d) => d.parentId === null);
+	get rootOrgUnits() {
+		return this.orgUnits.filter((orgUnit) => orgUnit.parentId === null);
 	}
 
 	/**
@@ -227,50 +100,74 @@ class JobsStore {
 
 	// --- Actions ---
 
-	setDept(id: string | null) {
-		this.selectedDeptId = id;
+	/**
+	 * Charge les unités org depuis le backend
+	 * Appelé par les queries après un fetch
+	 */
+	setOrgUnits(orgUnits: OrgUnit[]) {
+		this.orgUnits = orgUnits;
 	}
 
-	getDepartmentById(id: string) {
-		return this.departments.find((d) => d.id === id);
+	setOrgUnit(id: string | null) {
+		this.selectedOrgUnitId = id;
 	}
 
-	getChildDepartments(parentId: string) {
-		return this.departments.filter((d) => d.parentId === parentId);
+	// --- Org Unit Actions (modern naming) ---
+
+	getOrgUnitById(id: string) {
+		return this.orgUnits.find((u) => u.id === id);
 	}
 
-	addDepartment(dept: Omit<Department, 'id'>) {
-		const newDept: Department = {
-			...dept,
-			id: crypto.randomUUID()
-		};
-		this.departments = [...this.departments, newDept];
-		return newDept;
+	getChildOrgUnits(parentId: string) {
+		return this.orgUnits.filter((u) => u.parentId === parentId);
 	}
 
-	updateDepartment(id: string, data: Partial<Omit<Department, 'id'>>) {
-		this.departments = this.departments.map((d) => (d.id === id ? { ...d, ...data } : d));
-	}
-
-	deleteDepartment(id: string) {
-		// Re-parent children to the deleted dept's parent
-		const dept = this.getDepartmentById(id);
-		if (dept) {
-			this.departments = this.departments
-				.filter((d) => d.id !== id)
-				.map((d) => (d.parentId === id ? { ...d, parentId: dept.parentId } : d));
+	getDeleteOrgUnitGuard(orgUnit: OrgUnit): string | null {
+		const childCount = this.getChildOrgUnits(orgUnit.id).length;
+		if (childCount > 0) {
+			return `Impossible de supprimer "${orgUnit.name}" tant qu'il contient ${childCount} sous-unité(s). Déplacez ou supprimez d'abord les sous-unités.`;
 		}
+
+		const activeEmployees = orgUnit.employeeCount ?? 0;
+		if (activeEmployees > 0) {
+			return `Impossible de supprimer "${orgUnit.name}" tant que ${activeEmployees} employé(s) y sont encore affecté(s). Réaffectez-les d'abord.`;
+		}
+
+		return null;
+	}
+
+	async addOrgUnit(data: OrgUnitCreate) {
+		const newUnit = await orgService.createOrgUnit(data);
+		this.orgUnits = [...this.orgUnits, newUnit];
+		return newUnit;
+	}
+
+	async updateOrgUnit(id: string, data: OrgUnitUpdate) {
+		const updatedOrgUnit = await orgService.updateOrgUnit(id, data);
+		this.orgUnits = this.orgUnits.map((u) => (u.id === id ? updatedOrgUnit : u));
+		return updatedOrgUnit;
+	}
+
+	async deleteOrgUnit(id: string) {
+		await orgService.deleteOrgUnit(id);
+		this.orgUnits = this.orgUnits.filter((u) => u.id !== id);
+		if (this.selectedOrgUnitId === id) {
+			this.selectedOrgUnitId = null;
+		}
+	}
+
+	async transferLeadership(orgUnitId: string, newManagerId: string) {
+		const updatedOrgUnit = await orgService.transferLeadership(orgUnitId, newManagerId);
+		this.orgUnits = this.orgUnits.map((u) => (u.id === orgUnitId ? updatedOrgUnit : u));
+		return updatedOrgUnit;
 	}
 
 	// --- Positions Actions ---
 
 	addPosition(pos: Omit<JobPosition, 'id'>) {
-		const newPos: JobPosition = {
-			...pos,
-			id: crypto.randomUUID()
-		};
-		this.positions = [...this.positions, newPos];
-		return newPos;
+		// TODO: Call backend API to create, then add to store with returned ID
+		console.warn('addPosition: Backend integration needed to get ID');
+		return pos as JobPosition;
 	}
 
 	updatePosition(id: string, data: Partial<Omit<JobPosition, 'id'>>) {
@@ -284,12 +181,9 @@ class JobsStore {
 	// --- Seniority Actions ---
 
 	addSeniorityLevel(level: Omit<SeniorityLevelDefinition, 'id'>) {
-		const newLevel: SeniorityLevelDefinition = {
-			...level,
-			id: crypto.randomUUID()
-		};
-		this.seniorityLevels = [...this.seniorityLevels, newLevel].sort((a, b) => a.rank - b.rank);
-		return newLevel;
+		// TODO: Call backend API to create, then add to store with returned ID
+		console.warn('addSeniorityLevel: Backend integration needed to get ID');
+		return level as SeniorityLevelDefinition;
 	}
 
 	updateSeniorityLevel(id: string, data: Partial<Omit<SeniorityLevelDefinition, 'id'>>) {
@@ -302,47 +196,60 @@ class JobsStore {
 		this.seniorityLevels = this.seniorityLevels.filter((s) => s.id !== id);
 	}
 
-	restoreDefaultSeniorityLevels() {
-		this.seniorityLevels = [...DEFAULT_SENIORITY_LEVELS];
-	}
-
 	// --- Transitions Actions ---
 
-	addTransition(trans: Omit<Transition, 'id'>) {
-		const newTrans: Transition = {
-			...trans,
-			id: crypto.randomUUID()
-		};
-		this.transitions = [...this.transitions, newTrans];
-		return newTrans;
+	/**
+	 * Charge toutes les transitions depuis le backend
+	 * Appelé par les queries après un fetch
+	 */
+	setTransitions(transitions: Transition[]) {
+		this.transitions = transitions;
 	}
 
-	updateTransition(id: string, data: Partial<Omit<Transition, 'id'>>) {
+	/**
+	 * Ajoute une transition au store (appelé par mutation après succès API)
+	 */
+	addTransition(trans: Transition) {
+		// Vérifier si la transition existe déjà (éviter les doublons)
+		const exists = this.transitions.some((t) => t.id === trans.id);
+		if (!exists) {
+			this.transitions = [trans, ...this.transitions];
+		}
+	}
+
+	/**
+	 * Met à jour une transition dans le store
+	 */
+	updateTransition(id: string, data: Partial<Transition>) {
 		this.transitions = this.transitions.map((t) => (t.id === id ? { ...t, ...data } : t));
 	}
 
+	/**
+	 * Supprime une transition du store
+	 */
 	deleteTransition(id: string) {
 		this.transitions = this.transitions.filter((t) => t.id !== id);
 	}
 
 	// --- Vacancies Actions ---
 
+	setVacancies(vacancies: Vacancy[]) {
+		this.vacancies = vacancies;
+	}
+
 	addVacancy(vac: Omit<Vacancy, 'id'>) {
-		const newVac: Vacancy = {
-			...vac,
-			id: crypto.randomUUID()
-		};
-		this.vacancies = [...this.vacancies, newVac];
-		return newVac;
+		// TODO: Call backend API to create, then add to store with returned ID
+		console.warn('addVacancy: Backend integration needed to get ID');
+		return vac as Vacancy;
 	}
 
 	updateVacancy(id: string, data: Partial<Omit<Vacancy, 'id'>>) {
 		this.vacancies = this.vacancies.map((v) => (v.id === id ? { ...v, ...data } : v));
 	}
-
 	deleteVacancy(id: string) {
 		this.vacancies = this.vacancies.filter((v) => v.id !== id);
 	}
 }
+
 
 export const jobsStore = new JobsStore();

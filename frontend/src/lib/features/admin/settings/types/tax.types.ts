@@ -1,7 +1,5 @@
-// Types Fiscalité IPR & Social - RDC
+import type { Currency } from '@/constants/finance';
 
-// Barème IPR Progressif (Impôt sur le Revenu des Personnes Physiques)
-// Tranches selon la législation fiscale RDC
 
 export interface IPRBracket {
 	id: string;
@@ -9,45 +7,16 @@ export interface IPRBracket {
 	max: number | null; // Seuil supérieur (null = illimité)
 	rate: number; // Taux entre 0 et 1 (ex: 0.03 pour 3%)
 	label: string;
+	readOnly?: boolean; // Fixed by law (RDC Ordonnance 69-102)
 }
 
-// Barème IPR officiel RDC
-export const DEFAULT_IPR_BRACKETS: IPRBracket[] = [
-	{
-		id: 'bracket-1',
-		min: 0,
-		max: 300,
-		rate: 0.03,
-		label: 'Tranche 1 (0 - 300 USD)'
-	},
-	{
-		id: 'bracket-2',
-		min: 300,
-		max: 500,
-		rate: 0.15,
-		label: 'Tranche 2 (300 - 500 USD)'
-	},
-	{
-		id: 'bracket-3',
-		min: 500,
-		max: 1000,
-		rate: 0.30,
-		label: 'Tranche 3 (500 - 1000 USD)'
-	},
-	{
-		id: 'bracket-4',
-		min: 1000,
-		max: null,
-		rate: 0.40,
-		label: 'Tranche 4 (> 1000 USD)'
-	}
-];
 
 export interface FamilyDeduction {
 	enabled: boolean;
 	ratePerChild: number; // 0.02 pour 2%
 	maxChildren: number; // 9 enfants maximum
 }
+
 
 export interface CNSSConfig {
 	enabled: boolean;
@@ -57,11 +26,13 @@ export interface CNSSConfig {
 	includeInGross: boolean;
 }
 
+
 export interface INSSConfig {
 	enabled: boolean;
 	rate: number; // Généralement 3%
 	salaryCap: number | null;
 }
+
 
 export interface IPRConfig {
 	// Plafond légal: IPR ne peut excéder 30% du revenu net imposable
@@ -75,43 +46,48 @@ export interface IPRConfig {
 	includeBonuses: boolean;
 }
 
+
+export interface INPPRate {
+	id?: string;
+	rate: number;
+	companySizeMin: number | null | undefined;
+	companySizeMax: number | null | undefined;
+}
+
+
+export interface ONEMConfig {
+	enabled: boolean;
+	rate: number; // Généralement 0.2%
+}
+
+
 export interface TaxConfig {
 	iprBrackets: IPRBracket[];
 	iprConfig: IPRConfig;
 	familyDeduction: FamilyDeduction;
 	cnss: CNSSConfig;
 	inss: INSSConfig;
-	currency: 'USD' | 'CDF';
+	inpp: INPPRate[];
+	onem: ONEMConfig;
+	currency: Currency;
+	// Additional payroll configuration from API
+	workHoursPerMonth?: number;
+	workHoursPerDay?: number;
+	workDaysPerWeek?: number;
+	housingAllowanceMinPercentage?: number;
+	workHoursPerWeek: number | null;
+	familyAllowanceMinAmount?: number;
+	familyAllowanceSmigDivider?: number;
+	overtimeMultiplier?: number;
+	leaveDeductionDivisor?: number;
+	exchangeRateUsdCdf?: number;
+	exchangeRateSource?: 'MANUAL' | 'API';
+	defaultPaymentMethod?: 'BANK_TRANSFER' | 'CASH' | 'MOBILE_MONEY' | 'CHECK';
+	includeLeavesInPayroll?: boolean;
+	useTheoreticalDaysFromAttendance?: boolean;
+	fixedDeductionPerAbsentDay?: number | null;
 }
 
-// Configuration fiscale par défaut (RDC)
-export const DEFAULT_TAX_CONFIG: TaxConfig = {
-	iprBrackets: DEFAULT_IPR_BRACKETS,
-	iprConfig: {
-		globalCapRate: 0.30,
-		professionalAllowanceRate: 0.20,
-		include13thMonth: true,
-		includeBonuses: true
-	},
-	familyDeduction: {
-		enabled: true,
-		ratePerChild: 0.02,
-		maxChildren: 9
-	},
-	cnss: {
-		enabled: true,
-		employerRate: 0.15,
-		employeeRate: 0.05,
-		salaryCap: null,
-		includeInGross: true
-	},
-	inss: {
-		enabled: true,
-		rate: 0.03,
-		salaryCap: null
-	},
-	currency: 'USD'
-};
 
 // Types pour les calculs
 export interface IPRCalculationResult {
@@ -128,5 +104,32 @@ export interface IPRCalculationResult {
 	finalTax: number;
 	globalCapApplied: boolean;
 	effectiveRate: number;
+}
+
+
+/**
+ * Legal Allowance - Statutory allowances required by local regulations (RDC)
+ */
+export interface LegalAllowance {
+	id: string;
+	allowance_type: 'FAMILY' | 'HOUSING' | 'TRANSPORT' | 'OTHER';
+	calculation_mode: 'FIXED' | 'PERCENTAGE' | 'FORMULA';
+	base_amount: string | null; // API returns string (Decimal)
+	formula_description: string | null;
+	is_taxable: boolean;
+	taxable_threshold_percentage: string | null; // API returns string (Decimal)
+	is_active: boolean;
+}
+
+
+/**
+ * Overtime Rule - Defines overtime calculation rules with different multipliers
+ */
+export interface OvertimeRule {
+	id: string;
+	rule_type: 'FIRST_TWO_HOURS' | 'SUBSEQUENT_HOURS' | 'HOLIDAY' | 'WEEKEND';
+	multiplier: string; // API returns string (Decimal)
+	description: string | null;
+	is_active: boolean;
 }
 

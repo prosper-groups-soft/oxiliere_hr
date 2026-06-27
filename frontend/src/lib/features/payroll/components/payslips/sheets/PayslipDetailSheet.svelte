@@ -60,7 +60,7 @@
             </div>
             <div>
               <div class="text-sm font-medium text-slate-500">Département</div>
-              <p class="text-sm text-slate-900">{payslip.department}</p>
+              <p class="text-sm text-slate-900">{payslip.orgUnit}</p>
             </div>
             <div>
               <div class="text-sm font-medium text-slate-500">Période</div>

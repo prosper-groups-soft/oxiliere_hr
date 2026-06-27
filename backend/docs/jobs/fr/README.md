@@ -202,12 +202,12 @@ POST /api/v1/jobs/departments
 }
 ```
 
-### 4. Créer un sous-département
+### 4. Créer un sous-unité organnisationnelle
 ```json
-POST /api/v1/jobs/departments
+POST /api/v1/jobs/units
 {
   "name": "Backend",
-  "parent_id": "dept_123",
+  "parent_id": "unit_123",
   "manager_id": "emp_789",
   "description": "Équipe développement backend"
 }
@@ -219,7 +219,7 @@ POST /api/v1/jobs/employment-positions
 {
   "employee_id": "emp_123",
   "position_id": "pos_456",
-  "department_id": "dept_789",
+  "department_id": "unit_789",
   "start_date": "2026-01-15",
   "status": "ACTIVE"
 }

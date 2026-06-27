@@ -4,9 +4,12 @@ from datetime import date
 from typing import Any, Dict
 from django.db import transaction
 from django.core.exceptions import ValidationError
+from django.utils.translation import gettext_lazy as _
 
 from hr.employees.models import Employee, EmployeeChild
 from hr.utils.core import update_instance
+from .cache import EmployeeCacheService
+from injector import inject
 
 
 logger = logging.getLogger(__name__)
@@ -14,6 +17,10 @@ logger = logging.getLogger(__name__)
 
 class EmployeeFamilyService:
     """ Manages dependents and legal family registry. """
+
+    @inject
+    def __init__(self, cache_service: EmployeeCacheService):
+        self.cache_service = cache_service
 
     @transaction.atomic
     def declare_child(
@@ -25,7 +32,7 @@ class EmployeeFamilyService:
         """ Registers a child for benefits and family tracking. """
         birthdate = data.get('birthdate')
         if birthdate and isinstance(birthdate, date) and birthdate > date.today():
-            raise ValidationError({"birthdate": "Birthdate cannot be in the future."})
+            raise ValidationError({"birthdate": _("Birthdate cannot be in the future.")})
 
         child = EmployeeChild.objects.create(
             parent=employee,
@@ -38,6 +45,9 @@ class EmployeeFamilyService:
             created_by=actor
         )
 
+        # Invalidate cache
+        self.cache_service.clear_employee_cache(employee)
+        
         logger.info(f"[FAMILY] Child added: {employee.matricule}")
         return child
 
@@ -63,6 +73,9 @@ class EmployeeFamilyService:
         child.updated_by = actor
         child.save(update_fields=['updated_by'])
         
+        # Invalidate cache
+        self.cache_service.clear_employee_cache(child.parent)
+        
         return child
 
     @staticmethod
@@ -76,7 +89,12 @@ class EmployeeFamilyService:
     @transaction.atomic
     def remove_child(self, child: EmployeeChild, actor: Any = None) -> None:
         """ Removes a child record from the registry. """
+        parent = child.parent
         child.updated_by = actor
         child.delete() 
+        
+        # Invalidate cache
+        self.cache_service.clear_employee_cache(parent)
+        
         logger.warning(f"[FAMILY] Removed child: {child.id}")
         

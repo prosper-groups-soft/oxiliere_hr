@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Badge } from "@/components/ui/badge";
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
-  import { scale } from "svelte/transition";
+  import { scale, slide } from "svelte/transition";
   import { cn } from "@/utilities/common/css";
 
   let { 
@@ -25,7 +25,7 @@
 
 
 {#if activeFiltersCount > 0}
-  <div class={cn("flex flex-wrap gap-2 items-center px-4", className)}>
+  <div class={cn("flex flex-wrap gap-2 items-center", className)} transition:slide={{ duration: 200 }}>
     <span class="text-[0.7rem] font-bold text-slate-500 uppercase tracking-tight mr-1">Filtres :</span>
     
     {#each Object.entries(filters).filter(([_, v]) => Array.isArray(v) && v.length > 0) as [key, values]}

@@ -81,3 +81,43 @@ class EmployeeDocumentService:
 
         logger.warning(f"[DOC] Removed: {document.id}")
 
+    @transaction.atomic
+    def update_document(
+        self, 
+        document: EmployeeDocument, 
+        data: Dict[str, Any], 
+        actor: Any = None
+    ) -> EmployeeDocument:
+        """ Updates document metadata. """
+        for attr, value in data.items():
+            if hasattr(document, attr) and value is not None:
+                setattr(document, attr, value)
+        
+        document.updated_by = actor
+        document.save()
+        
+        logger.info(f"[DOC] Updated: {document.id}")
+        return document
+
+    @transaction.atomic
+    def replace_document_file(
+        self, 
+        document: EmployeeDocument, 
+        file_obj: Any, 
+        actor: Any = None
+    ) -> EmployeeDocument:
+        """ Replaces physical file and updates record. """
+        # Delete old file
+        if document.file and document.file.path:
+            old_file = Path(document.file.path)
+            if old_file.exists():
+                old_file.unlink()
+        
+        # Set new file
+        document.file = file_obj
+        document.updated_by = actor
+        document.save()
+        
+        logger.info(f"[DOC] File replaced: {document.id}")
+        return document
+

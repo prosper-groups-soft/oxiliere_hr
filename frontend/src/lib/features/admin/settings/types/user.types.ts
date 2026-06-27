@@ -34,6 +34,13 @@ export const USER_ROLES: UserRoleConfig[] = [
 	}
 ];
 
+// Labels des rôles pour affichage rapide
+export const ROLE_LABELS: Record<UserRole, string> = {
+	'RH_ADMIN': 'RH Admin',
+	'MANAGER': 'Manager',
+	'EMPLOYEE': 'Employé'
+};
+
 export type PermissionAction = 'create' | 'read' | 'update' | 'delete' | 'approve' | 'export' | 'config';
 
 export type PermissionModule = 'employees' | 'leaves' | 'payroll' | 'settings' | 'recruitment' | 'attendance' | 'reports';
@@ -52,7 +59,7 @@ export interface User {
 	lastName: string;
 	isActive: boolean;
 	groups: string[]; // Slugs des groupes assignés
-	department?: string;
+	orgUnit?: string;
 	phone?: string;
 	role: UserRole;
 	avatarUrl?: string;
@@ -65,7 +72,7 @@ export interface CreateUserInput {
 	firstName: string;
 	lastName: string;
 	role: UserRole;
-	department?: string;
+	orgUnit?: string;
 	phone?: string;
 }
 
@@ -74,14 +81,14 @@ export interface UpdateUserInput {
 	lastName?: string;
 	role?: UserRole;
 	isActive?: boolean;
-	department?: string;
+	orgUnit?: string;
 	phone?: string;
 }
 
 export interface UserFilters {
 	search: string;
 	role: UserRole[];
-	department: string[];
+	orgUnit: string[];
 	isActive: boolean | null;
 }
 

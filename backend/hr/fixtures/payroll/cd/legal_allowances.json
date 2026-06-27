@@ -43,6 +43,51 @@
       "created_at": "2026-01-26T00:00:00Z",
       "updated_at": "2026-01-26T00:00:00Z"
     }
+  },
+  {
+    "model": "hr_payroll.legalallowance",
+    "pk": "019f0803-0768-73ff-bcc1-7efef36f2c50",
+    "fields": {
+      "allowance_type": "MEAL",
+      "calculation_mode": "FIXED",
+      "base_amount": "0.00",
+      "formula_description": "Prime de panier (indemnité repas). Exonérée d'IPR selon la réglementation en vigueur.",
+      "is_taxable": false,
+      "taxable_threshold_percentage": null,
+      "is_active": true,
+      "created_at": "2026-01-26T00:00:00Z",
+      "updated_at": "2026-01-26T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr_payroll.legalallowance",
+    "pk": "019f0803-0769-719e-be03-73e30c14de3e",
+    "fields": {
+      "allowance_type": "RISK_PREMIUM",
+      "calculation_mode": "FIXED",
+      "base_amount": "0.00",
+      "formula_description": "Prime de risque pour travaux dangereux ou insalubres. Exonérée d'IPR selon conditions légales.",
+      "is_taxable": false,
+      "taxable_threshold_percentage": null,
+      "is_active": true,
+      "created_at": "2026-01-26T00:00:00Z",
+      "updated_at": "2026-01-26T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr_payroll.legalallowance",
+    "pk": "019f0803-076a-7dae-a578-9c27dfa64f54",
+    "fields": {
+      "allowance_type": "DIRTY_WORK",
+      "calculation_mode": "FIXED",
+      "base_amount": "0.00",
+      "formula_description": "Prime de salissure pour travaux salissants. Exonérée d'IPR selon la réglementation en vigueur.",
+      "is_taxable": false,
+      "taxable_threshold_percentage": null,
+      "is_active": true,
+      "created_at": "2026-01-26T00:00:00Z",
+      "updated_at": "2026-01-26T00:00:00Z"
+    }
   }
 ]
 

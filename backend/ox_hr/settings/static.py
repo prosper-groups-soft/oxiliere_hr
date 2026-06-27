@@ -1,7 +1,6 @@
 from .base import BASE_DIR, DEBUG
 
 
-
 STATIC_URL = 'static/'
 
 if not DEBUG:
@@ -14,3 +13,4 @@ STATICFILES_FINDERS = (
     'django.contrib.staticfiles.finders.FileSystemFinder',
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
 )
+

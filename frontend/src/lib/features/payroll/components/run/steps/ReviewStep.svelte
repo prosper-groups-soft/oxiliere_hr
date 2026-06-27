@@ -20,12 +20,12 @@
   
   // --- State des Filtres (Multi-sélection) ---
   let searchTerm = $state('');
-  let selectedDepartments = $state<string[]>([]); 
+  let selectedOrgUnits = $state<string[]>([]); 
   let showOnlyWithAnomalies = $state(false);
   
-  const departmentsList = $derived(() => {
-    const depts = new Set(payslips.map(p => p.department).filter(Boolean));
-    return Array.from(depts).sort() as string[];
+  const orgUnitsList = $derived(() => {
+    const orgUnits = new Set(payslips.map(p => p.orgUnit).filter(Boolean));
+    return Array.from(orgUnits).sort() as string[];
   });
 
   // --- Logique de Filtrage ---
@@ -35,11 +35,11 @@
       const search = searchTerm.toLowerCase();
       filtered = filtered.filter(p => 
         p.employeeName.toLowerCase().includes(search) ||
-        (p.department?.toLowerCase().includes(search))
+        (p.orgUnit.toLowerCase().includes(search))
       );
     }
-    if (selectedDepartments.length > 0) {
-      filtered = filtered.filter(p => selectedDepartments.includes(p.department));
+    if (selectedOrgUnits.length > 0) {
+      filtered = filtered.filter(p => p.orgUnit && selectedOrgUnits.includes(p.orgUnit));
     }
     if (showOnlyWithAnomalies) {
       filtered = filtered.filter(p => (p.netPay || 0) <= 0);
@@ -50,13 +50,13 @@
   // --- Chips Logic ---
   const activeFilters = $derived(() => {
     const f: Record<string, string[]> = {};
-    if (selectedDepartments.length > 0) f.department = selectedDepartments;
+    if (selectedOrgUnits.length > 0) f.orgUnit = selectedOrgUnits;
     if (showOnlyWithAnomalies) f.anomalies = ['Anomalies'];
     return f;
   });
 
   const activeCount = $derived(
-    selectedDepartments.length + (showOnlyWithAnomalies ? 1 : 0)
+    selectedOrgUnits.length + (showOnlyWithAnomalies ? 1 : 0)
   );
 
   // --- Actions Groupées ---
@@ -70,16 +70,16 @@
     console.log(`Action: Marquer ${ids.length} bulletins comme révisés.`);
   }
 
-  function toggleDepartment(dept: string) {
-    if (selectedDepartments.includes(dept)) {
-      selectedDepartments = selectedDepartments.filter(d => d !== dept);
+  function toggleOrgUnit(orgUnit: string) {
+    if (selectedOrgUnits.includes(orgUnit)) {
+      selectedOrgUnits = selectedOrgUnits.filter(d => d !== orgUnit);
     } else {
-      selectedDepartments = [...selectedDepartments, dept];
+      selectedOrgUnits = [...selectedOrgUnits, orgUnit];
     }
   }
 
   function resetFilters() {
-    selectedDepartments = [];
+    selectedOrgUnits = [];
     showOnlyWithAnomalies = false;
     searchTerm = '';
   }
@@ -214,12 +214,12 @@
         >
           <AppIcon name="layers" size={15} class="text-slate-400" />
           <span class="text-[0.84rem] text-slate-700 font-medium truncate flex-1 text-left">
-            {#if selectedDepartments.length === 0}
-              Départements
-            {:else if selectedDepartments.length === 1}
-              {selectedDepartments[0]}
+            {#if selectedOrgUnits.length === 0}
+              Unité organsationnelle
+            {:else if selectedOrgUnits.length === 1}
+              {selectedOrgUnits[0]}
             {:else}
-              {selectedDepartments.length} départements
+              {selectedOrgUnits.length} Unités organsationnelle
             {/if}
           </span>
           <AppIcon name="chevron-down" size={14} class="text-slate-400" />
@@ -231,9 +231,9 @@
       <DropdownMenu.Separator class="my-1 bg-slate-50" />
       
       <DropdownMenu.CheckboxItem 
-        checked={selectedDepartments.length === departmentsList().length && departmentsList().length > 0}
+        checked={selectedOrgUnits.length === orgUnitsList().length && orgUnitsList().length > 0}
         onCheckedChange={(checked) => {
-          selectedDepartments = checked ? [...departmentsList()] : [];
+          selectedOrgUnits = checked ? [...orgUnitsList()] : [];
         }}
         class="py-2 px-3 pl-7 rounded-md cursor-pointer text-[0.84rem] font-medium text-primary"
       >
@@ -242,13 +242,13 @@
       
       <DropdownMenu.Separator class="my-1 bg-slate-50" />
 
-      {#each departmentsList() as dept}
+      {#each orgUnitsList() as orgUnit}
         <DropdownMenu.CheckboxItem 
-          checked={selectedDepartments.includes(dept)}
-          onCheckedChange={() => toggleDepartment(dept)}
+          checked={selectedOrgUnits.includes(orgUnit)}
+          onCheckedChange={() => toggleOrgUnit(orgUnit)}
           class="py-2 px-3 pl-7 rounded-md cursor-pointer text-[0.84rem]"
         >
-          {dept}
+          {orgUnit}
         </DropdownMenu.CheckboxItem>
       {/each}
     </DropdownMenu.Content>
@@ -263,8 +263,8 @@
         filters={activeFilters()}
         activeFiltersCount={activeCount}
         onRemove={(key, value) => {
-          if (key === 'department') {
-            selectedDepartments = selectedDepartments.filter(d => d !== value);
+          if (key === 'orgUnit') {
+            selectedOrgUnits = selectedOrgUnits.filter((d: string) => d !== value);
           } else {
             showOnlyWithAnomalies = false;
           }

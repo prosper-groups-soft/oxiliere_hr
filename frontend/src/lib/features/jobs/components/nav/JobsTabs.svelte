@@ -2,10 +2,11 @@
   import { crossfade } from 'svelte/transition';
   import { cubicInOut } from 'svelte/easing';
   import { page } from '$app/state';
-  import { goto } from '$app/navigation';
+  import { goto, preloadData } from '$app/navigation';
   import { cn } from '@/utilities/common/css'; 
   import * as Tabs from '@/components/ui/tabs';
   import AppIcon from '@/components/layout/elements/AppIcon.svelte';
+  
 
   const TABS = [
     { id: 'chart', label: 'Organigramme', icon: 'network', path: '/jobs/chart' },
@@ -26,7 +27,14 @@
   const handleTabChange = (value: string) => {
     const targetTab = TABS.find(t => t.id === value);
     if (targetTab) {
-      goto(targetTab.path);
+      // Defer URL update using requestIdleCallback
+      const scheduleUpdate = typeof requestIdleCallback !== 'undefined' 
+        ? (cb: () => void) => requestIdleCallback(cb, { timeout: 100 })
+        : (cb: () => void) => setTimeout(cb, 0);
+      
+      scheduleUpdate(() => {
+        goto(targetTab.path);
+      });
     }
   };
 
@@ -39,17 +47,19 @@
 
 {#snippet TabTrigger(tab: typeof TABS[0])}
   <Tabs.Trigger 
-    value={tab.id} 
+    value={tab.id}
+    onmouseenter={() => preloadData(tab.path)}
+    data-sveltekit-preload-data="tap"
     class={cn(
       "relative flex items-center gap-2.5 bg-transparent shadow-none transition-all duration-300",
       "rounded-none border-none px-2 pb-2 outline-none focus-visible:ring-0",
-      "group cursor-pointer text-slate-700",
+      "group cursor-pointer text-slate-800",
       "data-[state=active]:text-primary data-[state=active]:bg-transparent",
       "data-[state=active]:hover:bg-transparent data-[state=active]:hover:text-primary",
       "data-[state=active]:focus:bg-transparent"
     )}
   >
-    <AppIcon name={tab.icon} size={18} class="group-data-[state=active]:text-primary" />
+    <AppIcon name={tab.icon} size={18} class="group-data-[state=active]:text-primary text-slate-500" />
     <span class="text-[0.879rem] tracking-tight">{tab.label}</span>  
 
     {#if activeTabId() === tab.id}

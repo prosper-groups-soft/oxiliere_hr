@@ -54,8 +54,6 @@ class PunchService:
         if open_punch_data:
             open_punch = TimePunch.objects.get(id=open_punch_data.id)
             open_punch.end_at = timestamp
-            if latitude: open_punch.latitude = latitude
-            if longitude: open_punch.longitude = longitude
             
             open_punch.duration = open_punch.end_at - open_punch.start_at
             open_punch.save()
@@ -67,8 +65,6 @@ class PunchService:
                 punch_type=punch_type,
                 start_at=timestamp,
                 is_manual_entry=is_manual,
-                latitude=latitude,
-                longitude=longitude
             )
 
         AttendanceService.compute_timesheet_totals(timesheet)

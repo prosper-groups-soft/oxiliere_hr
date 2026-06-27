@@ -42,11 +42,16 @@ class HiringService:
         )
 
         # 2. Assign the initial position using the Jobs module CareerService
-        # The position and department are defined by the job offer
+        # The position and org_unit are defined by the job offer
+        # Get the first target position from the job offer
+        target_position = offer.target_positions.first()
+        if not target_position:
+            raise ValueError("Job offer must have at least one target position")
+        
         self.career_service.assign_initial_position(
             employee=employee,
-            position_id=offer.target_position.id,
-            department_id=offer.department.id,
+            position_id=target_position.id,
+            org_unit_id=target_position.org_unit.id,
             start_date=start_date
         )
 

@@ -25,8 +25,7 @@ class BalanceService:
     """ Manages employee leave entitlements, pro-rata calculations, and carry-overs. """
 
     @transaction.atomic
-    @staticmethod
-    def init_employee_balance(employee, year: int = None):
+    def init_employee_balance(self, employee, year: int = None):
         """
         Initializes the annual leave balance for an employee.
         Adjusts the entitlement proportionally if the employee joined mid-year.
@@ -34,9 +33,11 @@ class BalanceService:
         if not year:
             year = timezone.now().year
 
-        policy = LeavePolicy.objects.filter(country_code=employee.nationality).first()
+        policy = LeavePolicy.objects.filter(
+            country_code='CD'
+        ).first()
         if not policy:
-            logger.error(f"No active LeavePolicy for {employee.nationality}")
+            logger.error("No active LeavePolicy for DRC (CD)")
             return None
 
         # Pro-rata calculation for the first year of employment
@@ -45,10 +46,9 @@ class BalanceService:
             total_days_in_year = (end_of_year - date(year, 1, 1)).days + 1
             days_worked = (end_of_year - employee.hire_date).days + 1
             
-            base_days = (Decimal(str(policy.standard_annual_days)) / Decimal(total_days_in_year)) * days_worked
-            base_days = base_days.quantize(Decimal("0.01"))
+            base_days = int(round((Decimal(str(policy.standard_annual_days)) / Decimal(total_days_in_year)) * days_worked))
         else:
-            base_days = Decimal(str(policy.standard_annual_days))
+            base_days = policy.standard_annual_days
 
         # Additional days based on length of service
         seniority_years = relativedelta(date(year, 12, 31), employee.hire_date).years
@@ -92,6 +92,12 @@ class BalanceService:
         balance = LeaveBalance.objects.select_for_update().filter(employee=employee, year=year).first()
         if not balance:
             balance = BalanceService.init_employee_balance(employee, year)
+            if not balance:
+                logger.warning(
+                    f"Unable to verify leave balance for employee {employee.id} year {year}. "
+                    "Proceeding without balance check."
+                )
+                return True
 
         carry = LeaveCarryOver.objects.select_for_update().filter(
             employee=employee,

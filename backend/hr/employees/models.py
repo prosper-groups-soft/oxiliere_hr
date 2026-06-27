@@ -1,12 +1,12 @@
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
-from django.core.validators import MaxValueValidator, MinValueValidator
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.db import models
+from django.db.models import UniqueConstraint, Q
 from auditlog.registry import auditlog
 
-from hr.models import BaseAuditableModel, AddressMixin
+from hr.models.base import BaseAuditableModel, AddressMixin
 from hr.enums import (
     GenderStatus, 
     CountryCode,
@@ -46,6 +46,7 @@ class Employee(BaseAuditableModel):
         help_text=_("Primary work location."),
         related_name="employees"
     )
+    
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -58,7 +59,6 @@ class Employee(BaseAuditableModel):
     # Identifiers
     matricule = models.CharField(
         max_length=16,
-        unique=True,
         help_text=_("Unique staff ID.")
     )
     first_name = models.CharField(max_length=75)
@@ -93,16 +93,23 @@ class Employee(BaseAuditableModel):
 
     # Contact
     email = models.EmailField(
-        unique=True, 
         null=True, 
         blank=True,
         help_text=_("Professional email address.")
     )
     phone = models.CharField(
-        max_length=15, 
+        max_length=25, 
         null=True, 
         blank=True,
         help_text=_("Contact phone number.")
+    )
+
+    # Profile photo
+    profile_photo = models.ImageField(
+        upload_to='employee_photos/%Y/%m/',
+        null=True,
+        blank=True,
+        help_text=_("Employee profile photo")
     )
 
     # Career lifecycle
@@ -138,6 +145,18 @@ class Employee(BaseAuditableModel):
             models.Index(fields=['matricule']),
             models.Index(fields=['email']),
             models.Index(fields=['last_name', 'first_name']),
+        ]
+        constraints = [
+            UniqueConstraint(
+                fields=['matricule'],
+                condition=Q(deleted__isnull=True),
+                name='unique_matricule_active'
+            ),
+            UniqueConstraint(
+                fields=['email'],
+                condition=Q(deleted__isnull=True),
+                name='unique_email_active'
+            ),
         ]
 
     def __str__(self):
@@ -185,6 +204,15 @@ class Employee(BaseAuditableModel):
             return self.prefetched_all_status_history
         return self.status_history.all()
 
+    @property
+    def full_name(self):
+        """Full name in format: LAST_NAME MiddleName FirstName"""
+        parts = [self.last_name]
+        if self.middle_name:
+            parts.append(self.middle_name)
+        parts.append(self.first_name)
+        return " ".join(parts)
+
 
 class StatusHistory(BaseAuditableModel):
     """ History of employment status changes. """
@@ -231,6 +259,7 @@ class EmployeeDocument(BaseAuditableModel):
     document_number = models.CharField(
         max_length=50, 
         blank=True, 
+        null=True,
         help_text=_("Identification or reference number.")
     )
     issue_date = models.DateField(null=True, blank=True)
@@ -311,7 +340,7 @@ class EmergencyContact(BaseAuditableModel):
     middle_name = models.CharField(max_length=75, null=True, blank=True)
     last_name = models.CharField(max_length=75, null=True, blank=True)
     phone = models.CharField(
-        max_length=15,
+        max_length=25,
         help_text=_("Direct phone line for emergencies.")
     )
     relation = models.CharField(
@@ -321,24 +350,34 @@ class EmergencyContact(BaseAuditableModel):
     )
     priority = models.IntegerField(
         default=1,
-        validators=[MinValueValidator(1), MaxValueValidator(10)],
         help_text=_("Call order (1 is primary).")
+    )
+    is_primary = models.BooleanField(
+        default=False,
+        help_text=_("Mark as primary emergency contact.")
     )
 
     class Meta:
         db_table = "empl_emergency_contact"
         ordering = ["priority", "last_name"]
         constraints = [
-            models.UniqueConstraint(fields=['employee', 'priority'], name='unique_priority_per_employee')
+            models.UniqueConstraint(
+                fields=['employee', 'priority'], 
+                condition=Q(deleted__isnull=True),
+                name='unique_priority_per_employee'
+            )
         ]
 
     def clean(self):
         super().clean()
-        self.__dict__.update(normalize_names(
-            first_name=self.first_name,
-            middle_name=self.middle_name,
-            last_name=self.last_name
-        ))
+        # Emergency contacts should preserve name casing (not uppercased like employees)
+        # Only strip whitespace
+        if self.first_name:
+            self.first_name = self.first_name.strip()
+        if self.middle_name:
+            self.middle_name = self.middle_name.strip()
+        if self.last_name:
+            self.last_name = self.last_name.strip()
         
     def save(self, *args, **kwargs):
         self.full_clean()
@@ -373,11 +412,12 @@ class EmployeeChild(BaseAuditableModel):
 
     def clean(self):
         super().clean()
-        self.__dict__.update(normalize_names(
-            first_name=self.first_name,
-            middle_name=self.middle_name,
-            last_name=self.last_name
-        ))
+        if self.first_name:
+            self.first_name = self.first_name.strip()
+        if self.middle_name:
+            self.middle_name = self.middle_name.strip()
+        if self.last_name:
+            self.last_name = self.last_name.strip()
         
     def save(self, *args, **kwargs):
         self.full_clean()
@@ -416,7 +456,13 @@ class EmployeeEducation(BaseAuditableModel):
     class Meta:
         db_table = "empl_employee_education"
         ordering = ["-end_year", "degree"]
-        unique_together = ("employee", "degree", "institute")
+        constraints = [
+            UniqueConstraint(
+                fields=['employee', 'degree', 'institute'],
+                condition=Q(deleted__isnull=True),
+                name='unique_employee_degree_institute_active'
+            )
+        ]
 
     def clean(self):
         super().clean()

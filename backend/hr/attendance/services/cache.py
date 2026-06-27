@@ -100,9 +100,9 @@ class AttendanceCacheService:
             register = AttendanceCacheService.get_daily_register(target_date)
             if register:
                 punches = list(TimePunch.objects.filter(
-                    employee=employee,
-                    register=register
-                ).order_by('punch_time'))
+                    timesheet__employee=employee,
+                    timesheet__register=register
+                ).order_by('start_at'))
             else:
                 punches = []
             
@@ -129,12 +129,8 @@ class AttendanceCacheService:
     
     @staticmethod
     def get_settings():
-        """ Retrieves global attendance settings from cache. """
-        return get_from_cache_or_call(
-            "hr:attendance:settings",
-            AttendanceSettings.load,
-            timeout=60*60*24
-        )
+        """ Retrieves global attendance settings (always fresh, no cache). """
+        return AttendanceSettings.load()
 
     @staticmethod
     def get_lock_date():

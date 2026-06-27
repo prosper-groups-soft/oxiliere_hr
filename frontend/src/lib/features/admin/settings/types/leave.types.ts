@@ -1,13 +1,14 @@
 // Types Configuration Congés - Code du Travail RDC
 
-export type SpecialLeaveType = 'MARRIAGE' | 'BIRTH' | 'DEATH_SPOUSE_CHILD' | 'DEATH_ANCESTOR' | 'SICK_CHILD';
+export type SpecialLeaveType = 'MARRIAGE' | 'BIRTH' | 'DEATH_SPOUSE_CHILD' | 'DEATH_ANCESTOR' | 'CHILD_MARRIAGE' | 'MOVING' | 'CHILD_HOSPITALIZATION' | 'OTHER';
 
 export interface SpecialLeave {
 	type: SpecialLeaveType;
 	label: string;
 	daysAllowed: number;
-	description: string;
+	description: string; // From backend (editable) or fallback to local labels
 	icon?: string;
+	isPaid?: boolean; // Default: true (congé payé)
 }
 
 export interface SeniorityBonus {
@@ -21,6 +22,10 @@ export interface LeaveConfig {
 	annualLeaveDays: number; // 18 ou 24 jours selon Code Travail RDC
 	specialLeaves: SpecialLeave[];
 	seniorityBonus: SeniorityBonus;
+	// Carry over settings
+	allowsCarryOver: boolean;
+	maxCarryOverDays: number;
+	carryOverExpirationMonth: number; // Month (1-12) when carried-over days expire
 	// Options supplémentaires
 	allowHalfDays: boolean;
 	requireApproval: boolean;
@@ -28,52 +33,20 @@ export interface LeaveConfig {
 	noticePeriodDays: number; // Délai de préavis pour demande
 }
 
-// Configuration par défaut selon le Code du Travail RDC
+// Configuration par défaut minimale - les vraies valeurs viennent du backend
+// C'est juste pour éviter les erreurs avant le chargement initial
 export const DEFAULT_LEAVE_CONFIG: LeaveConfig = {
 	annualLeaveDays: 18,
-	specialLeaves: [
-		{
-			type: 'MARRIAGE',
-			label: 'Mariage',
-			daysAllowed: 2,
-			description: 'Mariage de l\'employé',
-			icon: 'heart'
-		},
-		{
-			type: 'BIRTH',
-			label: 'Naissance',
-			daysAllowed: 2,
-			description: 'Naissance d\'un enfant',
-			icon: 'baby'
-		},
-		{
-			type: 'DEATH_SPOUSE_CHILD',
-			label: 'Décès conjoint/enfant',
-			daysAllowed: 4,
-			description: 'Décès du conjoint ou d\'un enfant',
-			icon: 'flower-2'
-		},
-		{
-			type: 'DEATH_ANCESTOR',
-			label: 'Décès ascendant',
-			daysAllowed: 3,
-			description: 'Décès d\'un parent ou grand-parent',
-			icon: 'flower-2'
-		},
-		{
-			type: 'SICK_CHILD',
-			label: 'Enfant malade',
-			daysAllowed: 3,
-			description: 'Soins à un enfant malade (par an)',
-			icon: 'stethoscope'
-		}
-	],
+	specialLeaves: [], // Vide - sera rempli depuis le backend
 	seniorityBonus: {
 		enabled: true,
 		yearsPerBonus: 5,
 		bonusDays: 1,
 		maxBonus: 6
 	},
+	allowsCarryOver: false,
+	maxCarryOverDays: 10,
+	carryOverExpirationMonth: 3, // March
 	allowHalfDays: true,
 	requireApproval: true,
 	maxConsecutiveDays: 30,

@@ -1,10 +1,9 @@
-from typing               import List, Dict
-from decimal              import Decimal
-from uuid                 import UUID
-from datetime             import date
-from ninja                import Schema, ModelSchema, FilterSchema
-from pydantic             import Field
-from hr.employees.schemas import EmployeeOut
+from typing   import List, Dict
+from decimal  import Decimal
+from uuid     import UUID
+from datetime import date
+from ninja    import Schema, ModelSchema, FilterSchema
+from pydantic import Field
 
 from .models import (
     PayrollConfiguration,
@@ -13,7 +12,7 @@ from .models import (
     EmployeeAdjustment,
     PayrollRun,
     PayslipLine,
-    EmployeePayslip,    
+    EmployeePayslip,
     SalaryAdvance,
     AdvanceDeductionConfiguration,
     WorkedDaysRecord,
@@ -24,6 +23,7 @@ from .models import (
     LegalAllowance,
     TaxBracket,
 )
+from hr.employees.schemas import EmployeeOut
 
 
 # ---------------- PAYROLL CONFIGURATION SCHEMAS  -------------------
@@ -34,7 +34,7 @@ class ConfigurePayrollIn(ModelSchema):
         fields = [
             "currency",
             "default_payment_method",
-            "work_hours_per_month",
+            "work_hours_per_week",
             "housing_allowance_min_percentage",
             "family_allowance_min_amount",
             "family_allowance_smig_divider",
@@ -44,7 +44,6 @@ class ConfigurePayrollIn(ModelSchema):
             "use_theoretical_days_from_attendance",
             "fixed_deduction_per_absent_day",
             "exchange_rate_usd_cdf",
-            "exchange_rate_source",
         ]
 
 
@@ -56,6 +55,7 @@ class PayrollConfigurationOut(ModelSchema):
             "id",
             "currency",
             "default_payment_method",
+            "work_hours_per_week",
             "work_hours_per_month",
             "housing_allowance_min_percentage",
             "family_allowance_min_amount",
@@ -66,7 +66,6 @@ class PayrollConfigurationOut(ModelSchema):
             "use_theoretical_days_from_attendance",
             "fixed_deduction_per_absent_day",
             "exchange_rate_usd_cdf",
-            "exchange_rate_source",
             "created_at",
             "updated_at",
         ]
@@ -79,7 +78,7 @@ class PayrollConfigurationUpdateIn(ModelSchema):
         fields = [
             "currency",
             "default_payment_method",
-            "work_hours_per_month",
+            "work_hours_per_week",
             "housing_allowance_min_percentage",
             "family_allowance_min_amount",
             "family_allowance_smig_divider",
@@ -89,7 +88,6 @@ class PayrollConfigurationUpdateIn(ModelSchema):
             "use_theoretical_days_from_attendance",
             "fixed_deduction_per_absent_day",
             "exchange_rate_usd_cdf",
-            "exchange_rate_source",
         ]
         fields_optional = "__all__"
 
@@ -110,7 +108,6 @@ class EmployeeContractCreateIn(ModelSchema):
             "currency",
             "start_date",
             "end_date",
-            "is_active",
         ]
 
 
@@ -132,7 +129,6 @@ class EmployeeContractOut(ModelSchema):
             "currency",
             "start_date",
             "end_date",
-            "is_active",
             "created_at",
             "updated_at",
         ]
@@ -152,7 +148,6 @@ class EmployeeContractUpdateIn(ModelSchema):
             "currency",
             "start_date",
             "end_date",
-            "is_active",
         ]
         fields_optional = "__all__"
 
@@ -620,6 +615,7 @@ class WorkedDaysRecordOut(ModelSchema):
             "regular_days",
             "overtime_hours_first_tier",
             "overtime_hours_second_tier",
+            "overtime_hours_weekend",
             "overtime_hours_holiday",
             "absence_days",
             "created_at",
@@ -637,6 +633,7 @@ class WorkedDaysRecordCreateIn(ModelSchema):
             "regular_days",
             "overtime_hours_first_tier",
             "overtime_hours_second_tier",
+            "overtime_hours_weekend",
             "overtime_hours_holiday",
             "absence_days",
         ]
@@ -650,6 +647,7 @@ class WorkedDaysRecordUpdateIn(ModelSchema):
             "regular_days",
             "overtime_hours_first_tier",
             "overtime_hours_second_tier",
+            "overtime_hours_weekend",
             "overtime_hours_holiday",
             "absence_days",
         ]
@@ -982,9 +980,8 @@ class OvertimeRuleListFilterIn(FilterSchema):
 
 class TaxBracketListFilterIn(FilterSchema):
     """Filter schema for tax brackets listing."""
-    fiscal_year: int | None = Field(None, q="fiscal_year")
-    min_amount_from: Decimal | None = Field(None, q="min_amount__gte")
-    min_amount_to: Decimal | None = Field(None, q="min_amount__lte")
+    lower_limit_from: Decimal | None = Field(None, q="lower_limit__gte")
+    lower_limit_to: Decimal | None = Field(None, q="lower_limit__lte")
 
 
 class LegalAllowanceListFilterIn(FilterSchema):

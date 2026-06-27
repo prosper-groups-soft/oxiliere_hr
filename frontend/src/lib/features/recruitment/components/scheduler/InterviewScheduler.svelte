@@ -2,23 +2,24 @@
   import { recruitmentStore } from "../../stores/recruitment.svelte";
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
   import { cn } from "@/utilities/common/css";
-  import { 
-    format, 
-    startOfWeek, 
-    endOfWeek, 
-    eachDayOfInterval, 
-    isSameDay 
-  } from 'date-fns';
+  import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay } from 'date-fns';
   import { fr } from 'date-fns/locale';
   import InterviewSheet from "../shared/sheets/interview/InterviewSheet.svelte";
+  import FeedbackSheet from "../shared/sheets/interview/FeedbackSheet.svelte";
   import SchedulerHeader from "./views/SchedulerHeader.svelte";
   import InterviewCard from "./views/InterviewCard.svelte";
   import type { Interview } from "../../types/types";
 
+
   // State
   let currentDate = $state(new Date());
   let selectedInterview = $state<Interview | null>(null);
+  let selectedApplicationId = $state('');
+  let selectedCandidate = $state<any>(null);
   let isFormOpen = $state(false);
+  // Feedback state
+  let selectedFeedbackInterview = $state<Interview | null>(null);
+  let isFeedbackOpen = $state(false);
 
   // Derived
   const weekDays = $derived(
@@ -30,6 +31,17 @@
 
   const interviews = $derived(recruitmentStore.interviews);
 
+  // Flat list of applications from all candidates for the schedule dropdown
+  const applications = $derived(
+    recruitmentStore.candidates.flatMap((c) =>
+      (c.applications || []).map((app) => ({
+        applicationId: app.applicationId,
+        candidateName: [c.lastName, c.middleName, c.firstName].filter(Boolean).join(' ').trim(),
+        positionName: app.targetPositionName || 'Poste inconnu',
+        candidate: c
+      }))
+    )
+  );
 
   // Actions
   function nextWeek() {
@@ -49,13 +61,26 @@
   }
 
   function handleSchedule() {
+    // Open without preselection for the header button (now using dropdown instead)
+  }
+
+  function handleScheduleForApplication(applicationId: string, candidate: any) {
     selectedInterview = null;
+    selectedApplicationId = applicationId;
+    selectedCandidate = candidate;
     isFormOpen = true;
   }
 
   function handleEditInterview(interview: Interview) {
     selectedInterview = interview;
+    selectedApplicationId = '';
+    selectedCandidate = null;
     isFormOpen = true;
+  }
+
+  function handleFeedback(interview: Interview) {
+    selectedFeedbackInterview = interview;
+    isFeedbackOpen = true;
   }
 
   function getInterviewsForDay(day: Date) {
@@ -74,10 +99,11 @@
     {currentDate}
     {weekDays}
     {weekInterviewCount}
+    {applications}
     onPrevWeek={prevWeek}
     onNextWeek={nextWeek}
     onGoToToday={goToToday}
-    onSchedule={handleSchedule}
+    onSchedule={handleScheduleForApplication}
   />
 
   <!-- Calendar Grid -->
@@ -106,7 +132,7 @@
 
 {#snippet DayHeader(day: Date, dayInterviews: any[], isToday: boolean)}
   <div class={cn(
-    "px-2 py-2 border-b border-slate-100 flex items-center justify-center sticky top-0 z-10 bg-slate-50/50",
+    "px-2 py-1 border-b border-slate-100 flex items-center justify-center sticky top-0 z-10 bg-slate-50/50",
     isToday ? "bg-primary/5" : ""
   )}>
     <div class="flex items-center gap-1.5">
@@ -140,7 +166,8 @@
       <InterviewCard 
         {interview} 
         {isToday} 
-        onClick={() => handleEditInterview(interview)} 
+        onClick={() => handleEditInterview(interview)}
+        onFeedback={() => handleFeedback(interview)}
       />
     {/each}
     
@@ -153,7 +180,17 @@
 {/snippet}
 
 
-<InterviewSheet bind:open={isFormOpen} interview={selectedInterview} />
+<InterviewSheet 
+  bind:open={isFormOpen} 
+  interview={selectedInterview}
+  applicationId={selectedApplicationId}
+  candidate={selectedCandidate}
+/>
+
+<FeedbackSheet 
+  bind:open={isFeedbackOpen} 
+  interview={selectedFeedbackInterview}
+/>
 
 
 <style>

@@ -1,51 +1,42 @@
 <script lang="ts">
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
   import SearchBar from "@/components/shared/elements/SearchBar.svelte";
-  import CalendarFilters from "@/features/calendar/components/elements/CalendarFilters.svelte";
+  import CalendarActions from "@/features/calendar/components/layout/CalendarActions.svelte";
   import TimelineMaster from "@/features/calendar/components/layout/TimelineMaster.svelte";
-  import ViewSwitcher from "@/features/calendar/components/layout/ViewSwitcher.svelte";
   import EventSheet from "@/features/calendar/components/sheets/EventSheet.svelte";
-  import ReplicateSheet from "@/features/calendar/components/sheets/ReplicateSheet.svelte";
   import MonthlyStats from "@/features/calendar/components/elements/MonthlyStats.svelte";
   import FilterChips from "@/components/shared/elements/FilterChips.svelte";
-  import * as DropdownMenu from "@/components/ui/dropdown-menu";
   import { calendarStore } from "@/features/calendar/stores/calendar.svelte";
   import { Button } from "@/components/ui/button";
   import { ui } from "@/stores/ui.svelte";
-  import { notification } from "@/stores/notification.svelte";
   import type { CalendarEvent } from "@/features/calendar/types/types";
+  import { EVENT_TYPE_LABELS, EVENT_TYPE_COLORS } from "@/features/calendar/types/types";
+  import { MONTHS } from "@/features/calendar/constants/event.constants";
+  import AnimateSpin from "@/components/layout/elements/AnimateSpin.svelte";
 
+  
   let isSheetOpen = $state(false);
-  let isReplicateSheetOpen = $state(false);
   let selectedEvent = $state<CalendarEvent | null>(null);
   let selectedDateForSheet = $state<string | null>(null);
   let selectedDateEndForSheet = $state<string | null>(null);
 
   /**
-   * GLOBAL ACTION REGISTRATION for Stats
+   * GLOBAL ACTION REGISTRATION for Tools + Actions + Stats
+   * Tous les snippets sont toujours enregistrés.
+   * MonthlyStats gère lui-même sa visibilité selon la vue.
    */
   $effect(() => {
-    if (calendarStore.view === 'month') {
-      ui.addActions('calendar-stats', MonthlyStatsAction);
-    } else {
+    ui.addActions('calendar-stats', MonthlyStatsAction);
+    ui.addActions('calendar', CalendarActionsSnippet);
+
+    return () => {
+      ui.removeActions('calendar');
       ui.removeActions('calendar-stats');
-    }
-    return () => ui.removeActions('calendar-stats');
+    };
   });
 
-  const monthsList = [
-    "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
-    "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
-  ];
-
-  const typeLabels: Record<string, string> = {
-    'holiday': 'Jour Férié',
-    'closure': 'Fermeture Entreprise',
-    'training': 'Formation'
-  };
-
   function getFilterLabel(key: string, value: any) {
-    if (key === 'type') return typeLabels[value] || value;
+    if (key === 'type') return EVENT_TYPE_LABELS[value as keyof typeof EVENT_TYPE_LABELS] || value;
     return value;
   }
 
@@ -83,6 +74,42 @@
     selectedDateEndForSheet = event.endDate || null;
     isSheetOpen = true;
   }
+
+  function handleSearchResultClick(event: CalendarEvent) {
+    const [y, m, d] = event.defaultDate.split('-').map(Number);
+    calendarStore.selectedDate = new Date(y, m - 1, d);
+    calendarStore.view = 'month';
+    // handleEventClick(event);
+    calendarStore.searchQuery = '';
+  }
+
+  async function handleEventMoved(event: CalendarEvent, newStartDate: string, newEndDate?: string) {
+    try {
+      await calendarStore.updateEvent(event.id, {
+        defaultDate: newStartDate,
+        endDate: newEndDate,
+      });
+    } catch (err) {
+      // L'erreur est déjà gérée par le service via notification toast
+    }
+  }
+
+  function formatSearchResultDate(event: CalendarEvent) {
+    const start = new Date(event.defaultDate);
+    const year = start.getFullYear();
+    if (event.endDate && event.endDate !== event.defaultDate) {
+      const end = new Date(event.endDate);
+      if (start.getMonth() === end.getMonth()) {
+        const monthStr = start.toLocaleDateString('fr-FR', { month: 'short' });
+        return `${start.getDate()}-${end.getDate()} ${monthStr} ${year}`;
+      } else {
+        const startStr = start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+        const endStr = end.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+        return `${startStr} - ${endStr} ${year}`;
+      }
+    }
+    return start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
 </script>
 
 
@@ -94,18 +121,32 @@
 <div class="flex h-full flex-col overflow-hidden min-h-0">
   {@render Header()}
 
-  <main class="flex-1 min-h-0">
-    <TimelineMaster 
-      onDateClick={handleDateClick}
-      onEventClick={handleEventClick}
-      onRangeSelect={handleRangeSelect}
+  <div class="flex flex-1 flex-col overflow-hidden min-h-0">
+    <FilterChips 
+      filters={{ type: calendarStore.typeFilters }}
+      activeFiltersCount={calendarStore.typeFilters.length}
+      getDisplayLabel={getFilterLabel}
+      onRemove={(key, value) => {
+        if (key === 'type') calendarStore.toggleTypeFilter(value as any);
+      }}
+      onReset={() => calendarStore.resetFilters()}
+      class="px-4 pt-0.5 pb-2"
     />
-  </main>
+
+    <main class="flex-1 min-h-0">
+      <TimelineMaster 
+        onDateClick={handleDateClick}
+        onEventClick={handleEventClick}
+        onRangeSelect={handleRangeSelect}
+        onEventMoved={handleEventMoved}
+      />
+    </main>
+  </div>
 </div>
 
 
 {#snippet Header()}
-  <div class="flex flex-col gap-3 pb-3 pt-3 px-4 mr-4">
+  <div class="flex flex-col gap-4 pb-2.5 border-b border-slate-100 pt-2.5 px-4 pr-8">
     <div class="flex items-center justify-between gap-4">
       <!-- Left: Title & Nav -->
       <div class="flex items-center gap-2">
@@ -125,111 +166,68 @@
           {#if calendarStore.view === 'year'}
             {calendarStore.selectedDate.getFullYear()}
           {:else}
-            {monthsList[calendarStore.selectedDate.getMonth()]} {calendarStore.selectedDate.getFullYear()}
+            {MONTHS[calendarStore.selectedDate.getMonth()]} {calendarStore.selectedDate.getFullYear()}
           {/if}
         </h1>
       </div>
 
-      <!-- Right: Controls -->
-      <div class="flex items-center gap-3">
-        <div class="w-120">
-          <SearchBar 
-            bind:value={calendarStore.searchQuery} 
-            placeholder="Rechercher un évènement..." 
-            class="w-120"
-            inputClass="h-9.5 pl-10 pr-9 rounded-[18px] text-[0.9rem] bg-[#f5f6f7]"
-            iconSize={22}
-            onClear={() => calendarStore.searchQuery = ""}
-          />
-        </div>
-        
-        <ViewSwitcher />
-        <CalendarFilters />
-        
-        <div class="h-8 w-px bg-slate-200 mx-1"></div>
+      <!-- Right: Search -->
+      <div class="flex-1 max-w-120 ml-auto relative">
+        <SearchBar 
+          bind:value={calendarStore.searchQuery} 
+          placeholder="Rechercher un évènement..." 
+          class="w-full"
+          inputClass="h-9.5 pl-10 pr-9 rounded-[18px] text-[0.9rem] bg-[#f5f6f7]"
+          iconSize={22}
+          onClear={() => calendarStore.searchQuery = ""}
+        />
 
-        <DropdownMenu.Root>
-          <DropdownMenu.Trigger asChild>
-            {#snippet child({ props })}
-              <Button 
-                {...props}
-                variant="outline" 
-                size="sm" 
-                class="h-8 flex items-center shadow-fine rounded-lg bg-white border-slate-200 text-slate-600 gap-2 px-3"
-              >
-                <AppIcon name="settings" size={17} class="text-slate-500" />
-                <span class="text-[0.84rem]">Outils</span>
-              </Button>
-            {/snippet}
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Content align="end" class="w-48 shadow-fine">
-            <DropdownMenu.Label class="px-2 py-1.5 text-[0.7rem]! font-bold text-slate-400 uppercase tracking-widest">
-              Outils
-            </DropdownMenu.Label>
-            <DropdownMenu.Item onSelect={() => isReplicateSheetOpen = true} class="gap-2 cursor-pointer py-2 text-[0.85rem]!">
-              <AppIcon name="copy" size={16} class="text-indigo-500" />
-              <span class="text-[0.85rem]!">Répliquer l'année</span>
-            </DropdownMenu.Item>
-            <DropdownMenu.Item 
-              onSelect={async () => {
-                const count = await calendarStore.importHolidays(calendarStore.selectedDate.getFullYear());
-                if (count > 0) {
-                  import("@/stores/notification.svelte").then(({ notification }) => {
-                    notification.toast.success(`${count} jours fériés importés.`);
-                  });
-                }
-              }} 
-              class="gap-2 cursor-pointer py-2 text-[0.85rem]!"
-            >
-              <AppIcon name="download" size={16} class="text-emerald-500" />
-              <span class="text-[0.85rem]!">Importer fériés (RDC)</span>
-            </DropdownMenu.Item>
-            <DropdownMenu.Separator />
-            <DropdownMenu.Item 
-              onSelect={() => {
-                notification.confirm({
-                  title: 'Réinitialiser l\'année ?',
-                  message: `Cette action supprimera tous les événements de l'année ${calendarStore.selectedDate.getFullYear()}. Cette opération est irréversible.`,
-                  type: 'danger',
-                  yesText: 'Oui, tout supprimer',
-                  onYes: () => {
-                    calendarStore.resetYear(calendarStore.selectedDate.getFullYear());
-                    notification.toast.success(`Année ${calendarStore.selectedDate.getFullYear()} réinitialisée.`);
-                  }
-                });
-              }} 
-              class="gap-2 cursor-pointer py-2 text-red-500 hover:text-red-600! hover:bg-red-50! text-[0.85rem]!"
-            >
-              <AppIcon name="trash" size={16} class="text-inherit" />
-              <span class=" text-[0.85rem]!">Réinitialiser l'année</span>
-            </DropdownMenu.Item>
-          </DropdownMenu.Content>
-        </DropdownMenu.Root>
-
-        <Button 
-          variant="default" 
-          size="sm" 
-          class="h-8 flex items-center shadow-fine rounded-lg"
-          onclick={openNewEvent}
-        >
-          <AppIcon name="plus" size={17} />
-          <span class="text-[0.83rem]">Événement</span>
-        </Button>
+        {#if calendarStore.searchQuery.trim()}
+          <div class="absolute top-full right-0 left-0 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-lg z-50 max-h-80 overflow-y-auto p-1.5 flex flex-col gap-1">
+            {#if calendarStore.loading}
+              <div class="py-8 px-4 flex items-center justify-center">
+                <AnimateSpin class="border-primary size-5 text-slate-500 text-xs" text="Recherche en cours..." />
+              </div>
+            {:else if calendarStore.filteredEvents.length === 0}
+              <div class="py-8 px-4 flex flex-col items-center justify-center text-center gap-2 text-slate-400 select-none">
+                <div class="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 border border-slate-100">
+                  <AppIcon name="search-x" size={26} class="stroke-[1.2]" />
+                </div>
+                <div class="flex flex-col gap-0.5">
+                  <span class="text-[0.82rem] font-semibold text-slate-700">Aucun résultat trouvé</span>
+                  <span class="text-[0.76rem] text-slate-400 max-w-[200px] leading-relaxed">Nous n'avons trouvé aucun événement correspondant à votre recherche.</span>
+                </div>
+              </div>
+            {:else}
+              {#each calendarStore.filteredEvents as event}
+                {@const colorStyles = EVENT_TYPE_COLORS[event.type] || EVENT_TYPE_COLORS.training}
+                <button 
+                  class="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 transition-colors text-left w-full cursor-pointer"
+                  onclick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    handleSearchResultClick(event);
+                  }}
+                >
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <span class="w-2.5 h-2.5 rounded-full shrink-0 {colorStyles.dot}"></span>
+                    <div class="min-w-0">
+                      <div class="text-[0.85rem] font-medium text-slate-700 truncate">{event.title}</div>
+                      <div class="text-[0.75rem] text-slate-400">
+                        {EVENT_TYPE_LABELS[event.type] || event.type}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="text-[0.75rem] font-medium text-slate-500 whitespace-nowrap ml-2">
+                    {formatSearchResultDate(event)}
+                  </div>
+                </button>
+              {/each}
+            {/if}
+          </div>
+        {/if}
       </div>
     </div>
-
-    {#if calendarStore.typeFilters.length > 0}
-      <FilterChips 
-        filters={{ type: calendarStore.typeFilters }}
-        activeFiltersCount={calendarStore.typeFilters.length}
-        getDisplayLabel={getFilterLabel}
-        onRemove={(key, value) => {
-          if (key === 'type') calendarStore.toggleTypeFilter(value as any);
-        }}
-        onReset={() => calendarStore.resetFilters()}
-        class="px-0 pt-1"
-      />
-    {/if}
   </div>
 {/snippet}
 
@@ -242,7 +240,11 @@
 />
 
 
-<ReplicateSheet bind:open={isReplicateSheetOpen} />
+{#snippet CalendarActionsSnippet()}
+  <CalendarActions 
+    onNewEvent={openNewEvent}
+  />
+{/snippet}
 
 
 {#snippet MonthlyStatsAction()}

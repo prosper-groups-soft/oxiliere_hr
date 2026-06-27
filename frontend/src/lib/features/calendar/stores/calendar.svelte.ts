@@ -1,153 +1,226 @@
 import type { CalendarEvent, EventType } from '../types/types';
+import { calendarService } from '../services/calendarService';
 
 
 class CalendarStore {
   events = $state<CalendarEvent[]>([]);
+  loading = $state(false);
+  error = $state<string | null>(null);
   selectedDate = $state<Date>(new Date());
   view = $state<'month' | 'year'>('month');
-  
+  /** Code pays par défaut pour filtrer les événements (RDC) */
+  defaultCountryCode = $state('CD');
+
   constructor() {
-    // Persistence du mode de vue
+    // --- Persistence du mode de vue ---
     const savedView = typeof localStorage !== 'undefined' ? localStorage.getItem('oxiliere_calendar_view') : null;
     if (savedView === 'month' || savedView === 'year') {
       this.view = savedView;
     }
 
     $effect.root(() => {
+      // Sauvegarde du mode de vue
       $effect(() => {
         if (typeof localStorage !== 'undefined') {
           localStorage.setItem('oxiliere_calendar_view', this.view);
         }
       });
+
+      // Chargement automatique quand les filtres changent
+      $effect(() => {
+        const date = this.selectedDate;
+        const year = date.getFullYear();
+        const month = date.getMonth();
+        const types = this.typeFilters;
+        const query = this.searchQuery;
+        const currentView = this.view;
+
+        // Calcul de la plage de dates selon la vue
+        let startDate: string | undefined;
+        let endDate: string | undefined;
+
+        if (query.trim()) {
+          // Si recherche textuelle active, on recherche globalement
+          startDate = undefined;
+          endDate = undefined;
+        } else if (currentView === 'year') {
+          startDate = `${year}-01-01`;
+          endDate = `${year}-12-31`;
+        } else {
+          const lastDay = new Date(year, month + 1, 0).getDate();
+          startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+          endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+        }
+
+        this.#loadEvents(startDate, endDate, types.length === 1 ? types[0] : undefined, query);
+      });
     });
-
-    // Mock initial data
-    const today = new Date();
-    const currYear = today.getFullYear();
-    const currMonth = String(today.getMonth() + 1).padStart(2, '0');
-
-    this.events = [
-      { 
-        id: '1', 
-        title: 'Lundi de Pâques', 
-        defaultDate: `${currYear}-03-21`, 
-        type: 'holiday' 
-      },
-      { 
-        id: '2', 
-        title: 'Fermeture Été', 
-        defaultDate: `${currYear}-03-01`, 
-        endDate: `${currYear}-03-16`, 
-        type: 'closure' 
-      },
-      { 
-        id: '3', 
-        title: 'Formation Svelte 5', 
-        defaultDate: `${currYear}-${currMonth}-15`, 
-        type: 'training' 
-      },
-      { 
-        id: '4', 
-        title: 'Maintenance Système', 
-        defaultDate: `${currYear}-${currMonth}-18`, 
-        type: 'closure' 
-      }
-    ];
   }
 
+  /**
+   * Charge les événements depuis le backend
+   */
+  async #loadEvents(startDate?: string, endDate?: string, eventType?: EventType, search?: string) {
+    this.loading = true;
+    this.error = null;
+
+    try {
+      const filters: Record<string, string | undefined> = {
+        country_code: this.defaultCountryCode,
+      };
+      if (startDate) filters.start_date = startDate;
+      if (endDate) filters.end_date = endDate;
+      if (eventType) filters.event_type = this.#mapTypeToBackend(eventType);
+      if (search) filters.search = search;
+
+      const events = await calendarService.list(filters);
+      this.events = events;
+    } catch (err: any) {
+      this.error = err?.message || 'Erreur lors du chargement des événements';
+      console.error('[CalendarStore] load error:', err);
+    } finally {
+      this.loading = false;
+    }
+  }
+
+  /**
+   * Traduit un type frontend vers backend pour les filtres
+   */
+  #mapTypeToBackend(type: EventType): string {
+    const map: Record<EventType, string> = {
+      'holiday': 'PUBLIC_HOLIDAY',
+      'closure': 'COMPANY_EVENT',
+      'training': 'OTHER',
+      'deadline': 'DEADLINE',
+      'anniversary': 'ANNIVERSARY',
+      'leave': 'LEAVE',
+    };
+    return map[type] || 'OTHER';
+  }
+
+  // ==========================================
+  // CRUD — via le service
+  // ==========================================
+
+  async addEvent(data: {
+    title: string;
+    type: EventType;
+    defaultDate: string;
+    endDate?: string;
+    startTime?: string;
+    endTime?: string;
+    description?: string;
+    isWorkable?: boolean;
+    recurrent?: string;
+    status?: string;
+  }) {
+    try {
+      const newEvent = await calendarService.create({
+        title: data.title,
+        type: data.type,
+        defaultDate: data.defaultDate,
+        endDate: data.endDate,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        description: data.description,
+        isWorkable: data.isWorkable,
+        recurrent: data.recurrent,
+        status: data.status,
+      });
+      this.events = [...this.events, newEvent];
+      return newEvent;
+    } catch (err) {
+      console.error('[CalendarStore] add error:', err);
+      throw err;
+    }
+  }
+
+  async updateEvent(id: string, updates: Partial<CalendarEvent>) {
+    try {
+      const updated = await calendarService.update(id, {
+        title: updates.title,
+        type: updates.type,
+        defaultDate: updates.defaultDate,
+        endDate: updates.endDate,
+        startTime: updates.startTime,
+        endTime: updates.endTime,
+        description: updates.description,
+        isWorkable: updates.isWorkable,
+        recurrent: updates.recurrent,
+        status: updates.status,
+      });
+      this.events = this.events.map(event =>
+        event.id === id ? { ...event, ...updated } : event
+      );
+    } catch (err) {
+      console.error('[CalendarStore] update error:', err);
+      throw err;
+    }
+  }
+
+  async deleteEvent(id: string) {
+    try {
+      await calendarService.delete(id);
+      this.events = this.events.filter(event => event.id !== id);
+    } catch (err) {
+      console.error('[CalendarStore] delete error:', err);
+      throw err;
+    }
+  }
+
+  /**
+   * Réinitialise les jours fériés : supprime tous les PUBLIC_HOLIDAY
+   * et les réimporte depuis le fixture backend.
+   * Les autres événements (formations, fermetures, échéances, etc.) sont préservés.
+   */
+  async resetHolidays(): Promise<number> {
+    try {
+      const imported = await calendarService.resetHolidays();
+      if (imported.length > 0) {
+        // Remplacer les événements existants par la version réimportée
+        const importedIds = new Set(imported.map(e => e.id));
+        // Garder les événements non-fériés + ajouter les fériés réimportés
+        const nonHolidays = this.events.filter(e => e.type !== 'holiday');
+        this.events = [...nonHolidays, ...imported];
+      }
+      return imported.length;
+    } catch (err) {
+      console.error('[CalendarStore] resetHolidays error:', err);
+      throw err;
+    }
+  }
+
+  // ==========================================
   // Filters & Search
+  // ==========================================
+
   searchQuery = $state('');
   typeFilters = $state<EventType[]>([]);
-  
-  // Derived state for filtered events
+
+  // Derived state for filtered events (client-side after API load)
   filteredEvents = $derived.by(() => {
     return this.events.filter(event => {
       // Filter by type
       if (this.typeFilters.length > 0 && !this.typeFilters.includes(event.type)) {
         return false;
       }
-      
+
       // Filter by search query
       if (this.searchQuery.trim()) {
         const query = this.searchQuery.toLowerCase();
         return event.title.toLowerCase().includes(query);
       }
-      
+
       return true;
     });
   });
 
-  addEvent(event: Omit<CalendarEvent, 'id'>) {
-    const newEvent: CalendarEvent = {
-      ...event,
-      id: crypto.randomUUID()
-    };
-    this.events = [...this.events, newEvent];
-    return newEvent;
-  }
-
-  updateEvent(id: string, updates: Partial<CalendarEvent>) {
-    this.events = this.events.map(event => 
-      event.id === id ? { ...event, ...updates } : event
-    );
-  }
-
-  deleteEvent(id: string) {
-    this.events = this.events.filter(event => event.id !== id);
-  }
-
-  setEvents(events: CalendarEvent[]) {
-    this.events = events;
-  }
-
   /**
-   * Replicates events from one year to another
-   * Useful for recurring holidays and closures
-   */
-  replicateYear(sourceYear: number, targetYear: number, types: EventType[]): number {
-    const sourceEvents = this.events.filter(e => {
-      const year = parseInt(e.defaultDate.split('-')[0]);
-      return year === sourceYear && types.includes(e.type);
-    });
-
-    let count = 0;
-    const newEvents: CalendarEvent[] = [];
-
-    sourceEvents.forEach(e => {
-      const newDefaultDate = e.defaultDate.replace(sourceYear.toString(), targetYear.toString());
-      const newEndDate = e.endDate ? e.endDate.replace(sourceYear.toString(), targetYear.toString()) : undefined;
-
-      // Check for duplicate (by title and date)
-      const exists = this.events.some(existing => 
-        existing.title === e.title && 
-        existing.defaultDate === newDefaultDate
-      );
-
-      if (!exists) {
-        newEvents.push({
-          id: crypto.randomUUID(),
-          title: e.title,
-          type: e.type,
-          defaultDate: newDefaultDate,
-          endDate: newEndDate
-        });
-        count++;
-      }
-    });
-
-    if (newEvents.length > 0) {
-      this.events = [...this.events, ...newEvents];
-    }
-
-    return count;
-  }
-
-  /**
-   * Detected conflicts between events
+   * Détection de conflits entre événements
    */
   conflicts = $derived.by(() => {
     const list: { eventId: string; type: 'overlap' | 'closure' | 'holiday'; message: string }[] = [];
-    
+
     this.events.forEach(e1 => {
       this.events.forEach(e2 => {
         if (e1.id === e2.id) return;
@@ -161,8 +234,8 @@ class CalendarStore {
         if (start1 <= end2 && end1 >= start2) {
           // Training on Holiday/Closure
           if (e1.type === 'training' && (e2.type === 'holiday' || e2.type === 'closure')) {
-            list.push({ 
-              eventId: e1.id, 
+            list.push({
+              eventId: e1.id,
               type: e2.type === 'holiday' ? 'holiday' : 'closure',
               message: `Chevauchement avec ${e2.title} (${e2.type === 'holiday' ? 'Férié' : 'Fermeture'})`
             });
@@ -178,102 +251,122 @@ class CalendarStore {
     return this.conflicts.some(c => c.eventId === eventId);
   }
 
-  /**
-   * Mass delete events for a specific year
-   */
-  resetYear(year: number) {
-    this.events = this.events.filter(e => {
-      const eventYear = parseInt(e.defaultDate.split('-')[0]);
-      return eventYear !== year;
-    });
-  }
+  // ==========================================
+  // Dérivés
+  // ==========================================
 
   /**
-   * Import official RDC holidays
-   * In a real app, this would call a Django service/fixture
+   * Statistiques pour le mois sélectionné
+   * - Chaque événement est compté une seule fois (même s'il s'étale sur plusieurs jours)
+   * - workingDays compte les jours non-weekend, non-férié, non-fermeture
    */
-  async importHolidays(year: number) {
-    // Simulating API call
-    const rdcHolidays: Omit<CalendarEvent, 'id'>[] = [
-      { title: "Nouvel An", defaultDate: `${year}-01-01`, type: 'holiday' },
-      { title: "Martyrs de l'Indépendance", defaultDate: `${year}-01-04`, type: 'holiday' },
-      { title: "Laurent Désiré Kabila", defaultDate: `${year}-01-16`, type: 'holiday' },
-      { title: "Patrice Emery Lumumba", defaultDate: `${year}-01-17`, type: 'holiday' },
-      { title: "Fête du Travail", defaultDate: `${year}-05-01`, type: 'holiday' },
-      { title: "Indépendance", defaultDate: `${year}-06-30`, type: 'holiday' },
-      { title: "Fête des Parents", defaultDate: `${year}-08-01`, type: 'holiday' },
-      { title: "Noël", defaultDate: `${year}-12-25`, type: 'holiday' }
-    ];
-
-    let importedCount = 0;
-    rdcHolidays.forEach(h => {
-      const exists = this.events.some(e => e.title === h.title && e.defaultDate === h.defaultDate);
-      if (!exists) {
-        this.addEvent(h);
-        importedCount++;
-      }
-    });
-
-    return importedCount;
-  }
-
-  /**
-   * Derived stats for the current selected month
-   */
-  monthStats = $derived.by(() => {
+  monthStats = $derived.by<{
+    workingDays: number;
+    holidaysCount: number;
+    closuresCount: number;
+    totalDays: number;
+    typeCounts: Record<string, number>;
+  }>(() => {
     const year = this.selectedDate.getFullYear();
     const month = this.selectedDate.getMonth();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    
+
+    // 1 — Compter les événements uniques du mois (par type)
+    const typeCounts: Record<string, number> = {
+      holiday: 0,
+      closure: 0,
+      training: 0,
+      deadline: 0,
+      anniversary: 0,
+      leave: 0,
+    };
+
+    const monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    const monthEnd = `${year}-${String(month + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
+
+    for (const event of this.events) {
+      // L'événement touche-t-il ce mois-ci ?
+      const evtStart = event.defaultDate;
+      const evtEnd = event.endDate || event.defaultDate;
+      if (evtEnd >= monthStart && evtStart <= monthEnd) {
+        if (event.type in typeCounts) {
+          typeCounts[event.type]++;
+        }
+      }
+    }
+
+    // 2 — Compter les jours ouvrés (en parcourant les jours)
     let workingDays = 0;
-    let holidaysCount = 0;
-    let closuresCount = 0;
 
     for (let d = 1; d <= daysInMonth; d++) {
       const date = new Date(year, month, d);
       const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-      
-      const events = this.getEventsForDate(date);
+
+      const events = this.#getEventsForDateRaw(date);
       const isHoliday = events.some(e => e.type === 'holiday');
       const isClosure = events.some(e => e.type === 'closure');
 
       if (!isWeekend && !isHoliday && !isClosure) {
         workingDays++;
       }
-      
-      if (isHoliday) holidaysCount++;
-      if (isClosure) closuresCount++;
     }
 
     return {
       workingDays,
-      holidaysCount,
-      closuresCount,
-      totalDays: daysInMonth
+      holidaysCount: typeCounts.holiday,
+      closuresCount: typeCounts.closure,
+      totalDays: daysInMonth,
+      typeCounts,
     };
   });
 
+  // ==========================================
+  // Helpers
+  // ==========================================
+
   /**
-   * Helper to get events for a specific date
-   * Handles both single day and multi-day events
+   * Récupère les événements pour une date donnée (utilise tous les événements, filtrés)
    */
   getEventsForDate(date: Date): CalendarEvent[] {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
     const d = String(date.getDate()).padStart(2, '0');
     const dStr = `${y}-${m}-${d}`;
-    
+
     return this.filteredEvents.filter(event => {
       if (!event.endDate || event.endDate === event.defaultDate) {
         return event.defaultDate === dStr;
       }
-      
+
       // Range check
       return dStr >= event.defaultDate && dStr <= event.endDate;
     });
   }
 
+  /**
+   * Récupère les événements pour une date donnée (utilise this.events brut,
+   * ignoré les filtres typeFilters/searchQuery — utilisé par monthStats)
+   */
+  #getEventsForDateRaw(date: Date): CalendarEvent[] {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    const dStr = `${y}-${m}-${d}`;
+
+    return this.events.filter(event => {
+      if (!event.endDate || event.endDate === event.defaultDate) {
+        return event.defaultDate === dStr;
+      }
+
+      // Range check
+      return dStr >= event.defaultDate && dStr <= event.endDate;
+    });
+  }
+
+  // ==========================================
   // Navigation
+  // ==========================================
+
   prevPeriod() {
     const d = new Date(this.selectedDate);
     if (this.view === 'month') d.setMonth(d.getMonth() - 1);
@@ -290,6 +383,10 @@ class CalendarStore {
 
   goToday() {
     this.selectedDate = new Date();
+  }
+
+  setView(v: 'month' | 'year') {
+    this.view = v;
   }
 
   toggleTypeFilter(type: EventType) {

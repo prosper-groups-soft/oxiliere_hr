@@ -15,7 +15,7 @@
     firstName: '',
     lastName: '',
     role: 'EMPLOYEE',
-    department: '',
+    orgUnit: '',
     phone: ''
   }), onSubmit }: Props = $props();
 
@@ -43,7 +43,7 @@
     }
   }
 
-  const departments = [
+  const orgUnits = [
     'Direction',
     'Ressources Humaines',
     'Finance',
@@ -120,17 +120,17 @@
     {/if}
   </div>
 
-  <!-- Department -->
+  <!-- organizational unit -->
   <div class="space-y-1.5">
-    <Label for="department" class="text-[0.8rem]">Département</Label>
-    <Select.Root type="single" bind:value={formData.department}>
-      <Select.Trigger id="department" class="h-9.5 w-full shadow-fine text-[0.85rem] cursor-pointer">
-        {formData.department || 'Non assigné'}
+    <Label for="orgUnit" class="text-[0.8rem]">Département</Label>
+    <Select.Root type="single" bind:value={formData.orgUnit}>
+      <Select.Trigger id="orgUnit" class="h-9.5 w-full shadow-fine text-[0.85rem] cursor-pointer">
+        {formData.orgUnit || 'Non assigné'}
       </Select.Trigger>
       <Select.Content class="z-100 shadow-fine">
         <Select.Item value="">Non assigné</Select.Item>
-        {#each departments as dept}
-          <Select.Item value={dept} class="text-[0.84rem]">{dept}</Select.Item>
+        {#each orgUnits as orgUnit}
+          <Select.Item value={orgUnit} class="text-[0.84rem]">{orgUnit}</Select.Item>
         {/each}
       </Select.Content>
     </Select.Root>

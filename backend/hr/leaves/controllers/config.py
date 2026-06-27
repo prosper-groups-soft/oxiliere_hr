@@ -33,7 +33,7 @@ from hr.leaves.schemas import (
 from hr.services.cache_helpers import cache_api_response
 
 
-@api_controller('/config', tags=['Leave Configuration'])
+@api_controller('/leaves/config', tags=['Leave Configuration'])
 class LeaveConfigController(ControllerBase):
     """ Manages the structural setup of leave policies, seniority rewards, and special leave rules. """
 
@@ -52,8 +52,11 @@ class LeaveConfigController(ControllerBase):
         
     @http_post('/init-defaults', response={204: None})
     def initialize_defaults(self):
-        """ Installs standard labor law policies and rules. Safe to run multiple times. """
-        self.initializer_service.initialize_defaults()
+        """ 
+        Resets leave configuration to default values from fixtures.
+        Deletes existing rules and recreates them from fixtures.
+        """
+        self.initializer_service.initialize_defaults(force_reset=True)
         return 204, None
 
     # --- Leave Policies ---

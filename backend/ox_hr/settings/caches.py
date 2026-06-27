@@ -6,8 +6,11 @@ CACHEOPS_REDIS = REDIS_URL
 
 CACHES = {
     "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": REDIS_URL,
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
     }
 }
 
@@ -120,7 +123,7 @@ CACHEOPS = {
         'ops': ('get', 'fetch'),
         'timeout': 60*60*24  # 24h
     },
-    'jobs.department': {
+    'jobs.org_unit': {
         'ops': ('get', 'fetch'),
         'timeout': 60*60*24  # 24h
     },

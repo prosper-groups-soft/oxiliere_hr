@@ -7,13 +7,13 @@ from corsheaders.defaults import default_headers
 
 
 ENV_PROD = "PROD"
-ENV_DEV = "DEV"
-ENV_STG = "STG"
+ENV_DEV  = "DEV"
+ENV_STG  = "STG"
 
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-DEBUG = os.environ.get('DJANGO_DEBUG', 'OFF') == "ON"
-ENVIRONNMENT = os.environ.get('DJANGO_ENVIRONNMENT', ENV_DEV)
+BASE_DIR       = Path(__file__).resolve().parent.parent
+DEBUG          = os.environ.get('DJANGO_DEBUG', 'OFF') == "ON"
+ENVIRONNMENT    = os.environ.get('DJANGO_ENVIRONNMENT', ENV_DEV)
 APP_NAME = oxi_settings.service_name
 
 
@@ -99,4 +99,8 @@ NINJA_EXTRA={
 
 SITE_NAME = os.environ.get('OXI_SITE_NAME', 'Oxiliere')
 SITE_DOMAIN = os.environ.get('OXI_SITE_DOMAIN', 'oxiliere.com')
+
+# Custom schemas for oxutils UserController to expose TenantUser ID at root level
+OX_TENANT_USER_LIST_SCHEMA = 'core.schemas.TenantUserListSchema'
+OX_TENANT_USER_DETAIL_SCHEMA = 'core.schemas.TenantUserDetailSchema'
 

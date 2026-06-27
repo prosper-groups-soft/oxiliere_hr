@@ -3,6 +3,7 @@ import os
 
 NATS_URL = os.environ.get("NATS_URL", "nats://localhost:4222")
 
+
 NATS_CONSUMER = {
     "connect_args": {
         "servers": [NATS_URL],

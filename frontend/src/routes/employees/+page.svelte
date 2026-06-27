@@ -1,22 +1,111 @@
 <script lang="ts">
+  import { fade } from "svelte/transition";
   import { Button } from "@/components/ui/button";
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
   import DataPagination from "@/components/layout/elements/DataPagination.svelte";
-  import EmployeeList from "@/features/employees/components/mngt/list/EmployeeList.svelte";
+  import EmployeeList from "@/features/employees/components/mgmt/list/EmployeeList.svelte";
   import { employeeStore } from "@/features/employees/stores/employees.svelte";
-  import * as DropdownMenu from "@/components/ui/dropdown-menu";
-  import { Badge } from "@/components/ui/badge";
-  import { scale } from "svelte/transition";
-  import { cn } from "@/utilities/common/css";
-  import TooltipWrapper from "@/components/shared/containers/TooltipWrapper.svelte";
+  import { useEmployeesQuery, syncEmployeesStore } from "@/features/employees/queries";
+  import { get } from 'svelte/store';
   import SearchBar from "@/components/shared/elements/SearchBar.svelte";
   import FilterChips from "@/components/shared/elements/FilterChips.svelte";
+  import AnimateSpin from "@/components/layout/elements/AnimateSpin.svelte";
+  import Empty from "@/components/shared/containers/empty/Empty.svelte";
+  import { ERROR_MESSAGES, getFriendlyErrorMessage } from "@/constants/errors";
+  import EmployeesActions from "@/features/employees/components/mgmt/layout/actions/EmployeesActions.svelte";
+  import { useOrgUnitsQuery } from "@/features/jobs/queries/orgQueries";
+  import { CONTRACT_TYPES } from "@/features/employees/constants/contract";
+  import { EMPLOYEE_STATUS_CONFIG } from "@/features/employees/constants/employeeStatus";
+  import { ui } from "@/stores/ui.svelte";
+  import { goto } from '$app/navigation';
 
-  const sortLabels: Record<string, string> = {
-    name: "Nom (A-Z)",
-    joinDate: "Date d'embauche",
-    status: "Statut"
-  };
+
+  // Charger les données depuis le backend avec tri côté serveur
+  const employeesQuery = useEmployeesQuery(
+    () => employeeStore.currentPage,
+    () => employeeStore.perPage,
+    () => employeeStore.searchQuery,
+    () => employeeStore.filters,
+    () => employeeStore.sortBy,
+    () => employeeStore.sortOrder
+  );
+
+  // Charger les unités organisationnelles pour les labels de filtres
+  const orgUnitsQuery = useOrgUnitsQuery();
+  const orgUnits = $derived($orgUnitsQuery.data?.results || []);
+
+  // Synchroniser le store avec les données de la query
+  $effect(() => {
+    syncEmployeesStore($employeesQuery);
+  });
+
+  // Re-fetch quand les filtres, le tri ou la recherche changent
+  // Utiliser get() pour éviter la boucle infinie sur la valeur réactive
+  $effect(() => {
+    employeeStore.filters.orgUnit;
+    employeeStore.filters.status;
+    employeeStore.filters.location;
+    employeeStore.filters.contractType;
+    employeeStore.sortBy;
+    employeeStore.sortOrder;
+    employeeStore.searchQuery;
+    employeeStore.currentPage;
+    employeeStore.perPage;
+    get(employeesQuery).refetch();
+  });
+
+  // Créer un objet filters enrichi qui inclut la recherche textuelle
+  // pour que FilterChips puisse l'afficher
+  const filtersWithSearch = $derived.by(() => {
+    const f = { ...employeeStore.filters };
+    if (employeeStore.searchQuery) {
+      (f as Record<string, string[]>).search = [employeeStore.searchQuery];
+    }
+    return f;
+  });
+
+  // Fonction pour afficher les labels lisibles des filtres
+  function getFilterDisplayLabel(key: string, value: string): string {
+    switch (key) {
+      case 'orgUnit':
+        const orgUnit = orgUnits.find(u => u.id === value);
+        return orgUnit ? `Unité: ${orgUnit.name}` : `Unité: ${value}`;
+      
+      case 'status':
+        const statusConfig = EMPLOYEE_STATUS_CONFIG[value];
+        return statusConfig ? statusConfig.label : value;
+      
+      case 'contractType':
+        const contractType = CONTRACT_TYPES.find(ct => ct.value === value);
+        return contractType ? `Contrat: ${contractType.label}` : `Contrat: ${value}`;
+      
+      case 'location':
+        return `Localité: ${value}`;
+      
+      case 'search':
+        return `Recherche: “${value}”`;
+      
+      default:
+        return value;
+    }
+  }
+
+  // Actions pour les boutons
+  function openEmployeeAdd() {
+    goto('/employees/onboarding');
+  }
+
+  function toggleViewMode() {
+    employeeStore.toggleViewMode();
+  }
+
+  // Enregistrer les actions dans le store UI
+  $effect(() => {
+    ui.addActions('employees', EmployeesActionsSnippet);
+    return () => {
+      ui.removeActions('employees');
+    };
+  });
 </script>
 
 
@@ -30,20 +119,70 @@
 
   <div class="flex flex-1 flex-col overflow-hidden min-h-0">
     <FilterChips 
-      filters={employeeStore.filters}
-      activeFiltersCount={employeeStore.activeFiltersCount}
-      onRemove={(key, value) => employeeStore.toggleFilter(key as any, value)}
+      filters={filtersWithSearch}
+      activeFiltersCount={employeeStore.activeFiltersCount + (employeeStore.searchQuery ? 1 : 0)}
+      getDisplayLabel={getFilterDisplayLabel}
+      onRemove={(key, value) => {
+        if (key === 'search') {
+          employeeStore.setSearchQuery('');
+        } else {
+          employeeStore.toggleFilter(key as any, value);
+        }
+      }}
       onReset={() => employeeStore.resetFilters()}
-      class="mb-2 py-1.5"
+      class="py-1 pb-1.5 px-6 border-b border-slate-50"
     />
 
-    <main class="flex flex-1 flex-col overflow-hidden min-h-0">
-      <div class="flex-1 overflow-y-auto min-h-0">
-        <EmployeeList 
-          employees={employeeStore.paginatedEmployees} 
-          viewMode={employeeStore.viewMode} 
-        />
+    <!-- Overhead loading bar during refetch -->
+    {#if $employeesQuery.isFetching}
+      <div class="h-0.5 bg-slate-100 overflow-hidden">
+        <div class="h-full bg-primary animate-[loadingSlide_1.2s_ease-in-out_infinite] rounded-full" style="width: 30%"></div>
       </div>
+    {/if}
+
+    <main class="flex flex-1 flex-col overflow-hidden min-h-0">
+      <!-- Loading state -->
+      {#if $employeesQuery.isLoading && employeeStore.totalCount === 0}
+        <div class="flex justify-center items-center h-full">
+          <AnimateSpin text="Chargement des employés" />
+        </div>
+      
+      <!-- Error state -->
+      {:else if $employeesQuery.error && employeeStore.totalCount === 0}
+        <div class="flex justify-center items-center h-full">
+          <Empty 
+            icon="alert-circle" 
+            title="Erreur de Connexion" 
+            description={getFriendlyErrorMessage($employeesQuery.error) || ERROR_MESSAGES.NETWORK.UNKNOWN} 
+            iconClass="text-red-400" 
+            iconContainerClass="bg-red-50/30"
+            iconSize={28}
+            iconStrokeWidth={1.3}
+          >
+            <Button 
+              onclick={() => get(employeesQuery).refetch()} 
+              variant="outline"
+              class="h-7 mt-2 rounded-lg transition-colors"
+            >          
+              <AppIcon name="refresh-cw" />
+              Réessayer
+            </Button> 
+          </Empty>
+        </div>
+      
+      <!-- Content state -->
+      {:else}
+        <div class="flex-1 overflow-y-auto min-h-0" transition:fade={{ duration: 200 }}>
+          <EmployeeList 
+            employees={employeeStore.paginatedEmployees} 
+            viewMode={employeeStore.viewMode}
+            activeFiltersCount={employeeStore.activeFiltersCount}
+            searchQuery={employeeStore.searchQuery}
+            onResetFilters={() => { employeeStore.resetFilters(); employeeStore.setSearchQuery(''); }}
+            onAdd={openEmployeeAdd}
+          />
+        </div>
+      {/if}
 
       {#if employeeStore.totalCount > 0}
         <div class="px-4 bg-slate-50/80 border-t border-[#e9eaea] pr-10">
@@ -66,12 +205,44 @@
 </div>
 
 
+<!-- WRAPPER FOR ui.addActions -->
+{#snippet EmployeesActionsSnippet()}
+  <EmployeesActions 
+    onAdd={openEmployeeAdd} 
+    onToggleViewMode={toggleViewMode} 
+  />
+{/snippet}
+
+
+{#snippet QuickStats()}
+  <div class="flex items-center gap-5 px-4 py-1">
+    <div class="flex items-center gap-2">
+      <AppIcon name="users" size={17} class="text-slate-500" />
+      <span class="text-sm font-semibold text-slate-800 tabular-nums">{employeeStore.totalCount}</span>
+      <span class="text-xs text-slate-400">total</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <AppIcon name="user-check" size={17} class="text-green-500" />
+      <span class="text-sm font-semibold text-green-600 tabular-nums">{employeeStore.employees.filter(e => e.status === 'active').length}</span>
+      <span class="text-xs text-slate-400">actifs</span>
+    </div>
+    {#if employeeStore.activeFiltersCount > 0}
+      <div class="flex items-center gap-2">
+        <AppIcon name="filter" size={17} class="text-blue-500" />
+        <span class="text-sm font-semibold text-blue-600 tabular-nums">{employeeStore.activeFiltersCount}</span>
+        <span class="text-xs text-slate-400">filtres</span>
+      </div>
+    {/if}
+  </div>
+{/snippet}
+
+
 {#snippet Header()}
-  <div class="flex flex-col gap-4 pb-2.5 border-b border-slate-100 pt-2.5 px-4 pr-8.5">
-    <div class="flex items-center gap-3">
+  <div class="flex flex-col gap-4 pb-2.5 border-b border-slate-100 pt-2.5 px-4 pr-8">
+    <div class="flex items-center justify-between">
       <div class="flex-1 ml-0.5">
         <SearchBar 
-          bind:value={employeeStore.searchQuery} 
+          bind:value={employeeStore.searchQuery}
           placeholder="Rechercher un profil..." 
           class="w-125"
           inputClass="h-9.5 pl-10 pr-9 rounded-[18px] text-[0.9rem] bg-[#f5f6f7]"
@@ -80,160 +251,20 @@
         />
       </div>
       
-      <div class="flex items-center gap-2">
-        <div>
-          <TooltipWrapper content={employeeStore.viewMode === 'list' ? "Passer en vue grille" : "Passer en vue liste"}>
-            {#snippet children(props)}
-              <button 
-                {...props}
-                onclick={() => employeeStore.toggleViewMode()}
-                class="h-7.5 w-7.5 flex items-center justify-center bg-white border border-slate-300 rounded-lg shadow-fine hover:bg-slate-50 text-slate-600 transition-all cursor-pointer outline-none"
-              >
-                {#if employeeStore.viewMode === 'list'}
-                  <div in:scale={{ duration: 150 }}>
-                    <AppIcon name="layout-grid" size={17} />
-                  </div>
-                {:else}
-                  <div in:scale={{ duration: 150 }}>
-                    <AppIcon name="list" size={17} />
-                  </div>
-                {/if}
-              </button>
-            {/snippet}
-          </TooltipWrapper>
-        </div>
-
-        {@render SortMenu()}
-        {@render Actions()}
-      </div>
+      <!-- Statistiques rapides -->
+      {@render QuickStats()}
     </div>
   </div>
 {/snippet}
 
 
-{#snippet SortMenu()}
-  <div class="flex items-center bg-white border border-slate-200 rounded-lg shadow-fine overflow-hidden">
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger>
-        {#snippet child({ props })}
-          <button 
-            {...props} 
-            class="h-7.5 px-3 flex items-center justify-start gap-2 cursor-pointer outline-none hover:bg-slate-50 transition-all min-w-35 max-w-50 border-none bg-transparent shadow-fine"
-          >
-            <div class="flex shrink-0 items-center justify-center">
-              <AppIcon name="sort" size={16} class="text-slate-500" />
-            </div>
-            
-            <span class="text-[0.84rem] text-slate-700 w-26 font-medium truncate">
-              {sortLabels[employeeStore.sortBy] || "Trier par"}
-            </span>
-          </button>
-        {/snippet}
-      </DropdownMenu.Trigger>
-
-      <DropdownMenu.Content align="start" class="p-1 rounded-lg shadow-fine bg-white border-slate-100">
-        <DropdownMenu.Label class="px-2 py-1.5 text-[0.7rem]! font-bold text-slate-400 uppercase tracking-widest">
-          Critères
-        </DropdownMenu.Label>
-        <DropdownMenu.Separator class="my-1 bg-slate-50" />
-          <DropdownMenu.RadioGroup value={employeeStore.sortBy} onValueChange={(v) => employeeStore.setSort?.(v)}>
-            <DropdownMenu.RadioItem value="name" class="py-2 pr-3 pl-7 rounded-lg cursor-pointer text-[0.84rem]!">
-              Nom (A-Z)
-            </DropdownMenu.RadioItem>
-            
-            <DropdownMenu.RadioItem value="joinDate" class="py-2 pr-3 pl-7 rounded-lg cursor-pointer text-[0.84rem]!">
-              Date d'embauche
-            </DropdownMenu.RadioItem>
-            
-            <DropdownMenu.RadioItem value="status" class="py-2 pr-3 pl-7 rounded-lg cursor-pointer text-[0.84rem]!">
-              Statut
-            </DropdownMenu.RadioItem>
-          </DropdownMenu.RadioGroup>
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
-
-    <div class="w-8 h-7.5 shrink-0 flex items-center justify-center border-l border-slate-100 bg-slate-50/30">
-      <TooltipWrapper content={employeeStore.sortOrder === 'asc' ? 'Ordre croissant' : 'Ordre décroissant'}>
-        {#snippet children(props)}
-          <button 
-            {...props}
-            onclick={() => employeeStore.toggleSortOrder?.()}
-            class="w-full h-full flex items-center justify-center hover:bg-slate-100 transition-colors cursor-pointer"
-          >
-            <div class={cn("transition-transform duration-300 flex items-center justify-center", employeeStore.sortOrder === 'desc' ? "rotate-180" : "rotate-0")}>
-              <AppIcon name="arrow-up" size={15} class={employeeStore.sortOrder === 'desc' ? "text-blue-600" : "text-slate-400"} />
-            </div>
-          </button>
-        {/snippet}
-      </TooltipWrapper>
-    </div>
-  </div>
-{/snippet}
-
-
-{#snippet Actions()}
-  <div class="flex items-center gap-3">
-    <!-- Filtres -->
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger 
-        class="inline-flex items-center justify-center bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-lg shadow-fine h-7.5 px-3 gap-2 cursor-pointer transition-all"
-      >
-        <AppIcon name="filter" size={16} class={employeeStore.activeFiltersCount > 0 ? "text-blue-500" : "text-slate-400"} />
-        <span class="text-[0.84rem] text-slate-700">Filtrer</span>
-        {#if employeeStore.activeFiltersCount > 0}
-          <div transition:scale={{ duration: 200, start: 0.8 }}>
-            <Badge class="h-4.5 min-w-4.5 p-0 flex items-center justify-center bg-blue-500 text-white font-medium rounded-full text-[0.65rem] border-none">
-              {employeeStore.activeFiltersCount}
-            </Badge>
-          </div>
-        {/if}
-      </DropdownMenu.Trigger>
-
-      <DropdownMenu.Content align="end" class="w-64 p-0 rounded-md shadow-fine border-slate-100 bg-white overflow-hidden">
-        <div class="p-3 border-b border-slate-50 bg-slate-50/30">
-          <input 
-            type="text" 
-            placeholder="Chercher un département..." 
-            class="w-full text-[0.83rem] p-1.5 border rounded-md bg-white outline-none focus:border-blue-300"
-          />
-        </div>
-
-        <div class="p-2 max-h-80 overflow-y-auto">
-          {@render FilterSection("Département", ["Ingénierie", "Produit", "Vente"], "department")}
-          <DropdownMenu.Separator class="my-2 bg-slate-50" />
-          {@render FilterSection("Statut", ["Actif", "En intégration"], "status")}
-        </div>
-
-        {#if employeeStore.activeFiltersCount > 0}
-          <div class="p-2 bg-slate-50/50 border-t border-slate-100">
-            <Button variant="ghost" onclick={() => employeeStore.resetFilters()} class="w-full h-8 text-[0.84rem] bg-white text-red-500 hover:text-red-600 hover:bg-red-50! font-medium">
-              Réinitialiser tout
-            </Button>
-          </div>
-        {/if}
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
-
-    <Button href="/employees/onboarding" class="bg-blue-600 hover:bg-blue-700 h-7.5 px-3 text-[0.84rem] text-white rounded-lg shadow-fine">
-      <AppIcon name="plus" size={17} />
-      Ajouter
-    </Button>
-  </div>
-{/snippet}
-
-
-{#snippet FilterSection(label: string, options: string[], filterKey: keyof typeof employeeStore.filters)}
-  <DropdownMenu.Label class="text-[0.75rem]! font-bold text-slate-400 uppercase tracking-widest px-2 py-2">
-    {label}
-  </DropdownMenu.Label>
-  {#each options as option}
-    <DropdownMenu.CheckboxItem 
-      checked={employeeStore.filters[filterKey].includes(option)}
-      onCheckedChange={() => employeeStore.toggleFilter(filterKey, option)}
-      class="rounded-lg py-1.5 px-2 text-[0.85rem]! cursor-pointer pl-7"
-    >
-      {option}
-    </DropdownMenu.CheckboxItem>
-  {/each}
-{/snippet}
+<style>
+  :global {
+    @keyframes loadingSlide {
+      0% { transform: translateX(-100%); }
+      50% { transform: translateX(200%); }
+      100% { transform: translateX(400%); }
+    }
+  }
+</style>
 

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Button } from "@/components/ui/button";
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
+  import { preventNonNumeric } from "@/utilities/common/number";
   import { cn } from "@/utilities/common/css";
   import { crossfade } from 'svelte/transition';
   import { cubicInOut } from 'svelte/easing';
@@ -43,6 +44,11 @@
 
   // Jump to page input state
   let jumpInput = $state("");
+  let isValidInput = $state(true);
+
+  // Calculate item range for display
+  const startItem = $derived((currentPage - 1) * perPage + 1);
+  const endItem = $derived(Math.min(currentPage * perPage, totalCount));
 
   // Ellipsis logic
   const visiblePages = $derived.by(() => {
@@ -81,7 +87,33 @@
       if (!isNaN(page) && page >= 1 && page <= totalPages) {
         onPageChange(page);
         jumpInput = "";
+        isValidInput = true;
+      } else {
+        isValidInput = false;
       }
+    }
+  }
+
+  function handleInput(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const value = input.value;
+    
+    // Only allow numeric characters
+    if (value && !/^\d*$/.test(value)) {
+      input.value = value.replace(/\D/g, '');
+      jumpInput = input.value;
+    }
+    
+    // Validate range
+    const numValue = parseInt(jumpInput);
+    if (jumpInput && !isNaN(numValue)) {
+      if (numValue < 1 || numValue > totalPages) {
+        isValidInput = false;
+      } else {
+        isValidInput = true;
+      }
+    } else {
+      isValidInput = true;
     }
   }
 
@@ -110,9 +142,9 @@
   aria-label="Pagination"
 >
   <div class="flex items-center gap-6">
-    <div class="text-[0.875rem] shrink-0 tracking-tight flex items-center gap-1">
-      <span class="font-bold text-indigo-600 text-[0.875rem] inline-block min-w-[1.2rem] text-center">
-        {currentCount}
+    <div class="text-[0.875rem] shrink-0 tracking-tight flex items-center gap-0.5">
+      <span class="font-bold text-indigo-600 text-[0.875rem] inline-block min-w-12 text-center">
+        {startItem} - {endItem}
       </span>
       <span class="text-slate-800 font-normal text-[0.875rem]">{PAGINATION_LABELS.SUR}</span>
       <span class="font-bold text-indigo-600 text-[0.875rem] inline-block min-w-[1.2rem] text-center">
@@ -121,9 +153,9 @@
       <span class="text-slate-800 font-normal text-[0.875rem]">{unitLabel}</span>
     </div>
 
-    <div class="h-4 w-px bg-slate-300"></div>
+    <div class="h-4 w-px bg-slate-300 hidden"></div>
 
-    <div class="flex items-center gap-2">
+    <div class="items-center gap-2 hidden">
       <span class="text-[0.8rem] text-slate-700 font-medium uppercase tracking-wider">{PAGINATION_LABELS.LIGNES}</span>
       <div class="relative flex items-center p-0.5 rounded-lg border border-slate-300 bg-white">
         {#each DEFAULT_PAGE_SIZE_OPTIONS as size}
@@ -151,13 +183,22 @@
 
   <div class="flex items-center gap-4">
     <div class="flex items-center gap-1.5 bg-slate-50/50 p-1 rounded-lg border border-slate-100">
-      <span class="text-[0.75rem] text-slate-500 font-medium pl-1">{PAGINATION_LABELS.GO_TO} :</span>
+      <span class="text-[0.78rem] text-slate-500 font-medium pl-1">{PAGINATION_LABELS.GO_TO} :</span>
       <input 
         type="text" 
         placeholder={PAGINATION_LABELS.PAGE}
         bind:value={jumpInput}
-        onkeydown={handleJump}
-        class="h-6 w-12 text-[0.8rem] px-0.5 text-center bg-white border border-slate-200 rounded-md outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 transition-all font-medium text-slate-700"
+        oninput={handleInput}
+        onkeydown={(e) => {
+          handleJump(e);
+          preventNonNumeric(e);
+        }}
+        class={cn(
+          "h-6 w-12 text-[0.8rem] px-0.5 text-center bg-white border rounded-md outline-none focus:ring-2 transition-all font-medium text-slate-700",
+          isValidInput 
+            ? "border-slate-200 focus:ring-indigo-100 focus:border-indigo-400" 
+            : "border-red-400 focus:ring-red-100 focus:border-red-500"
+        )}
       />
     </div>
 

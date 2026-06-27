@@ -1,5 +1,7 @@
 from decimal             import Decimal
-from django.db           import transaction
+from datetime            import date
+from django.db           import transaction, models
+from django.db.models    import Q
 from django.utils        import timezone
 from hr.employees.models import Employee
 from hr.payroll.models   import (
@@ -41,8 +43,14 @@ class PayrollOrchestrator:
         if payroll_run.status != PayrollStatus.DRAFT:
             raise ValueError("Only draft payroll runs can be processed.")
 
-        config = PayrollConfiguration.objects.first() # Global settings
-        active_contracts = EmployeeContract.objects.filter(is_active=True)
+        today = timezone.localdate()
+        active_contracts = EmployeeContract.objects.filter(
+            start_date__lte=today,
+        ).filter(
+            Q(end_date__isnull=True) | Q(end_date__gte=today)
+        )
+
+        config = PayrollConfiguration.objects.first()  # Global settings
 
         for contract in active_contracts:
             cls._generate_single_payslip(payroll_run, contract, config)
@@ -168,6 +176,7 @@ class PayrollOrchestrator:
                 'regular_days': attendance['regular_days'],
                 'overtime_hours_first_tier': min(standard_ot, tier_limit),
                 'overtime_hours_second_tier': max(0, standard_ot - tier_limit),
+                'overtime_hours_weekend': attendance.get('overtime_hours_weekend', 0),
                 'overtime_hours_holiday': attendance['overtime_hours_holiday'],
                 'absence_days': attendance['absence_days']
             }
@@ -196,7 +205,7 @@ class PayrollOrchestrator:
         
         # === Base Salary Calculation ===
         if contract.remuneration_type == RemunerationType.FIXED:
-            target_amount = contract.base_salary
+            target_amount = contract.base_salary.amount if contract.base_salary else Decimal('0')
             
             # Apply currency conversion
             if employee_data['contract_currency'] != Currency.CDF:
@@ -217,7 +226,7 @@ class PayrollOrchestrator:
             hourly_rate = base_amount / std_monthly_hours
         
         else:  # HOURLY
-            target_rate = contract.hourly_rate
+            target_rate = contract.hourly_rate.amount if contract.hourly_rate else Decimal('0')
             
             # Apply currency conversion
             if employee_data['contract_currency'] != Currency.CDF:
@@ -237,16 +246,16 @@ class PayrollOrchestrator:
                 hourly_rate = target_rate
             
             # Total hours: worked + paid leave hours
-            paid_leave_hours = float(leave['paid_leave_days']) * 8.0
-            total_remunerable_hours = float(attendance['total_worked_hours']) + paid_leave_hours
+            paid_leave_hours = Decimal(str(leave['paid_leave_days'])) * Decimal('8.0')
+            total_remunerable_hours = Decimal(str(attendance['total_worked_hours'])) + paid_leave_hours
             base_amount = (hourly_rate * Decimal(str(total_remunerable_hours))).quantize(Decimal('0.01'))
             
         # === Overtime Calculation - Updated for DRC (6-hour tier) ===
         rules_qs = OvertimeRule.objects.filter(is_active=True)
         multipliers = {
-            # Change 'first_two' to a generic name like 'first_period'
-            'first_period': rules_qs.filter(rule_type=OvertimeRuleType.FIRST_TWO_HOURS).values_list('multiplier', flat=True).first() or Decimal('1.30'),
+            'first_period': rules_qs.filter(rule_type=OvertimeRuleType.FIRST_TIER).values_list('multiplier', flat=True).first() or Decimal('1.30'),
             'subsequent': rules_qs.filter(rule_type=OvertimeRuleType.SUBSEQUENT_HOURS).values_list('multiplier', flat=True).first() or Decimal('1.60'),
+            'weekend': rules_qs.filter(rule_type=OvertimeRuleType.WEEKEND).values_list('multiplier', flat=True).first() or Decimal('2.00'),
             'holiday': rules_qs.filter(rule_type=OvertimeRuleType.HOLIDAY).values_list('multiplier', flat=True).first() or Decimal('2.00')
         }
         
@@ -255,6 +264,7 @@ class PayrollOrchestrator:
             hourly_rate=hourly_rate,
             std_hours=attendance['overtime_hours_standard'],
             hol_hours=attendance['overtime_hours_holiday'],
+            weekend_hours=attendance.get('overtime_hours_weekend', 0),
             multipliers=multipliers
         )
         
@@ -262,7 +272,7 @@ class PayrollOrchestrator:
         # Use end_date to fetch active adjustments for the period
         ref_date = attendance.get('end_date') or timezone.now().date()
         applicable_adjs = AdjustmentResolverService.get_applicable_adjustments(
-            contract.employee_id, 
+            contract.employee_id,
             ref_date
         )
         
@@ -398,10 +408,20 @@ class PayrollOrchestrator:
             base_salary=base_salary
         )
         
-        # 2. Taxable base calculation for IPR (DRC Rule)
-        # Base = (Gross - Allowances) + Taxable Housing Excess - CNSS Employee
-        # Simplified here as: (Gross - CNSS) + Housing Excess
-        # We ensure the non-taxable part of allowances is excluded
+        # ============================================================
+        # DRC IPR Taxable Base Calculation
+        # Formula: (Gross Salary - CNSS Employee) + Taxable Housing Excess
+        #
+        # Per Article 73 of the DRC Tax Code (Code des Impôts):
+        #   Base Imposable = (Rémunération Brute - Cotisation CNSS) + Avantages Imposables
+        #
+        # Notes:
+        # - Family allowances (allocations familiales) are EXCLUDED from gross_salary
+        #   (they are added as separate allowances post-calculation), so they don't
+        #   need to be subtracted here.
+        # - Housing allowance excess above 30% of base salary is taxable (DRC rule)
+        # - Transport allowance is generally non-taxable (capped)
+        # ============================================================
         taxable_base = (gross_salary - cnss_employee) + allowances['taxable_housing_excess']
         
         # 3. Calculate IPR tax using progressive brackets
@@ -419,7 +439,7 @@ class PayrollOrchestrator:
 
     @classmethod
     def _process_advances(cls, contract, gross_salary, cnss_employee, ipr_tax, 
-                         total_allowances, total_other_deductions, employee_data, run):
+                          total_allowances, total_other_deductions, employee_data, run):
         """ Processes outstanding salary advances in priority order. """
         # Calculate net salary before advances
         net_before_advances = (
@@ -442,7 +462,7 @@ class PayrollOrchestrator:
 
     @classmethod
     def _create_payslip(cls, run, contract, config, gross_data, social_data, 
-                       tax_data, advance_data, employee_data):
+                        tax_data, advance_data, employee_data):
         """ Persists the employee payslip summary. """
         # Calculate final net amount
         net_amount = (
@@ -483,8 +503,8 @@ class PayrollOrchestrator:
             
             worked_days=employee_data['attendance']['regular_days'],
             worked_hours=employee_data['attendance']['total_worked_hours'],
-            paid_leave_days=float(employee_data['leave']['paid_leave_days']),
-            unpaid_leave_days=float(employee_data['leave']['unpaid_leave_days']),
+            paid_leave_days=Decimal(employee_data['leave']['paid_leave_days']),
+            unpaid_leave_days=Decimal(employee_data['leave']['unpaid_leave_days']),
             
             contract_currency=employee_data['contract_currency'],
             exchange_rate_used=employee_data['conversion_rate'],
@@ -501,7 +521,7 @@ class PayrollOrchestrator:
 
     @classmethod
     def _record_payslip_lines(cls, payslip, gross_data, social_data, tax_data, 
-                             advance_data, employee_data):
+                              advance_data, employee_data):
         """ Records detailed line items (earnings and deductions) on the payslip. """
         # Base salary
         PayslipLine.objects.create(

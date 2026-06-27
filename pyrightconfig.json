@@ -1,0 +1,27 @@
+{
+  "include": ["backend/hr", "backend/ox_hr", "backend/core"],
+  "exclude": [
+    "**/.*",
+    "backend/.venv",
+    "backend/venv",
+    "C:/__pyrefly_virtual__",
+    "**/__pyrefly_virtual__/**",
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/migrations/**",
+    "frontend/**"
+  ],
+  "pythonVersion": "3.12",
+  "typeCheckingMode": "basic",
+  "reportMissingTypeStubs": false,
+  "reportImplicitRelativeImport": false,
+  "reportMissingParameterType": false,
+  "reportMissingTypeArgument": false,
+  "reportUnknownMemberType": false,
+  "reportUnknownParameterType": false,
+  "reportUnknownVariableType": false,
+  "reportUnknownArgumentType": false,
+  "reportAttributeAccessIssue": false
+}

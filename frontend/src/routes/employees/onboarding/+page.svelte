@@ -1,23 +1,29 @@
 <script lang="ts">
   import { Button } from "@/components/ui/button";
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
+  import AnimateSpin from '@/components/layout/elements/AnimateSpin.svelte';
   import { onboardingStore } from "@/features/employees/stores/onboarding.svelte";
   import OnboardingTabs from "@/features/employees/components/onboarding/nav/OnboardingTabs.svelte";
+  import ArchiveModal from "@/features/employees/components/onboarding/modals/ArchiveModal.svelte";
   import IdentityStep from "@/features/employees/components/onboarding/steps/IdentityStep.svelte";
   import AccountStep from "@/features/employees/components/onboarding/steps/AccountStep.svelte";
   import ContractStep from "@/features/employees/components/onboarding/steps/ContractStep.svelte";
   import DocumentsStep from "@/features/employees/components/onboarding/steps/DocumentsStep.svelte";
   import FamilyStep from "@/features/employees/components/onboarding/steps/FamilyStep.svelte";
-  import { fade, fly } from "svelte/transition";
+  import EducationStep from "@/features/employees/components/onboarding/steps/EducationStep.svelte";
+  import { fade, fly, slide } from "svelte/transition";
   import { cubicOut } from "svelte/easing";
   import { ui } from "@/stores/ui.svelte";
   import { notification } from "@/stores/notification.svelte";
-  import { onMount, untrack } from "svelte";
-  import axios from "axios";
+  import { onMount } from "svelte";
+  import { onboardingService } from "@/features/employees/services/onboarding.service";
+  import { useQueryClient } from "@tanstack/svelte-query";
 
   let initialDataStr = $state("");
   let isInitialized = $state(false);
   let isSubmitting = $state(false);
+  let showArchiveModal = $state(false);
+  const queryClient = useQueryClient();
 
   /**
    * GLOBAL ACTION REGISTRATION
@@ -27,34 +33,21 @@
     return () => ui.removeActions('onboarding-validate');
   });
 
-  /**
-   * AUTO-SAVE TRIGGER & SMART IGNORE
-   */
-  $effect(() => {
-    const currentDataStr = JSON.stringify(onboardingStore.data);
-    const { isAutoSaveEnabled, isRestoring } = onboardingStore;
-    
-    untrack(() => {
-      if (isRestoring || !isInitialized) return;
-
-      if (isAutoSaveEnabled) {
-        onboardingStore.triggerAutoSave();
-      }
-    });
-  });
-
+  
   onMount(() => {
-    onboardingStore.reset();
-    initialDataStr = JSON.stringify(onboardingStore.data);
-    
-    if (onboardingStore.hasDraft) {
-      onboardingStore.loadDraft();
-      notification.toast.success("Brouillon restauré automatiquement.");
-    } else {
-      onboardingStore.isAutoSaveEnabled = true;
+    // Vérifier s'il y a un brouillon à restaurer avant de réinitialiser
+    const hasDraft = onboardingStore.hasDraft;
+    if (!hasDraft) {
+      onboardingStore.reset();
     }
+    initialDataStr = JSON.stringify(onboardingStore.data);
+    onboardingStore.isAutoSaveEnabled = true;
     isInitialized = true;
   });
+
+  function openArchiveModal() {
+    showArchiveModal = true;
+  }
 
   async function handleValidate() {
     if (onboardingStore.compliance.length > 0) {
@@ -62,34 +55,43 @@
       return;
     }
 
+    const data = onboardingStore.data;
+    
     isSubmitting = true;
     try {
-      const data = onboardingStore.data;
-      const payload = {
-        ...data.identity,
-        ...data.contract,
-        create_account: data.account.createAccount,
-        group_slug: data.account.groupSlug,
-        // Flattening structure as expected by EmployeeCreate schema
-        // Note: Backend schema uses snake_case
-        first_name: data.identity.name.split(' ')[0],
-        last_name: data.identity.name.split(' ').slice(1).join(' '),
-        email: data.identity.email,
-        phone: data.identity.phone,
-        birth_date: data.identity.birthDate,
-        job_title: data.contract.jobTitle,
-        department_id: data.contract.departmentId,
-        start_date: data.contract.startDate,
-        contract_type: data.contract.contractType,
-        base_salary: data.contract.salary
+      const submitData: any = {
+        identity: {
+          ...data.identity,
+          gender: data.identity.gender || undefined,
+          marital_status: data.identity.marital_status || undefined,
+          work_site: data.identity.work_site || undefined
+        },
+        contract: data.contract,
+        documents: data.documents || [],
+        family: {
+          emergency_contacts: data.family.emergencyContacts,
+          children: data.family.children
+        },
+        education: {
+          educations: data.education.educations
+        }
       };
 
-      await axios.post('/api/employees/', payload);
+      // N'inclure le compte que si create_account est true
+      if (data.account?.create_account) {
+        submitData.account = data.account;
+      }
 
-      notification.toast.success("Dossier validé et employé créé avec succès !");
-      onboardingStore.clearDraft();
+      const result = await onboardingService.submitFullOnboarding(submitData, queryClient);
+
+      // Si succès : supprimer le brouillon (plus besoin)
+      // Si échec : garder le brouillon pour continuer plus tard
+      if (result.success) {
+        onboardingStore.clearDraft(); // Supprime le brouillon actuel
+      }
     } catch (e: any) {
-      notification.toast.error(e.response?.data?.detail || "Erreur lors de la création de l'employé");
+      // Error handling is already done in the service
+      console.error('Validation error:', e);
     } finally {
       isSubmitting = false;
     }
@@ -98,20 +100,38 @@
 
 
 {#snippet ButtonValidateAction()}
-  <Button 
-    onclick={handleValidate}
-    disabled={onboardingStore.compliance.length > 0 || isSubmitting} 
-    class="bg-blue-600! hover:bg-blue-700 h-7 px-6 text-[0.8rem] font-medium shadow-soft transition-all"
-  >
-    {#if isSubmitting}
-      <div class="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-      Traitement...
-    {:else}
-      <AppIcon name="check" size={16} />
-      Valider le dossier
-    {/if}
-  </Button>
+  <div class="flex items-center justify-center gap-1">
+    <Button 
+      variant="ghost" 
+      onclick={openArchiveModal}
+      class="h-7 px-4 text-[0.8rem] transition-all"
+    >
+      <AppIcon name="archive" size={16} class="text-slate-500" />
+      Brouillons
+    </Button>
+    <div class="w-px h-5 bg-slate-200 mx-1"></div>
+    <Button 
+      onclick={handleValidate}
+      disabled={onboardingStore.compliance.length > 0 || isSubmitting} 
+      class="bg-indigo-600! hover:bg-indigo-700 h-7 px-6 text-[0.8rem] font-medium shadow-soft transition-all"
+    >
+      {#if isSubmitting}
+        <AnimateSpin text="" class="size-3 border-white" />
+      {:else}
+        <AppIcon name="check" size={16} />
+      {/if}
+      Terminer l'onboarding
+    </Button>
+  </div>
+  
 {/snippet}
+
+
+<!-- Modale d'archive des brouillons -->
+<ArchiveModal 
+  show={showArchiveModal} 
+  onClose={() => showArchiveModal = false} 
+/>
 
 
 <div class="h-full flex flex-col bg-white overflow-hidden">
@@ -156,6 +176,11 @@
         <FamilyStep />
       </div>
     {/if}
+    {#if onboardingStore.currentStep === 'education'}
+      <div class="col-start-1 row-start-1" in:fly={{ y: 8, duration: 400, delay: 100, easing: cubicOut }} out:fade={{ duration: 200 }}>
+        <EducationStep />
+      </div>
+    {/if}
   </div>
 {/snippet}
 
@@ -186,11 +211,16 @@
           </Button>
         {:else}
           <Button 
-            disabled={onboardingStore.compliance.length > 0}
-            class="h-7.5 px-8 rounded-md font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-none text-sm transition-all"
+            onclick={handleValidate}
+            disabled={onboardingStore.compliance.length > 0 || isSubmitting} 
+            class="bg-indigo-600! hover:bg-indigo-700 h-7 px-6 text-[0.8rem] font-medium shadow-soft transition-all"
           >
-            <AppIcon name="check" size={16} class="mr-2" />
-            Terminer le dossier
+            {#if isSubmitting}
+              <AnimateSpin text="" class="size-3 border-white" />
+            {:else}
+              <AppIcon name="check" size={16} />
+            {/if}
+            Terminer l'onboarding
           </Button>
         {/if}
       </div>

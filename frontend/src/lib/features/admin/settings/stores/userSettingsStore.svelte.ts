@@ -7,7 +7,7 @@ import type {
 } from '../types/user.types';
 
 import UserEndpoints from '../api/users.endpoints';
-import AccessEndpoints from '$lib/features/admin/access/api/access.endpoints';
+import { accessService } from '@/features/admin/access/services/access.service';
 
 
 export class UserSettingsStore {
@@ -22,7 +22,7 @@ export class UserSettingsStore {
 	filters = $state<UserFilters>({
 		search: '',
 		role: [],
-		department: [],
+		orgUnit: [],
 		isActive: null
 	});
 
@@ -49,13 +49,13 @@ export class UserSettingsStore {
 
 	activeFiltersCount = $derived(
 		(this.filters.role.length > 0 ? 1 : 0) +
-		(this.filters.department.length > 0 ? 1 : 0) +
+		(this.filters.orgUnit.length > 0 ? 1 : 0) +
 		(this.filters.isActive !== null ? 1 : 0)
 	);
 
 	// Unique values for filters
-	departments = $derived(
-		[...new Set(this.users.map(u => u.department).filter(Boolean))] as string[]
+	orgUnits = $derived(
+		[...new Set(this.users.map(u => u.orgUnit).filter(Boolean))] as string[]
 	);
 
 	// Statistics
@@ -120,12 +120,12 @@ export class UserSettingsStore {
 		this.fetchUsers();
 	}
 
-	toggleDepartmentFilter(dept: string) {
-		const current = this.filters.department;
-		if (current.includes(dept)) {
-			this.filters.department = current.filter(d => d !== dept);
+	toggleOrgUnitFilter(orgUnit: string) {
+		const current = this.filters.orgUnit;
+		if (current.includes(orgUnit)) {
+			this.filters.orgUnit = current.filter(d => d !== orgUnit);
 		} else {
-			this.filters.department = [...current, dept];
+			this.filters.orgUnit = [...current, orgUnit];
 		}
 		this.currentPage = 1;
 		this.fetchUsers();
@@ -160,7 +160,7 @@ export class UserSettingsStore {
 
 	async assignGroupToUser(userId: string | number, groupSlug: string) {
 		try {
-			await AccessEndpoints.assignGroup.create({ user_id: userId, group: groupSlug });
+			await accessService.assignGroupToUser({ user_id: String(userId), group: groupSlug });
 			await this.fetchUsers();
 			if (this.selectedUser?.id === userId) {
 				this.selectedUser.groups = [...this.selectedUser.groups, groupSlug];
@@ -172,7 +172,7 @@ export class UserSettingsStore {
 
 	async revokeGroupFromUser(userId: string | number, groupSlug: string) {
 		try {
-			await AccessEndpoints.revokeGroup.create({ user_id: userId, group: groupSlug });
+			await accessService.revokeGroupFromUser({ user_id: String(userId), group: groupSlug });
 			await this.fetchUsers();
 			if (this.selectedUser?.id === userId) {
 				this.selectedUser.groups = this.selectedUser.groups.filter(g => g !== groupSlug);
@@ -184,7 +184,7 @@ export class UserSettingsStore {
 
 	// Legacy Mocks to keep Typescript happy for now
 	resetFilters() {
-		this.filters = { search: '', role: [], department: [], isActive: null };
+		this.filters = { search: '', role: [], orgUnit: [], isActive: null };
 		this.currentPage = 1;
 		this.fetchUsers();
 	}

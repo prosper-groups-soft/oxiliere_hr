@@ -6,6 +6,8 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from hr.employees.models import Employee, StatusHistory
+from hr.jobs.models import EmployeeTransition
+from hr.jobs.enums import TransitionType
 from hr.employees.enums import EmployeeStatus
 from hr.utils.core import update_instance
 
@@ -104,20 +106,51 @@ class EmployeeStatusService:
         employee: Employee, 
         termination_date: date, 
         reason: str, 
+        departure_type: str = 'TERMINATED',
         actor: Any = None
     ) -> Employee:
-        """ Records official exit and contract termination. """
+        """ Records official exit: status transition, position closure, and career transition. """
+
+        # Map departure_type to EmployeeStatus
+        status_map = {
+            'TERMINATED': EmployeeStatus.TERMINATED,
+            'RESIGNED': EmployeeStatus.RESIGNED,
+            'RETIRED': EmployeeStatus.RETIRED,
+        }
+        target_status = status_map.get(departure_type, EmployeeStatus.TERMINATED)
+
+        # 1. Status transition
         self.transition_status(
             employee=employee,
-            new_status=EmployeeStatus.TERMINATED,
+            new_status=target_status,
             effective_date=termination_date,
             reason=reason,
             actor=actor
         )
         
+        # 2. Close current position history
+        current_position = employee.position_history.filter(is_current=True).first()
+        if current_position:
+            current_position.is_current = False
+            current_position.end_date = termination_date
+            current_position.save(update_fields=['is_current', 'end_date'])
+            logger.info(f"[EXIT] Closed position history {current_position.id} for {employee.matricule}")
+
+        # 3. Create EmployeeTransition (OFFBOARD)
+        EmployeeTransition.objects.create(
+            employee=employee,
+            transition_type=TransitionType.OFFBOARD,
+            from_position=current_position.position if current_position else None,
+            from_seniority_level=current_position.seniority_level if current_position else None,
+            date=termination_date,
+            reason=reason,
+        )
+        logger.info(f"[EXIT] Created EmployeeTransition (OFFBOARD) for {employee.matricule}")
+        
+        # 4. Set termination date
         employee.termination_date = termination_date
         employee.save(update_fields=['termination_date'])
         
-        logger.info(f"[EXIT] Offboarded: {employee.matricule}")
+        logger.info(f"[EXIT] Offboarded: {employee.matricule} ({departure_type})")
         return employee
 

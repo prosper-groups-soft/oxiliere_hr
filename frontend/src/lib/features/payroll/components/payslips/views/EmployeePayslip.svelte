@@ -32,7 +32,7 @@
     </Avatar>
     <div class="min-w-0">
       <p class="text-[0.875rem] font-medium text-slate-800 truncate leading-tight group-hover:text-primary">{payslip.employeeName}</p>
-      <p class="text-[0.75rem] text-slate-500 truncate">{payslip.department}</p>
+      <p class="text-[0.75rem] text-slate-500 truncate">{payslip.orgUnit}</p>
     </div>
   </div>
 

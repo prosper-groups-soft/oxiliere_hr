@@ -1,62 +1,53 @@
 <script lang="ts">
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
   import { Badge } from "@/components/ui/badge";
-  import { Button } from "@/components/ui/button";
   import { Progress } from "@/components/ui/progress";
   import { Separator } from "@/components/ui/separator";
   import { cn } from "@/utilities/common/css";
-  import Empty from "@/components/shared/containers/empty/Empty.svelte";
-  import type { Candidate } from "../../../types/types";
+  import type { CandidateApplication, EvaluationCriterion } from "../../../types/types";
 
+  
   let { 
-    candidate = null,
-    onEditScores = null
+    application = null,
+    evaluationTemplate = null,
+    onEdit = null
   } = $props<{ 
-    candidate: Candidate | null,
-    onEditScores?: () => void
+    application: CandidateApplication | null,
+    evaluationTemplate?: EvaluationCriterion[] | null,
+    onEdit?: (() => void) | null
   }>();
 
-  // Mock evaluation criteria - in real app, this would come from a job posting or evaluation template
-  const evaluationCriteria = $derived([
-    { 
-      id: 'technical', 
-      name: 'Compétences techniques', 
-      weight: 40, 
-      score: candidate?.technicalScore || 0,
-      description: 'Connaissances techniques, langages, frameworks'
-    },
-    { 
-      id: 'experience', 
-      name: 'Expérience pertinente', 
-      weight: 25, 
-      score: candidate?.experienceScore || 0,
-      description: 'Années d\'expérience, projets pertinents'
-    },
-    { 
-      id: 'communication', 
-      name: 'Communication', 
-      weight: 20, 
-      score: candidate?.communicationScore || 0,
-      description: 'Clarté, écoute, expression orale'
-    },
-    { 
-      id: 'culture', 
-      name: 'Culture d\'entreprise', 
-      weight: 15, 
-      score: candidate?.cultureScore || 0,
-      description: 'Adéquation avec les valeurs de l\'entreprise'
-    }
-  ]);
+  // Build a lookup map from template: criterionName -> { weight, source }
+  const templateMap = $derived.by(() => {
+    const map: Record<string, { weight: number; source: 'requirement' | 'skill' }> = {};
+    (evaluationTemplate || []).forEach((c: EvaluationCriterion) => {
+      map[c.name] = { weight: c.weight, source: c.source };
+    });
+    return map;
+  });
+
+  // Iterate over ACTUAL saved scores (not template), enrich with template metadata
+  const evaluationCriteria = $derived.by(() => {
+    const saved = (application?.scores || {}) as Record<string, number>;
+    return (Object.entries(saved) as [string, number][])
+      .filter(([, score]) => score > 0) // only show criteria with actual scores
+      .map(([name, score]) => {
+        const tpl = templateMap[name] || { weight: 0, source: 'requirement' as const };
+        return {
+          name,
+          weight: tpl.weight,
+          score,
+          source: tpl.source,
+        };
+      });
+  });
 
   // Calculate weighted average
   const overallScore = $derived.by(() => {
-    if (!candidate) return 0;
-    
-    const totalWeight = evaluationCriteria.reduce((sum, criterion) => sum + criterion.weight, 0);
-    const weightedSum = evaluationCriteria.reduce((sum, criterion) => {
-      return sum + (criterion.score * criterion.weight);
-    }, 0);
-    
+    if (evaluationCriteria.length === 0) return 0;
+    const totalWeight = evaluationCriteria.reduce((sum: number, c) => sum + c.weight, 0);
+    if (totalWeight === 0) return 0;
+    const weightedSum = evaluationCriteria.reduce((sum: number, c) => sum + (c.score * c.weight), 0);
     return Math.round(weightedSum / totalWeight);
   });
 
@@ -74,118 +65,117 @@
     return 'À améliorer';
   }
 
-  function handleEditScores() {
-    onEditScores?.();
-  }
+  // Has any actual evaluation been submitted?
+  const hasEvaluation = $derived(
+    evaluationTemplate != null 
+    && evaluationTemplate.length > 0 
+    && application?.scores != null 
+    && Object.keys(application.scores).length > 0
+  );
 
-  function handleGenerateReport() {
-    console.log('Generate evaluation report for candidate:', candidate?.id);
-    // TODO: Generate and download PDF report
-  }
+  // Has evaluation criteria been configured (even if no scores yet)?
+  const hasTemplate = $derived(
+    evaluationTemplate != null && evaluationTemplate.length > 0
+  );
+
 </script>
 
-
-{#if candidate}
+{#if application}
   <div class="space-y-4">
-    <!-- Overall Score -->
-    <div class="text-center p-4 bg-slate-50 rounded-lg">
-      <div class="text-xl font-bold text-slate-900 mb-1">
-        {overallScore}/100
+    {#if hasEvaluation}
+      <!-- Overall Score -->
+      <div class="text-center p-4 bg-slate-50 rounded-lg">
+        <div class="text-xl font-bold text-slate-900 mb-1">
+          {overallScore}/100
+        </div>
+        <Badge variant="outline" class={cn(
+          "text-xs font-medium border-none",
+          getScoreColor(overallScore)
+        )}>
+          {getScoreLabel(overallScore)}
+        </Badge>
       </div>
-      <Badge variant="outline" class={cn(
-        "text-xs font-medium border-none",
-        getScoreColor(overallScore)
-      )}>
-        {getScoreLabel(overallScore)}
-      </Badge>
-    </div>
 
-    <Separator />
+      <Separator />
 
-    <!-- Detailed Scores -->
-    <div class="space-y-3">
-      <h4 class="text-sm font-medium text-slate-700">Évaluation détaillée</h4>
-      
-      {#each evaluationCriteria as criterion}
-        <div class="space-y-2 mb-6">
-          <div class="flex items-center justify-between">
-            <div class="flex-1">
-              <div class="flex items-center justify-between">
-                <span class="text-sm font-medium text-slate-900">{criterion.name}</span>
-                <span class="text-sm text-slate-600">{criterion.score}/100</span>
+      <!-- Detailed Scores -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <h4 class="text-sm font-medium text-slate-700">Évaluation détaillée</h4>
+          {#if onEdit}
+            <button 
+              onclick={() => onEdit()} 
+              class="text-[0.8rem] text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1 cursor-pointer bg-transparent border-none"
+            >
+              <AppIcon name="edit" size={14} />
+              Modifier
+            </button>
+          {/if}
+        </div>
+        
+        {#each evaluationCriteria as criterion}
+          <div class="space-y-2 mb-6">
+            <div class="flex items-center justify-between">
+              <div class="flex-1">
+                <div class="flex items-center justify-between">
+                  <span class="text-sm font-medium text-slate-900">{criterion.name}</span>
+                  <span class="text-sm text-slate-600">{criterion.score}/100</span>
+                </div>
+                <span class="text-[0.7rem] px-1 py-0 rounded font-medium {criterion.source === 'requirement' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'}">{criterion.source === 'requirement' ? 'req' : 'skill'}</span>
               </div>
-              <p class="text-[0.81rem] text-slate-500 mt-1">{criterion.description}</p>
+            </div>
+            
+            <div class="space-y-1">
+              <div class="relative">
+                <Progress 
+                  value={criterion.score} 
+                  max={100} 
+                  class="h-2 rounded-full"
+                />
+                <div 
+                  class="absolute top-0 left-0 h-full rounded-l-full pointer-events-none transition-all duration-300"
+                  class:bg-emerald-500={criterion.score >= 80}
+                  class:bg-amber-500={criterion.score >= 60 && criterion.score < 80}
+                  class:bg-red-500={criterion.score < 60}
+                  style="width: {criterion.score}%"
+                ></div>
+              </div>
+              <div class="flex items-center justify-between text-slate-500">
+                <span class="text-[0.81rem]">Poids: {criterion.weight}%</span>
+                <span class="text-[0.81rem]">Contribution: {Math.round(criterion.score * criterion.weight / 100)} pts</span>
+              </div>
             </div>
           </div>
-          
-          <div class="space-y-1">
-            <div class="relative">
-              <Progress 
-                value={criterion.score} 
-                max={100} 
-                class="h-2 rounded-full"
-              />
-              <div 
-                class="absolute top-0 left-0 h-full rounded-l-full pointer-events-none transition-all duration-300"
-                class:bg-emerald-500={criterion.score >= 80}
-                class:bg-amber-500={criterion.score >= 60 && criterion.score < 80}
-                class:bg-red-500={criterion.score < 60}
-                style="width: {criterion.score}%"
-              ></div>
-            </div>
-            <div class="flex items-center justify-between text-slate-500">
-              <span class="text-[0.81rem]">Poids: {criterion.weight}%</span>
-              <span class="text-[0.81rem]">Contribution: {Math.round(criterion.score * criterion.weight / 100)} pts</span>
-            </div>
+        {/each}
+      </div>
+
+      <!-- Evaluation Notes -->
+      {#if application?.evaluationNotes}
+        <Separator />
+        <div class="space-y-3">
+          <h4 class="text-sm font-medium text-slate-700">Notes d'évaluation</h4>
+          <div class="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg">
+            {application.evaluationNotes}
           </div>
         </div>
-      {/each}
-    </div>
-
-    <Separator />
-
-    <!-- Skills Assessment -->
-    <div class="space-y-3">
-      <h4 class="text-sm font-medium text-slate-700">Compétences évaluées</h4>
-      <div class="flex flex-wrap gap-2">
-        {#each candidate.skills || [] as skill}
-          <Badge variant="secondary" class="text-xs">
-            {skill}
-          </Badge>
-        {/each}
-        {#if !candidate.skills || candidate.skills.length === 0}
-          <span class="text-sm text-slate-400">Aucune compétence évaluée</span>
+      {/if}
+    {:else if hasTemplate}
+      <div class="text-center py-6">
+        <p class="text-sm text-slate-400 mb-2">Ce candidat n'a pas encore été évalué</p>
+        {#if onEdit}
+          <button 
+            onclick={() => onEdit()} 
+            class="text-[0.8rem] text-indigo-600 hover:text-indigo-700 font-medium cursor-pointer bg-transparent border-none"
+          >
+            Commencer l'évaluation
+          </button>
         {/if}
       </div>
-    </div>
-
-    <!-- Notes -->
-    {#if candidate.notes}
-      <div class="space-y-3">
-        <h4 class="text-sm font-medium text-slate-700">Notes d'évaluation</h4>
-        <div class="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg">
-          {candidate.notes}
-        </div>
+    {:else}
+      <div class="text-center py-6">
+        <p class="text-sm text-slate-400">Aucun critère d'évaluation configuré</p>
       </div>
     {/if}
-
-    <!-- Actions -->
-    <div class="flex gap-2 pt-2">
-      <Button variant="outline" size="sm" onclick={handleEditScores} class="shadow-fine rounded-lg">
-        <AppIcon name="edit" size={16} class="text-gray-500" />
-        Modifier scores
-      </Button>
-      <Button variant="outline" size="sm" onclick={handleGenerateReport} class="shadow-fine rounded-lg">
-        <AppIcon name="download" size={16} class="text-gray-500" />
-        Générer rapport
-      </Button>
-    </div>
   </div>
-{:else}
-  <Empty 
-    icon="star" 
-    description="Aucune évaluation disponible" 
-    class="py-4"
-  />
 {/if}
 

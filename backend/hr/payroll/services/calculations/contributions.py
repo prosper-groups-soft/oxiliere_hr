@@ -33,8 +33,8 @@ class SocialContributionService:
 
             # 3. Ceiling Application (Mainly for CNSS)
             applied_base = calc_base
-            if rate.ceiling_amount and calc_base > rate.ceiling_amount:
-                applied_base = rate.ceiling_amount
+            if rate.ceiling_amount and calc_base > rate.ceiling_amount.amount:
+                applied_base = rate.ceiling_amount.amount
 
             # 4. Calculate portions using high precision rounding
             employee_amt = (applied_base * (rate.employee_portion / Decimal('100'))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)

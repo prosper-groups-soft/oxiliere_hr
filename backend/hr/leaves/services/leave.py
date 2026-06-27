@@ -105,9 +105,15 @@ class LeaveRequestService:
         if days_total <= 0:
             raise ValidationError("The selected period contains no working days.")
 
-        self._check_overlap(employee, start_date, end_date)
+        self._check_overlap(employee, start_date, end_date, category=category)
 
         if category == LeaveCategory.ANNUAL:
+            # Ensure balance is initialized for all affected years before validation
+            years = SchedulingService.get_working_days_by_year(employee, start_date, end_date)
+            for year in years:
+                balance = LeaveBalance.objects.filter(employee=employee, year=year).first()
+                if not balance:
+                    BalanceService.init_employee_balance(employee, year)
             self._validate_annual_balance(employee, start_date, end_date, days_total)
         elif category == LeaveCategory.CIRCUMSTANCE:
             self._validate_circumstance(data, days_total)
@@ -132,6 +138,9 @@ class LeaveRequestService:
         """ Formally approves a leave request and deducts time from the entitlement. """
         if leave_request.category == LeaveCategory.ANNUAL:
             self._consume_annual_leave(leave_request, user)
+        elif leave_request.category == LeaveCategory.SICK:
+            # Convert overlapping annual leave days into sick leave
+            self._convert_overlapping_annual_to_sick(leave_request, user)
         return leave_request
 
     @leave_transition('cancel')
@@ -257,14 +266,105 @@ class LeaveRequestService:
             recalled_by=recalled_by
         )
 
-    def _check_overlap(self, employee, start_date, end_date):
-        """ Ensures no other leave is scheduled for the same period. """
+    def _convert_overlapping_annual_to_sick(self, sick_request: LeaveRequest, user):
+        """
+        When a sick leave is approved, detect overlapping annual leaves
+        (PENDING or APPROVED) and convert them: the overlapping period
+        is removed from the annual leave and refunded to the balance.
+        The annual leave request is kept with adjusted dates and a comment.
+        """
+        sick_start = sick_request.start_date
+        sick_end = sick_request.end_date
+        employee = sick_request.employee
+
+        overlapping = LeaveRequest.objects.filter(
+            employee=employee,
+            category=LeaveCategory.ANNUAL,
+            status__in=[LeaveStatus.PENDING, LeaveStatus.APPROVED],
+            start_date__lte=sick_end,
+            end_date__gte=sick_start,
+        )
+
+        for annual in overlapping:
+            overlap_start = max(annual.start_date, sick_start)
+            overlap_end = min(annual.end_date, sick_end)
+
+            overlap_days = SchedulingService.count_working_days_for_employee(
+                employee, overlap_start, overlap_end
+            )
+            if overlap_days <= 0:
+                continue
+
+            was_consumed = (annual.status == LeaveStatus.APPROVED)
+            fully_overlapped = (overlap_start <= annual.start_date and overlap_end >= annual.end_date)
+
+            if fully_overlapped:
+                # Entire annual leave falls within sick leave → cancel it
+                if was_consumed:
+                    self._refund_annual_leave(annual, user)
+                annual.status = LeaveStatus.CANCELLED
+                annual.comment = (annual.comment or "") + (
+                    f"\n[CONVERTI] Annulé — chevauchement avec congé maladie "
+                    f"du {overlap_start} au {overlap_end}. "
+                    f"Par {user} le {timezone.now().date()}."
+                )
+                annual.save(update_fields=["status", "comment"])
+            else:
+                # Partial overlap → adjust dates
+                if annual.start_date < sick_start:
+                    # Keep the before-part: truncate end
+                    annual.end_date = overlap_start - timedelta(days=1)
+                else:
+                    # Keep the after-part: shift start
+                    annual.start_date = overlap_end + timedelta(days=1)
+
+                # Refund overlapping days if already consumed from balance
+                if was_consumed:
+                    days_by_year = SchedulingService.get_working_days_by_year(
+                        employee, overlap_start, overlap_end
+                    )
+                    for year, days in days_by_year.items():
+                        amount = Decimal(str(days))
+                        self._refund_balance(employee, year, amount, annual, user)
+
+                # Recalc remaining requested_days
+                remaining = SchedulingService.count_working_days_for_employee(
+                    employee, annual.start_date, annual.end_date
+                )
+                annual.requested_days = Decimal(str(max(remaining, 0)))
+                annual.comment = (annual.comment or "") + (
+                    f"\n[CONVERTI] Période ajustée — chevauchement avec congé maladie "
+                    f"du {overlap_start} au {overlap_end}. "
+                    f"Par {user} le {timezone.now().date()}."
+                )
+                annual.save(update_fields=["start_date", "end_date", "requested_days", "comment"])
+
+                if annual.requested_days <= 0:
+                    annual.status = LeaveStatus.CANCELLED
+                    annual.save(update_fields=["status"])
+
+        if overlapping.exists():
+            logger.info(
+                "Sick leave %s for employee %s converted overlapping annual leaves.",
+                sick_request.id, employee.id
+            )
+
+    def _check_overlap(self, employee, start_date, end_date, category=None):
+        """ Ensures no other leave is scheduled for the same period.
+        Exceptions:
+          - Sick leave is allowed to overlap with annual/circumstance/unpaid leave
+            (an employee can fall ill during vacation).
+          - Two sick leaves cannot overlap.
+        """
         conflicting = LeaveRequest.objects.filter(
             employee=employee,
             status__in=[LeaveStatus.PENDING, LeaveStatus.APPROVED],
             start_date__lte=end_date,
             end_date__gte=start_date
         )
+        # Sick leave can overlap with non-sick leave (illness is unplanned)
+        if category == LeaveCategory.SICK:
+            conflicting = conflicting.filter(category=LeaveCategory.SICK)
         if conflicting.exists():
             raise ValidationError("This request overlaps with an already submitted leave.")
 

@@ -3,66 +3,71 @@
   import { Button } from "@/components/ui/button";
   import { Input } from "@/components/ui/input";
   import { Label } from "@/components/ui/label";
-  import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger
-  } from "@/components/ui/select";
+  import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
-  import { recruitmentStore } from "@/features/recruitment/stores/recruitment.svelte";
-  import { notification } from "@/stores/notification.svelte";
-  import type { Candidate } from "@/features/recruitment/types/types";
+  import AnimateSpin from "@/components/layout/elements/AnimateSpin.svelte";
+  import { useUpdateApplicationOfferMutation } from "@/features/recruitment/queries/recruitmentQueries";
+  import type { CandidateApplication } from "@/features/recruitment/types/types";
   import { fade } from "svelte/transition";
+
 
   let {
     open = $bindable(false),
-    candidate = null,
+    application = null,
     onSuccess = null
   } = $props<{
     open: boolean,
-    candidate: Candidate | null | undefined,
+    application: CandidateApplication | null | undefined,
     onSuccess?: () => void
   }>();
+
+  const updateOfferMutation = useUpdateApplicationOfferMutation();
 
   // Form state
   let formSalaryMin = $state(0);
   let formSalaryMax = $state(0);
-  let formCurrency = $state('CDF');
+  let formCurrency = $state('USD');
   let formStartDate = $state('');
 
+  let isSaving = $state(false);
+
   $effect(() => {
-    if (open && candidate) {
-      // Default to next month
-      const nextMonth = new Date();
-      nextMonth.setMonth(nextMonth.getMonth() + 1);
-      nextMonth.setDate(1);
-      formStartDate = nextMonth.toISOString().split('T')[0];
-      
-      formSalaryMin = 500;
-      formSalaryMax = 1000;
-      formCurrency = 'USD';
+    if (open && application) {
+      if (application.salaryMin) {
+        formSalaryMin = application.salaryMin;
+        formSalaryMax = application.salaryMax || formSalaryMin;
+        formCurrency = application.salaryCurrency || 'USD';
+        formStartDate = application.offerStartDate || '';
+      } else {
+        formSalaryMin = 0;
+        formSalaryMax = 0;
+        formCurrency = 'USD';
+        formStartDate = '';
+      }
     }
   });
 
   async function handleSave() {
-    if (!candidate) return;
+    if (!application) return;
 
+    isSaving = true;
     try {
-      await recruitmentStore.createJobOffer({
-        candidateId: candidate.id,
-        positionId: candidate.positionId || '',
-        salaryMin: formSalaryMin,
-        salaryMax: formSalaryMax,
-        currency: formCurrency,
-        startDate: formStartDate
+      await $updateOfferMutation.mutateAsync({
+        applicationId: application.applicationId,
+        data: {
+          salaryMin: formSalaryMin,
+          salaryMax: formSalaryMax,
+          salaryCurrency: formCurrency,
+          offerStartDate: formStartDate
+        }
       });
 
-      notification.toast.success('Offre d\'emploi créée avec succès');
-      open = false;
       onSuccess?.();
+      open = false;
     } catch (error) {
-      notification.toast.error('Erreur lors de la création de l\'offre');
+      console.error('Erreur lors de l\'enregistrement:', error);
+    } finally {
+      isSaving = false;
     }
   }
 </script>
@@ -70,18 +75,12 @@
 
 <Sheet.Root bind:open>
   <Sheet.Content side="right" class="sm:max-w-md bg-white p-0 flex flex-col h-full overflow-hidden">
-    <Sheet.Header class="px-6 py-5 border-b bg-slate-50/50">
+    <Sheet.Header class="px-6 py-2.5 border-b bg-slate-50/50">
       <div class="flex items-center gap-3">
-        <div class="h-10 w-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-          <AppIcon name="file-text" size={20} />
-        </div>
         <div class="space-y-0.5 min-w-0">
-          <Sheet.Title class="text-[1rem] font-black text-slate-900 truncate">
+          <Sheet.Title class="text-[0.99rem] font-bold text-slate-900 truncate">
             Créer une offre d'emploi
           </Sheet.Title>
-          <Sheet.Description class="text-[0.78rem] text-slate-500 truncate">
-            {candidate ? `${candidate.firstName} ${candidate.lastName}` : 'Chargement...'}
-          </Sheet.Description>
         </div>
       </div>
     </Sheet.Header>
@@ -129,8 +128,8 @@
         </div>
 
         <div class="p-4 rounded-xl bg-amber-50 border border-amber-100 flex gap-3">
-          <AppIcon name="alert-triangle" size={18} class="text-amber-600 shrink-0 mt-0.5" />
-          <p class="text-[0.78rem] text-amber-700 leading-relaxed font-medium">
+          <AppIcon name="triangle-alert" size={18} class="text-amber-600 shrink-0 mt-0.5" />
+          <p class="text-[0.82rem] text-amber-700 leading-relaxed font-medium">
             En créant cette offre, le statut du candidat passera automatiquement à l'étape 
             <strong class="text-[0.78rem]">Offre</strong> dans le pipeline.
           </p>
@@ -140,18 +139,25 @@
 
     <Sheet.Footer class="px-6 py-5 border-t bg-slate-50/50">
       <div class="flex gap-3 w-full">
-        <Button 
-          onclick={handleSave} 
-          class="flex-1 bg-emerald-600 text-white h-9 shadow-fine hover:bg-emerald-700 transition-all"
-        >
-          <AppIcon name="send" size={18} />
-          Créer l'offre
-        </Button>
         <Sheet.Close class="flex-1">
-          <Button variant="outline" class="w-full h-9 bg-white border-slate-200 shadow-fine text-slate-600">
+          <Button variant="outline" class="w-full h-9 bg-white border-slate-200 shadow-fine text-slate-600" disabled={isSaving}>
+            <AppIcon name="x" size={18} class="text-slate-30" />
             Annuler
           </Button>
         </Sheet.Close>
+        <Button 
+          onclick={handleSave}
+          disabled={isSaving}
+          class="flex-1 bg-emerald-600 text-white h-9 shadow-fine hover:bg-emerald-700 transition-all disabled:opacity-60"
+        >
+          {#if isSaving}
+            <AnimateSpin text="" class="size-3 border-white" />
+            Enregistrement
+          {:else}
+            <AppIcon name="check" size={18} />
+            Créer l'offre
+          {/if}
+        </Button>
       </div>
     </Sheet.Footer>
   </Sheet.Content>
@@ -162,5 +168,5 @@
   .custom-scrollbar::-webkit-scrollbar { width: 4px; }
   .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
   .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
-

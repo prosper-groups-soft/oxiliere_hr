@@ -3,6 +3,7 @@
   let { children } = $props();
 </script>
 
+
 <div class="flex flex-col h-full bg-white overflow-hidden">
   <BankingTabs />
 

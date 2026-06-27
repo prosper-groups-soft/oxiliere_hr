@@ -1,3 +1,5 @@
+import logging
+from django.utils import timezone
 from django.core.cache         import cache
 from hr.services.cache_helpers import generate_cache_key, CacheKeys
 from hr.payroll.models import (
@@ -12,10 +14,16 @@ from hr.payroll.models import (
     LegalAllowance,
     OvertimeRule,
 )
+from django_redis import get_redis_connection
+
+
+logger = logging.getLogger(__name__)
 
 
 class PayrollCacheService:
     """ Cache management for payroll models and calculations. """
+    
+    redis_conn = get_redis_connection("default")
     
     @staticmethod
     def get_configuration():
@@ -100,7 +108,7 @@ class PayrollCacheService:
         if contract is None:
             contract = EmployeeContract.objects.filter(
                 employee=employee,
-                effective_date__lte=date,
+                start_date__lte=date,
                 end_date__gte=date
             ).first()
             
@@ -118,7 +126,7 @@ class PayrollCacheService:
         if contracts is None:
             contracts = list(EmployeeContract.objects.filter(
                 employee=employee
-            ).order_by('-effective_date'))
+            ).order_by('-start_date'))
             
             cache.set(cache_key, contracts, timeout=60*60*24)  # 24h
         
@@ -127,7 +135,6 @@ class PayrollCacheService:
     @staticmethod
     def get_active_contracts(date=None):
         """ Retrieves all active contracts for a specific date (default: today). """
-        from django.utils import timezone
         
         if date is None:
             date = timezone.now().date()
@@ -137,7 +144,7 @@ class PayrollCacheService:
         
         if contracts is None:
             contracts = list(EmployeeContract.objects.filter(
-                effective_date__lte=date,
+                start_date__lte=date,
                 end_date__gte=date
             ))
             
@@ -199,25 +206,37 @@ class PayrollCacheService:
     @staticmethod
     def clear_config_cache():
         """Clear payroll configuration cache."""
+        # Clear specific known keys
         cache.delete(CacheKeys.payroll_config())
         cache.delete(generate_cache_key("hr:payroll:tax_brackets"))
         cache.delete(generate_cache_key("hr:payroll:social_rates"))
         cache.delete(generate_cache_key("hr:payroll:smig"))
         cache.delete(generate_cache_key("hr:payroll:legal_allowances"))
         cache.delete(generate_cache_key("hr:payroll:overtime_rules"))
+
+        # Clear all payroll config related keys including version prefixes
+        patterns = [
+            "*:payroll_config:*",
+            "*:payroll:*",
+        ]
+        for pattern in patterns:
+            keys = PayrollCacheService.redis_conn.keys(pattern)
+            if keys:
+                PayrollCacheService.redis_conn.delete(*keys)
+        
+        # Clear API response caches for legal allowances and overtime rules
+        PayrollCacheService.clear_allowance_cache()
+        PayrollCacheService.clear_overtime_cache()
     
     @staticmethod
     def clear_employee_cache(employee):
         """Clear all cache for an employee."""
-        from django_redis import get_redis_connection
-        
         employee_id = employee.id if hasattr(employee, 'id') else employee
-        
-        redis_conn = get_redis_connection("default")
+
         pattern = f"*hr:payroll*{employee_id}*"
-        keys = redis_conn.keys(pattern)
+        keys = PayrollCacheService.redis_conn.keys(pattern)
         if keys:
-            redis_conn.delete(*keys)
+            PayrollCacheService.redis_conn.delete(*keys)
     
     @staticmethod
     def clear_payroll_run_cache(payroll_run_id):
@@ -230,3 +249,37 @@ class PayrollCacheService:
         PayrollCacheService.clear_employee_cache(contract.employee_id)
         cache.delete(generate_cache_key("hr:payroll:active_contracts", contract.start_date))
 
+    @staticmethod
+    def clear_adjustment_cache():
+        """Clear global payroll adjustment cache."""
+        cache.delete(generate_cache_key("hr:payroll:adjustments"))
+        # Clear any other adjustment-related cache keys
+        pattern = "*hr:payroll*adjustment*"
+        keys = PayrollCacheService.redis_conn.keys(pattern)
+        if keys:
+            PayrollCacheService.redis_conn.delete(*keys)
+
+    @staticmethod
+    def clear_allowance_cache():
+        """Clear legal allowances cache (cache_api_response with legal_allowances_list prefix)."""
+        # Clear cache_api_response keys for legal allowances
+        # Django cache adds version prefix like :1: to keys
+        pattern = "*:legal_allowances_list:*"
+        keys = PayrollCacheService.redis_conn.keys(pattern)
+        if keys:
+            PayrollCacheService.redis_conn.delete(*keys)
+            logger.info(f"[Cache] Cleared {len(keys)} legal allowance cache keys: {keys}")
+        else:
+            logger.info("[Cache] No legal allowance cache keys found to clear")
+
+    @staticmethod
+    def clear_overtime_cache():
+        """Clear overtime rules cache (cache_api_response with overtime_rules prefix)."""
+        # Pattern: :1:overtime_rules:shared:/api/payroll/configuration/overtime/
+        pattern = "*:overtime_rules:*"
+        keys = PayrollCacheService.redis_conn.keys(pattern)
+        if keys:
+            PayrollCacheService.redis_conn.delete(*keys)
+            logger.info(f"[Cache] Cleared {len(keys)} overtime cache keys: {keys}")
+        else:
+            logger.info("[Cache] No overtime cache keys found to clear")

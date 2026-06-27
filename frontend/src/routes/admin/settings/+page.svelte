@@ -3,7 +3,7 @@
 
   // Redirect to users page by default
   $effect(() => {
-    goto("/admin/settings/users");
+    goto("/admin/settings/access");
   });
 </script>
 

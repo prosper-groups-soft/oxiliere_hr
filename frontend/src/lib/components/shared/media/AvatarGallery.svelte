@@ -11,6 +11,7 @@
     class?: string;
     iconSize?: number;
     iconStroke?: number;
+    disableUploadHover?: boolean;
     onUpload: (file: File) => void;
     children: Snippet;
   }
@@ -21,6 +22,7 @@
     class: className, 
     iconSize = 22,
     iconStroke = 2.2, 
+    disableUploadHover = false,
     onUpload, 
     children 
   }: Props = $props();
@@ -29,6 +31,7 @@
   let fileInput: HTMLInputElement | undefined = $state();
 
   function toggleExpand() {
+    if (disableUploadHover) return;
     isExpanded = !isExpanded;
   }
 
@@ -63,23 +66,25 @@
 >
   {@render children()}
   
-  <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
-    <div class="animate-pulse-icon text-white bg-white/20 p-2 rounded-full backdrop-blur-sm">
-      <AppIcon name="camera" color="white" strokeWidth={iconStroke} size={iconSize} />
+  {#if !disableUploadHover}
+    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
+      <div class="animate-pulse-icon text-white bg-white/20 p-2 rounded-full backdrop-blur-sm">
+        <AppIcon name="camera" color="white" strokeWidth={iconStroke} size={iconSize} />
+      </div>
     </div>
-  </div>
+  {/if}
 </button>
 
 {#if isExpanded}
   <div 
     transition:fade={{ duration: 200 }}
-    class="fixed inset-0 bg-black/70 flex flex-col items-center justify-center p-4 cursor-default z-100"
+    class="fixed inset-0 bg-black/70 flex flex-col items-center justify-center p-4 cursor-default z-100000"
     onclick={toggleExpand}
     role="presentation"
   >
     <button 
       type="button"
-      class="absolute top-6 right-6 text-white/70 hover:text-white transition-colors cursor-pointer z-100"
+      class="absolute top-6 right-6 text-white/70 hover:text-white transition-colors cursor-pointer z-100000"
       onclick={(e) => {
         e.stopPropagation();
         toggleExpand();
@@ -90,7 +95,7 @@
 
     <div 
       transition:scale={{ duration: 300, start: 0.9 }}
-      class="relative max-w-lg w-full aspect-square bg-slate-100 rounded-2xl overflow-hidden shadow-2xl border-4 border-white/10"
+      class="relative max-w-lg w-full aspect-square bg-slate-100 rounded-2xl overflow-hidden shadow-2xl border-4 border-white/10 z-100000"
       onclick={(e) => e.stopPropagation()}
       role="none" 
     >
@@ -105,19 +110,18 @@
 
     <div 
       transition:fade={{ delay: 200 }}
-      class="mt-8 flex gap-4"
+      class="mt-8 flex gap-4 z-100000"
       onclick={(e) => e.stopPropagation()}
       role="none"
     >
       <input bind:this={fileInput} type="file" accept="image/*" class="hidden" onchange={handleFileChange} />
-      
-      <Button variant="secondary" size="sm" onclick={triggerUpload} class="gap-2 px-6">
-        <AppIcon name="camera" size={18} />
-        Modifier
-      </Button>
-
-      <Button variant="destructive" size="sm" onclick={() => isExpanded = false} class="gap-2 px-6">
+      <Button variant="outline" size="sm" onclick={() => isExpanded = false} class="gap-2 px-6">
+        <AppIcon name="x" size={17} class="text-slate-400" />
         Fermer
+      </Button>
+      <Button size="sm" onclick={triggerUpload} class="gap-2 px-6">
+        <AppIcon name="camera" size={17} />
+        Modifier
       </Button>
     </div>
   </div>

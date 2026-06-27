@@ -18,15 +18,18 @@ class PayrollCalculatorService:
         return Decimal('0.00')
 
     @staticmethod
-    def calculate_overtime_pay(hourly_rate: Decimal, std_hours: float, hol_hours: float, multipliers: dict) -> Decimal:
+    def calculate_overtime_pay(hourly_rate: Decimal, std_hours: float, hol_hours: float, weekend_hours: float = 0, multipliers: dict = None) -> Decimal:
         """ Calculates total overtime pay including statutory multipliers. """
         pay = Decimal('0.00')
         std_hours_dec = Decimal(str(std_hours))
         hol_hours_dec = Decimal(str(hol_hours))
+        weekend_hours_dec = Decimal(str(weekend_hours))
+        if multipliers is None:
+            multipliers = {}
         
         # 1. Standard Overtime (Weekdays)
         if std_hours_dec > 0:
-            m130 = multipliers.get('first_period', Decimal('1.30')) # Changed label for clarity
+            m130 = multipliers.get('first_period', Decimal('1.30'))
             m160 = multipliers.get('subsequent', Decimal('1.60'))
             
             # DRC Rule: 130% for the first 6 hours, 160% beyond
@@ -36,7 +39,12 @@ class PayrollCalculatorService:
                 pay += (Decimal('6.0') * hourly_rate * m130)
                 pay += ((std_hours_dec - Decimal('6.0')) * hourly_rate * m160)
         
-        # 2. Holiday/Weekend Overtime
+        # 2. Weekend Overtime (Sunday = 200% in DRC)
+        if weekend_hours_dec > 0:
+            m200 = multipliers.get('weekend', Decimal('2.00'))
+            pay += (weekend_hours_dec * hourly_rate * m200)
+        
+        # 3. Holiday Overtime
         if hol_hours_dec > 0:
             m200 = multipliers.get('holiday', Decimal('2.00'))
             pay += (hol_hours_dec * hourly_rate * m200)

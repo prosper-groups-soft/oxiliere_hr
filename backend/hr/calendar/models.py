@@ -2,7 +2,7 @@ from django.db import models
 from django.core.exceptions   import ValidationError
 from django.utils.translation import gettext_lazy as _
 from auditlog.registry import auditlog
-from hr.models import BaseAuditableModel
+from hr.models.base import BaseAuditableModel
 
 from hr.enums import CountryCode
 from .enums   import (
@@ -98,7 +98,13 @@ class CalendarEvent(BaseAuditableModel):
         db_table = "cale_event" 
         verbose_name = _("Calendar Event")
         verbose_name_plural = _("Calendar Events")
-        unique_together = ('name', 'start_date', 'event_type')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['name', 'start_date', 'event_type'],
+                condition=models.Q(deleted__isnull=True),
+                name='unique_calendar_event'
+            ),
+        ]
         ordering = ['start_date', 'start_time']
 
     def clean(self):

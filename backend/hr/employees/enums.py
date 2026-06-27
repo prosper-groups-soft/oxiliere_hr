@@ -47,6 +47,7 @@ class EmployeeStatus(TextChoices):
     """Employee lifecycle and activity status."""
     ACTIVE = "ACTIVE", _("Active")
     PROBATION = "PROBATION", _("Probation")
+    PENDING = "PENDING", _("Pending")
     SUSPENDED = "SUSPENDED", _("Suspended")
     MATERNITY_LEAVE = "MATERNITY_LEAVE", _("Maternity/Paternity Leave")
     SICK_LEAVE = "SICK_LEAVE", _("Long-term Sick Leave")
@@ -66,5 +67,6 @@ class DocumentType(TextChoices):
     CERTIFICATE = "CERTIFICATE", _("Professional Certificate")
     RESIDENCE_PERMIT = "RESIDENCE_PERMIT", _("Residence Permit")
     CRIMINAL_RECORD = "CRIMINAL_RECORD", _("Criminal Record Check")
+    PHOTO = "PHOTO", _("Profile Photo")
     OTHER = "OTHER", _("Other Document")
 

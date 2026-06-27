@@ -5,8 +5,10 @@ from .emergency import EmployeeEmergencyService
 from .worksite  import WorkSiteService
 from .family    import EmployeeFamilyService
 from .profile   import EmployeeProfileService
-from .query     import EmployeeQueryService
+from .query     import EmployeeQueryService, enrich_employee_data
 from .status    import EmployeeStatusService
+from .career    import EmployeeCareerService
+from .cache     import EmployeeCacheService
 
 
 __all__ = [
@@ -18,6 +20,9 @@ __all__ = [
     'EmployeeProfileService',
     'EmployeeQueryService',
     'EmployeeStatusService',
-    'WorkSiteService'
+    'WorkSiteService',
+    'EmployeeCareerService',
+    'EmployeeCacheService',
+    'enrich_employee_data',
 ]
 

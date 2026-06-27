@@ -6,7 +6,7 @@ class TimeSheetStatus(TextChoices):
     PRESENT = "PRESENT", _("Present")
     ABSENT = "ABSENT", _("Absent")
     LATE = "LATE", _("Late")
-    PARTIAL = "PARTIAL", _("Partial Absence") # Present but did not complete required hours
+    PARTIAL = "PARTIAL", _("Partial Absence")
     EXCUSED = "EXCUSED", _("Excused")
     ON_LEAVE = "ON_LEAVE", _("On Leave")
     HOLIDAY = "HOLIDAY", _("Public Holiday")
@@ -15,6 +15,13 @@ class TimeSheetStatus(TextChoices):
 class PunchType(TextChoices):
     WORK = "WORK", _("Work")
     BREAK = "BREAK", _("Break")
-    MISSION = "MISSION", _("External Mission")  # E.g., client meeting
-    PERSONAL = "PERSONAL", _("Personal Leave")  # For "Personal Reason"
+    MISSION = "MISSION", _("External Mission")
+    PERSONAL = "PERSONAL", _("Personal Leave")
 
+
+class RecurrenceType(TextChoices):
+    NONE = "NONE", _("None")
+    WEEKLY = "WEEKLY", _("Weekly")
+    BIWEEKLY = "BIWEEKLY", _("Biweekly")
+    MONTHLY = "MONTHLY", _("Monthly")
+    QUARTERLY = "QUARTERLY", _("Quarterly")

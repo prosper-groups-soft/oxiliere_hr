@@ -1,0 +1,2990 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-05-22 15:22+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+#: .\hr\attendance\enums.py:6
+msgid "Present"
+msgstr "Présent"
+
+#: .\hr\attendance\enums.py:7
+msgid "Absent"
+msgstr "Absent"
+
+#: .\hr\attendance\enums.py:8
+msgid "Late"
+msgstr "En retard"
+
+#: .\hr\attendance\enums.py:9
+msgid "Partial Absence"
+msgstr "Absence partielle"
+
+#: .\hr\attendance\enums.py:10
+msgid "Excused"
+msgstr "Excusé"
+
+#: .\hr\attendance\enums.py:11
+msgid "On Leave"
+msgstr "En congé"
+
+#: .\hr\attendance\enums.py:12 .\hr\calendar\enums.py:6
+msgid "Public Holiday"
+msgstr "Jour férié"
+
+#: .\hr\attendance\enums.py:16
+msgid "Work"
+msgstr "Travail"
+
+#: .\hr\attendance\enums.py:17
+msgid "Break"
+msgstr "Pause"
+
+#: .\hr\attendance\enums.py:18
+msgid "External Mission"
+msgstr "Mission externe"
+
+#: .\hr\attendance\enums.py:19
+msgid "Personal Leave"
+msgstr "Congé personnel"
+
+#: .\hr\attendance\models.py:19 .\hr\leaves\models.py:26
+msgid "Policy Name"
+msgstr "Nom de la politique"
+
+#: .\hr\attendance\models.py:20 .\hr\calendar\models.py:88
+#: .\hr\jobs\models.py:21 .\hr\leaves\models.py:131 .\hr\payroll\models.py:825
+msgid "Description"
+msgstr "Description"
+
+#: .\hr\attendance\models.py:24
+msgid "Weekly Target"
+msgstr "Objectif hebdomadaire"
+
+#: .\hr\attendance\models.py:30
+msgid "Shift Policy"
+msgstr "Politique d'équipe"
+
+#: .\hr\attendance\models.py:31
+msgid "Shift Policies"
+msgstr "Politiques d'équipe"
+
+#: .\hr\attendance\models.py:42
+msgid "Expected Start"
+msgstr "Début prévu"
+
+#: .\hr\attendance\models.py:43
+msgid "Expected End"
+msgstr "Fin prévue"
+
+#: .\hr\attendance\models.py:47
+msgid "Scheduled Break Start"
+msgstr "Début de pause programmé"
+
+#: .\hr\attendance\models.py:51
+msgid "Authorized Break Duration"
+msgstr "Durée de pause autorisée"
+
+#: .\hr\attendance\models.py:54
+msgid "Is Working Day"
+msgstr "Est un jour ouvrable"
+
+#: .\hr\attendance\models.py:57
+msgid ""
+"If enabled, strict start/end times are ignored for duration calculations."
+msgstr ""
+"Si activé, les heures strictes de début/fin sont ignorées pour les calculs "
+"de durée."
+
+#: .\hr\attendance\models.py:63
+msgid "Shift Detail"
+msgstr "Détail de l'équipe"
+
+#: .\hr\attendance\models.py:73 .\hr\leaves\models.py:85
+#: .\hr\leaves\models.py:114
+msgid "Policy"
+msgstr "Politique"
+
+#: .\hr\attendance\models.py:75 .\hr\payroll\models.py:696
+msgid "Effective Date"
+msgstr "Date d'effet"
+
+#: .\hr\attendance\models.py:76 .\hr\jobs\models.py:458
+msgid "Expiry Date"
+msgstr "Date d'expiration"
+
+#: .\hr\attendance\models.py:78 .\hr\banking\models.py:55
+#: .\hr\banking\models.py:160 .\hr\employees\enums.py:48
+msgid "Active"
+msgstr "Actif"
+
+#: .\hr\attendance\models.py:83
+msgid "Employment Scheme"
+msgstr "Régime d'emploi"
+
+#: .\hr\attendance\models.py:100
+msgid "Ordered list of ShiftPolicy IDs in the rotation cycle."
+msgstr "Liste ordonnée des IDs de ShiftPolicy dans le cycle de rotation."
+
+#: .\hr\attendance\models.py:101
+msgid "Commencement date of the first cycle."
+msgstr "Date de commencement du premier cycle."
+
+#: .\hr\attendance\models.py:102
+msgid "Optional expiration date for this rotation."
+msgstr "Date d'expiration optionnelle pour cette rotation."
+
+#: .\hr\attendance\models.py:111
+msgid "Register Date"
+msgstr "Date d'enregistrement"
+
+#: .\hr\attendance\models.py:112
+msgid "Reference Code"
+msgstr "Code de référence"
+
+#: .\hr\attendance\models.py:116
+msgid "Finalized"
+msgstr "Finalisé"
+
+#: .\hr\attendance\models.py:121
+msgid "Daily Register"
+msgstr "Registre quotidien"
+
+#: .\hr\attendance\models.py:135
+msgid "Effective Work"
+msgstr "Travail effectif"
+
+#: .\hr\attendance\models.py:136
+msgid "Total Break"
+msgstr "Pause totale"
+
+#: .\hr\attendance\models.py:138
+msgid "Overtime"
+msgstr "Heures supplémentaires"
+
+#: .\hr\attendance\models.py:139
+msgid "Shortfall"
+msgstr "Déficit"
+
+#: .\hr\attendance\models.py:146
+msgid "HR Notes"
+msgstr "Notes RH"
+
+#: .\hr\attendance\models.py:151
+msgid "Time Sheet"
+msgstr "Feuille de temps"
+
+#: .\hr\attendance\models.py:157
+msgid "This date is archived and cannot be modified."
+msgstr "Cette date est archivée et ne peut pas être modifiée."
+
+#: .\hr\attendance\models.py:166
+msgid "Punch In"
+msgstr "Pointage d'entrée"
+
+#: .\hr\attendance\models.py:167
+msgid "Punch Out"
+msgstr "Pointage de sortie"
+
+#: .\hr\attendance\models.py:169
+msgid "Segment Duration"
+msgstr "Durée du segment"
+
+#: .\hr\attendance\models.py:172
+msgid ""
+"Indicates if this punch was manually created or adjusted by an administrator."
+msgstr ""
+"Indique si ce pointage a été créé ou ajusté manuellement par un "
+"administrateur."
+
+#: .\hr\attendance\models.py:178
+msgid "Time Punch"
+msgstr "Pointage horaire"
+
+#: .\hr\attendance\models.py:201
+msgid "Locked Until Date"
+msgstr "Verrouillé jusqu'à la date"
+
+#: .\hr\attendance\models.py:211
+msgid "Period Archive Lock"
+msgstr "Verrouillage d'archive de période"
+
+#: .\hr\attendance\models.py:221
+msgid "Active Archive Lock"
+msgstr "Verrouillage d'archive actif"
+
+#: .\hr\attendance\models.py:226
+msgid ""
+"Tolerance period after the official start time before being flagged as late."
+msgstr ""
+"Période de tolérance après l'heure officielle de début avant d'être marqué "
+"comme en retard."
+
+#: .\hr\attendance\models.py:227
+msgid "Late Grace Period"
+msgstr "Période de grâce pour retard"
+
+#: .\hr\attendance\models.py:232
+msgid "Precision in minutes for final hour calculations (e.g., 5, 10, 15)."
+msgstr ""
+"Précision en minutes pour les calculs finaux des heures (ex. : 5, 10, 15)."
+
+#: .\hr\attendance\models.py:233
+msgid "Rounding Precision"
+msgstr "Précision d'arrondi"
+
+#: .\hr\attendance\models.py:240
+msgid ""
+"Threshold duration of missing time to classify work as partial rather than "
+"present."
+msgstr ""
+"Durée seuil du temps manquant pour classer le travail comme partiel plutôt "
+"que présent."
+
+#: .\hr\attendance\models.py:241
+msgid "Partial Absence Threshold"
+msgstr "Seuil d'absence partielle"
+
+#: .\hr\attendance\models.py:246
+msgid "Attendance Settings"
+msgstr "Paramètres de présence"
+
+#: .\hr\attendance\services\locking.py:26
+msgid "You cannot lock a future date."
+msgstr "Vous ne pouvez pas verrouiller une date future."
+
+#: .\hr\attendance\services\locking.py:31
+#, python-brace-format
+msgid "A lock already exists up to {date}."
+msgstr "Un verrouillage existe déjà jusqu'au {date}."
+
+#: .\hr\attendance\services\punch.py:111
+msgid ""
+"This punch cannot be adjusted because the period is locked or finalized."
+msgstr ""
+"Ce pointage ne peut pas être ajusté car la période est verrouillée ou "
+"finalisée."
+
+#: .\hr\attendance\services\punch.py:126
+msgid "End time cannot be before start time."
+msgstr "L'heure de fin ne peut pas être antérieure à l'heure de début."
+
+#: .\hr\attendance\services\punch.py:149
+msgid "This punch cannot be deleted because the period is locked or finalized."
+msgstr ""
+"Ce pointage ne peut pas être supprimé car la période est verrouillée ou "
+"finalisée."
+
+#: .\hr\attendance\services\scheduling.py:79
+msgid "Start date must be before end date."
+msgstr "La date de début doit être antérieure à la date de fin."
+
+#: .\hr\attendance\services\validation.py:36
+#, python-brace-format
+msgid "Overlap detected between {last_type} and {current_type} at {time}."
+msgstr ""
+"Chevauchement détecté entre {last_type} et {current_type} à {time}."
+
+#: .\hr\attendance\services\validation.py:45
+#, python-brace-format
+msgid "Incomplete segment found: {type} started at {time} has no end time."
+msgstr ""
+"Segment incomplet trouvé : {type} commencé à {time} n'a pas d'heure de fin."
+
+#: .\hr\attendance\services\validation.py:54
+msgid "Total recorded work exceeds 16 hours. Please verify for errors."
+msgstr ""
+"Le total du travail enregistré dépasse 16 heures. Veuillez vérifier les "
+"erreurs."
+
+#: .\hr\attendance\services\validation.py:61
+#, python-brace-format
+msgid "Break exceedance detected: {duration} extra minutes."
+msgstr "Dépassement de pause détecté : {duration} minutes supplémentaires."
+#: .\hr\attendance\services\validation.py:67
+msgid "Work recorded on a Public Holiday. Verify overtime eligibility."
+msgstr "Travail enregistré un jour férié. Vérifiez l'éligibilité aux heures supplémentaires."
+
+#: .\hr\attendance\services\validation.py:91
+msgid "GPS coordinates are required to punch."
+msgstr "Les coordonnées GPS sont requises pour pointer."
+
+#: .\hr\attendance\services\validation.py:105
+#, python-brace-format
+msgid ""
+"Location error: You are {dist}m away from your designated work site. Maximum "
+"allowed is {max_dist}m."
+msgstr ""
+"Erreur de localisation : vous êtes à {dist}m de votre lieu de travail "
+"désigné. La distance maximale autorisée est de {max_dist}m."
+
+#: .\hr\banking\enums.py:6
+msgid "Checking account"
+msgstr "Compte courant"
+
+#: .\hr\banking\enums.py:7
+msgid "Savings account"
+msgstr "Compte épargne"
+
+#: .\hr\banking\enums.py:8
+msgid "Salary account"
+msgstr "Compte salaire"
+
+#: .\hr\banking\enums.py:9 .\hr\calendar\enums.py:11 .\hr\employees\enums.py:43
+#: .\hr\leaves\enums.py:14 .\hr\payroll\enums.py:73
+msgid "Other"
+msgstr "Autre"
+
+#: .\hr\banking\enums.py:13
+msgid "Created"
+msgstr "Créé"
+
+#: .\hr\banking\enums.py:14
+msgid "Updated"
+msgstr "Mis à jour"
+
+#: .\hr\banking\enums.py:15 .\hr\banking\models.py:143
+msgid "Verified"
+msgstr "Vérifié"
+
+#: .\hr\banking\enums.py:16
+msgid "Unverified"
+msgstr "Non vérifié"
+
+#: .\hr\banking\enums.py:17
+msgid "Activated"
+msgstr "Activé"
+
+#: .\hr\banking\enums.py:18
+msgid "Deactivated"
+msgstr "Désactivé"
+
+#: .\hr\banking\enums.py:19
+msgid "Set Primary"
+msgstr "Définir comme principal"
+
+#: .\hr\banking\enums.py:20
+msgid "Deleted"
+msgstr "Supprimé"
+
+#: .\hr\banking\models.py:25
+msgid "Bank Name"
+msgstr "Nom de la banque"
+
+#: .\hr\banking\models.py:26
+msgid "Official name of the financial institution."
+msgstr "Nom officiel de l'institution financière."
+
+#: .\hr\banking\models.py:31
+msgid "Bank Code"
+msgstr "Code bancaire"
+
+#: .\hr\banking\models.py:32
+msgid "Unique identifier for payroll processing."
+msgstr "Identifiant unique pour le traitement de la paie."
+
+#: .\hr\banking\models.py:38
+msgid "SWIFT Code"
+msgstr "Code SWIFT"
+
+#: .\hr\banking\models.py:39
+msgid "Standard international BIC/SWIFT code."
+msgstr "Code international standard BIC/SWIFT."
+
+#: .\hr\banking\models.py:43 .\hr\payroll\enums.py:9
+msgid "Mobile Money"
+msgstr "Mobile Money"
+
+#: .\hr\banking\models.py:44
+msgid "Enable for telco-based wallet providers."
+msgstr "Activer pour les fournisseurs de portefeuilles basés sur les télécoms."
+
+#: .\hr\banking\models.py:50 .\hr\calendar\models.py:47
+#: .\hr\leaves\models.py:33
+msgid "Country"
+msgstr "Pays"
+
+#: .\hr\banking\models.py:51
+msgid "Country of operation for this bank."
+msgstr "Pays d'opération de cette banque."
+
+#: .\hr\banking\models.py:61 .\hr\banking\models.py:95
+msgid "Bank"
+msgstr "Banque"
+
+#: .\hr\banking\models.py:62
+msgid "Banks"
+msgstr "Banques"
+
+#: .\hr\banking\models.py:72
+msgid "Standard banks must have 8 or 11 characters SWIFT code."
+msgstr "Les banques standards doivent avoir un code SWIFT de 8 ou 11 caractères."
+
+#: .\hr\banking\models.py:89 .\hr\jobs\models.py:280 .\hr\jobs\models.py:358
+#: .\hr\jobs\models.py:423 .\hr\leaves\models.py:153 .\hr\leaves\models.py:216
+#: .\hr\leaves\models.py:266 .\hr\leaves\models.py:381
+#: .\hr\payroll\models.py:141 .\hr\payroll\models.py:627
+#: .\hr\payroll\models.py:901
+msgid "Employee"
+msgstr "Employé"
+
+#: .\hr\banking\models.py:96
+msgid "The institution where the account is held."
+msgstr "L'institution où le compte est détenu."
+
+#: .\hr\banking\models.py:102
+msgid "Branch Code"
+msgstr "Code de l'agence"
+
+#: .\hr\banking\models.py:103
+msgid "Specific code for the local bank branch."
+msgstr "Code spécifique de l'agence bancaire locale."
+
+#: .\hr\banking\models.py:107
+msgid "Account Number"
+msgstr "Numéro de compte"
+
+#: .\hr\banking\models.py:108
+msgid "The bank account or phone number for transfers."
+msgstr "Le compte bancaire ou numéro de téléphone pour les transferts."
+
+#: .\hr\banking\models.py:112
+msgid "Account Holder"
+msgstr "Titulaire du compte"
+
+#: .\hr\banking\models.py:113
+msgid "Full name as registered at the bank."
+msgstr "Nom complet tel qu'enregistré à la banque."
+
+#: .\hr\banking\models.py:119 .\hr\leaves\models.py:398
+#: .\hr\payroll\models.py:257 .\hr\payroll\models.py:735
+msgid "Type"
+msgstr "Type"
+
+#: .\hr\banking\models.py:120
+msgid "Category of account (e.g., Checking, Savings)."
+msgstr "Catégorie du compte (ex. : courant, épargne)."
+
+#: .\hr\banking\models.py:126 .\hr\payroll\models.py:189
+msgid "Currency"
+msgstr "Devise"
+
+#: .\hr\banking\models.py:127
+msgid "The primary currency for this account."
+msgstr "La devise principale de ce compte."
+
+#: .\hr\banking\models.py:133
+msgid "IBAN"
+msgstr "IBAN"
+
+#: .\hr\banking\models.py:134
+msgid "International Bank Account Number if required."
+msgstr "Numéro de compte bancaire international si requis."
+
+#: .\hr\banking\models.py:138
+msgid "Primary"
+msgstr "Principal"
+
+#: .\hr\banking\models.py:139
+msgid "Mark as the main account for salary payments."
+msgstr "Marquer comme compte principal pour les paiements de salaire."
+
+#: .\hr\banking\models.py:144
+msgid "Confirm account details have been validated."
+msgstr "Confirmer que les détails du compte ont été validés."
+
+#: .\hr\banking\models.py:149
+msgid "Verified At"
+msgstr "Vérifié le"
+
+#: .\hr\banking\models.py:155
+msgid "RIB/Proof Document"
+msgstr "RIB/Document justificatif"
+
+#: .\hr\banking\models.py:156
+msgid "Official document certifying account ownership."
+msgstr "Document officiel certifiant la propriété du compte."
+
+#: .\hr\banking\models.py:165 .\hr\banking\models.py:226
+msgid "Notes"
+msgstr "Notes"
+
+#: .\hr\banking\models.py:171 .\hr\banking\models.py:206
+msgid "Bank Account"
+msgstr "Compte bancaire"
+
+#: .\hr\banking\models.py:172
+msgid "Bank Accounts"
+msgstr "Comptes bancaires"
+
+#: .\hr\banking\models.py:211
+msgid "Action"
+msgstr "Action"
+
+#: .\hr\banking\models.py:217
+msgid "Performed By"
+msgstr "Effectué par"
+
+#: .\hr\banking\models.py:221
+msgid "Changes"
+msgstr "Modifications"
+
+#: .\hr\banking\models.py:232
+msgid "Account History"
+msgstr "Historique du compte"
+
+#: .\hr\banking\models.py:233
+msgid "Account Histories"
+msgstr "Historiques des comptes"
+
+#: .\hr\calendar\enums.py:7
+msgid "Company Event"
+msgstr "Événement de l'entreprise"
+
+#: .\hr\calendar\enums.py:8
+msgid "Deadline"
+msgstr "Date limite"
+
+#: .\hr\calendar\enums.py:9
+msgid "Anniversary"
+msgstr "Anniversaire"
+
+#: .\hr\calendar\enums.py:10
+msgid "Leave/Absence"
+msgstr "Congé/Absence"
+
+#: .\hr\calendar\enums.py:15
+msgid "None"
+msgstr "Aucun"
+
+#: .\hr\calendar\enums.py:16
+msgid "Daily"
+msgstr "Quotidien"
+
+#: .\hr\calendar\enums.py:17
+msgid "Weekly"
+msgstr "Hebdomadaire"
+
+#: .\hr\calendar\enums.py:18
+msgid "Monthly"
+msgstr "Mensuel"
+
+#: .\hr\calendar\enums.py:19
+msgid "Yearly"
+msgstr "Annuel"
+
+#: .\hr\calendar\enums.py:23 .\hr\recruitment\enums.py:6
+msgid "Pending"
+msgstr "En attente"
+
+#: .\hr\calendar\enums.py:24 .\hr\leaves\enums.py:24
+msgid "Approved"
+msgstr "Approuvé"
+
+#: .\hr\calendar\enums.py:25 .\hr\leaves\enums.py:25
+#: .\hr\recruitment\enums.py:11
+msgid "Rejected"
+msgstr "Rejeté"
+
+#: .\hr\calendar\enums.py:26 .\hr\jobs\enums.py:58 .\hr\jobs\models.py:489
+#: .\hr\leaves\enums.py:26
+msgid "Cancelled"
+msgstr "Annulé"
+
+#: .\hr\calendar\enums.py:27 .\hr\leaves\enums.py:28
+msgid "Taken / Archived"
+msgstr "Pris / Archivé"
+
+#: .\hr\calendar\models.py:23
+msgid "Event Name"
+msgstr "Nom de l'événement"
+
+#: .\hr\calendar\models.py:24
+msgid "Common name of the holiday or company event."
+msgstr "Nom commun du jour férié ou de l'événement d'entreprise."
+
+#: .\hr\calendar\models.py:30
+msgid "Event Code"
+msgstr "Code de l'événement"
+
+#: .\hr\calendar\models.py:31
+msgid "Unique identifier for scheduling logic."
+msgstr "Identifiant unique pour la logique de planification."
+
+#: .\hr\calendar\models.py:37
+msgid "Event Type"
+msgstr "Type d'événement"
+
+#: .\hr\calendar\models.py:38
+msgid "Category of the event (e.g., Public Holiday, Closing)."
+msgstr "Catégorie de l'événement (ex. : jour férié, fermeture)."
+
+#: .\hr\calendar\models.py:48
+msgid ""
+"Determines if the event applies to a specific country or the entire group."
+msgstr ""
+"Détermine si l'événement s'applique à un pays spécifique ou à l'ensemble du "
+"groupe."
+
+#: .\hr\calendar\models.py:52 .\hr\jobs\models.py:314 .\hr\jobs\models.py:437
+#: .\hr\leaves\models.py:285 .\hr\payroll\models.py:192
+#: .\hr\payroll\models.py:313 .\hr\payroll\models.py:348
+msgid "Start Date"
+msgstr "Date de début"
+
+#: .\hr\calendar\models.py:53
+msgid "First day of the event."
+msgstr "Premier jour de l'événement."
+
+#: .\hr\calendar\models.py:58 .\hr\jobs\models.py:319 .\hr\jobs\models.py:442
+#: .\hr\leaves\models.py:288 .\hr\payroll\models.py:197
+#: .\hr\payroll\models.py:351
+msgid "End Date"
+msgstr "Date de fin"
+
+#: .\hr\calendar\models.py:59
+msgid "Leave empty for single-day events."
+msgstr "Laisser vide pour les événements d'une seule journée."
+
+#: .\hr\calendar\models.py:64
+msgid "Start Time"
+msgstr "Heure de début"
+
+#: .\hr\calendar\models.py:69
+msgid "End Time"
+msgstr "Heure de fin"
+
+#: .\hr\calendar\models.py:74
+msgid "Workable"
+msgstr "Travaillable"
+
+#: .\hr\calendar\models.py:75
+msgid "If disabled, this is considered a non-working day."
+msgstr "Si désactivé, ceci est considéré comme un jour non ouvrable."
+
+#: .\hr\calendar\models.py:81
+msgid "Recurrence"
+msgstr "Récurrence"
+
+#: .\hr\calendar\models.py:82
+msgid "Frequency for repeating the event (e.g., Yearly)."
+msgstr "Fréquence de répétition de l'événement (ex. : annuelle)."
+
+#: .\hr\calendar\models.py:94 .\hr\jobs\models.py:508 .\hr\leaves\models.py:302
+msgid "Status"
+msgstr "Statut"
+
+#: .\hr\calendar\models.py:99
+msgid "Calendar Event"
+msgstr "Événement du calendrier"
+
+#: .\hr\calendar\models.py:100
+msgid "Calendar Events"
+msgstr "Événements du calendrier"
+
+#: .\hr\calendar\models.py:106 .\hr\jobs\models.py:340
+msgid "End date cannot be before start date."
+msgstr "La date de fin ne peut pas être antérieure à la date de début."
+
+#: .\hr\employees\enums.py:12
+msgid "TENASOSP / Brevet"
+msgstr "TENASOSP / Brevet"
+
+#: .\hr\employees\enums.py:13
+msgid "State Diploma (Diplôme d'État)"
+msgstr "Diplôme d'État"
+
+#: .\hr\employees\enums.py:16
+msgid "Associate's Degree (Graduat/BTS)"
+msgstr "Graduat / BTS"
+
+#: .\hr\employees\enums.py:17
+msgid "Bachelor's Degree (Licence LMD)"
+msgstr "Licence (LMD)"
+
+#: .\hr\employees\enums.py:18
+msgid "Master's Degree (DEA)"
+msgstr "Master (DEA)"
+
+#: .\hr\employees\enums.py:19
+msgid "Doctorate (PhD)"
+msgstr "Doctorat (PhD)"
+
+#: .\hr\employees\enums.py:22
+msgid "Vocational Training (Formation Professionnelle)"
+msgstr "Formation professionnelle"
+
+#: .\hr\employees\enums.py:23 .\hr\enums.py:13
+msgid "Not specified"
+msgstr "Non spécifié"
+
+#: .\hr\employees\enums.py:28
+msgid "Single"
+msgstr "Célibataire"
+
+#: .\hr\employees\enums.py:29
+msgid "Married"
+msgstr "Marié"
+
+#: .\hr\employees\enums.py:30
+msgid "Divorced"
+msgstr "Divorcé"
+
+#: .\hr\employees\enums.py:31
+msgid "Widowed"
+msgstr "Veuf"
+
+#: .\hr\employees\enums.py:32
+msgid "Domestic Partnership"
+msgstr "Union libre"
+
+#: .\hr\employees\enums.py:37
+msgid "Parent"
+msgstr "Parent"
+
+#: .\hr\employees\enums.py:38
+msgid "Child"
+msgstr "Enfant"
+
+#: .\hr\employees\enums.py:39
+msgid "Sibling"
+msgstr "Frère/Sœur"
+
+#: .\hr\employees\enums.py:40
+msgid "Friend"
+msgstr "Ami"
+
+#: .\hr\employees\enums.py:41
+msgid "Spouse"
+msgstr "Conjoint"
+
+#: .\hr\employees\enums.py:42
+msgid "Partner"
+msgstr "Partenaire"
+
+#: .\hr\employees\enums.py:49
+msgid "Probation"
+msgstr "Période d'essai"
+
+#: .\hr\employees\enums.py:50
+msgid "Suspended"
+msgstr "Suspendu"
+
+#: .\hr\employees\enums.py:51
+msgid "Maternity/Paternity Leave"
+msgstr "Congé maternité/paternité"
+
+#: .\hr\employees\enums.py:52
+msgid "Long-term Sick Leave"
+msgstr "Congé maladie de longue durée"
+
+#: .\hr\employees\enums.py:53
+msgid "Sabbatical"
+msgstr "Congé sabbatique"
+
+#: .\hr\employees\enums.py:54
+msgid "Terminated"
+msgstr "Licencié"
+
+#: .\hr\employees\enums.py:55
+msgid "Resigned"
+msgstr "Démissionnaire"
+
+#: .\hr\employees\enums.py:56
+msgid "Retired"
+msgstr "Retraité"
+
+#: .\hr\employees\enums.py:61
+msgid "National Identity Card"
+msgstr "Carte nationale d'identité"
+
+#: .\hr\employees\enums.py:62
+msgid "Passport"
+msgstr "Passeport"
+
+#: .\hr\employees\enums.py:63
+msgid "Voter Card"
+msgstr "Carte d'électeur"
+
+#: .\hr\employees\enums.py:64
+msgid "Driving License"
+msgstr "Permis de conduire"
+
+#: .\hr\employees\enums.py:65
+msgid "Diploma / Degree"
+msgstr "Diplôme"
+
+#: .\hr\employees\enums.py:66
+msgid "Professional Certificate"
+msgstr "Certificat professionnel"
+
+#: .\hr\employees\enums.py:67
+msgid "Residence Permit"
+msgstr "Permis de résidence"
+
+#: .\hr\employees\enums.py:68
+msgid "Criminal Record Check"
+msgstr "Extrait de casier judiciaire"
+
+#: .\hr\employees\enums.py:69
+msgid "Profile Photo"
+msgstr "Photo de profil"
+
+#: .\hr\employees\enums.py:70
+msgid "Other Document"
+msgstr "Autre document"
+
+#: .\hr\employees\models.py:46
+msgid "Primary work location."
+msgstr "Lieu de travail principal."
+
+#: .\hr\employees\models.py:56
+msgid "Associated system user account."
+msgstr "Compte utilisateur système associé."
+
+#: .\hr\employees\models.py:62
+msgid "Unique staff ID."
+msgstr "Identifiant unique de l'employé."
+
+#: .\hr\employees\models.py:77
+msgid "Date of birth for age and legal checks."
+msgstr "Date de naissance pour les vérifications d'âge et légales."
+
+#: .\hr\employees\models.py:85
+msgid "ISO country code."
+msgstr "Code pays ISO."
+
+#: .\hr\employees\models.py:91
+msgid "Marital status for benefits calculation."
+msgstr "État civil pour le calcul des avantages."
+
+#: .\hr\employees\models.py:98
+msgid "Professional email address."
+msgstr "Adresse e-mail professionnelle."
+
+#: .\hr\employees\models.py:104
+msgid "Contact phone number."
+msgstr "Numéro de téléphone de contact."
+
+#: .\hr\employees\models.py:112
+msgid "Employee profile photo"
+msgstr "Photo de profil de l'employé"
+
+#: .\hr\employees\models.py:118
+msgid "Official hiring date."
+msgstr "Date officielle d'embauche."
+
+#: .\hr\employees\models.py:123
+msgid "Last day of employment."
+msgstr "Dernier jour d'emploi."
+
+#: .\hr\employees\models.py:129
+msgid "Global active state in the system."
+msgstr "État actif global dans le système."
+
+#: .\hr\employees\models.py:133
+msgid "Allows access to the employee portal."
+msgstr "Autorise l'accès au portail employé."
+
+#: .\hr\employees\models.py:138
+msgid "Additional HR notes."
+msgstr "Notes RH supplémentaires."
+
+#: .\hr\employees\models.py:176
+msgid "Termination date cannot be earlier than hire date."
+msgstr "La date de fin ne peut pas être antérieure à la date d'embauche."
+
+#: .\hr\employees\models.py:218
+msgid "Professional status (Active, Suspended, etc.)."
+msgstr "Statut professionnel (Actif, Suspendu, etc.)."
+
+#: .\hr\employees\models.py:220
+msgid "Effective date for this status."
+msgstr "Date d'effet de ce statut."
+
+#: .\hr\employees\models.py:224
+msgid "End date for temporary statuses."
+msgstr "Date de fin pour les statuts temporaires."
+
+#: .\hr\employees\models.py:229
+msgid "Context for the status change."
+msgstr "Contexte du changement de statut."
+
+#: .\hr\employees\models.py:254
+msgid "Identification or reference number."
+msgstr "Numéro d'identification ou de référence."
+
+#: .\hr\employees\models.py:260
+msgid "Validity end date."
+msgstr "Date de fin de validité."
+
+#: .\hr\employees\models.py:264
+msgid "Digital scan of the document."
+msgstr "Scan numérique du document."
+
+#: .\hr\employees\models.py:268
+msgid "Confirms digital copy matches the original."
+msgstr "Confirme que la copie numérique correspond à l'original."
+
+#: .\hr\employees\models.py:274
+msgid "Entity that issued the document."
+msgstr "Entité ayant délivré le document."
+
+#: .\hr\employees\models.py:297
+msgid "Set as the primary mailing address."
+msgstr "Définir comme adresse postale principale."
+
+#: .\hr\employees\models.py:303
+msgid "Date of departure from this address."
+msgstr "Date de départ de cette adresse."
+
+#: .\hr\employees\models.py:316
+msgid "Move out date cannot be before move in date."
+msgstr "La date de départ ne peut pas être antérieure à la date d'arrivée."
+
+#: .\hr\employees\models.py:335
+msgid "Direct phone line for emergencies."
+msgstr "Ligne téléphonique directe pour les urgences."
+
+#: .\hr\employees\models.py:344
+msgid "Call order (1 is primary)."
+msgstr "Ordre d'appel (1 est principal)."
+
+#: .\hr\employees\models.py:348
+msgid "Mark as primary emergency contact."
+msgstr "Marquer comme contact d'urgence principal."
+
+#: .\hr\employees\models.py:396
+msgid "Legal dependent status for benefits."
+msgstr "Statut de personne à charge légale pour les avantages."
+
+#: .\hr\employees\models.py:427
+msgid "University or training center name."
+msgstr "Nom de l'université ou du centre de formation."
+
+#: .\hr\employees\models.py:438
+msgid "Field of study."
+msgstr "Domaine d'études."
+
+#: .\hr\employees\models.py:440
+msgid "Year of start."
+msgstr "Année de début."
+
+#: .\hr\employees\models.py:441
+msgid "Year of completion."
+msgstr "Année d'achèvement."
+
+#: .\hr\employees\models.py:444
+msgid "Institute city and country."
+msgstr "Ville et pays de l'établissement."
+
+#: .\hr\employees\models.py:465
+msgid "End year must be after start year."
+msgstr "L'année de fin doit être postérieure à l'année de début."
+
+#: .\hr\employees\services\family.py:35
+msgid "Birthdate cannot be in the future."
+msgstr "La date de naissance ne peut pas être dans le futur."
+
+#: .\hr\employees\views.py:34
+msgid "Fiche Employé"
+msgstr "Employee Record"
+
+#: .\hr\enums.py:11
+msgid "Male"
+msgstr "Homme"
+
+#: .\hr\enums.py:12
+msgid "Female"
+msgstr "Femme"
+
+#: .\hr\enums.py:18
+msgid "Permanent Worker"
+msgstr "Travailleur permanent"
+
+#: .\hr\enums.py:19
+msgid "Internal Collaborator"
+msgstr "Collaborateur interne"
+
+#: .\hr\enums.py:20
+msgid "External Consultant"
+msgstr "Consultant externe"
+
+#: .\hr\enums.py:21
+msgid "Intern"
+msgstr "Stagiaire"
+
+#: .\hr\enums.py:22
+msgid "Freelance / Contractor"
+msgstr "Freelance / Contractuel"
+
+#: .\hr\enums.py:23
+msgid "Temporary Worker"
+msgstr "Travailleur temporaire"
+
+#: .\hr\enums.py:28
+msgid "Congo (Democratic Republic of the Congo)"
+msgstr "Congo (République démocratique du Congo)"
+
+#: .\hr\enums.py:29
+msgid "France"
+msgstr "France"
+
+#: .\hr\enums.py:30
+msgid "Belgium"
+msgstr "Belgique"
+
+#: .\hr\enums.py:31
+msgid "United States"
+msgstr "États-Unis"
+
+#: .\hr\enums.py:32
+msgid "Canada"
+msgstr "Canada"
+
+#: .\hr\enums.py:33
+msgid "United Kingdom"
+msgstr "Royaume-Uni"
+
+#: .\hr\enums.py:34
+msgid "Germany"
+msgstr "Allemagne"
+
+#: .\hr\enums.py:35
+msgid "Cameroon"
+msgstr "Cameroun"
+
+#: .\hr\enums.py:36
+msgid "Gabon"
+msgstr "Gabon"
+
+#: .\hr\enums.py:37
+msgid "Angola"
+msgstr "Angola"
+
+#: .\hr\enums.py:38
+msgid "Congo-Brazzaville"
+msgstr "Congo-Brazzaville"
+
+#: .\hr\enums.py:39
+msgid "Côte d'Ivoire"
+msgstr "Côte d'Ivoire"
+
+#: .\hr\enums.py:40
+msgid "Algeria"
+msgstr "Algérie"
+
+#: .\hr\enums.py:41
+msgid "Morocco"
+msgstr "Maroc"
+
+#: .\hr\enums.py:42
+msgid "Tunisia"
+msgstr "Tunisie"
+
+#: .\hr\enums.py:43
+msgid "Senegal"
+msgstr "Sénégal"
+
+#: .\hr\enums.py:44
+msgid "Mali"
+msgstr "Mali"
+
+#: .\hr\enums.py:45
+msgid "Burkina Faso"
+msgstr "Burkina Faso"
+
+#: .\hr\enums.py:46
+msgid "Niger"
+msgstr "Niger"
+
+#: .\hr\enums.py:47
+msgid "Chad"
+msgstr "Tchad"
+
+#: .\hr\enums.py:48
+msgid "Central African Republic"
+msgstr "République centrafricaine"
+
+#: .\hr\enums.py:49
+msgid "Equatorial Guinea"
+msgstr "Guinée équatoriale"
+
+#: .\hr\enums.py:50
+msgid "Rwanda"
+msgstr "Rwanda"
+
+#: .\hr\enums.py:51
+msgid "Burundi"
+msgstr "Burundi"
+
+#: .\hr\enums.py:52
+msgid "Uganda"
+msgstr "Ouganda"
+
+#: .\hr\enums.py:53
+msgid "Kenya"
+msgstr "Kenya"
+
+#: .\hr\enums.py:54
+msgid "Tanzania"
+msgstr "Tanzanie"
+
+#: .\hr\enums.py:55
+msgid "Mozambique"
+msgstr "Mozambique"
+
+#: .\hr\enums.py:56
+msgid "Zambia"
+msgstr "Zambie"
+
+#: .\hr\enums.py:57
+msgid "Zimbabwe"
+msgstr "Zimbabwe"
+
+#: .\hr\enums.py:58
+msgid "Botswana"
+msgstr "Botswana"
+
+#: .\hr\enums.py:59
+msgid "Namibia"
+msgstr "Namibie"
+
+#: .\hr\enums.py:60
+msgid "Eswatini"
+msgstr "Eswatini"
+
+#: .\hr\enums.py:61
+msgid "Lesotho"
+msgstr "Lesotho"
+
+#: .\hr\enums.py:62
+msgid "Malawi"
+msgstr "Malawi"
+
+#: .\hr\enums.py:63
+msgid "Gambia"
+msgstr "Gambie"
+
+#: .\hr\enums.py:64
+msgid "Sierra Leone"
+msgstr "Sierra Leone"
+
+#: .\hr\enums.py:65
+msgid "Liberia"
+msgstr "Libéria"
+
+#: .\hr\enums.py:66
+msgid "Ghana"
+msgstr "Ghana"
+
+#: .\hr\enums.py:67
+msgid "Nigeria"
+msgstr "Nigéria"
+
+#: .\hr\enums.py:68
+msgid "South Africa"
+msgstr "Afrique du Sud"
+
+#: .\hr\enums.py:69
+msgid "Egypt"
+msgstr "Égypte"
+
+#: .\hr\enums.py:70
+msgid "Libya"
+msgstr "Libye"
+
+#: .\hr\enums.py:71
+msgid "Ethiopia"
+msgstr "Éthiopie"
+
+#: .\hr\enums.py:72
+msgid "Eritrea"
+msgstr "Érythrée"
+
+#: .\hr\enums.py:73
+msgid "Djibouti"
+msgstr "Djibouti"
+
+#: .\hr\enums.py:74
+msgid "Somalia"
+msgstr "Somalie"
+
+#: .\hr\enums.py:75
+msgid "Sudan"
+msgstr "Soudan"
+
+#: .\hr\enums.py:76
+msgid "South Sudan"
+msgstr "Soudan du Sud"
+
+#: .\hr\enums.py:77
+msgid "Comoros"
+msgstr "Comores"
+
+#: .\hr\enums.py:78
+msgid "Mauritius"
+msgstr "Maurice"
+
+#: .\hr\enums.py:79
+msgid "Seychelles"
+msgstr "Seychelles"
+
+#: .\hr\enums.py:80
+msgid "Madagascar"
+msgstr "Madagascar"
+
+#: .\hr\enums.py:81
+msgid "Reunion"
+msgstr "La Réunion"
+
+#: .\hr\enums.py:82
+msgid "Italy"
+msgstr "Italie"
+
+#: .\hr\enums.py:83
+msgid "Spain"
+msgstr "Espagne"
+
+#: .\hr\enums.py:84
+msgid "Netherlands"
+msgstr "Pays-Bas"
+
+#: .\hr\enums.py:85
+msgid "China"
+msgstr "Chine"
+
+#: .\hr\enums.py:86
+msgid "India"
+msgstr "Inde"
+
+#: .\hr\enums.py:87
+msgid "Japan"
+msgstr "Japon"
+
+#: .\hr\enums.py:88
+msgid "South Korea"
+msgstr "Corée du Sud"
+
+#: .\hr\enums.py:89
+msgid "Brazil"
+msgstr "Brésil"
+
+#: .\hr\enums.py:90
+msgid "Argentina"
+msgstr "Argentine"
+
+#: .\hr\enums.py:91
+msgid "Mexico"
+msgstr "Mexique"
+
+#: .\hr\enums.py:92
+msgid "Australia"
+msgstr "Australie"
+
+#: .\hr\enums.py:93
+msgid "New Zealand"
+msgstr "Nouvelle-Zélande"
+
+#: .\hr\enums.py:94
+msgid "Fiji"
+msgstr "Fidji"
+
+#: .\hr\enums.py:98
+msgid "Monday"
+msgstr "Lundi"
+
+#: .\hr\enums.py:99
+msgid "Tuesday"
+msgstr "Mardi"
+
+#: .\hr\enums.py:100
+msgid "Wednesday"
+msgstr "Mercredi"
+
+#: .\hr\enums.py:101
+msgid "Thursday"
+msgstr "Jeudi"
+
+#: .\hr\enums.py:102
+msgid "Friday"
+msgstr "Vendredi"
+
+#: .\hr\enums.py:103
+msgid "Saturday"
+msgstr "Samedi"
+
+#: .\hr\enums.py:104
+msgid "Sunday"
+msgstr "Dimanche"
+
+#: .\hr\enums.py:108
+msgid "Congolese Franc"
+msgstr "Franc congolais"
+
+#: .\hr\enums.py:109
+msgid "US Dollar"
+msgstr "Dollar américain"
+
+#: .\hr\enums.py:110
+msgid "Euro"
+msgstr "Euro"
+
+#: .\hr\jobs\enums.py:9
+msgid "Département"
+msgstr "Department"
+
+#: .\hr\jobs\enums.py:10
+msgid "Division"
+msgstr "Division"
+
+#: .\hr\jobs\enums.py:11
+msgid "Équipe"
+msgstr "Team"
+
+#: .\hr\jobs\enums.py:12
+msgid "Fonction"
+msgstr "Function"
+
+#: .\hr\jobs\enums.py:13
+msgid "Succursale"
+msgstr "Branch"
+
+#: .\hr\jobs\enums.py:14
+msgid "Projet"
+msgstr "Project"
+
+#: .\hr\jobs\enums.py:21
+msgid "Trainee"
+msgstr "Stagiaire"
+
+#: .\hr\jobs\enums.py:22
+msgid "Apprentice"
+msgstr "Apprenti"
+
+#: .\hr\jobs\enums.py:23
+msgid "Junior"
+msgstr "Junior"
+
+#: .\hr\jobs\enums.py:24
+msgid "Intermediate"
+msgstr "Intermédiaire"
+
+#: .\hr\jobs\enums.py:25
+msgid "Senior"
+msgstr "Senior"
+
+#: .\hr\jobs\enums.py:26
+msgid "Lead"
+msgstr "Responsable"
+
+#: .\hr\jobs\enums.py:27
+msgid "Manager"
+msgstr "Manager"
+
+#: .\hr\jobs\enums.py:28
+msgid "Director"
+msgstr "Directeur"
+#: .\hr\jobs\enums.py:29
+msgid "Executive"
+msgstr "Cadre dirigeant"
+
+#: .\hr\jobs\enums.py:36
+msgid "Promotion"
+msgstr "Promotion"
+
+#: .\hr\jobs\enums.py:37
+msgid "Transfer"
+msgstr "Transfert"
+
+#: .\hr\jobs\enums.py:38
+msgid "Hire"
+msgstr "Embauche"
+
+#: .\hr\jobs\enums.py:39
+msgid "Offboard"
+msgstr "Départ"
+
+#: .\hr\jobs\enums.py:46 .\hr\jobs\models.py:481
+msgid "High"
+msgstr "Élevé"
+
+#: .\hr\jobs\enums.py:47 .\hr\jobs\models.py:482
+msgid "Medium"
+msgstr "Moyen"
+
+#: .\hr\jobs\enums.py:48 .\hr\jobs\models.py:483
+msgid "Low"
+msgstr "Faible"
+
+#: .\hr\jobs\enums.py:55 .\hr\jobs\models.py:486
+msgid "Open"
+msgstr "Ouvert"
+
+#: .\hr\jobs\enums.py:56 .\hr\jobs\models.py:487
+msgid "In Progress"
+msgstr "En cours"
+
+#: .\hr\jobs\enums.py:57
+msgid "Recruitment"
+msgstr "Recrutement"
+
+#: .\hr\jobs\enums.py:59 .\hr\jobs\models.py:490
+msgid "Filled"
+msgstr "Pourvu"
+
+#: .\hr\jobs\models.py:16
+msgid "Family Name"
+msgstr "Nom de la famille"
+
+#: .\hr\jobs\models.py:27
+msgid "Job Family"
+msgstr "Famille de métiers"
+
+#: .\hr\jobs\models.py:28
+msgid "Job Families"
+msgstr "Familles de métiers"
+
+#: .\hr\jobs\models.py:55 .\hr\jobs\models.py:254
+msgid "Organizational Unit"
+msgstr "Unité organisationnelle"
+
+#: .\hr\jobs\models.py:65
+msgid "Job Description"
+msgstr "Description du poste"
+
+#: .\hr\jobs\models.py:70 .\hr\jobs\models.py:123
+msgid "Requirements"
+msgstr "Exigences"
+
+#: .\hr\jobs\models.py:76
+msgid "Key Skills"
+msgstr "Compétences clés"
+
+#: .\hr\jobs\models.py:90 .\hr\jobs\models.py:150 .\hr\jobs\models.py:496
+msgid "Position"
+msgstr "Poste"
+
+#: .\hr\jobs\models.py:109
+msgid "Position Level"
+msgstr "Niveau du poste"
+
+#: .\hr\jobs\models.py:113
+msgid "Hierarchy Rank"
+msgstr "Rang hiérarchique"
+
+#: .\hr\jobs\models.py:118
+msgid "Display Label"
+msgstr "Libellé d'affichage"
+
+#: .\hr\jobs\models.py:128 .\hr\jobs\models.py:178 .\hr\payroll\models.py:201
+#: .\hr\payroll\models.py:778 .\hr\payroll\models.py:829
+#: .\hr\payroll\models.py:880 .\hr\payroll\models.py:995
+msgid "Is Active"
+msgstr "Est actif"
+
+#: .\hr\jobs\models.py:134
+msgid "Seniority Level Definition"
+msgstr "Définition du niveau de séniorité"
+
+#: .\hr\jobs\models.py:135
+msgid "Seniority Level Definitions"
+msgstr "Définitions des niveaux de séniorité"
+
+#: .\hr\jobs\models.py:155
+msgid "Seniority Level"
+msgstr "Niveau de séniorité"
+
+#: .\hr\jobs\models.py:158
+msgid "Minimum Salary for this level"
+msgstr "Salaire minimum pour ce niveau"
+
+#: .\hr\jobs\models.py:161
+msgid "Maximum Salary for this level"
+msgstr "Salaire maximum pour ce niveau"
+
+#: .\hr\jobs\models.py:165
+msgid "Progression Rank"
+msgstr "Rang de progression"
+
+#: .\hr\jobs\models.py:166
+msgid "Order within career ladder (1=first, highest=last)"
+msgstr "Ordre dans l'échelle de carrière (1=premier, le plus élevé=dernier)"
+
+#: .\hr\jobs\models.py:174
+msgid "Next Level in Progression"
+msgstr "Niveau suivant dans la progression"
+
+#: .\hr\jobs\models.py:191
+msgid "Position Seniority Level"
+msgstr "Niveau de séniorité du poste"
+
+#: .\hr\jobs\models.py:192
+msgid "Position Seniority Levels"
+msgstr "Niveaux de séniorité du poste"
+
+#: .\hr\jobs\models.py:196
+msgid "Salary min cannot exceed salary max"
+msgstr "Le salaire minimum ne peut pas dépasser le salaire maximum"
+
+#: .\hr\jobs\models.py:209
+msgid "Unit Name"
+msgstr "Nom de l'unité"
+
+#: .\hr\jobs\models.py:215
+msgid "Unit Type"
+msgstr "Type d'unité"
+
+#: .\hr\jobs\models.py:223
+msgid "Parent Unit"
+msgstr "Unité parente"
+
+#: .\hr\jobs\models.py:231
+msgid "Unit Manager"
+msgstr "Responsable de l'unité"
+
+#: .\hr\jobs\models.py:239
+msgid "Adjoint/Deputy"
+msgstr "Adjoint/Suppléant"
+
+#: .\hr\jobs\models.py:243
+msgid "Authorized Headcount"
+msgstr "Effectif autorisé"
+
+#: .\hr\jobs\models.py:248
+msgid "Mission Description"
+msgstr "Description de la mission"
+
+#: .\hr\jobs\models.py:255
+msgid "Organizational Units"
+msgstr "Unités organisationnelles"
+
+#: .\hr\jobs\models.py:288
+msgid "Position held"
+msgstr "Poste occupé"
+
+#: .\hr\jobs\models.py:296
+msgid "Seniority Level at Assignment"
+msgstr "Niveau de séniorité lors de l'affectation"
+
+#: .\hr\jobs\models.py:301
+msgid "Salary at Assignment"
+msgstr "Salaire lors de l'affectation"
+
+#: .\hr\jobs\models.py:310
+msgid "Assigned Unit"
+msgstr "Unité assignée"
+
+#: .\hr\jobs\models.py:323
+msgid "Current Position"
+msgstr "Poste actuel"
+
+#: .\hr\jobs\models.py:328
+msgid "Assignment Notes"
+msgstr "Notes d'affectation"
+
+#: .\hr\jobs\models.py:335
+msgid "Position History"
+msgstr "Historique du poste"
+
+#: .\hr\jobs\models.py:336
+msgid "Position Histories"
+msgstr "Historiques des postes"
+
+#: .\hr\jobs\models.py:363
+msgid "Transition Type"
+msgstr "Type de transition"
+
+#: .\hr\jobs\models.py:371
+msgid "From Position"
+msgstr "Depuis le poste"
+
+#: .\hr\jobs\models.py:379
+msgid "From Seniority Level"
+msgstr "Depuis le niveau de séniorité"
+
+#: .\hr\jobs\models.py:387
+msgid "To Position"
+msgstr "Vers le poste"
+
+#: .\hr\jobs\models.py:395
+msgid "To Seniority Level"
+msgstr "Vers le niveau de séniorité"
+
+#: .\hr\jobs\models.py:399
+msgid "Transition Date"
+msgstr "Date de transition"
+
+#: .\hr\jobs\models.py:404 .\hr\jobs\models.py:522
+msgid "Reason/Notes"
+msgstr "Raison/Notes"
+
+#: .\hr\jobs\models.py:410
+msgid "Employee Transition"
+msgstr "Transition d'employé"
+
+#: .\hr\jobs\models.py:411
+msgid "Employee Transitions"
+msgstr "Transitions d'employés"
+
+#: .\hr\jobs\models.py:427
+msgid "Training Name"
+msgstr "Nom de la formation"
+
+#: .\hr\jobs\models.py:433
+msgid "Training Institution"
+msgstr "Institution de formation"
+
+#: .\hr\jobs\models.py:448
+msgid "Location"
+msgstr "Lieu"
+
+#: .\hr\jobs\models.py:453
+msgid "Content Summary"
+msgstr "Résumé du contenu"
+
+#: .\hr\jobs\models.py:464
+msgid "Training"
+msgstr "Formation"
+
+#: .\hr\jobs\models.py:475
+msgid "Expiry date must be after the start date."
+msgstr "La date d'expiration doit être postérieure à la date de début."
+
+#: .\hr\jobs\models.py:488
+msgid "External Recruitment"
+msgstr "Recrutement externe"
+
+#: .\hr\jobs\models.py:502 .\hr\payroll\models.py:637
+msgid "Priority"
+msgstr "Priorité"
+
+#: .\hr\jobs\models.py:512
+msgid "Opened Date"
+msgstr "Date d'ouverture"
+
+#: .\hr\jobs\models.py:517
+msgid "Target Fill Date"
+msgstr "Date cible de pourvoi"
+
+#: .\hr\jobs\models.py:527
+msgid "Filled Date"
+msgstr "Date de pourvoi"
+
+#: .\hr\jobs\models.py:535
+msgid "Filled By Transition"
+msgstr "Pourvu par transition"
+
+#: .\hr\jobs\models.py:541
+msgid "Vacancy"
+msgstr "Vacance"
+
+#: .\hr\jobs\models.py:542
+msgid "Vacancies"
+msgstr "Vacances"
+
+#: .\hr\leaves\enums.py:10
+msgid "Annual Leave"
+msgstr "Congé annuel"
+
+#: .\hr\leaves\enums.py:11
+msgid "Sick Leave"
+msgstr "Congé maladie"
+
+#: .\hr\leaves\enums.py:12
+msgid "Special Leave"
+msgstr "Congé spécial"
+
+#: .\hr\leaves\enums.py:13
+msgid "Unpaid Leave"
+msgstr "Congé sans solde"
+
+#: .\hr\leaves\enums.py:23
+msgid "Pending Approval"
+msgstr "En attente d'approbation"
+
+#: .\hr\leaves\enums.py:32
+msgid "Accrual (Monthly/Yearly)"
+msgstr "Acquisition (Mensuelle/Annuelle)"
+
+#: .\hr\leaves\enums.py:33
+msgid "Consumption (Leave)"
+msgstr "Consommation (Congé)"
+
+#: .\hr\leaves\enums.py:34
+msgid "Refund (Cancellation/Recall)"
+msgstr "Remboursement (Annulation/Rappel)"
+
+#: .\hr\leaves\enums.py:35
+msgid "Manual Adjustment"
+msgstr "Ajustement manuel"
+
+#: .\hr\leaves\enums.py:36
+msgid "Yearly Carry-over"
+msgstr "Report annuel"
+
+#: .\hr\leaves\enums.py:37
+msgid "Expiration"
+msgstr "Expiration"
+
+#: .\hr\leaves\enums.py:50
+msgid "Employee's own marriage"
+msgstr "Mariage de l'employé"
+
+#: .\hr\leaves\enums.py:51
+msgid "Birth of spouse's child"
+msgstr "Naissance de l'enfant du conjoint"
+
+#: .\hr\leaves\enums.py:52
+msgid "Death of a 1st degree relative"
+msgstr "Décès d'un parent au 1er degré"
+
+#: .\hr\leaves\enums.py:53
+msgid "Death of a 2nd degree relative"
+msgstr "Décès d'un parent au 2e degré"
+
+#: .\hr\leaves\enums.py:54
+msgid "Marriage of employee's child"
+msgstr "Mariage de l'enfant de l'employé"
+
+#: .\hr\leaves\enums.py:55
+msgid "Relocation / Moving"
+msgstr "Déménagement"
+
+#: .\hr\leaves\enums.py:56
+msgid "Hospitalization of a child"
+msgstr "Hospitalisation d'un enfant"
+
+#: .\hr\leaves\enums.py:57
+msgid "Other legal circumstance"
+msgstr "Autre circonstance légale"
+
+#: .\hr\leaves\models.py:39
+msgid "Standard Annual Days"
+msgstr "Nombre standard de jours annuels"
+
+#: .\hr\leaves\models.py:40
+msgid "Base number of annual leave days granted per year."
+msgstr "Nombre de base de jours de congé annuel accordés par an."
+
+#: .\hr\leaves\models.py:45
+msgid "Allows Carry-over"
+msgstr "Autorise le report"
+
+#: .\hr\leaves\models.py:49
+msgid "Max Carry-over Days"
+msgstr "Nombre maximal de jours reportés"
+
+#: .\hr\leaves\models.py:50
+msgid "Maximum unused days that can be moved to the next year."
+msgstr "Nombre maximal de jours non utilisés pouvant être reportés à l'année suivante."
+
+#: .\hr\leaves\models.py:54
+msgid "Expiration Month"
+msgstr "Mois d'expiration"
+
+#: .\hr\leaves\models.py:55
+msgid "Month (1-12) when carried-over days expire (e.g., 3 for March)."
+msgstr "Mois (1-12) où les jours reportés expirent (ex. : 3 pour mars)."
+
+#: .\hr\leaves\models.py:60
+msgid "Leave Policy"
+msgstr "Politique de congé"
+
+#: .\hr\leaves\models.py:61
+msgid "Leave Policies"
+msgstr "Politiques de congé"
+
+#: .\hr\leaves\models.py:88
+msgid "Years of Service"
+msgstr "Années de service"
+
+#: .\hr\leaves\models.py:89
+msgid "Required length of service to trigger bonus days."
+msgstr "Durée de service requise pour déclencher des jours bonus."
+
+#: .\hr\leaves\models.py:92
+msgid "Bonus Days"
+msgstr "Jours bonus"
+
+#: .\hr\leaves\models.py:93
+msgid "Extra leave days granted for this seniority level."
+msgstr "Jours de congé supplémentaires accordés pour ce niveau de séniorité."
+
+#: .\hr\leaves\models.py:98
+msgid "Seniority Rule"
+msgstr "Règle de séniorité"
+
+#: .\hr\leaves\models.py:99
+msgid "Seniority Rules"
+msgstr "Règles de séniorité"
+
+#: .\hr\leaves\models.py:119
+msgid "Leave Type"
+msgstr "Type de congé"
+
+#: .\hr\leaves\models.py:122
+msgid "Duration (Days)"
+msgstr "Durée (jours)"
+
+#: .\hr\leaves\models.py:126
+msgid "Paid Leave"
+msgstr "Congé payé"
+
+#: .\hr\leaves\models.py:132
+msgid "Optional description for this leave type (e.g., 'Mariage de l'employé')"
+msgstr "Description facultative pour ce type de congé (ex. : 'Mariage de l'employé')"
+
+#: .\hr\leaves\models.py:137
+msgid "Special Leave Rule"
+msgstr "Règle de congé spécial"
+
+#: .\hr\leaves\models.py:138
+msgid "Special Leave Rules"
+msgstr "Règles de congé spécial"
+
+#: .\hr\leaves\models.py:156
+msgid "Year"
+msgstr "Année"
+
+#: .\hr\leaves\models.py:163
+msgid "Base Entitlement"
+msgstr "Droit de base"
+
+#: .\hr\leaves\models.py:164
+msgid "Standard days granted (may be prorated)."
+msgstr "Jours standards accordés (peuvent être proratisés)."
+
+#: .\hr\leaves\models.py:170
+msgid "Seniority Bonus"
+msgstr "Bonus de séniorité"
+
+#: .\hr\leaves\models.py:177
+msgid "Used Days"
+msgstr "Jours utilisés"
+
+#: .\hr\leaves\models.py:190
+msgid "Leave Balance"
+msgstr "Solde de congé"
+
+#: .\hr\leaves\models.py:191
+msgid "Leave Balances"
+msgstr "Soldes de congé"
+
+#: .\hr\leaves\models.py:220
+msgid "Source Year"
+msgstr "Année source"
+
+#: .\hr\leaves\models.py:221
+msgid "Year from which these days originated."
+msgstr "Année d'origine de ces jours."
+
+#: .\hr\leaves\models.py:227
+msgid "Carried Days"
+msgstr "Jours reportés"
+
+#: .\hr\leaves\models.py:234
+msgid "Used Carried Days"
+msgstr "Jours reportés utilisés"
+
+#: .\hr\leaves\models.py:238
+msgid "Expiration Date"
+msgstr "Date d'expiration"
+
+#: .\hr\leaves\models.py:243
+msgid "Leave Carry-over"
+msgstr "Report de congé"
+
+#: .\hr\leaves\models.py:244
+msgid "Leave Carry-overs"
+msgstr "Reports de congé"
+
+#: .\hr\leaves\models.py:271
+msgid "Category"
+msgstr "Catégorie"
+
+#: .\hr\leaves\models.py:272
+msgid "Annual or Special/Circumstance leave."
+msgstr "Congé annuel ou spécial/de circonstance."
+
+#: .\hr\leaves\models.py:280
+msgid "Special Type"
+msgstr "Type spécial"
+
+#: .\hr\leaves\models.py:281
+msgid "Required if category is Special Leave."
+msgstr "Requis si la catégorie est Congé spécial."
+
+#: .\hr\leaves\models.py:294
+msgid "Requested Days"
+msgstr "Jours demandés"
+
+#: .\hr\leaves\models.py:295
+msgid "Total effective days excluding holidays and weekends."
+msgstr "Nombre total de jours effectifs hors jours fériés et week-ends."
+
+#: .\hr\leaves\models.py:309
+msgid "Supporting Document"
+msgstr "Document justificatif"
+
+#: .\hr\leaves\models.py:310
+msgid "Proof for special leave requests (e.g., certificates)."
+msgstr "Justificatif pour les demandes de congé spécial (ex. : certificats)."
+
+#: .\hr\leaves\models.py:315
+msgid "Comments"
+msgstr "Commentaires"
+
+#: .\hr\leaves\models.py:320 .\hr\leaves\models.py:344
+msgid "Leave Request"
+msgstr "Demande de congé"
+
+#: .\hr\leaves\models.py:321
+msgid "Leave Requests"
+msgstr "Demandes de congé"
+
+#: .\hr\leaves\models.py:348
+msgid "Recall Date"
+msgstr "Date de rappel"
+
+#: .\hr\leaves\models.py:349
+msgid "Date on which the employee resumed work."
+msgstr "Date à laquelle l'employé a repris le travail."
+
+#: .\hr\leaves\models.py:353
+msgid "Reason"
+msgstr "Raison"
+
+#: .\hr\leaves\models.py:354
+msgid "Official justification for the recall."
+msgstr "Justification officielle du rappel."
+
+#: .\hr\leaves\models.py:363
+msgid "Authorized By"
+msgstr "Autorisé par"
+
+#: .\hr\leaves\models.py:368
+msgid "Leave Recall"
+msgstr "Rappel de congé"
+
+#: .\hr\leaves\models.py:369
+msgid "Leave Recalls"
+msgstr "Rappels de congé"
+
+#: .\hr\leaves\models.py:385
+msgid "Affected Year"
+msgstr "Année concernée"
+
+#: .\hr\leaves\models.py:391 .\hr\payroll\models.py:567
+msgid "Amount"
+msgstr "Montant"
+
+#: .\hr\leaves\models.py:392
+msgid "Negative for usage, positive for accruals/refunds."
+msgstr "Négatif pour l'utilisation, positif pour les acquisitions/remboursements."
+
+#: .\hr\leaves\models.py:406
+msgid "Related Request"
+msgstr "Demande liée"
+
+#: .\hr\leaves\models.py:411
+msgid "Remarks"
+msgstr "Remarques"
+
+#: .\hr\leaves\models.py:416
+msgid "Leave Transaction"
+msgstr "Transaction de congé"
+
+#: .\hr\leaves\models.py:417
+msgid "Leave Transactions"
+msgstr "Transactions de congé"
+
+#: .\hr\models\base.py:35
+msgid "ISO country code (e.g. CD, FR, BE)"
+msgstr "Code pays ISO (ex. : CD, FR, BE)"
+
+#: .\hr\payroll\enums.py:7
+msgid "Bank Transfer"
+msgstr "Virement bancaire"
+
+#: .\hr\payroll\enums.py:8
+msgid "Cash"
+msgstr "Espèces"
+
+#: .\hr\payroll\enums.py:10
+msgid "Check"
+msgstr "Chèque"
+
+#: .\hr\payroll\enums.py:15
+msgid "Salaire Fixe"
+msgstr "Salaire fixe"
+
+#: .\hr\payroll\enums.py:16
+msgid "Taux Horaire"
+msgstr "Taux horaire"
+
+#: .\hr\payroll\enums.py:17
+msgid "Brutage (Net à Brut)"
+msgstr "Brutage (Net à Brut)"
+
+#: .\hr\payroll\enums.py:22
+msgid "Salaire Brut"
+msgstr "Salaire brut"
+
+#: .\hr\payroll\enums.py:23
+msgid "Salaire Net"
+msgstr "Salaire net"
+
+#: .\hr\payroll\enums.py:28
+msgid "CDI (Indéterminé)"
+msgstr "CDI (Indéterminé)"
+
+#: .\hr\payroll\enums.py:29
+msgid "CDD (Durée Déterminée)"
+msgstr "CDD (Durée déterminée)"
+
+#: .\hr\payroll\enums.py:30
+msgid "Stage Professionnel"
+msgstr "Stage professionnel"
+
+#: .\hr\payroll\enums.py:31
+msgid "Consultance / Freelance"
+msgstr "Consultance / Freelance"
+
+#: .\hr\payroll\enums.py:32
+msgid "Période d'Essai"
+msgstr "Période d'essai"
+
+#: .\hr\payroll\enums.py:33
+msgid "Journalier / Temporaire"
+msgstr "Journalier / Temporaire"
+
+#: .\hr\payroll\enums.py:38
+msgid "Draft"
+msgstr "Brouillon"
+
+#: .\hr\payroll\enums.py:39
+msgid "Validated"
+msgstr "Validé"
+
+#: .\hr\payroll\enums.py:40 .\hr\payroll\enums.py:89
+msgid "Paid"
+msgstr "Payé"
+
+#: .\hr\payroll\enums.py:41 .\hr\payroll\enums.py:90
+msgid "Canceled"
+msgstr "Annulé"
+
+#: .\hr\payroll\enums.py:42
+msgid "Processing"
+msgstr "En traitement"
+
+#: .\hr\payroll\enums.py:47
+msgid "Bonus"
+msgstr "Prime"
+
+#: .\hr\payroll\enums.py:48
+msgid "Contribution/Deduction"
+msgstr "Contribution/Déduction"
+
+#: .\hr\payroll\enums.py:53
+msgid "Fixed Amount"
+msgstr "Montant fixe"
+
+#: .\hr\payroll\enums.py:54
+msgid "Percentage"
+msgstr "Pourcentage"
+
+#: .\hr\payroll\enums.py:59
+msgid "Transport allowance"
+msgstr "Indemnité de transport"
+
+#: .\hr\payroll\enums.py:60
+msgid "Housing allowance"
+msgstr "Indemnité de logement"
+
+#: .\hr\payroll\enums.py:61
+msgid "Remote work allowance"
+msgstr "Indemnité de télétravail"
+
+#: .\hr\payroll\enums.py:62
+msgid "Meal allowance"
+msgstr "Indemnité de repas"
+
+#: .\hr\payroll\enums.py:63
+msgid "Company health insurance"
+msgstr "Assurance santé de l'entreprise"
+
+#: .\hr\payroll\enums.py:64
+msgid "Disability insurance"
+msgstr "Assurance invalidité"
+
+#: .\hr\payroll\enums.py:65
+msgid "Travel expenses"
+msgstr "Frais de déplacement"
+
+#: .\hr\payroll\enums.py:66
+msgid "Back to school allowance"
+msgstr "Prime de rentrée scolaire"
+
+#: .\hr\payroll\enums.py:67
+msgid "Childcare allowance"
+msgstr "Allocation de garde d'enfants"
+
+#: .\hr\payroll\enums.py:68
+msgid "Housing aid"
+msgstr "Aide au logement"
+
+#: .\hr\payroll\enums.py:69
+msgid "13th month"
+msgstr "13e mois"
+
+#: .\hr\payroll\enums.py:70
+msgid "Health insurance"
+msgstr "Assurance santé"
+
+#: .\hr\payroll\enums.py:71
+msgid "Transport bonus"
+msgstr "Prime de transport"
+
+#: .\hr\payroll\enums.py:72
+msgid "Seniority bonus"
+msgstr "Prime d'ancienneté"
+
+#: .\hr\payroll\enums.py:78
+msgid "Journalier"
+msgstr "Journalier"
+
+#: .\hr\payroll\enums.py:79
+msgid "Hebdomadaire"
+msgstr "Hebdomadaire"
+
+#: .\hr\payroll\enums.py:80
+msgid "Quinzaine / Bi-mensuel"
+msgstr "Quinzaine / Bi-mensuel"
+
+#: .\hr\payroll\enums.py:81
+msgid "Mensuel"
+msgstr "Mensuel"
+
+#: .\hr\payroll\enums.py:82
+msgid "À la tâche / Forfaitaire"
+msgstr "À la tâche / Forfaitaire"
+
+#: .\hr\payroll\enums.py:87 .\hr\recruitment\enums.py:7
+msgid "Under Review"
+msgstr "En révision"
+
+#: .\hr\payroll\enums.py:88
+msgid "Confirmed"
+msgstr "Confirmé"
+
+#: .\hr\payroll\enums.py:95
+msgid "CNSS (Caisse Nationale de Sécurité Sociale)"
+msgstr "CNSS (Caisse Nationale de Sécurité Sociale)"
+
+#: .\hr\payroll\enums.py:96
+msgid "ONEM (Office National de l'Emploi)"
+msgstr "ONEM (Office National de l'Emploi)"
+
+#: .\hr\payroll\enums.py:97
+msgid "INPP (Institut National de Préparation Professionnelle)"
+msgstr "INPP (Institut National de Préparation Professionnelle)"
+
+#: .\hr\payroll\enums.py:102
+msgid "First 2 hours beyond 45h/week (130%)"
+msgstr "2 premières heures au-delà de 45h/semaine (130%)"
+
+#: .\hr\payroll\enums.py:103
+msgid "Subsequent hours (160%)"
+msgstr "Heures suivantes (160%)"
+
+#: .\hr\payroll\enums.py:104
+msgid "Weekend/Rest day (200%)"
+msgstr "Week-end/Jour de repos (200%)"
+
+#: .\hr\payroll\enums.py:105
+msgid "Public holiday (200%)"
+msgstr "Jour férié (200%)"
+
+#: .\hr\payroll\enums.py:110
+msgid "Family Allowance (Allocation Familiale)"
+msgstr "Allocation familiale"
+
+#: .\hr\payroll\enums.py:111
+msgid "Housing Allowance (Contre-valeur Logement)"
+msgstr "Indemnité de logement (Contre-valeur logement)"
+
+#: .\hr\payroll\enums.py:112
+msgid "Transport Allowance (Allocation de Transport)"
+msgstr "Indemnité de transport (Allocation de transport)"
+
+#: .\hr\payroll\enums.py:117
+msgid "Manual Entry"
+msgstr "Saisie manuelle"
+
+#: .\hr\payroll\enums.py:118
+msgid "Banque Centrale du Congo (Official)"
+msgstr "Banque Centrale du Congo (Officiel)"
+
+#: .\hr\payroll\enums.py:123
+msgid "Gross Salary (Brut)"
+msgstr "Salaire brut"
+
+#: .\hr\payroll\enums.py:124
+msgid "Net Salary (After deductions)"
+msgstr "Salaire net (après déductions)"
+
+#: .\hr\payroll\enums.py:129
+msgid "Before Tax Calculation (Reduces taxable base)"
+msgstr "Avant calcul des taxes (réduit la base imposable)"
+
+#: .\hr\payroll\enums.py:130
+msgid "After Tax Calculation (No tax impact)"
+msgstr "Après calcul des taxes (aucun impact fiscal)"
+
+#: .\hr\payroll\enums.py:135
+msgid "All Months (Until fully repaid)"
+msgstr "Tous les mois (jusqu'au remboursement complet)"
+
+#: .\hr\payroll\enums.py:136
+msgid "Custom Period (Between defined dates)"
+msgstr "Période personnalisée (entre des dates définies)"
+
+#: .\hr\payroll\models.py:36
+msgid "Default currency (ISO 4217) for all payroll calculations."
+msgstr "Devise par défaut (ISO 4217) pour tous les calculs de paie."
+
+#: .\hr\payroll\models.py:42
+msgid "Payment Method"
+msgstr "Méthode de paiement"
+
+#: .\hr\payroll\models.py:43
+msgid "Standard method used for employee payments."
+msgstr "Méthode standard utilisée pour les paiements des employés."
+
+#: .\hr\payroll\models.py:47
+msgid "Work Hours/Week"
+msgstr "Heures de travail/semaine"
+
+#: .\hr\payroll\models.py:48
+msgid ""
+"Standard weekly working hours (45h for RCD labor code). Monthly hours are "
+"calculated from this."
+msgstr ""
+"Heures de travail hebdomadaires standards (45h selon le code du travail de "
+"la RDC). Les heures mensuelles sont calculées à partir de cela."
+
+#: .\hr\payroll\models.py:52
+msgid "Work Hours/Month"
+msgstr "Heures de travail/mois"
+
+#: .\hr\payroll\models.py:53
+msgid "Calculated automatically: work_hours_per_week × 52 / 12"
+msgstr "Calculé automatiquement : work_hours_per_week × 52 / 12"
+
+#: .\hr\payroll\models.py:59
+msgid "Min Housing Allowance %"
+msgstr "Pourcentage minimum d'indemnité de logement"
+
+#: .\hr\payroll\models.py:60
+msgid "Minimum housing allowance as a percentage of base salary."
+msgstr "Indemnité minimale de logement en pourcentage du salaire de base."
+
+#: .\hr\payroll\models.py:66
+msgid "Min Family Allowance"
+msgstr "Allocation familiale minimale"
+
+#: .\hr\payroll\models.py:67
+msgid "Minimum daily allowance per child."
+msgstr "Allocation journalière minimale par enfant."
+
+#: .\hr\payroll\models.py:73
+msgid "Family Allowance Divider"
+msgstr "Diviseur de l'allocation familiale"
+
+#: .\hr\payroll\models.py:74
+msgid ""
+"Factor for calculating family allowance from SMIG (Daily SMIG / Divider)."
+msgstr ""
+"Facteur de calcul de l'allocation familiale à partir du SMIG (SMIG journalier "
+"/ Diviseur)."
+
+#: .\hr\payroll\models.py:80
+msgid "Overtime Multiplier"
+msgstr "Coefficient des heures supplémentaires"
+
+#: .\hr\payroll\models.py:81
+msgid "Coefficient applied to the hourly rate for overtime."
+msgstr "Coefficient appliqué au taux horaire pour les heures supplémentaires."
+
+#: .\hr\payroll\models.py:85
+msgid "Include Leaves"
+msgstr "Inclure les congés"
+
+#: .\hr\payroll\models.py:86
+msgid "Import approved leaves for payroll processing."
+msgstr "Importer les congés approuvés pour le traitement de la paie."
+
+#: .\hr\payroll\models.py:92
+msgid "Leave Divisor"
+msgstr "Diviseur des congés"
+
+#: .\hr\payroll\models.py:93
+msgid "Divisor used for leave deductions."
+msgstr "Diviseur utilisé pour les déductions de congé."
+
+#: .\hr\payroll\models.py:97
+msgid "Use Attendance Days"
+msgstr "Utiliser les jours de présence"
+
+#: .\hr\payroll\models.py:98
+msgid "Use the scheduled working days from Attendance for deductions."
+msgstr "Utiliser les jours de travail planifiés de la présence pour les déductions."
+
+#: .\hr\payroll\models.py:105
+msgid "Fixed Absent Deduction"
+msgstr "Déduction fixe pour absence"
+
+#: .\hr\payroll\models.py:106
+msgid "Fixed amount deducted for each unpaid absence day."
+msgstr "Montant fixe déduit pour chaque jour d'absence non payé."
+
+#: .\hr\payroll\models.py:112
+msgid "USD/CDF Rate"
+msgstr "Taux USD/CDF"
+
+#: .\hr\payroll\models.py:113
+msgid "Standard USD to CDF exchange rate."
+msgstr "Taux de change standard USD vers CDF."
+
+#: .\hr\payroll\models.py:119
+msgid "Rate Source"
+msgstr "Source du taux"
+
+#: .\hr\payroll\models.py:120
+msgid "Source of the exchange rate (e.g., Central Bank or Manual)."
+msgstr "Source du taux de change (ex. : Banque centrale ou Manuel)."
+
+#: .\hr\payroll\models.py:132
+msgid "Payroll Configuration"
+msgstr "Configuration de la paie"
+
+#: .\hr\payroll\models.py:146
+msgid "Remuneration Type"
+msgstr "Type de rémunération"
+
+#: .\hr\payroll\models.py:147
+msgid "Basis for compensation (e.g., Hourly or Fixed)."
+msgstr "Base de rémunération (ex. : Horaire ou Fixe)."
+
+#: .\hr\payroll\models.py:155
+msgid "Payment Period"
+msgstr "Période de paiement"
+
+#: .\hr\payroll\models.py:160
+msgid "Contract Type"
+msgstr "Type de contrat"
+
+#: .\hr\payroll\models.py:161
+msgid "Legal form of employment (CDI, CDD, etc.)."
+msgstr "Forme légale de l'emploi (CDI, CDD, etc.)."
+
+#: .\hr\payroll\models.py:168
+msgid "Base Salary"
+msgstr "Salaire de base"
+
+#: .\hr\payroll\models.py:169
+msgid "Standard salary amount."
+msgstr "Montant standard du salaire."
+
+#: .\hr\payroll\models.py:175
+msgid "Salary Base Type"
+msgstr "Type de base salariale"
+
+#: .\hr\payroll\models.py:176
+msgid "Indicates if the salary is defined as Gross or Net."
+msgstr "Indique si le salaire est défini comme Brut ou Net."
+
+#: .\hr\payroll\models.py:183
+msgid "Hourly Rate"
+msgstr "Taux horaire"
+
+#: .\hr\payroll\models.py:206
+msgid "Employee Contract"
+msgstr "Contrat employé"
+
+#: .\hr\payroll\models.py:207
+msgid "Employee Contracts"
+msgstr "Contrats employés"
+
+#: .\hr\payroll\models.py:218
+msgid "The end date cannot be earlier than the start date."
+msgstr "La date de fin ne peut pas être antérieure à la date de début."
+
+#: .\hr\payroll\models.py:220
+msgid "A fixed salary requires a base salary amount."
+msgstr "Un salaire fixe nécessite un montant de salaire de base."
+
+#: .\hr\payroll\models.py:222
+msgid "An hourly salary requires an hourly rate."
+msgstr "Un salaire horaire nécessite un taux horaire."
+
+#: .\hr\payroll\models.py:252
+msgid "Name"
+msgstr "Nom"
+
+#: .\hr\payroll\models.py:258
+msgid "Categorizes the adjustment as a bonus or a contribution."
+msgstr "Catégorise l'ajustement comme une prime ou une contribution."
+
+#: .\hr\payroll\models.py:263 .\hr\payroll\models.py:852
+msgid "Calculation Mode"
+msgstr "Mode de calcul"
+
+#: .\hr\payroll\models.py:264
+msgid "Determines if the adjustment is a fixed amount or a percentage."
+msgstr "Détermine si l'ajustement est un montant fixe ou un pourcentage."
+
+#: .\hr\payroll\models.py:271
+msgid "The fixed amount for the adjustment, if applicable."
+msgstr "Le montant fixe de l'ajustement, si applicable."
+
+#: .\hr\payroll\models.py:279
+msgid "The percentage for the adjustment, if applicable."
+msgstr "Le pourcentage de l'ajustement, si applicable."
+
+#: .\hr\payroll\models.py:283
+msgid "Is Mandatory"
+msgstr "Est obligatoire"
+
+#: .\hr\payroll\models.py:284
+msgid "Apply this adjustment to all eligible employees by default."
+msgstr "Appliquer cet ajustement à tous les employés éligibles par défaut."
+
+#: .\hr\payroll\models.py:288
+msgid "Indicates if this adjustment is currently available for use."
+msgstr "Indique si cet ajustement est actuellement disponible à l'utilisation."
+
+#: .\hr\payroll\models.py:293
+msgid "Payroll Adjustment"
+msgstr "Ajustement de paie"
+
+#: .\hr\payroll\models.py:305
+msgid "The employee to whom the adjustment is assigned."
+msgstr "L'employé auquel l'ajustement est attribué."
+
+#: .\hr\payroll\models.py:310
+msgid "The source adjustment configuration."
+msgstr "La configuration source de l'ajustement."
+
+#: .\hr\payroll\models.py:318
+msgid "The date when this specific adjustment assignment expires."
+msgstr "La date d'expiration de cette attribution spécifique d'ajustement."
+
+#: .\hr\payroll\models.py:325
+msgid "Custom Amount"
+msgstr "Montant personnalisé"
+
+#: .\hr\payroll\models.py:326
+msgid "Override the standard amount for this employee."
+msgstr "Remplacer le montant standard pour cet employé."
+
+#: .\hr\payroll\models.py:330
+msgid "Indicates if this specific assignment is currently active."
+msgstr "Indique si cette attribution spécifique est actuellement active."
+
+#: .\hr\payroll\models.py:335
+msgid "Employee Adjustment"
+msgstr "Ajustement employé"
+
+#: .\hr\payroll\models.py:345
+msgid "A unique identifier for the payroll processing run."
+msgstr "Un identifiant unique pour le traitement de la paie."
+
+#: .\hr\payroll\models.py:357
+msgid "The current state of the payroll run (e.g., Draft, Validated, Paid)."
+msgstr "L'état actuel du traitement de la paie (ex. : Brouillon, Validé, Payé)."
+
+#: .\hr\payroll\models.py:364
+msgid "Applied Exchange Rate"
+msgstr "Taux de change appliqué"
+
+#: .\hr\payroll\models.py:369 .\hr\payroll\models.py:907
+msgid "Payroll Run"
+msgstr "Traitement de la paie"
+
+#: .\hr\payroll\models.py:380
+msgid "The payroll session this payslip belongs to."
+msgstr "La session de paie à laquelle appartient ce bulletin."
+
+#: .\hr\payroll\models.py:385
+msgid "The contract version used for this payslip."
+msgstr "La version du contrat utilisée pour ce bulletin."
+
+#: .\hr\payroll\models.py:391
+msgid "Record of the base salary at the time of calculation."
+msgstr "Enregistrement du salaire de base au moment du calcul."
+
+#: .\hr\payroll\models.py:396
+msgid "Total earnings before any deductions."
+msgstr "Total des gains avant toute déduction."
+
+#: .\hr\payroll\models.py:401
+msgid "The net sum of all additions and subtractions applied."
+msgstr "La somme nette de toutes les additions et soustractions appliquées."
+
+#: .\hr\payroll\models.py:406
+msgid "The final amount to be paid to the employee."
+msgstr "Le montant final à payer à l'employé."
+
+#: .\hr\payroll\models.py:414
+msgid "Number of days actually worked during the period."
+msgstr "Nombre de jours effectivement travaillés durant la période."
+
+#: .\hr\payroll\models.py:418
+msgid "Total number of hours worked during the period."
+msgstr "Nombre total d'heures travaillées durant la période."
+
+#: .\hr\payroll\models.py:422
+msgid "Total number of overtime hours worked during the period."
+msgstr "Nombre total d'heures supplémentaires travaillées durant la période."
+
+#: .\hr\payroll\models.py:426
+msgid "Number of paid leave days taken during the period."
+msgstr "Nombre de jours de congé payé pris durant la période."
+
+#: .\hr\payroll\models.py:430
+msgid "Number of unpaid leave days taken during the period."
+msgstr "Nombre de jours de congé non payé pris durant la période."
+
+#: .\hr\payroll\models.py:438
+msgid "CNSS contribution amount (employee portion)."
+msgstr "Montant de la cotisation CNSS (part employé)."
+
+#: .\hr\payroll\models.py:444
+msgid "ONEM contribution amount."
+msgstr "Montant de la cotisation ONEM."
+
+#: .\hr\payroll\models.py:450
+msgid "INPP contribution amount."
+msgstr "Montant de la cotisation INPP."
+
+#: .\hr\payroll\models.py:456
+msgid "IPR (income tax) amount."
+msgstr "Montant de l'IPR (impôt sur le revenu)."
+
+#: .\hr\payroll\models.py:464
+msgid "Paid family allowances."
+msgstr "Allocations familiales versées."
+
+#: .\hr\payroll\models.py:470
+msgid "Paid housing allowance."
+msgstr "Indemnité de logement versée."
+
+#: .\hr\payroll\models.py:476
+msgid "Paid transport allowance."
+msgstr "Indemnité de transport versée."
+
+#: .\hr\payroll\models.py:489
+msgid "Exchange rate used for this specific payslip calculation."
+msgstr "Taux de change utilisé pour ce calcul spécifique de bulletin de paie."
+
+#: .\hr\payroll\models.py:497
+msgid "Taxable income base for IPR calculation (after CNSS deduction)."
+msgstr "Base de revenu imposable pour le calcul de l'IPR (après déduction CNSS)."
+
+#: .\hr\payroll\models.py:503
+msgid "The method used to process the payment."
+msgstr "La méthode utilisée pour traiter le paiement."
+
+#: .\hr\payroll\models.py:508
+msgid "Timestamp when the payment was finalized."
+msgstr "Horodatage lorsque le paiement a été finalisé."
+
+#: .\hr\payroll\models.py:512
+msgid "The currency in which the payslip was calculated."
+msgstr "La devise dans laquelle le bulletin de paie a été calculé."
+
+#: .\hr\payroll\models.py:529
+msgid "The summary payslip this detail line belongs to."
+msgstr "Le bulletin de paie récapitulatif auquel appartient cette ligne de détail."
+
+#: .\hr\payroll\models.py:535
+msgid "The source configuration for this line item."
+msgstr "La configuration source pour cette ligne."
+
+#: .\hr\payroll\models.py:539
+msgid "The descriptive name of the line item as it appears on the payslip."
+msgstr "Le nom descriptif de la ligne tel qu'il apparaît sur le bulletin de paie."
+
+#: .\hr\payroll\models.py:544
+msgid "The individual amount for this line item."
+msgstr "Le montant individuel pour cette ligne."
+
+#: .\hr\payroll\models.py:549
+msgid "Snapshot of the adjustment category (Bonus or Contribution)."
+msgstr "Instantané de la catégorie d'ajustement (Prime ou Contribution)."
+
+#: .\hr\payroll\models.py:554
+msgid "Payslip Line"
+msgstr "Ligne de bulletin de paie"
+
+#: .\hr\payroll\models.py:562
+msgid "The employee who received the advance."
+msgstr "L'employé ayant reçu l'avance."
+
+#: .\hr\payroll\models.py:568
+msgid "Total principal amount of the advance."
+msgstr "Montant principal total de l'avance."
+
+#: .\hr\payroll\models.py:573
+msgid "Repayment %"
+msgstr "Pourcentage de remboursement"
+
+#: .\hr\payroll\models.py:574
+msgid "Percentage of salary deducted for repayment."
+msgstr "Pourcentage du salaire déduit pour le remboursement."
+
+#: .\hr\payroll\models.py:581
+msgid "Deduction Base"
+msgstr "Base de déduction"
+
+#: .\hr\payroll\models.py:582
+msgid "Deduction from Gross or Net salary."
+msgstr "Déduction à partir du salaire Brut ou Net."
+
+#: .\hr\payroll\models.py:588
+msgid "Tax Timing"
+msgstr "Moment fiscal"
+
+#: .\hr\payroll\models.py:589
+msgid "Specifies if the deduction affects taxable income."
+msgstr "Spécifie si la déduction affecte le revenu imposable."
+
+#: .\hr\payroll\models.py:595
+msgid "Deduction Window"
+msgstr "Période de déduction"
+
+#: .\hr\payroll\models.py:600
+msgid "Deduction Start"
+msgstr "Début de déduction"
+
+#: .\hr\payroll\models.py:601 .\hr\payroll\models.py:607
+msgid "Required if window is CUSTOM_PERIOD."
+msgstr "Requis si la période est CUSTOM_PERIOD."
+
+#: .\hr\payroll\models.py:606
+msgid "Deduction End"
+msgstr "Fin de déduction"
+
+#: .\hr\payroll\models.py:611
+msgid "Is Settled"
+msgstr "Est réglé"
+
+#: .\hr\payroll\models.py:612
+msgid "Indicates if the advance has been fully repaid."
+msgstr "Indique si l'avance a été entièrement remboursée."
+
+#: .\hr\payroll\models.py:617
+msgid "Salary Advance"
+msgstr "Avance sur salaire"
+
+#: .\hr\payroll\models.py:618
+msgid "Salary Advances"
+msgstr "Avances sur salaire"
+
+#: .\hr\payroll\models.py:633
+msgid "Advance"
+msgstr "Avance"
+
+#: .\hr\payroll\models.py:638
+msgid "Order of deduction (lower numbers = higher priority)."
+msgstr "Ordre de déduction (les nombres plus faibles = priorité plus élevée)."
+
+#: .\hr\payroll\models.py:642
+msgid "If False, this advance will not be deducted in payroll calculations."
+msgstr "Si False, cette avance ne sera pas déduite dans les calculs de paie."
+
+#: .\hr\payroll\models.py:647
+msgid "Advance Deduction Setting"
+msgstr "Paramètre de déduction d'avance"
+
+#: .\hr\payroll\models.py:661
+msgid "The specific advance this repayment is credited to."
+msgstr "L'avance spécifique à laquelle ce remboursement est crédité."
+
+#: .\hr\payroll\models.py:667
+msgid "The payslip from which the repayment was deducted."
+msgstr "Le bulletin de paie à partir duquel le remboursement a été déduit."
+
+#: .\hr\payroll\models.py:672
+msgid "The specific amount repaid in this transaction."
+msgstr "Le montant spécifique remboursé dans cette transaction."
+
+#: .\hr\payroll\models.py:676
+msgid "Repayment Date"
+msgstr "Date de remboursement"
+
+#: .\hr\payroll\models.py:681
+msgid "Repayment Record"
+msgstr "Enregistrement de remboursement"
+
+#: .\hr\payroll\models.py:692
+msgid "Daily Rate"
+msgstr "Taux journalier"
+
+#: .\hr\payroll\models.py:693
+msgid "Minimum daily wage in local currency."
+msgstr "Salaire journalier minimum en devise locale."
+
+#: .\hr\payroll\models.py:700
+msgid "Indicates if this is the current active SMIG rate."
+msgstr "Indique s'il s'agit du taux SMIG actuellement actif."
+
+#: .\hr\payroll\models.py:705
+msgid "SMIG Configuration"
+msgstr "Configuration du SMIG"
+
+#: .\hr\payroll\models.py:741
+msgid "Total Rate %"
+msgstr "Taux total %"
+
+#: .\hr\payroll\models.py:747
+msgid "Employee Portion %"
+msgstr "Part employé %"
+
+#: .\hr\payroll\models.py:753
+msgid "Employer Portion %"
+msgstr "Part employeur %"
+
+#: .\hr\payroll\models.py:758
+msgid "Min Company Size"
+msgstr "Taille minimale de l'entreprise"
+
+#: .\hr\payroll\models.py:763
+msgid "Max Company Size"
+msgstr "Taille maximale de l'entreprise"
+
+#: .\hr\payroll\models.py:770
+msgid "Ceiling Amount"
+msgstr "Montant plafond"
+
+#: .\hr\payroll\models.py:771
+msgid "Maximum base amount for this contribution."
+msgstr "Montant de base maximal pour cette contribution."
+
+#: .\hr\payroll\models.py:774
+msgid "Date from which this rate becomes effective."
+msgstr "Date à partir de laquelle ce taux devient effectif."
+
+#: .\hr\payroll\models.py:783
+msgid "Contribution Rate"
+msgstr "Taux de contribution"
+
+#: .\hr\payroll\models.py:792
+msgid "Employee portion + Employer portion must equal total rate."
+msgstr "La part employé + la part employeur doivent être égales au taux total."
+
+#: .\hr\payroll\models.py:797
+msgid "Min size cannot be greater than max size."
+msgstr "La taille minimale ne peut pas être supérieure à la taille maximale."
+
+#: .\hr\payroll\models.py:814
+msgid "Rule Type"
+msgstr "Type de règle"
+
+#: .\hr\payroll\models.py:820
+msgid "Multiplier"
+msgstr "Multiplicateur"
+
+#: .\hr\payroll\models.py:821
+msgid "Multiplier applied to the hourly rate (e.g., 1.5)."
+msgstr "Multiplicateur appliqué au taux horaire (ex. : 1.5)."
+
+#: .\hr\payroll\models.py:834
+msgid "Overtime Rule"
+msgstr "Règle des heures supplémentaires"
+
+#: .\hr\payroll\models.py:847
+msgid "Allowance Type"
+msgstr "Type d'allocation"
+
+#: .\hr\payroll\models.py:859
+msgid "Base Amount"
+msgstr "Montant de base"
+
+#: .\hr\payroll\models.py:863
+msgid "Formula Description"
+msgstr "Description de la formule"
+
+#: .\hr\payroll\models.py:867
+msgid "Is Taxable"
+msgstr "Est imposable"
+
+#: .\hr\payroll\models.py:875
+msgid "Taxable Threshold %"
+msgstr "Seuil imposable %"
+
+#: .\hr\payroll\models.py:876
+msgid "% of gross salary above which the allowance is taxed."
+msgstr "% du salaire brut au-delà duquel l’allocation est imposable."
+
+#: .\hr\payroll\models.py:885
+msgid "Legal Allowance"
+msgstr "Allocation légale"
+
+#: .\hr\payroll\models.py:911
+msgid "Number of regular working days completed."
+msgstr "Nombre de jours de travail réguliers effectués."
+
+#: .\hr\payroll\models.py:916
+msgid "Overtime (Tier 1)"
+msgstr "Heures supplémentaires (Niveau 1)"
+
+#: .\hr\payroll\models.py:921
+msgid "Overtime (Tier 2)"
+msgstr "Heures supplémentaires (Niveau 2)"
+
+#: .\hr\payroll\models.py:926
+msgid "Overtime (Holiday)"
+msgstr "Heures supplémentaires (Jour férié)"
+
+#: .\hr\payroll\models.py:930
+msgid "Absence Days"
+msgstr "Jours d’absence"
+
+#: .\hr\payroll\models.py:935
+msgid "Worked Days Record"
+msgstr "Enregistrement des jours travaillés"
+
+#: .\hr\payroll\models.py:954
+msgid "Label"
+msgstr "Libellé"
+
+#: .\hr\payroll\models.py:959
+msgid "Lower Limit"
+msgstr "Limite inférieure"
+
+#: .\hr\payroll\models.py:966
+msgid "Upper Limit"
+msgstr "Limite supérieure"
+
+#: .\hr\payroll\models.py:971
+msgid "Tax rate percentage applied to income in this bracket."
+msgstr "Pourcentage du taux d’imposition appliqué aux revenus de cette tranche."
+
+#: .\hr\payroll\models.py:978
+msgid "Min Tax Amount"
+msgstr "Montant minimum d’impôt"
+
+#: .\hr\payroll\models.py:986
+msgid "Max Tax % of Income"
+msgstr "% maximal d’impôt sur le revenu"
+
+#: .\hr\payroll\models.py:990
+msgid "Tax Taxable Base"
+msgstr "Base imposable fiscale"
+
+#: .\hr\payroll\models.py:991
+msgid "Calculate tax on base after social deductions."
+msgstr "Calculer l’impôt sur la base après déductions sociales."
+
+#: .\hr\payroll\models.py:1000
+msgid "Tax Bracket"
+msgstr "Tranche d’imposition"
+
+#: .\hr\recruitment\enums.py:8
+msgid "Interviewing"
+msgstr "En entretien"
+
+#: .\hr\recruitment\enums.py:9
+msgid "Offer Made"
+msgstr "Offre envoyée"
+
+#: .\hr\recruitment\enums.py:10
+msgid "Accepted"
+msgstr "Accepté"
+
+#: .\hr\recruitment\enums.py:12
+msgid "Withdrawn"
+msgstr "Retiré"
+
+#: .\hr\recruitment\enums.py:16
+msgid "Phone Screen"
+msgstr "Entretien téléphonique"
+
+#: .\hr\recruitment\enums.py:17
+msgid "Video Call"
+msgstr "Appel vidéo"
+
+#: .\hr\recruitment\enums.py:18
+msgid "On-site Interview"
+msgstr "Entretien sur site"
+
+#: .\hr\recruitment\enums.py:19
+msgid "Technical Assessment"
+msgstr "Évaluation technique"
+
+#: .\hr\recruitment\models.py:26
+msgid "The position template on which this offer is based."
+msgstr "Le modèle de poste sur lequel cette offre est basée."
+
+#: .\hr\recruitment\models.py:59
+msgid "Number of open positions available for this job offer."
+msgstr "Nombre de postes ouverts disponibles pour cette offre d’emploi."
+
+#: .\hr\recruitment\models.py:64
+msgid "Maximum number of applications accepted (optional)."
+msgstr "Nombre maximal de candidatures acceptées (optionnel)."
+
+#: .\hr\recruitment\models.py:70
+msgid "Job Offer"
+msgstr "Offre d’emploi"
+
+#: .\hr\recruitment\models.py:71
+msgid "Job Offers"
+msgstr "Offres d’emploi"
+
+#: .\hr\recruitment\models.py:84
+msgid "End date cannot be earlier than the publication date."
+msgstr "La date de fin ne peut pas être antérieure à la date de publication."
+
+#: .\hr\recruitment\models.py:110
+msgid "Candidate"
+msgstr "Candidat"
+
+#: .\hr\recruitment\models.py:111
+msgid "Candidates"
+msgstr "Candidats"
+
+#: .\hr\recruitment\models.py:158
+msgid "Application"
+msgstr "Candidature"
+
+#: .\hr\recruitment\models.py:159
+msgid "Applications"
+msgstr "Candidatures"
+
+#: .\hr\recruitment\models.py:188
+msgid "Internal notes and impressions."
+msgstr "Notes et impressions internes."
+
+#: .\hr\recruitment\models.py:192
+msgid "Overall score from 1 to 5"
+msgstr "Note globale de 1 à 5"
+

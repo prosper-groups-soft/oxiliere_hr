@@ -3,7 +3,7 @@
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
   import DataPagination from "@/components/layout/elements/DataPagination.svelte";
   import { payrollStore } from "@/features/payroll/stores/payroll.svelte";
-  import { PAYROLL_STATUS_LABELS, type Payslip, DEPARTMENTS } from "@/features/payroll/types/types";
+  import { PAYROLL_STATUS_LABELS, type Payslip, ORG_UNITS } from "@/features/payroll/types/types";
   import * as DropdownMenu from "@/components/ui/dropdown-menu";
   import { Badge } from "@/components/ui/badge";
   import { scale } from "svelte/transition";
@@ -99,6 +99,7 @@
             description="Aucun bulletin ne correspond à vos critères de recherche."
             icon="file-text"
             iconSize={28}
+            iconStrokeWidth={1.3}
           />
         {:else}
           <PayslipGroupList groups={getPayslipGroups(payrollStore.paginatedPayslips)} onSelect={openPayslipDetail} />
@@ -204,7 +205,7 @@
 
     <DropdownMenu.Content align="end" class="w-50 p-0 rounded-md shadow-fine border-slate-100 bg-white overflow-hidden">
       <div class="p-2 max-h-80 overflow-y-auto">
-        {@render FilterSection("Département", DEPARTMENTS, "department")}
+        {@render FilterSection("Département", ORG_UNITS, "orgUnit")}
         <DropdownMenu.Separator class="my-2 bg-slate-50" />
         {@render StatusFilterSection()}
       </div>
@@ -221,7 +222,7 @@
 {/snippet}
 
 
-{#snippet FilterSection(label: string, options: string[], filterKey: 'department')}
+{#snippet FilterSection(label: string, options: string[], filterKey: 'orgUnit')}
   <DropdownMenu.Label class="text-[0.75rem]! font-bold text-slate-400 uppercase tracking-widest px-2 py-2">
     {label}
   </DropdownMenu.Label>

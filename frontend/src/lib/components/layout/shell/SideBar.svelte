@@ -1,23 +1,17 @@
 <script lang="ts">
-  import { slide, fade, scale } from "svelte/transition";
+  import { slide, fade } from "svelte/transition";
   import { cubicOut } from "svelte/easing";
   import { Button } from "@/components/ui/button";
   import { Separator } from "@/components/ui/separator";
   import TooltipWrapper from "@/components/shared/containers/TooltipWrapper.svelte";
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
   import { cn } from "@/utilities/common/css";
-  import { 
-    NAV_CONFIG,
-    MENU_ITEM_TYPE, 
-    type MenuItem, 
-    MENU_ITEMS, 
-    bottomMenuItems 
-  } from "@/constants/features/navigation";
+  import { NAV_CONFIG, MENU_ITEM_TYPE, type MenuItem, MENU_ITEMS, bottomMenuItems } from "@/constants/features/navigation";
   
   // Using the reactive UI store for selected menu item tracking
   import { ui } from "@/stores/ui.svelte"; 
   import { onboardingStore } from "@/features/employees/stores/onboarding.svelte";
-  import { leavesStore } from "@/features/leaves/stores/leaves.svelte";
+  import { usePendingCountQuery } from "@/features/leaves/queries/leaveQueries";
   import Logo from "./Logo.svelte";
 
   // --- Props ---
@@ -35,9 +29,25 @@
     admin_group: true
   });
 
+  // Créer une variable réactive pour les brouillons archivés
+  let archivedDraftsCount = $state(0);
+  
+  // Surveiller les changements dans les brouillons pour mettre à jour le compteur
+  $effect(() => {
+    // Depend explicitly on the reactive archived drafts array
+    const drafts = onboardingStore.archivedDrafts;
+    archivedDraftsCount = drafts.length;
+  });
+
+  const pendingCountQuery = usePendingCountQuery();
+  const pendingCount = $derived($pendingCountQuery.data?.count ?? 0);
+
   const countDataMap = $derived<Record<string, number | undefined>>({
-    leaves_pending: leavesStore.pendingCount > 0 ? leavesStore.pendingCount : undefined,
-    onboarding_active: onboardingStore.hasDraft ? 1 : undefined
+    leaves_pending: pendingCount > 0 ? pendingCount : undefined,
+    onboarding_active: (() => {
+      const total = archivedDraftsCount + (onboardingStore.hasDraft ? 1 : 0);
+      return total > 0 ? total : undefined;
+    })()
   });
 
   const toggleGroup = (id: string) => {
@@ -87,16 +97,17 @@
   {@const classes = getLinkClasses(isSubItem)}
   <li class="flex list-none">
     {#if item.type === MENU_ITEM_TYPE.router || item.type === MENU_ITEM_TYPE.button}
-      <button 
-        data-status={ui.selectedMenuItem === item.id ? "active" : ""} 
-        onclick={item.onClick} 
+      <button
+        data-status={ui.selectedMenuItem === item.id ? "active" : ""}
+        onclick={item.onClick}
         class={cn(classes, "text-left border-none bg-transparent", ui.selectedMenuItem === item.id && "bg-primary/15")}
       >
         {@render ItemContent(item)}
       </button>
     {:else}
-      <a 
+      <a
         href={item.path}
+        data-sveltekit-preload-data="hover"
         data-status={ui.selectedMenuItem === item.id ? "active" : ""}
         class={cn(classes, ui.selectedMenuItem === item.id && "bg-primary/15")}
       >

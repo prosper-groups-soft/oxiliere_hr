@@ -18,7 +18,7 @@
     firstName: '',
     lastName: '',
     role: 'EMPLOYEE',
-    department: '',
+    orgUnit: '',
     phone: ''
   });
 

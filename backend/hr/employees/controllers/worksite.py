@@ -1,8 +1,6 @@
-from typing   import List
 from uuid     import UUID
 from ninja    import Query
 from injector import inject
-from ninja.pagination import paginate
 from ninja_extra      import (
     api_controller, 
     http_get, 
@@ -11,7 +9,11 @@ from ninja_extra      import (
     http_delete, 
     ControllerBase
 )
-from oxutils.pagination.cursor import CursorPagination
+from ninja_extra.pagination import (
+    paginate,
+    PageNumberPaginationExtra,
+    PaginatedResponseSchema
+)
 from hr.employees.services import (
     WorkSiteService
 )
@@ -31,16 +33,22 @@ class WorkSiteController(ControllerBase):
     def __init__(self, worksite_service: WorkSiteService):
         self.worksite_service = worksite_service
 
-    @http_get('', response=List[WorkSiteOut])
-    @paginate(CursorPagination)
+
+    @http_get('', response=PaginatedResponseSchema[WorkSiteOut])
+    @paginate(PageNumberPaginationExtra, page_size=8)
     def list_worksites(self, filters: WorkSiteFilterIn = Query(...)):
-        """ Returns a filtered list of all physical work sites. """
+        """
+        GET /api/work-sites
+        List all work sites with optional filtering (page-based pagination).
+        """
         return filters.filter(self.worksite_service.list())
+    
     
     @http_post('', response={201: WorkSiteOut})
     def create_worksite(self, data: WorkSiteCreateIn):
         """ Registers a new physical work location. """
         return 201, self.worksite_service.create(data=data.model_dump())
+
 
     @http_patch('/{site_id}', response=WorkSiteOut)
     def update_worksite(self, site_id: UUID, data: WorkSiteUpdateIn):
@@ -51,9 +59,11 @@ class WorkSiteController(ControllerBase):
             data=data.model_dump(exclude_unset=True)
         )
         
+        
     @http_delete('/{site_id}', response={204: None})
     def delete_worksite(self, site_id: UUID):
         """ Removes a work site from the system. """
         instance = self.worksite_service.get(id=site_id)
         self.worksite_service.delete(instance=instance)
         return 204, None
+

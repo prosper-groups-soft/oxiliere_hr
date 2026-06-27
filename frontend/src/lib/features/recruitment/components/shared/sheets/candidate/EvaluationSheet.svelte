@@ -5,66 +5,78 @@
   import { Label } from "@/components/ui/label";
   import { Textarea } from "@/components/ui/textarea";
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
-  import { recruitmentStore } from "@/features/recruitment/stores/recruitment.svelte";
-  import { notification } from "@/stores/notification.svelte";
-  import type { Candidate } from "@/features/recruitment/types/types";
+  import AnimateSpin from "@/components/layout/elements/AnimateSpin.svelte";
+  import { useUpdateApplicationEvaluationMutation } from "@/features/recruitment/queries/recruitmentQueries";
+  import type { CandidateApplication, EvaluationCriterion } from "@/features/recruitment/types/types";
   import { fade } from "svelte/transition";
 
   let {
     open = $bindable(false),
-    candidate = null
+    application = null,
+    evaluationTemplate = null,
+    onsaved = null
   } = $props<{
     open: boolean,
-    candidate: Candidate | null
+    application: CandidateApplication | null,
+    evaluationTemplate?: EvaluationCriterion[] | null,
+    onsaved?: (() => void) | null
   }>();
 
-  // Form state
-  let technicalScore = $state(0);
-  let experienceScore = $state(0);
-  let communicationScore = $state(0);
-  let cultureScore = $state(0);
-  let notes = $state('');
+  const updateEvaluationMutation = useUpdateApplicationEvaluationMutation();
+
+  // Dynamic scores: {criterionName: scoreValue}
+  let scores = $state<Record<string, number>>({});
+  let evaluationNotes = $state('');
+  let isSaving = $state(false);
 
   $effect(() => {
-    if (open && candidate) {
-      technicalScore = candidate.technicalScore || 0;
-      experienceScore = candidate.experienceScore || 0;
-      communicationScore = candidate.communicationScore || 0;
-      cultureScore = candidate.cultureScore || 0;
-      notes = candidate.notes || '';
+    if (open && application) {
+      // Build the full scores object locally first, then assign once
+      const newScores: Record<string, number> = { ...(application.scores || {}) };
+      // Ensure all template criteria have entries
+      (evaluationTemplate || []).forEach((c: EvaluationCriterion) => {
+        if (!(c.name in newScores)) {
+          newScores[c.name] = 0;
+        }
+      });
+      scores = newScores;
+      evaluationNotes = application.evaluationNotes || '';
     }
   });
 
   async function handleSave() {
-    if (!candidate) return;
+    if (!application) return;
 
+    isSaving = true;
     try {
-      await recruitmentStore.updateCandidate(candidate.id, {
-        technicalScore,
-        experienceScore,
-        communicationScore,
-        cultureScore,
-        notes
+      await $updateEvaluationMutation.mutateAsync({
+        applicationId: application.applicationId,
+        data: {
+          scores,
+          evaluationNotes
+        }
       });
 
-      notification.toast.success('Évaluation mise à jour');
+      onsaved?.();
       open = false;
     } catch (error) {
-      notification.toast.error("Erreur lors de l'enregistrement");
+      console.error("Erreur lors de l'enregistrement:", error);
+    } finally {
+      isSaving = false;
     }
   }
+
+  const criteria = $derived(evaluationTemplate || []);
+  const activeCriteria = $derived(criteria.filter((c: EvaluationCriterion) => c.weight > 0));
 </script>
 
 
 <Sheet.Root bind:open>
   <Sheet.Content side="right" class="sm:max-w-md bg-white p-0 flex flex-col h-full overflow-hidden">
-    <Sheet.Header class="px-6 py-5 border-b bg-slate-50/50">
+    <Sheet.Header class="px-6 py-2.5 border-b bg-slate-50/50">
       <div class="flex items-center gap-3">
-        <div class="h-10 w-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
-          <AppIcon name="star" size={20} />
-        </div>
         <div class="space-y-0.5 min-w-0">
-          <Sheet.Title class="text-[1rem] font-bold text-slate-900 truncate">
+          <Sheet.Title class="text-[0.99rem] font-bold text-slate-900 truncate">
             Évaluer le candidat
           </Sheet.Title>
         </div>
@@ -74,32 +86,44 @@
     <div class="flex-1 overflow-y-auto custom-scrollbar">
       <div class="p-6 space-y-8" in:fade={{ duration: 200 }}>
         
-        <div class="space-y-6">          
-          <div class="grid grid-cols-2 gap-6">
-            <div class="space-y-2.5">
-              <Label class="text-slate-900">Technique</Label>
-              <Input type="number" min="0" max="100" bind:value={technicalScore} class="h-10 border-slate-200 shadow-fine" />
-            </div>
-            <div class="space-y-2.5">
-              <Label class="text-slate-900">Expérience</Label>
-              <Input type="number" min="0" max="100" bind:value={experienceScore} class="h-10 border-slate-200 shadow-fine" />
-            </div>
-            <div class="space-y-2.5">
-              <Label class="text-slate-900">Communication</Label>
-              <Input type="number" min="0" max="100" bind:value={communicationScore} class="h-10 border-slate-200 shadow-fine" />
-            </div>
-            <div class="space-y-2.5">
-              <Label class="text-slate-900">Culture</Label>
-              <Input type="number" min="0" max="100" bind:value={cultureScore} class="h-10 border-slate-200 shadow-fine" />
-            </div>
+        {#if activeCriteria.length > 0}
+          <div class="space-y-5">
+            <p class="text-[0.8rem] font-medium text-slate-500 uppercase tracking-wider">Critères</p>
+            {#each activeCriteria as criterion (criterion.name)}
+              <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                  <Label class="text-slate-900 text-[0.85rem]">{criterion.name}</Label>
+                  <span class="text-[0.72rem] px-1.5 py-0.5 rounded font-medium {criterion.source === 'requirement' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'}">
+                    {criterion.source === 'requirement' ? 'requirement' : 'skill'}
+                  </span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <Input 
+                    type="number" 
+                    min="0" 
+                    max="100"
+                    value={scores[criterion.name] ?? 0}
+                    oninput={(e) => scores[criterion.name] = parseInt((e.target as HTMLInputElement).value) || 0}
+                    class="h-10 border-slate-200 shadow-fine w-20" 
+                  />
+                  <span class="text-[0.83rem] text-slate-400">/100 (Poids: {criterion.weight}%)</span>
+                </div>
+              </div>
+            {/each}
           </div>
-        </div>
+        {:else}
+          <div class="text-center py-8">
+            <AppIcon name="star" size={40} class="text-slate-200 mx-auto mb-3" />
+            <p class="text-[0.85rem] text-slate-400">Aucun critère d'évaluation défini pour ce poste.</p>
+            <p class="text-[0.82rem] text-slate-400 mt-1">Configurez les critères dans la campagne.</p>
+          </div>
+        {/if}
 
         <div class="space-y-4">
           <div class="space-y-2.5">
             <Label class="text-slate-900">Notes d'évaluation</Label>
             <Textarea 
-              bind:value={notes} 
+              bind:value={evaluationNotes} 
               placeholder="Points forts, points faibles..." 
               class="min-h-32 border-slate-200 shadow-fine text-[0.85rem]"
             />
@@ -111,18 +135,24 @@
 
     <Sheet.Footer class="px-6 py-5 border-t bg-slate-50/50">
       <div class="flex gap-3 w-full">
-        <Button 
-          onclick={handleSave} 
-          class="flex-1 bg-amber-600 text-white h-9 shadow-fine shadow-amber-600/20 hover:bg-amber-700 transition-all"
-        >
-          <AppIcon name="check" size={18} />
-          Enregistrer
-        </Button>
         <Sheet.Close class="flex-1">
           <Button variant="outline" class="w-full h-9 bg-white border-slate-200 shadow-fine text-slate-600">
+            <AppIcon name="x" size={18} class="text-slate-300" />
             Annuler
           </Button>
         </Sheet.Close>
+        <Button 
+          onclick={handleSave}
+          disabled={isSaving}
+          class="flex-1 bg-indigo-600 text-white h-9 shadow-fine shadow-indigo-600/20 hover:bg-indigo-700 transition-all disabled:opacity-70"
+        >
+          {#if isSaving}
+            <AnimateSpin text="" class="size-3 border-white" />
+          {:else}
+            <AppIcon name="check" size={18} />
+          {/if}
+          Enregistrer
+        </Button>
       </div>
     </Sheet.Footer>
   </Sheet.Content>
@@ -134,4 +164,3 @@
   .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
   .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 </style>
-

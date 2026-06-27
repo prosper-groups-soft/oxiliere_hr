@@ -2,99 +2,215 @@
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
   import { Button } from "@/components/ui/button";
   import * as DropdownMenu from "@/components/ui/dropdown-menu";
+  import CurrencyToggle from "@/components/ui/currency-toggle";
+  import { getOrgUnitIcon } from "@/features/jobs/constants/orgUnit.constants";
   import { jobsStore } from "@/features/jobs/stores/jobs.svelte";
   import { positionsStore } from "@/features/jobs/stores/positionsStore.svelte";
-  import { cn } from "@/utilities/common/css";
+  import { taxSettingsStore } from "@/features/admin/settings/stores/taxSettingsStore.svelte";
 
   let { onAdd } = $props<{ onAdd: () => void }>();
 
-  const SORT_LABELS: Record<string, string> = {
-    name: "Titre",
-    department: "Département",
-    seniority: "Séniorité"
-  };
+  const activeFiltersCount = $derived(positionsStore.activeFiltersCount);
+
+  function clearOrgUnit() {
+    positionsStore.filters.orgUnit = [];
+  }
+
+  function clearSeniority() {
+    positionsStore.filters.seniority = [];
+  }
+
+  function isOrgUnitActive(id: string): boolean {
+    return positionsStore.filters.orgUnit.includes(id);
+  }
+
+  function isSeniorityActive(name: string): boolean {
+    return positionsStore.filters.seniority.includes(name as any);
+  }
 </script>
 
 
-<div class="flex items-center gap-3">
-  <!-- Sort Menu -->
-  <div class="flex items-center bg-white border border-slate-200 rounded-lg shadow-fine h-7 overflow-hidden">
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger class="h-full px-2.5 flex items-center gap-2 hover:bg-slate-50 transition-colors cursor-pointer shadow-fine">
-        <AppIcon name="sort" size={15} class="text-slate-500" />
-        <span class="text-[0.78rem] text-slate-700 font-medium">Trier: {SORT_LABELS[positionsStore.sortBy]}</span>
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Content align="end" class="p-1 rounded-md shadow-fine bg-white border-slate-100">
-        <DropdownMenu.RadioGroup value={positionsStore.sortBy} onValueChange={(v) => positionsStore.setSort(v)}>
-          <DropdownMenu.RadioItem value="name" class="py-1.5 px-3 rounded-lg cursor-pointer text-xs pl-6">Titre (A-Z)</DropdownMenu.RadioItem>
-          <DropdownMenu.RadioItem value="department" class="py-1.5 px-3 rounded-lg cursor-pointer text-xs pl-6">Département</DropdownMenu.RadioItem>
-          <DropdownMenu.RadioItem value="seniority" class="py-1.5 px-3 rounded-lg cursor-pointer text-xs pl-6">Séniorité</DropdownMenu.RadioItem>
-        </DropdownMenu.RadioGroup>
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
-    <button onclick={() => positionsStore.toggleSortOrder()} class="w-7 h-full flex items-center justify-center border-l border-slate-100 hover:bg-slate-50 cursor-pointer">
-      <div class={cn("transition-transform", positionsStore.sortOrder === 'desc' && "rotate-180")}>
-        <AppIcon name="arrow-up" size={14} class={positionsStore.sortOrder === 'desc' ? "text-blue-600" : "text-slate-400"} />
-      </div>
-    </button>
-  </div>
-
-  <!-- Filter Dropdown -->
+<div class="flex items-center gap-2">
+  <!-- Sort Button -->
   <DropdownMenu.Root>
-    <DropdownMenu.Trigger class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg shadow-fine cursor-pointer h-7 px-2.5 hover:bg-slate-50 transition-all">
-      <AppIcon name="filter" size={15} class={positionsStore.activeFiltersCount > 0 ? "text-blue-500" : "text-slate-400"} />
-      <span class="text-[0.78rem] text-slate-700 font-medium">Filtrer</span>
-      {#if positionsStore.activeFiltersCount > 0}
-        <div class="bg-blue-500 text-white text-[0.64rem] w-4 h-4 flex items-center justify-center rounded-full font-bold">
-          {positionsStore.activeFiltersCount}
-        </div>
-      {/if}
+    <DropdownMenu.Trigger>
+      <Button
+        variant="ghost"
+        size="sm"
+        class="h-7 px-2.5 text-[0.84rem] text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+      >
+        <AppIcon name="arrow-down-up" size={15} class="mr-1.5" />
+        Tri
+      </Button>
     </DropdownMenu.Trigger>
-    
-    <DropdownMenu.Content align="end" class="w-64 p-0 rounded-md shadow-fine border-slate-100 bg-white overflow-hidden">
-      <div class="p-3 border-b border-slate-50 bg-slate-50/30">
-        <input 
-          type="text" 
-          placeholder="Chercher..." 
-          class="w-full text-[0.83rem] p-1.5 border rounded-md bg-white outline-none focus:border-blue-300"
-        />
-      </div>
 
-      <div class="p-2 max-h-80 overflow-y-auto">
-        {@render FilterSection("Département", jobsStore.departments.map(d => ({ id: d.id, name: d.name })), 'department')}
-        <DropdownMenu.Separator class="my-2 bg-slate-50" />
-        {@render FilterSection("Séniorité", jobsStore.seniorityLevels.map(l => ({ id: l.name, name: jobsStore.seniorityLabels[l.name] || l.name })), 'seniority')}
-      </div>
+    <DropdownMenu.Content align="end" class="w-48 p-1">
+      <DropdownMenu.Label class="text-[0.75rem] font-semibold text-slate-500 uppercase tracking-wider px-2 py-1.5">
+        Trier par
+      </DropdownMenu.Label>
 
-      {#if positionsStore.activeFiltersCount > 0}
-        <div class="p-2 bg-slate-50/50 border-t border-slate-100">
-          <Button variant="ghost" onclick={() => positionsStore.resetFilters()} class="w-full h-8 text-[0.8rem] text-red-500 hover:text-red-600 hover:bg-red-50! font-medium">
-            Réinitialiser tout
-          </Button>
-        </div>
+      {@render SortOption("Titre (A-Z)", "name", "asc")}
+      {@render SortOption("Titre (Z-A)", "name", "desc")}
+      {@render SortOption("Unité", "orgUnit", "asc")}
+      {@render SortOption("Séniorité", "seniority", "asc")}
+    </DropdownMenu.Content>
+  </DropdownMenu.Root>
+
+  <!-- Org Unit Filter Button -->
+  <DropdownMenu.Root>
+    <DropdownMenu.Trigger>
+      <Button
+        variant="ghost"
+        size="sm"
+        class="h-7 px-2.5 text-[0.84rem] text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+      >
+        <AppIcon name="building-2" size={15} class="mr-1.5" />
+        Unité
+        {#if positionsStore.filters.orgUnit.length > 0}
+          <span class="ml-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[0.65rem] font-medium text-white">
+            {positionsStore.filters.orgUnit.length}
+          </span>
+        {/if}
+      </Button>
+    </DropdownMenu.Trigger>
+
+    <DropdownMenu.Content align="end" class="w-56 p-1">
+      <DropdownMenu.Label class="text-[0.75rem] font-semibold text-slate-500 uppercase tracking-wider px-2 py-1.5">
+        Unité organisationnelle
+      </DropdownMenu.Label>
+
+      {#each jobsStore.orgUnits as unit}
+        {@const active = isOrgUnitActive(unit.id)}
+        {@const unitIcon = getOrgUnitIcon(unit.type)}
+        <DropdownMenu.Item
+          onclick={() => positionsStore.toggleFilter('orgUnit', unit.id)}
+          class={[
+            "text-[0.86rem] py-1.5 cursor-pointer flex items-center justify-between",
+            active && "bg-slate-50 font-medium"
+          ]}
+        >
+          <span class="flex items-center gap-2 text-[0.86rem]">
+            <AppIcon name={unitIcon} size={16} class="text-slate-500" />
+            {unit.name}
+          </span>
+          {#if active}
+            <AppIcon name="check" size={14} class="text-slate-600" />
+          {/if}
+        </DropdownMenu.Item>
+      {/each}
+
+      {#if positionsStore.filters.orgUnit.length > 0}
+        <DropdownMenu.Separator />
+        <DropdownMenu.Item
+          onclick={() => clearOrgUnit()}
+          class="text-[0.86rem] text-red-600 hover:bg-red-50/30! hover:text-red-700! cursor-pointer"
+        >
+          <AppIcon name="x" size={16} class="text-inherit" />
+          Réinitialiser
+        </DropdownMenu.Item>
       {/if}
     </DropdownMenu.Content>
   </DropdownMenu.Root>
 
-  <Button onclick={onAdd} class="bg-primary! hover:bg-primary/90 h-7 px-3 text-[0.78rem] text-white shadow-fine rounded-lg transition-all">
-    <AppIcon name="plus" size={17} />
+  <!-- Seniority Filter Button -->
+  <DropdownMenu.Root>
+    <DropdownMenu.Trigger>
+      <Button
+        variant="ghost"
+        size="sm"
+        class="h-7 px-2.5 text-[0.84rem] text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+      >
+        <AppIcon name="layers" size={15} class="mr-1.5" />
+        Séniorité
+        {#if positionsStore.filters.seniority.length > 0}
+          <span class="ml-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[0.65rem] font-medium text-white">
+            {positionsStore.filters.seniority.length}
+          </span>
+        {/if}
+      </Button>
+    </DropdownMenu.Trigger>
+
+    <DropdownMenu.Content align="end" class="w-56 p-1">
+      <DropdownMenu.Label class="text-[0.75rem] font-semibold text-slate-500 uppercase tracking-wider px-2 py-1.5">
+        Niveau de séniorité
+      </DropdownMenu.Label>
+
+      {#each jobsStore.seniorityLevels as level}
+        {@const active = isSeniorityActive(level.level)}
+        {@const label = level.name}
+        <DropdownMenu.Item
+          onclick={() => positionsStore.toggleFilter('seniority', level.level)}
+          class={[
+            "text-[0.86rem] py-1.5 cursor-pointer flex items-center justify-between",
+            active && "bg-slate-50 font-medium"
+          ]}
+        >
+          <span class="text-[0.86rem]">{label}</span>
+          {#if active}
+            <AppIcon name="check" size={14} class="text-slate-600" />
+          {/if}
+        </DropdownMenu.Item>
+      {/each}
+
+      {#if positionsStore.filters.seniority.length > 0}
+        <DropdownMenu.Separator />
+        <DropdownMenu.Item
+          onclick={() => clearSeniority()}
+          class="text-[0.86rem] text-red-600 hover:bg-red-50/30! hover:text-red-700! cursor-pointer"
+        >
+          <AppIcon name="x" size={16} class="text-inherit" />
+          Réinitialiser
+        </DropdownMenu.Item>
+      {/if}
+    </DropdownMenu.Content>
+  </DropdownMenu.Root>
+
+  <!-- Active Filters Badge -->
+  {#if activeFiltersCount > 0}
+    <button
+      onclick={() => positionsStore.resetFilters()}
+      class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[0.75rem] hover:bg-slate-200 transition-colors cursor-pointer"
+    >
+      <span class="text-[0.8rem]">{activeFiltersCount} filtre{activeFiltersCount > 1 ? 's' : ''}</span>
+      <AppIcon name="x" size={13} />
+    </button>
+  {/if}
+
+  <div class="w-px h-5 bg-slate-200 mx-1"></div>
+
+  <!-- Currency Toggle -->
+  <CurrencyToggle
+    currency={taxSettingsStore.config.currency}
+    onChange={(c) => taxSettingsStore.setCurrency(c)}
+    size="sm"
+  />
+
+  <!-- Add Button -->
+  <Button
+    onclick={onAdd}
+    variant="default"
+    size="sm"
+    class="h-7 px-3 text-[0.84rem] text-white shadow-fine rounded-lg transition-all"
+  >
+    <AppIcon name="plus" size={15} />
     Nouveau poste
   </Button>
 </div>
 
 
-{#snippet FilterSection(label: string, options: {id: any, name: string}[], filterKey: keyof typeof positionsStore.filters)}
-  <DropdownMenu.Label class="text-[0.7rem]! font-bold text-slate-400 uppercase tracking-widest px-2 py-2">
-    {label}
-  </DropdownMenu.Label>
-  {#each options as option}
-    <DropdownMenu.CheckboxItem 
-      checked={positionsStore.filters[filterKey].includes(option.id)}
-      onCheckedChange={() => positionsStore.toggleFilter(filterKey, option.id)}
-      class="rounded-lg py-1.5 px-2 text-[0.82rem] cursor-pointer pl-7"
-    >
-      {option.name}
-    </DropdownMenu.CheckboxItem>
-  {/each}
+{#snippet SortOption(label: string, sortBy: 'name' | 'orgUnit' | 'seniority', order: 'asc' | 'desc')}
+  {@const isActive = positionsStore.sortBy === sortBy && positionsStore.sortOrder === order}
+  <DropdownMenu.Item
+    onclick={() => { positionsStore.setSort(sortBy); positionsStore.sortOrder = order; }}
+    class={[
+      "text-[0.86rem] py-1.5 cursor-pointer flex items-center justify-between",
+      isActive && "bg-slate-50 font-medium"
+    ]}
+  >
+    <span class="text-[0.86rem]">{label}</span>
+    {#if isActive}
+      <AppIcon name="check" size={14} class="text-slate-600" />
+    {/if}
+  </DropdownMenu.Item>
 {/snippet}
 

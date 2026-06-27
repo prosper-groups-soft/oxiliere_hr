@@ -8,35 +8,35 @@
   const EXCHANGE_RATE = 2850; 
   const payslips = $derived(payrollStore.payslips);
 
-  const deptStats = $derived(() => {
+  const orgUnitStats = $derived.by(() => {
     const stats: Record<string, { total: number; count: number }> = {};
-    payslips.forEach(p => {
-      const dept = p.department || 'Général';
-      if (!stats[dept]) stats[dept] = { total: 0, count: 0 };
-      stats[dept].total += p.netPay || 0;
-      stats[dept].count += 1;
+    payslips.forEach((p: typeof payslips[number]) => {
+      const orgUnit = p.orgUnit || 'Général';
+      if (!stats[orgUnit]) stats[orgUnit] = { total: 0, count: 0 };
+      stats[orgUnit].total += p.netPay || 0;
+      stats[orgUnit].count += 1;
     });
     return Object.entries(stats);
   });
 
-  const deptColors: Record<string, { bg: string; text: string; dot: string }> = {
+  const orgUnitColors: Record<string, { bg: string; text: string; dot: string }> = {
     'IT': { bg: 'bg-blue-50', text: 'text-blue-700', dot: 'bg-blue-500' },
     'RH': { bg: 'bg-rose-50', text: 'text-rose-700', dot: 'bg-rose-500' },
     'Finance': { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
     'Admin': { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' }
   };
 
-  const getDeptColor = (dept: string) => 
-    deptColors[dept] || { bg: 'bg-slate-50', text: 'text-slate-600', dot: 'bg-slate-400' };
+  const getOrgUnitColor = (orgUnit: string) => 
+    orgUnitColors[orgUnit] || { bg: 'bg-slate-50', text: 'text-slate-600', dot: 'bg-slate-400' };
 </script>
 
 
-{#snippet DeptBadge(dept: string, count: number)}
-  {@const colors = getDeptColor(dept)}
+{#snippet OrgUnitBadge(orgUnit: string, count: number)}
+  {@const colors = getOrgUnitColor(orgUnit)}
   <div class="flex items-center justify-between p-2 rounded-lg border border-slate-200 bg-white shadow-fine">
     <div class="flex items-center gap-2">
       <span class="h-1.5 w-1.5 rounded-full {colors.dot}"></span>
-      <span class="text-sm font-medium text-slate-700">{dept}</span>
+      <span class="text-sm font-medium text-slate-700">{orgUnit}</span>
     </div>
     <span class="text-[0.7rem] font-bold {colors.text} {colors.bg} px-2 py-0.5 rounded-full">
       {count} agents
@@ -97,17 +97,17 @@
   </div>
 
   <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-    <!-- Department Breakdown -->
+    <!-- Organizational unit Breakdown -->
     <div class="md:col-span-3 space-y-3">
       <div class="flex items-center justify-between px-1">
         <h3 class="text-sm font-bold text-slate-700 flex items-center gap-2">
           <AppIcon name="users" size={18} strokeWidth={1.5} class="text-slate-400" />
-          Ventilation par département
+          Ventilation par unité organisationnelle
         </h3>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        {#each deptStats() as [dept, data]}
-          {@render DeptBadge(dept, data.count)}
+        {#each orgUnitStats as [orgUnit, data]}
+          {@render OrgUnitBadge(orgUnit, data.count)}
         {/each}
       </div>
     </div>

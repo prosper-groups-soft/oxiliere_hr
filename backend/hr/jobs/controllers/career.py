@@ -3,6 +3,8 @@ from injector import inject
 from uuid     import UUID
 from typing   import List
 from oxutils.permissions.perms import ScopePermission
+from django.shortcuts import get_object_or_404
+from hr.jobs.models import Position, OrgUnit, SeniorityLevel
 
 from ninja_extra import (
     api_controller,
@@ -51,16 +53,23 @@ class CareerController(ControllerBase):
 
     @http_post('/{employee_id}/onboard', response={201: CareerHistoryOut}, permissions=[ScopePermission('jobs:w')])
     def initial_assignment(self, employee_id: UUID, data: InitialAssignmentIn):
-        """ Formally records the starting role and department for a new hire. """
+        """ Formally records the starting role and org unit for a new hire. """
         employee = self.employee_query.get_employee_by_id(employee_id)
         if not employee:
             return self.create_response("Employee not found", status_code=404)
 
         try:
+            position = get_object_or_404(Position, id=data.position_id)
+            org_unit = get_object_or_404(OrgUnit, id=data.org_unit_id)
+            seniority_level = None
+            if data.seniority_level_id:
+                seniority_level = get_object_or_404(SeniorityLevel, id=data.seniority_level_id)
+
             history = self.career_service.assign_initial_position(
                 employee=employee,
-                position_id=data.position_id,
-                department_id=data.department_id,
+                position=position,
+                org_unit=org_unit,
+                seniority_level=seniority_level,
                 start_date=data.start_date
             )
             logger.info(f"Initial assignment recorded for {employee.matricule}")
@@ -70,7 +79,7 @@ class CareerController(ControllerBase):
 
     @http_post('/{employee_id}/promote', response={200: CareerHistoryOut}, permissions=[ScopePermission('jobs:w')])
     def promote_employee(self, employee_id: UUID, data: EmployeeMoveIn):
-        """ Records a promotion, lateral move, or departmental transfer. """
+        """ Records a promotion, lateral move, or org unit transfer. """
         employee = self.employee_query.get_employee_by_id(employee_id)
         if not employee:
             return self.create_response("Employee not found", status_code=404)
@@ -78,10 +87,20 @@ class CareerController(ControllerBase):
         logger.info(f"Processing transition request for {employee.matricule}")
 
         try:
+            new_position = get_object_or_404(Position, id=data.new_position_id)
+            new_org_unit = None
+            if data.new_org_unit_id:
+                new_org_unit = get_object_or_404(OrgUnit, id=data.new_org_unit_id)
+            
+            new_seniority_level = None
+            if data.new_seniority_level_id:
+                new_seniority_level = get_object_or_404(SeniorityLevel, id=data.new_seniority_level_id)
+
             new_record = self.career_service.move_employee(
                 employee=employee,
-                new_position_id=data.new_position_id,
-                new_department_id=data.new_department_id,
+                new_position=new_position,
+                new_seniority_level=new_seniority_level,
+                new_org_unit=new_org_unit,
                 effective_date=data.effective_date,
                 description=data.description
             )

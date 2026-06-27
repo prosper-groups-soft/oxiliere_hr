@@ -1,8 +1,10 @@
+from datetime import date
 from decimal import Decimal
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
+from djmoney.models.fields import MoneyField
 from auditlog.registry import auditlog
 
 from hr.models.base import BaseAuditableModel
@@ -17,10 +19,8 @@ from .enums import (
     PayrollStatus,
     SocialContributionType,
     OvertimeRuleType,
-    OvertimeRuleType,
     LegalAllowanceType,
     SalaryBaseType,
-    ExchangeRateSource,
     AdvanceDeductionBase,
     AdvanceTaxTiming,
     AdvanceDeductionWindow,
@@ -42,10 +42,15 @@ class PayrollConfiguration(BaseAuditableModel):
         verbose_name=_("Payment Method"),
         help_text=_("Standard method used for employee payments.")
     )
+    work_hours_per_week = models.PositiveIntegerField(
+        default=45,
+        verbose_name=_("Work Hours/Week"),
+        help_text=_("Standard weekly working hours (45h for RCD labor code). Monthly hours are calculated from this.")
+    )
     work_hours_per_month = models.PositiveIntegerField(
         default=195,
         verbose_name=_("Work Hours/Month"),
-        help_text=_("Standard monthly working hours for calculation purposes.")
+        help_text=_("Calculated automatically: work_hours_per_week × 52 / 12")
     )
     housing_allowance_min_percentage = models.DecimalField(
         max_digits=5, 
@@ -54,9 +59,10 @@ class PayrollConfiguration(BaseAuditableModel):
         verbose_name=_("Min Housing Allowance %"),
         help_text=_("Minimum housing allowance as a percentage of base salary.")
     )
-    family_allowance_min_amount = models.DecimalField(
-        max_digits=10, 
-        decimal_places=2, 
+    family_allowance_min_amount = MoneyField(
+        max_digits=10,
+        decimal_places=2,
+        default_currency='CDF',
         default=0.0,
         verbose_name=_("Min Family Allowance"),
         help_text=_("Minimum daily allowance per child.")
@@ -92,9 +98,10 @@ class PayrollConfiguration(BaseAuditableModel):
         verbose_name=_("Use Attendance Days"),
         help_text=_("Use the scheduled working days from Attendance for deductions.")
     )
-    fixed_deduction_per_absent_day = models.DecimalField(
+    fixed_deduction_per_absent_day = MoneyField(
         max_digits=12,
         decimal_places=2,
+        default_currency='CDF',
         null=True,
         blank=True,
         verbose_name=_("Fixed Absent Deduction"),
@@ -107,13 +114,13 @@ class PayrollConfiguration(BaseAuditableModel):
         verbose_name=_("USD/CDF Rate"),
         help_text=_("Standard USD to CDF exchange rate.")
     )
-    exchange_rate_source = models.CharField(
-        max_length=15, 
-        choices=ExchangeRateSource.choices, 
-        default=ExchangeRateSource.MANUAL,
-        verbose_name=_("Rate Source"),
-        help_text=_("Source of the exchange rate (e.g., Central Bank or Manual).")
-    )
+
+    def save(self, *args, **kwargs):
+        """Calculate work_hours_per_month from work_hours_per_week before saving."""
+        if self.work_hours_per_week:
+            # Standard calculation: weekly hours × 52 weeks / 12 months
+            self.work_hours_per_month = round(self.work_hours_per_week * 52 / 12)
+        super().save(*args, **kwargs)
 
     class Meta:
         db_table = "pyrl_payroll_configuration"
@@ -148,11 +155,12 @@ class EmployeeContract(BaseAuditableModel):
         verbose_name=_("Contract Type"),
         help_text=_("Legal form of employment (CDI, CDD, etc.).")
     )
-    base_salary = models.DecimalField(
-        max_digits=12, 
-        decimal_places=2, 
-        null=True, 
+    base_salary = MoneyField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
         blank=True,
+        default_currency='CDF',
         verbose_name=_("Base Salary"),
         help_text=_("Standard salary amount.")
     )
@@ -163,11 +171,12 @@ class EmployeeContract(BaseAuditableModel):
         verbose_name=_("Salary Base Type"),
         help_text=_("Indicates if the salary is defined as Gross or Net.")
     )
-    hourly_rate = models.DecimalField(
-        max_digits=10, 
-        decimal_places=2, 
-        null=True, 
+    hourly_rate = MoneyField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
         blank=True,
+        default_currency='CDF',
         verbose_name=_("Hourly Rate")
     )
     currency = models.CharField(
@@ -184,19 +193,14 @@ class EmployeeContract(BaseAuditableModel):
         blank=True,
         verbose_name=_("End Date")
     )
-    is_active = models.BooleanField(
-        default=True,
-        verbose_name=_("Is Active")
-    )
-
     class Meta:
         db_table = "pyrl_employee_contract"
         verbose_name = _("Employee Contract")
         verbose_name_plural = _("Employee Contracts")
         constraints = [
             models.UniqueConstraint(
-                fields=['employee'], 
-                condition=models.Q(is_active=True), 
+                fields=['employee'],
+                condition=models.Q(end_date__isnull=True, deleted__isnull=True),
                 name='unique_active_contract_per_employee'
             )
         ]
@@ -209,23 +213,31 @@ class EmployeeContract(BaseAuditableModel):
         if self.remuneration_type == RemunerationType.HOURLY and not self.hourly_rate:
             raise ValidationError(_("An hourly salary requires an hourly rate."))
         
-        # SMIG Validation
-        if self.is_active:
+        # SMIG Validation (only for currently active contracts)
+        from django.utils import timezone
+        today = timezone.localdate()
+        is_currently_active = (
+            self.start_date and self.start_date <= today and
+            (not self.end_date or self.end_date >= today)
+        )
+        if is_currently_active:
             from .models import SMIGConfiguration
             smig = SMIGConfiguration.objects.filter(is_active=True).first()
             if smig:
                 if self.remuneration_type == RemunerationType.FIXED:
-                    if self.base_salary < smig.monthly_rate:
+                    base_amt = self.base_salary.amount if self.base_salary else Decimal('0')
+                    if base_amt < smig.monthly_rate:
                         raise ValidationError(
-                            _(f"Base salary ({self.base_salary} FC) cannot be lower than the active monthly SMIG ({smig.monthly_rate} FC).")
+                            _(f"Base salary ({base_amt} FC) cannot be lower than the active monthly SMIG ({smig.monthly_rate} FC).")
                         )
                 elif self.remuneration_type == RemunerationType.HOURLY:
                     # Assuming 8 hours per day for hourly SMIG comparison
-                    daily_smig = smig.daily_rate
+                    daily_smig = smig.daily_rate.amount if smig.daily_rate else Decimal('0')
                     hourly_smig = daily_smig / Decimal('8.0')
-                    if self.hourly_rate < hourly_smig:
+                    hourly_amt = self.hourly_rate.amount if self.hourly_rate else Decimal('0')
+                    if hourly_amt < hourly_smig:
                         raise ValidationError(
-                            _(f"Hourly rate ({self.hourly_rate} FC) cannot be lower than the active hourly SMIG ({hourly_smig:.2f} FC).")
+                            _(f"Hourly rate ({hourly_amt} FC) cannot be lower than the active hourly SMIG ({hourly_smig:.2f} FC).")
                         )
 
     def save(self, *args, **kwargs):
@@ -251,9 +263,10 @@ class PayrollAdjustment(BaseAuditableModel):
         verbose_name=_("Calculation Mode"),
         help_text=_("Determines if the adjustment is a fixed amount or a percentage.")
     )
-    amount = models.DecimalField(
+    amount = MoneyField(
         max_digits=12, 
-        decimal_places=2, 
+        decimal_places=2,
+        default_currency='CDF',
         null=True, 
         blank=True,
         help_text=_("The fixed amount for the adjustment, if applicable.")
@@ -305,9 +318,10 @@ class EmployeeAdjustment(BaseAuditableModel):
         blank=True,
         help_text=_("The date when this specific adjustment assignment expires.")
     )
-    custom_amount = models.DecimalField(
+    custom_amount = MoneyField(
         max_digits=12, 
         decimal_places=2, 
+        default_currency='CDF',
         null=True, 
         blank=True,
         verbose_name=_("Custom Amount"),
@@ -373,24 +387,28 @@ class EmployeePayslip(BaseAuditableModel):
         help_text=_("The contract version used for this payslip.")
     )
     
-    base_salary_snapshot = models.DecimalField(
+    base_salary_snapshot = MoneyField(
         max_digits=12, 
-        decimal_places=2,
+        decimal_places=2, 
+        default_currency='CDF',
         help_text=_("Record of the base salary at the time of calculation.")
     )
-    gross_amount = models.DecimalField(
+    gross_amount = MoneyField(
         max_digits=12, 
-        decimal_places=2,
+        decimal_places=2, 
+        default_currency='CDF',
         help_text=_("Total earnings before any deductions.")
     )
-    total_adjustments = models.DecimalField(
+    total_adjustments = MoneyField(
         max_digits=12, 
-        decimal_places=2,
+        decimal_places=2, 
+        default_currency='CDF',
         help_text=_("The net sum of all additions and subtractions applied.")
     )
-    net_amount = models.DecimalField(
+    net_amount = MoneyField(
         max_digits=12, 
-        decimal_places=2,
+        decimal_places=2, 
+        default_currency='CDF',
         help_text=_("The final amount to be paid to the employee.")
     )
     
@@ -419,47 +437,54 @@ class EmployeePayslip(BaseAuditableModel):
     )
     
     # DRC-specific deductions
-    cnss_amount = models.DecimalField(
+    cnss_amount = MoneyField(
         max_digits=12,
         decimal_places=2,
+        default_currency='CDF',
         default=0,
         help_text=_("CNSS contribution amount (employee portion).")
     )
-    onem_amount = models.DecimalField(
+    onem_amount = MoneyField(
         max_digits=12,
         decimal_places=2,
+        default_currency='CDF',
         default=0,
         help_text=_("ONEM contribution amount.")
     )
-    inpp_amount = models.DecimalField(
+    inpp_amount = MoneyField(
         max_digits=12,
         decimal_places=2,
+        default_currency='CDF',
         default=0,
         help_text=_("INPP contribution amount.")
     )
-    ipr_amount = models.DecimalField(
+    ipr_amount = MoneyField(
         max_digits=12,
         decimal_places=2,
+        default_currency='CDF',
         default=0,
         help_text=_("IPR (income tax) amount.")
     )
     
     # DRC-specific allowances
-    family_allowance = models.DecimalField(
+    family_allowance = MoneyField(
         max_digits=12,
         decimal_places=2,
+        default_currency='CDF',
         default=0,
         help_text=_("Paid family allowances.")
     )
-    housing_allowance = models.DecimalField(
+    housing_allowance = MoneyField(
         max_digits=12,
         decimal_places=2,
+        default_currency='CDF',
         default=0,
         help_text=_("Paid housing allowance.")
     )
-    transport_allowance = models.DecimalField(
+    transport_allowance = MoneyField(
         max_digits=12,
         decimal_places=2,
+        default_currency='CDF',
         default=0,
         help_text=_("Paid transport allowance.")
     )
@@ -478,9 +503,10 @@ class EmployeePayslip(BaseAuditableModel):
     )
     
     # Tax calculation base
-    taxable_base = models.DecimalField(
+    taxable_base = MoneyField(
         max_digits=12,
         decimal_places=2,
+        default_currency='CDF',
         default=0,
         help_text=_("Taxable income base for IPR calculation (after CNSS deduction).")
     )
@@ -526,9 +552,10 @@ class PayslipLine(BaseAuditableModel):
         max_length=100,
         help_text=_("The descriptive name of the line item as it appears on the payslip.")
     )
-    amount = models.DecimalField(
+    amount = MoneyField(
         max_digits=12, 
-        decimal_places=2,
+        decimal_places=2, 
+        default_currency='CDF',
         help_text=_("The individual amount for this line item.")
     )
     adjustment_type = models.CharField(
@@ -549,9 +576,10 @@ class SalaryAdvance(BaseAuditableModel):
         on_delete=models.PROTECT,
         help_text=_("The employee who received the advance.")
     )
-    amount = models.DecimalField(
+    amount = MoneyField(
         max_digits=12, 
-        decimal_places=2,
+        decimal_places=2, 
+        default_currency='CDF',
         verbose_name=_("Amount"),
         help_text=_("Total principal amount of the advance.")
     )
@@ -654,9 +682,10 @@ class RepaymentRecord(BaseAuditableModel):
         related_name='advance_repayments',
         help_text=_("The payslip from which the repayment was deducted.")
     )
-    amount = models.DecimalField(
+    amount = MoneyField(
         max_digits=12, 
-        decimal_places=2,
+        decimal_places=2, 
+        default_currency='CDF',
         help_text=_("The specific amount repaid in this transaction.")
     )
     repayment_date = models.DateField(
@@ -674,9 +703,10 @@ class SMIGConfiguration(BaseAuditableModel):
     Tracks the SMIG (Salaire Minimum Interprofessionnel Garanti) over time.
     Allows for historical tracking as minimum wage changes. 
     """
-    daily_rate = models.DecimalField(
+    daily_rate = MoneyField(
         max_digits=10,
         decimal_places=2,
+        default_currency='CDF',
         verbose_name=_("Daily Rate"),
         help_text=_("Minimum daily wage in local currency.")
     )
@@ -695,24 +725,25 @@ class SMIGConfiguration(BaseAuditableModel):
         constraints = [
             models.UniqueConstraint(
                 fields=['effective_date'],
+                condition=models.Q(deleted__isnull=True),
                 name='unique_smig_effective_date'
             )
         ]
 
     def __str__(self):
-        return f"SMIG: {self.daily_rate} FC (from {self.effective_date})"
+        return f"SMIG: {self.daily_rate.amount} FC (from {self.effective_date})"
 
     @property
     def weekly_rate(self):
-        return self.daily_rate * 6
+        return self.daily_rate.amount * 6 if self.daily_rate else Decimal('0')
 
     @property
     def monthly_rate(self):
-        return self.daily_rate * 26
+        return self.daily_rate.amount * 26 if self.daily_rate else Decimal('0')
 
     @property
     def annual_rate(self):
-        return self.daily_rate * 312
+        return self.daily_rate.amount * 312 if self.daily_rate else Decimal('0')
 
 
 class SocialContributionRate(BaseAuditableModel):
@@ -750,9 +781,10 @@ class SocialContributionRate(BaseAuditableModel):
         blank=True,
         verbose_name=_("Max Company Size")
     )
-    ceiling_amount = models.DecimalField(
+    ceiling_amount = MoneyField(
         max_digits=12,
         decimal_places=2,
+        default_currency='CDF',
         null=True,
         blank=True,
         verbose_name=_("Ceiling Amount"),
@@ -839,9 +871,10 @@ class LegalAllowance(BaseAuditableModel):
         choices=CalculationMode.choices,
         verbose_name=_("Calculation Mode")
     )
-    base_amount = models.DecimalField(
+    base_amount = MoneyField(
         max_digits=12,
         decimal_places=2,
+        default_currency='CDF',
         null=True,
         blank=True,
         verbose_name=_("Base Amount")
@@ -908,6 +941,11 @@ class WorkedDaysRecord(BaseAuditableModel):
         validators=[MinValueValidator(0)],
         verbose_name=_("Overtime (Tier 2)")
     )
+    overtime_hours_weekend = models.FloatField(
+        default=0,
+        validators=[MinValueValidator(0)],
+        verbose_name=_("Overtime (Weekend)")
+    )
     overtime_hours_holiday = models.FloatField(
         default=0,
         validators=[MinValueValidator(0)],
@@ -931,6 +969,7 @@ class WorkedDaysRecord(BaseAuditableModel):
         return (
             self.overtime_hours_first_tier +
             self.overtime_hours_second_tier +
+            self.overtime_hours_weekend +
             self.overtime_hours_holiday
         )
 
@@ -941,14 +980,16 @@ class TaxBracket(BaseAuditableModel):
         max_length=100,
         verbose_name=_("Label")
     )
-    lower_limit = models.DecimalField(
+    lower_limit = MoneyField(
         max_digits=12,
         decimal_places=2,
+        default_currency='CDF',
         verbose_name=_("Lower Limit")
     )
-    upper_limit = models.DecimalField(
+    upper_limit = MoneyField(
         max_digits=12,
         decimal_places=2,
+        default_currency='CDF',
         null=True,
         blank=True,
         verbose_name=_("Upper Limit")
@@ -958,9 +999,10 @@ class TaxBracket(BaseAuditableModel):
         decimal_places=2,
         help_text=_("Tax rate percentage applied to income in this bracket.")
     )
-    min_tax_amount = models.DecimalField(
+    min_tax_amount = MoneyField(
         max_digits=12,
         decimal_places=2,
+        default_currency='CDF',
         null=True,
         blank=True,
         verbose_name=_("Min Tax Amount")

@@ -3,6 +3,7 @@ from decimal import Decimal
 from typing  import Dict, Any
 from uuid    import UUID
 
+from django.utils import timezone
 from django.db import transaction
 from django.core.exceptions import ValidationError
 from django.db.models import QuerySet, Sum, Count, Q
@@ -170,7 +171,12 @@ class PayrollRunService:
             raise ValidationError(f"Cannot process run with status {run.status}")
 
         # Count active contracts
-        active_contracts = EmployeeContract.objects.filter(is_active=True).count()
+        today = timezone.localdate()
+        active_contracts = EmployeeContract.objects.filter(
+            start_date__lte=today,
+        ).filter(
+            Q(end_date__isnull=True) | Q(end_date__gte=today)
+        ).count()
 
         if active_contracts == 0:
             logger.warning("[PayrollRun] No active contracts found", extra={"run_id": run_id})
@@ -393,17 +399,17 @@ class PayrollRunService:
             "id": payslip.id,
             "payroll_run": payslip.payroll_run_id,
             "contract": payslip.contract_id,
-            "base_salary_snapshot": payslip.base_salary_snapshot,
-            "gross_amount": payslip.gross_amount,
-            "cnss_amount": payslip.cnss_amount,
-            "onem_amount": payslip.onem_amount,
-            "inpp_amount": payslip.inpp_amount,
-            "ipr_amount": payslip.ipr_amount,
-            "family_allowance": payslip.family_allowance,
-            "housing_allowance": payslip.housing_allowance,
-            "transport_allowance": payslip.transport_allowance,
-            "total_adjustments": payslip.total_adjustments,
-            "net_amount": payslip.net_amount,
+            "base_salary_snapshot": payslip.base_salary_snapshot.amount if payslip.base_salary_snapshot else None,
+            "gross_amount": payslip.gross_amount.amount if payslip.gross_amount else None,
+            "cnss_amount": payslip.cnss_amount.amount if payslip.cnss_amount else None,
+            "onem_amount": payslip.onem_amount.amount if payslip.onem_amount else None,
+            "inpp_amount": payslip.inpp_amount.amount if payslip.inpp_amount else None,
+            "ipr_amount": payslip.ipr_amount.amount if payslip.ipr_amount else None,
+            "family_allowance": payslip.family_allowance.amount if payslip.family_allowance else None,
+            "housing_allowance": payslip.housing_allowance.amount if payslip.housing_allowance else None,
+            "transport_allowance": payslip.transport_allowance.amount if payslip.transport_allowance else None,
+            "total_adjustments": payslip.total_adjustments.amount if payslip.total_adjustments else None,
+            "net_amount": payslip.net_amount.amount if payslip.net_amount else None,
             "worked_days": payslip.worked_days,
             "worked_hours": payslip.worked_hours,
             "overtime_hours": payslip.overtime_hours,
@@ -417,7 +423,7 @@ class PayrollRunService:
             "lines": list(payslip.lines.all()),
             "employee_name": f"{employee.user.first_name} {employee.user.last_name}",
             "employee_id": employee.id,
-            "net_after_advances": payslip.net_amount, # Net amount already accounts for advances in Orchestrator
+            "net_after_advances": payslip.net_amount.amount if payslip.net_amount else None,
         }
 
     @classmethod

@@ -31,7 +31,9 @@ class LeavePolicyOut(ModelSchema):
             "standard_annual_days",
             "allows_carry_over",
             "max_carry_over_days",
-            "carry_over_expiration_month"
+            "carry_over_expiration_month",
+            "max_consecutive_days",
+            "notice_period_days"
         ]
 
 
@@ -44,7 +46,9 @@ class LeavePolicyCreate(ModelSchema):
             'country_code', 
             'standard_annual_days', 
             'allows_carry_over', 
-            'max_carry_over_days'
+            'max_carry_over_days',
+            'max_consecutive_days',
+            'notice_period_days'
         ]
 
 
@@ -56,7 +60,10 @@ class LeavePolicyUpdate(ModelSchema):
             'name', 
             'standard_annual_days', 
             'allows_carry_over',
-            'max_carry_over_days'
+            'max_carry_over_days',
+            'carry_over_expiration_month',
+            'max_consecutive_days',
+            'notice_period_days'
         ]
         fields_optional = "__all__"
 
@@ -106,14 +113,14 @@ class CircumstanceLeaveRuleOut(ModelSchema):
 
     class Meta:
         model = CircumstanceLeaveRule
-        fields = ['id', 'type', 'duration_days', 'is_paid']
+        fields = ['id', 'type', 'duration_days', 'is_paid', 'description']
 
 
 class CircumstanceLeaveRuleCreate(ModelSchema):
     """ Data for defining a new special leave category. """
     class Meta:
         model = CircumstanceLeaveRule
-        fields = ['type', 'duration_days', 'is_paid']
+        fields = ['type', 'duration_days', 'is_paid', 'description']
 
 
 class CircumstanceLeaveRuleUpdate(CircumstanceLeaveRuleCreate):
@@ -173,9 +180,46 @@ class LeaveBalanceFilter(FilterSchema):
     year: Optional[int] = None
 
 
+#  -------- Working Days Count (for frontend preview) --------
+class DayDetailOut(Schema):
+    """ Status and details for a single day in the range. """
+    date: str
+    day_name: str
+    is_working: bool
+    reason: str
+    event_type: Optional[str] = None
+    event_name: Optional[str] = None
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+
+
+class ExcludedDaysOut(Schema):
+    """ Breakdown of non-working days by reason. """
+    public_holidays: List[str] = []
+    closures: List[str] = []
+    non_working_policy_days: List[str] = []
+    total_excluded: int = 0
+
+
+class WorkingDaysCountOut(Schema):
+    """ Detailed preview of working days for a period. """
+    working_days: int
+    calendar_days: int
+    excluded: ExcludedDaysOut
+    day_details: List[DayDetailOut]
+
+
 #  -------- Leave Request --------
 class LeaveRequestOut(ModelSchema):
     """ Detailed information about an individual leave request. """
+    employee_name: str = ""
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    middle_name: Optional[str] = None
+    job_title: Optional[str] = None
+    org_unit: Optional[str] = None
+    avatar_url: Optional[str] = None
+
     class Meta:
         model = LeaveRequest
         fields = [
@@ -190,6 +234,41 @@ class LeaveRequestOut(ModelSchema):
             'attachment', 
             'comment'
         ]
+
+    @staticmethod
+    def resolve_employee_name(obj):
+        emp = obj.employee
+        parts = [p for p in [emp.last_name, emp.middle_name, emp.first_name] if p]
+        return " ".join(parts)
+
+    @staticmethod
+    def resolve_first_name(obj):
+        return obj.employee.first_name
+
+    @staticmethod
+    def resolve_last_name(obj):
+        return obj.employee.last_name
+
+    @staticmethod
+    def resolve_middle_name(obj):
+        return obj.employee.middle_name or None
+
+    @staticmethod
+    def resolve_job_title(obj):
+        from hr.employees.schemas import _get_current_pos
+        pos = _get_current_pos(obj.employee)
+        return pos.position.name if pos and pos.position else None
+
+    @staticmethod
+    def resolve_org_unit(obj):
+        from hr.employees.schemas import _get_current_pos
+        pos = _get_current_pos(obj.employee)
+        return pos.org_unit.name if pos and pos.org_unit else None
+
+    @staticmethod
+    def resolve_avatar_url(obj):
+        photo = obj.employee.profile_photo
+        return photo.url if photo else None
 
 
 class LeaveRequestCreate(ModelSchema):
@@ -221,7 +300,13 @@ class LeaveRequestUpdate(ModelSchema):
     """ Data for HR to modify an existing leave request. """
     class Meta:
         model = LeaveRequest
-        fields = ['start_date', 'end_date', 'comment']
+        fields = [
+            'category', 
+            'circumstance_type', 
+            'start_date', 
+            'end_date', 
+            'comment'
+        ]
         fields_optional = "__all__"
 
 
@@ -230,9 +315,10 @@ class LeaveRequestFilter(BaseFilter):
     employee_id: Optional[int] = None
     status: Optional[str] = None
     category: Optional[str] = None
+    org_unit: Optional[str] = None
 
     def filter_search(self, value: str) -> models.Q:
-        """ Broad search across comments and employee names. """
+        """ Broad search across employee names and units. """
         search_query = (
             models.Q(comment__icontains=value) |
             models.Q(employee__first_name__icontains=value) |
@@ -240,6 +326,38 @@ class LeaveRequestFilter(BaseFilter):
             models.Q(employee__last_name__icontains=value)
         )
         return search_query
+
+    def filter_org_unit(self, value: Optional[str]) -> models.Q:
+        """ Filter by org unit name. """
+        if not value:
+            return models.Q()
+        return models.Q(
+            employee__position_history__org_unit__name__icontains=value,
+            employee__position_history__is_current=True
+        )
+
+    def apply_ordering(self, qs, ordering: Optional[str] = None):
+        """
+        Apply ordering to the queryset based on the ordering parameter.
+        Supports: employee_name, -employee_name, start_date, -start_date,
+                  requested_days, -requested_days, created_at, -created_at
+        """
+        if not ordering:
+            return qs.order_by('-created_at')
+
+        ordering_map = {
+            'employee_name': ['employee__last_name', 'employee__first_name'],
+            '-employee_name': ['-employee__last_name', '-employee__first_name'],
+            'start_date': ['start_date'],
+            '-start_date': ['-start_date'],
+            'requested_days': ['requested_days'],
+            '-requested_days': ['-requested_days'],
+            'created_at': ['created_at'],
+            '-created_at': ['-created_at'],
+        }
+
+        order_fields = ordering_map.get(ordering, ['-created_at'])
+        return qs.order_by(*order_fields)
 
 
 #  -------- Batcj Leave Request --------
@@ -333,3 +451,42 @@ class CarryOverAdjustmentIn(Schema):
     amount: Decimal
     reason: str
     new_expiration: Optional[date] = None
+
+
+#  -------- Overlap detection --------
+class OverlappingLeaveOut(Schema):
+    """ Brief info about an overlapping leave request. """
+    id: UUID
+    category: str
+    start_date: date
+    end_date: date
+    requested_days: int
+    status: str
+
+
+class OverlappingLeavesCheckOut(Schema):
+    """ Result of checking for overlapping leaves for a given period. """
+    hasOverlap: bool
+    leaves: List[OverlappingLeaveOut]
+
+
+class PendingCountOut(Schema):
+    """ Number of pending leave requests. """
+    count: int
+
+
+#  -------- Team Planner --------
+class TeamPlannerDayOut(Schema):
+    """ A single day of leave for one employee in the team Gantt view. """
+    date: str
+    type: str
+    status: str
+
+
+class TeamPlannerEmployeeOut(Schema):
+    """ Employee with their expanded leave days for the team planner. """
+    employee_id: UUID
+    employee_name: str
+    org_unit: Optional[str] = None
+    avatar_url: Optional[str] = None
+    days: List[TeamPlannerDayOut]

@@ -16,12 +16,12 @@
   let requestReason = $state('');
 
   const MOCK_EMPLOYEES = [
-    { id: 1, name: 'Jean-Paul Mabuso', department: 'IT' },
-    { id: 2, name: 'Merveille Kabamba', department: 'RH' },
-    { id: 3, name: 'Christian Luvambo', department: 'Finance' },
-    { id: 4, name: 'Grace Mbuyi', department: 'Commercial' },
-    { id: 5, name: 'Patrick Kalala', department: 'Production' },
-    { id: 6, name: 'Sophie Tshibola', department: 'Administration' }
+    { id: 1, name: 'Jean-Paul Mabuso', orgUnit: 'IT' },
+    { id: 2, name: 'Merveille Kabamba', orgUnit: 'RH' },
+    { id: 3, name: 'Christian Luvambo', orgUnit: 'Finance' },
+    { id: 4, name: 'Grace Mbuyi', orgUnit: 'Commercial' },
+    { id: 5, name: 'Patrick Kalala', orgUnit: 'Production' },
+    { id: 6, name: 'Sophie Tshibola', orgUnit: 'Administration' }
   ];
 
   const selectedEmployeeData = $derived(MOCK_EMPLOYEES.find(e => e.id === selectedEmployee));
@@ -78,7 +78,7 @@
               <Select.Item value={emp.id.toString()} label={emp.name}>
                 <div class="flex items-center gap-2">
                   <span class="text-[0.875rem]">{emp.name}</span>
-                  <span class="text-xs text-slate-400">({emp.department})</span>
+                  <span class="text-xs text-slate-400">({emp.orgUnit})</span>
                 </div>
               </Select.Item>
             {/each}

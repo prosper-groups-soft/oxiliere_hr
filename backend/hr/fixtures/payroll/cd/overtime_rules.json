@@ -3,7 +3,7 @@
     "model": "hr_payroll.overtimerule",
     "pk": "019c03b3598e7d579faf01d5aac790a9",
     "fields": {
-      "rule_type": "FIRST_TWO_HOURS",
+      "rule_type": "FIRST_TIER",
       "multiplier": "1.30",
       "description": "Majoration de 30% pour les 6 premières heures supplémentaires (de la 46ème à la 51ème heure par semaine).",
       "is_active": true,

@@ -139,6 +139,8 @@
         title="Démarrer une nouvelle paie"
         description="Créez une nouvelle période de paie pour commencer le processus de calcul et de paiement."
         icon="file-text"
+        iconSize={28}
+        iconStrokeWidth={1.3}
       >
       <Button variant="default" size="sm" onclick={handleNewPayroll} class="shadow-fine bg-primary text-white text-[0.83rem] hover:text-white rounded-lg">
         <AppIcon name="play-circle" size={17} />

@@ -11,15 +11,47 @@ import axios, { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig 
 import * as rax from 'retry-axios';
 import { AUTH_EVENT, AUTH_REQUIRED_EVENT, PERM_REQUIRED_EVENT } from '@/constants/app/events';
 import { get_api_auth_origin, get_api_base_origin } from './urls';
+import { ensureValidToken, isTokenExpired, refreshOrganizationToken } from '@/features/auth/utils/token-manager';
+
 
 const auth_event = createEvent<string>(AUTH_EVENT);
 const ORIGIN = get_api_base_origin();
+
+
+// Custom params serializer for Django-compatible format (repeat arrays without brackets)
+function serializeParams(params: Record<string, any>): string {
+	const searchParams = new URLSearchParams();
+	
+	for (const [key, value] of Object.entries(params)) {
+		if (value === null || value === undefined) continue;
+		
+		if (Array.isArray(value)) {
+			// For arrays, repeat the key: groups=admins&groups=hr_dir
+			for (const item of value) {
+				if (item !== null && item !== undefined) {
+					searchParams.append(key, String(item));
+				}
+			}
+		} else if (typeof value === 'boolean') {
+			searchParams.append(key, value ? 'true' : 'false');
+		} else {
+			searchParams.append(key, String(value));
+		}
+	}
+	
+	return searchParams.toString();
+}
+
 
 // Configure global Axios defaults
 axios.defaults.baseURL = ORIGIN;
 axios.defaults.withCredentials = true; // Crucial for sending cookies cross-origin
 axios.defaults.xsrfCookieName = 'csrftoken'; // Default cookie name Django uses
 axios.defaults.xsrfHeaderName = 'X-CSRFToken'; // Default header name Django expects
+
+// Configure params serializer for Django-compatible format
+axios.defaults.paramsSerializer = serializeParams;
+
 
 // Dev Authentication (BasicNoPasswordAuth)
 axios.defaults.headers.common['Authorization'] = 'Basic ZGV2QG94aWxpZXJlLmNvbTo=';
@@ -28,7 +60,7 @@ axios.defaults.raxConfig = {
 	retry: 2,
 	noResponseRetries: 2,
 
-	retryDelay: 100,
+	retryDelay: 600,
 	httpMethodsToRetry: ['GET', 'POST', 'DELETE', 'PUT'],
 
 	// Retry only when it's an authorized request (refresh token)
@@ -113,7 +145,20 @@ function getCookie(name: string): string | null {
 }
 
 axios.interceptors.request.use(
-	(config: InternalAxiosRequestConfig) => {
+	async (config: InternalAxiosRequestConfig) => {
+		// Skip token refresh for auth endpoints to avoid loops
+		const skipUrls = ['/auth/', '/login', '/logout', '/refresh'];
+		const shouldSkip = skipUrls.some(url => config.url?.includes(url));
+		
+		if (!shouldSkip) {
+			// Check and refresh organization token if needed
+			const isValid = await ensureValidToken();
+			if (!isValid) {
+				console.warn('[HTTP] Token refresh failed, request may fail');
+			}
+		}
+		
+		// Continue with CSRF token handling
 		const method = config.method?.toLowerCase();
 		if (method && ['post', 'put', 'delete', 'patch'].includes(method)) {
 			if (!config.headers['X-CSRFToken']) {
@@ -134,11 +179,60 @@ axios.interceptors.request.use(
 	}
 );
 
+let isRefreshing403 = false;
+let failedQueue: Array<{ resolve: (value: any) => void; reject: (reason?: any) => void; config: any }> = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+	failedQueue.forEach((prom) => {
+		if (error) {
+			prom.reject(error);
+		} else {
+			prom.resolve(axios(prom.config));
+		}
+	});
+	failedQueue = [];
+};
+
 axios.interceptors.response.use(
 	(response: AxiosResponse) => {
 		return response.data;
 	},
-	(error: AxiosError<any>) => {
+	async (error: AxiosError<any>) => {
+		const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+		
+		// Handle 403 - might be expired organization token
+		if (error.response?.status === 403 && !originalRequest._retry) {
+			// Check if token is expired
+			if (isTokenExpired()) {
+				originalRequest._retry = true;
+				
+				if (isRefreshing403) {
+					// Queue the request while refreshing
+					return new Promise((resolve, reject) => {
+						failedQueue.push({ resolve, reject, config: originalRequest });
+					});
+				}
+				
+				isRefreshing403 = true;
+				
+				try {
+					const refreshed = await refreshOrganizationToken();
+					if (refreshed) {
+						processQueue(null);
+						return axios(originalRequest);
+					} else {
+						processQueue(error);
+						auth_event.publish(PERM_REQUIRED_EVENT);
+					}
+				} catch (refreshError) {
+					processQueue(refreshError);
+					auth_event.publish(PERM_REQUIRED_EVENT);
+				} finally {
+					isRefreshing403 = false;
+				}
+			}
+		}
+		
 		return Promise.reject(error);
 	}
 );
@@ -164,7 +258,7 @@ export function request(url: string, process: (url: string, args: any[]) => any,
 	return (...args: any[]) => {
 		const mappedUrl =
 			ORIGIN + tokens.map((token, i) => (token.startsWith(':') ? args.shift() : token)).join('/');
-		return Promise.resolve(process(mappedUrl.replace(/\/$/, ''), args));
+		return Promise.resolve(process(mappedUrl, args));
 	};
 }
 

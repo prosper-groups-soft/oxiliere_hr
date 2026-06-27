@@ -1,5 +1,5 @@
 from django.core.cache         import cache
-from hr.services.cache_helpers import generate_cache_key, CacheKeys
+from hr.services.cache_helpers import generate_cache_key, CacheKeys, invalidate_cache_prefix
 from hr.recruitment.models     import (
     JobOffer,
     Candidate,
@@ -28,22 +28,22 @@ class RecruitmentCacheService:
         return offer
     
     @staticmethod
-    def get_active_job_offers(department=None):
+    def get_active_job_offers(org_unit=None):
         """
         Get all active job offers (short cache - can change).
         """
-        department_id = None
-        if department:
-            department_id = department.id if hasattr(department, 'id') else department
+        org_unit_id = None
+        if org_unit:
+            org_unit_id = org_unit.id if hasattr(org_unit, 'id') else org_unit
         
-        cache_key = CacheKeys.active_job_offers(department_id)
+        cache_key = CacheKeys.active_job_offers(org_unit_id)
         offers = cache.get(cache_key)
         
         if offers is None:
-            query = JobOffer.objects.filter(status='open')
+            query = JobOffer.objects.filter(status='open').prefetch_related('target_positions')
             
-            if department_id:
-                query = query.filter(position__department_id=department_id)
+            if org_unit_id:
+                query = query.filter(target_positions__org_unit_id=org_unit_id)
             
             offers = list(query.order_by('-created_at'))
             cache.set(cache_key, offers, timeout=60*60*24)  # 24h
@@ -232,6 +232,7 @@ class RecruitmentCacheService:
         cache.delete(generate_cache_key(
             "hr:recruitment:applications_offer", offer_id, None
         ))
+        invalidate_cache_prefix("job_offers_list")
 
     @staticmethod
     def clear_application_cache(application):

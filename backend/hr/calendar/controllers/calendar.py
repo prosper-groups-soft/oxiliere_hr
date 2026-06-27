@@ -2,8 +2,6 @@ from typing   import List
 from uuid     import UUID
 from injector import inject
 from ninja    import Query
-from ninja.pagination import paginate
-from oxutils.pagination.cursor import CursorPagination
 from oxutils.permissions.perms import ScopePermission
 
 from ninja_extra import (
@@ -11,6 +9,7 @@ from ninja_extra import (
     http_get,
     http_post,
     http_put,
+    http_patch,
     http_delete,
     ControllerBase,
 )
@@ -45,7 +44,6 @@ class CalendarController(ControllerBase):
     # --- Events ---
 
     @http_get("/events", response=List[CalendarEventOut], permissions=[ScopePermission('calendar:r')])
-    @paginate(CursorPagination)
     @cache_api_response(timeout=60*60*24*7, key_prefix="calendar_events_list", user_specific=False)
     def list_events(self, filters: CalendarEventFilterIn = Query(...)):
         """ Lists all scheduled events with optional filtering by type or date. """
@@ -78,6 +76,18 @@ class CalendarController(ControllerBase):
         except ValidationError as e:
             return self.create_response({"detail": e.messages}, status_code=400)
 
+    @http_patch("/events/{event_id}", response=CalendarEventOut, permissions=[ScopePermission('calendar:u')])
+    def partial_update_event(self, event_id: UUID, payload: CalendarEventUpdateIn):
+        """ Partially updates an existing calendar event (only provided fields). """
+        try:
+            instance = self.calendar_service.get(id=event_id)
+            return self.calendar_service.update(
+                instance=instance, 
+                data=payload.model_dump(exclude_unset=True)
+            )
+        except ValidationError as e:
+            return self.create_response({"detail": e.messages}, status_code=400)
+
     @http_delete("/events/{event_id}", response={204: None}, permissions=[ScopePermission('calendar:d')])
     def delete_event(self, event_id: UUID):
         """ Removes an event from the company calendar. """
@@ -90,4 +100,9 @@ class CalendarController(ControllerBase):
     def init_default_events(self):
         """ Initializes default events for the company."""
         return self.init_event_service.init_default_events()
+
+    @http_post("/reset-holidays", response={200: List[CalendarEventOut]}, permissions=[ScopePermission('calendar:w')])
+    def reset_holidays(self):
+        """ Deletes all existing PUBLIC_HOLIDAY events and re-imports them from fixtures. """
+        return self.init_event_service.reset_holidays()
 

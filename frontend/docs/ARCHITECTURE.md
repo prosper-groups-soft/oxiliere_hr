@@ -257,7 +257,7 @@ export interface Employee {
 	lastName: string;
 	email: string;
 	position: string;
-	department: string;
+	orgUnit: string;
 	joinDate: Date;
 	status: 'active' | 'inactive' | 'on_leave';
 	// ...
@@ -274,7 +274,7 @@ export interface CreateEmployeeInput {
 #### Schémas de Validation (Zod)
 
 ```typescript
-// features/employees/schemas/employeeSchema.ts
+// features/employees/schemas/employee.schema.ts
 import { z } from 'zod';
 
 export const createEmployeeSchema = z.object({
@@ -807,6 +807,36 @@ Pattern standard :
 
 ---
 
+## Organisation par Groupes Métiers
+
+### Sidebar Navigation
+
+Ne listez pas tout en vrac. Regroupez les modules par affinité pour réduire la charge cognitive :
+
+- **CORE RH** : Employees, Jobs.
+- **OPÉRATIONS** : Attendance, Calendar, Leaves.
+- **FINANCE** : Payroll, Banking.
+- **TALENTS** : Recruitment.
+
+### Structure Features
+
+```
+src/lib/
+|-- core/           # Logique transverse (Auth, API Client, Layout global)
+|-- shared/         # Composants UI atomiques (Button, Avatar, Modal, Badge)
+|-- features/       # LE CŒUR : Un dossier par module métier
+    |-- employees/
+        |-- components/  # Composants spécifiques (EmployeeRow, OnboardingStepper)
+        |-- services/    # Appels API TanStack Query (getEmployee, updateStatus)
+        |-- stores/      # État local au module (filtres persistants)
+        |-- schemas/     # Validations Zod (IdentitySchema, FamilySchema)
+        |-- types/       # Types TS (Employee, Dependent)
+    |-- payroll/
+    |-- attendance/
+```
+
+---
+
 ## Directives Finales
 
 1. **TOUJOURS** vérifier les types et structures existants
@@ -814,5 +844,5 @@ Pattern standard :
 3. **Garder les composants petits** (< 200 lignes)
 4. **Nommer clairement** (éviter `Item`, `Data`, préférer `Employee`, `Leave`)
 5. **Documenter le code complexe** (logique métier, calculs)
-6. **Tester les changements** (`npm run check`, browser)
+6. **Tester les changements** (`pnpm run check`, browser)
 7. **Suivre les patterns** du codebase (cohérence > perfection)

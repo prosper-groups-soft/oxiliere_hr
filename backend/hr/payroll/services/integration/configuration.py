@@ -14,6 +14,7 @@ from hr.payroll.models import (
     TaxBracket,
     LegalAllowance,
 )
+from hr.payroll.services.cache import PayrollCacheService
 
 
 logger = logging.getLogger(__name__)
@@ -37,7 +38,7 @@ class ConfigurationService:
 
         # Validate currency
         currency = data.get('currency', 'CDF')
-        if currency not in ['CDF', 'USD', 'EUR']:
+        if currency not in ['CDF', 'USD']:
             logger.warning("[Config] Invalid currency", extra={"currency": currency})
             raise ValidationError(f"Invalid currency: {currency}")
 
@@ -64,7 +65,11 @@ class ConfigurationService:
                 setattr(config, key, value)
 
         config.save()
-        logger.info("[Config] Configuration updated successfully")
+
+        # Clear all payroll-related caches
+        PayrollCacheService.clear_config_cache()
+
+        logger.info("[Config] Configuration updated and all caches cleared")
         return config
 
     # ===== SMIG RATES =====
@@ -162,6 +167,7 @@ class ConfigurationService:
         )
         return rate
 
+
     @classmethod
     @transaction.atomic
     def update_contribution_rate(cls, rate_id: UUID, data: Dict[str, Any], actor=None) -> SocialContributionRate:
@@ -218,6 +224,7 @@ class ConfigurationService:
             extra={"type": data.get('rule_type'), "hour": starting_hour, "multiplier": multiplier}
         )
         return rule
+    
 
     @classmethod
     @transaction.atomic
@@ -244,8 +251,13 @@ class ConfigurationService:
                 setattr(rule, key, value)
 
         rule.save()
-        logger.info("[Overtime] Rule updated", extra={"rule_id": rule_id})
+        
+        # Clear overtime rules cache
+        PayrollCacheService.clear_overtime_cache()
+        
+        logger.info("[Overtime] Rule updated and cache cleared", extra={"rule_id": rule_id})
         return rule
+    
 
     # ===== TAX BRACKETS =====
 
@@ -369,7 +381,7 @@ class ConfigurationService:
             if amount < 0:
                 raise ValidationError("Allowance amount must be non-negative")
 
-            if allowance.calculation_method == 'PERCENTAGE' and amount > 100:
+            if allowance.calculation_mode == 'PERCENTAGE' and amount > 100:
                 raise ValidationError("Percentage cannot exceed 100")
 
         # Update fields
@@ -378,6 +390,10 @@ class ConfigurationService:
                 setattr(allowance, key, value)
 
         allowance.save()
-        logger.info("[Allowances] Allowance updated", extra={"allowance_id": allowance_id})
+        
+        # Invalidate cache
+        PayrollCacheService.clear_allowance_cache()
+        
+        logger.info("[Allowances] Allowance updated and cache cleared", extra={"allowance_id": allowance_id})
         return allowance
 

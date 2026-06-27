@@ -1,71 +1,81 @@
+import logging
 from django.core.cache import cache
-from hr.services.cache_helpers import generate_cache_key, CacheKeys
+from django_redis      import get_redis_connection
+from hr.services.cache_helpers import (
+    generate_cache_key, 
+    CacheKeys, 
+    invalidate_cache_pattern
+)
 from hr.jobs.models import (
     JobFamily,
     Position,
-    Department,
-    Department,
+    OrgUnit,
     EmployeePositionHistory,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 class JobsCacheService:
     """ Centralized cache management for organizational structure and job data. """
     
-    @staticmethod
-    def get_department(department_id):
-        """ Retrieves a cached department instance. """
-        cache_key = generate_cache_key("hr:jobs:department", department_id)
-        department = cache.get(cache_key)
-        
-        if department is None:
-            department = Department.objects.filter(
-                id=department_id
-            ).first()
-            
-            if department:
-                cache.set(cache_key, department, timeout=60*60*24)  # 24h
-        
-        return department
+    redis_conn = get_redis_connection("default")
     
     @staticmethod
-    def get_department_tree():
+    def get_org_unit(unit_id):
+        """ Retrieves a cached organizational unit instance. """
+        cache_key = generate_cache_key("hr:jobs:orgunit", unit_id)
+        unit = cache.get(cache_key)
+        
+        if unit is None:
+            unit = OrgUnit.objects.filter(
+                id=unit_id
+            ).first()
+            
+            if unit:
+                cache.set(cache_key, unit, timeout=60*60*24)  # 24h
+        
+        return unit
+    
+    @staticmethod
+    def get_org_tree():
         """
-        Get full department tree (stable org structure - long cache).
+        Get full organizational tree (stable org structure - long cache).
         
         Returns:
-            List of root departments with children
+            List of root units with children
         """
-        cache_key = CacheKeys.department_tree()
+        cache_key = CacheKeys.org_tree()
         tree = cache.get(cache_key)
         
         if tree is None:
-            # Build department hierarchy
-            tree = list(Department.objects.filter(
+            # Build org unit hierarchy
+            tree = list(OrgUnit.objects.filter(
                 parent=None
-            ).prefetch_related('children').order_by('name'))
+            ).prefetch_related('sub_units').order_by('name'))
             
             cache.set(cache_key, tree, timeout=60*60*24)  # 24h
         
         return tree
     
     @staticmethod
-    def get_all_departments(flat=False):
-        """ Retrieves a list of all departments, either flat or as a hierarchy. """
+    def get_all_org_units(flat=False):
+        """ Retrieves a list of all org units, either flat or as a hierarchy. """
         cache_key = generate_cache_key(
-            "hr:jobs:departments", "flat" if flat else "tree"
+            "hr:jobs:org_units", "flat" if flat else "tree"
         )
-        departments = cache.get(cache_key)
+        org_units = cache.get(cache_key)
         
-        if departments is None:
+        if org_units is None:
             if flat:
-                departments = list(Department.objects.all().order_by('name'))
+                org_units = list(OrgUnit.objects.all().order_by('name'))
             else:
-                departments = JobsCacheService.get_department_tree()
+                org_units = JobsCacheService.get_org_tree()
             
-            cache.set(cache_key, departments, timeout=60*60*24)  # 24h
+            cache.set(cache_key, org_units, timeout=60*60*24)  # 24h
         
-        return departments
+        return org_units
     
     @staticmethod
     def get_job_family(family_id):
@@ -118,23 +128,23 @@ class JobsCacheService:
         return position
     
     @staticmethod
-    def get_positions_by_department(department):
-        """ Retrieves all positions currently active within a specific department. """
-        if isinstance(department, Department):
-            department_id = department.id
+    def get_positions_by_org_unit(org_unit):
+        """ Retrieves all positions currently active within a specific org unit. """
+        if isinstance(org_unit, OrgUnit):
+            org_unit_id = org_unit.id
         else:
-            department_id = department
+            org_unit_id = org_unit
         
         cache_key = generate_cache_key(
-            "hr:jobs:positions_dept", department_id
+            "hr:jobs:positions_unit", org_unit_id
         )
         positions = cache.get(cache_key)
         
         if positions is None:
-            # We fetch positions that are currently active in this department
+            # We fetch positions that are currently active in this org unit
             # This requires a subquery or join through EmployeePositionHistory
             position_ids = EmployeePositionHistory.objects.filter(
-                department_id=department_id,
+                org_unit_id=org_unit_id,
                 is_current=True
             ).values_list('position_id', flat=True).distinct()
             
@@ -181,16 +191,49 @@ class JobsCacheService:
         return positions
     
     @staticmethod
-    def clear_department_cache():
-        """ Invalidates all department-related caches. """
-        cache.delete(CacheKeys.department_tree())
-        cache.delete(generate_cache_key("hr:jobs:departments", "flat"))
-        cache.delete(generate_cache_key("hr:jobs:departments", "tree"))
+    def clear_org_unit_cache():
+        """ Invalidates all org unit-related caches. """
+        cache.delete(CacheKeys.org_tree())
+        cache.delete(generate_cache_key("hr:jobs:org_units", "flat"))
+        cache.delete(generate_cache_key("hr:jobs:org_units", "tree"))
+        
+        # Also clear cache_api_response keys for organization endpoints
+        JobsCacheService.clear_org_tree_api_cache()
     
     @staticmethod
-    def clear_department_positions_cache(department_id):
-        """ Invalidates the list of positions for a specific department. """
-        cache.delete(generate_cache_key("hr:jobs:positions_dept", department_id))
+    def clear_org_tree_api_cache():
+        """ Clear cache_api_response keys for org tree and unit list endpoints. """
+        # Pattern: :1:org_tree:shared:/api/organization/tree
+        patterns = [
+            "*:org_tree:*",
+            "*:unit_list:*",
+        ]
+        for pattern in patterns:
+            keys = JobsCacheService.redis_conn.keys(pattern)
+            if keys:
+                JobsCacheService.redis_conn.delete(*keys)
+                logger.info(f"[Cache] Cleared {len(keys)} org API cache keys for pattern: {pattern}")
+            else:
+                logger.info(f"[Cache] No org API cache keys found for pattern: {pattern}")
+
+    @staticmethod
+    def clear_employee_list_api_cache():
+        """ Clear cache_api_response keys for employee list endpoint. """
+        patterns = [
+            "*:employee_list:*",
+        ]
+        for pattern in patterns:
+            keys = JobsCacheService.redis_conn.keys(pattern)
+            if keys:
+                JobsCacheService.redis_conn.delete(*keys)
+                logger.info(f"[Cache] Cleared {len(keys)} employee API cache keys for pattern: {pattern}")
+            else:
+                logger.info(f"[Cache] No employee API cache keys found for pattern: {pattern}")
+    
+    @staticmethod
+    def clear_org_unit_positions_cache(org_unit_id):
+        """ Invalidates the list of positions for a specific org unit. """
+        cache.delete(generate_cache_key("hr:jobs:positions_unit", org_unit_id))
 
     @staticmethod
     def clear_employee_position_cache(employee):
@@ -207,8 +250,31 @@ class JobsCacheService:
         cache.delete(CacheKeys.positions_by_family(family_id))
 
     @staticmethod
+    def clear_job_families_list_cache():
+        """ Invalidates the job families list cache. """
+        invalidate_cache_pattern("*:job_families_list*")
+        logger.info("[Cache] Cleared job families list cache")
+
+    @staticmethod
     def clear_position_cache(position_id, family_id=None):
         """ Invalidates cache entries for a specific position. """
         cache.delete(generate_cache_key("hr:jobs:position", position_id))
         if family_id:
             cache.delete(CacheKeys.positions_by_family(family_id))
+
+    @staticmethod
+    def clear_seniority_levels_cache():
+        """ Invalidates all seniority levels cache entries. """
+        # Clear cache_api_response keys for seniority levels endpoint
+        patterns = [
+            "*:seniority_levels:*",
+            "*seniority_levels*",  # Pattern utilisé par cache_api_response
+        ]
+        for pattern in patterns:
+            keys = JobsCacheService.redis_conn.keys(pattern)
+            if keys:
+                JobsCacheService.redis_conn.delete(*keys)
+                logger.info(f"[Cache] Cleared {len(keys)} seniority levels cache keys for pattern: {pattern}")
+            else:
+                logger.info(f"[Cache] No seniority levels cache keys found for pattern: {pattern}")
+

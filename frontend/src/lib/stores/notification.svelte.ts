@@ -1,5 +1,6 @@
 import { toast } from '@/utilities/ui/toast';
-import type { AlertDialogVariant } from '@/components/shared/modals/AlertDialog.svelte';
+
+export type AlertDialogVariant = 'info' | 'danger' | 'warning' | 'success';
 
 
 export interface ConfirmRequest {
@@ -57,3 +58,4 @@ class NotificationStore {
 
 
 export const notification = new NotificationStore();
+

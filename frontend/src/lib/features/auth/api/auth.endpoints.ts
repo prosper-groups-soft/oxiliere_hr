@@ -39,4 +39,14 @@ export const UserAccountEndpoints = {
 	),
 	accounts: new APIEndPoint('/users-accounts', '/users-accounts', get_api_auth_origin()),
 	account_activate: new APIEndPoint(
-		'/users-accounts/:user_
+		'/users-accounts/:user_id/activate',
+		'/users-accounts/:user_id/activate',
+		get_api_auth_origin()
+	),
+	account_reset_password: new APIEndPoint(
+		'/users-accounts/:user_id/reset-password',
+		'/users-accounts/:user_id/reset-password',
+		get_api_auth_origin()
+	)
+};
+

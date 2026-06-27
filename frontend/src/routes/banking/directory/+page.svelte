@@ -1,45 +1,283 @@
 <script lang="ts">
-  import AppIcon from '@/components/layout/elements/AppIcon.svelte';
+  import { fly } from 'svelte/transition';
+  import { get } from 'svelte/store';
   import { bankingStore } from "@/features/banking/stores/banking.svelte";
   import BankCard from "@/features/banking/components/directory/BankCard.svelte";
   import { Button } from "@/components/ui/button";
   import SearchBar from "@/components/shared/elements/SearchBar.svelte";
   import FilterChips from "@/components/shared/elements/FilterChips.svelte";
-  import * as DropdownMenu from "@/components/ui/dropdown-menu";
-  import { Badge } from "@/components/ui/badge";
   import Empty from "@/components/shared/containers/empty/Empty.svelte";
+  import AppIcon from '@/components/layout/elements/AppIcon.svelte';
+  import AnimateSpin from '@/components/layout/elements/AnimateSpin.svelte';
   import BankInstitutionSheet from "@/features/banking/components/directory/sheets/BankInstitutionSheet.svelte";
+  import BankingActions from "@/features/banking/components/directory/BankingActions.svelte";
   import type { BankInstitution } from "@/features/banking/types/types";
-  import { fade, fly, scale } from "svelte/transition";
+  import { useBanksQuery, useCreateBankMutation, useUpdateBankMutation, useDeleteBankMutation, useUploadBankLogoMutation } from "@/features/banking/queries/bankingQueries";
+  import { ui } from '@/stores/ui.svelte';
 
+
+  // --- UI State ---
   let isSheetOpen = $state(false);
   let selectedInstitution = $state<BankInstitution | null>(null);
 
-  const institutions = $derived(bankingStore.filteredInstitutions);
+  // Indicateur de filtrage local (pour afficher la barre de chargement)
+  let isFiltering = $state(false);
+
+  $effect(() => {
+    // Tracker les changements de filtres
+    bankingStore.institutionFilters.search;
+    bankingStore.institutionFilters.type;
+    bankingStore.institutionFilters.isActive;
+
+    const timeout = setTimeout(() => {
+      isFiltering = false;
+    }, 400);
+
+    const hasActiveFilters =
+      bankingStore.institutionFilters.type.length
+      + (bankingStore.institutionFilters.search ? 1 : 0)
+      + (bankingStore.institutionFilters.isActive !== null ? 1 : 0);
+
+    if (hasActiveFilters > 0) {
+      isFiltering = true;
+    }
+
+    return () => clearTimeout(timeout);
+  });
+
+  // --- TanStack Query ---
+  const banksQuery = useBanksQuery();
+  const createMutation = useCreateBankMutation();
+  const updateMutation = useUpdateBankMutation();
+  const deleteMutation = useDeleteBankMutation();
+  const uploadLogoMutation = useUploadBankLogoMutation();
+
+  // Sync query data into the store
+  $effect(() => {
+    const data = $banksQuery.data;
+    if (data) {
+      bankingStore.updateInstitutions(data);
+    }
+  });
+
+  // --- Derived ---
+  const institutions = $derived.by(() => {
+    const data = bankingStore.institutions;
+    if (!data) return [];
+
+    let result = data;
+
+    const types = bankingStore.institutionFilters.type;
+    if (types.length > 0) {
+      result = result.filter(inst => types.includes(inst.type));
+    }
+
+    const search = bankingStore.institutionFilters.search.trim().toLowerCase();
+    if (search) {
+      result = result.filter(inst =>
+        inst.name.toLowerCase().includes(search) ||
+        inst.shortName.toLowerCase().includes(search) ||
+        inst.country.toLowerCase().includes(search)
+      );
+    }
+
+    const isActive = bankingStore.institutionFilters.isActive;
+    if (isActive !== null) {
+      result = result.filter(inst => inst.isActive === isActive);
+    }
+
+    return result;
+  });
+
+  // Construire un objet filters enrichi qui inclut la recherche textuelle
+  // pour que FilterChips puisse l'afficher
+  const filtersWithSearch = $derived.by((): Record<string, string[]> => {
+    const f: Record<string, string[]> = {};
+    if (bankingStore.institutionFilters.type.length > 0) {
+      f.type = bankingStore.institutionFilters.type;
+    }
+    if (bankingStore.institutionFilters.search) {
+      f.search = [bankingStore.institutionFilters.search];
+    }
+    if (bankingStore.institutionFilters.isActive !== null) {
+      f.isActive = [bankingStore.institutionFilters.isActive.toString()];
+    }
+    return f;
+  });
+
+  const activeFiltersCount = $derived(
+    bankingStore.institutionFilters.type.length
+    + (bankingStore.institutionFilters.search ? 1 : 0)
+    + (bankingStore.institutionFilters.isActive !== null ? 1 : 0)
+  );
+
+  function getFilterDisplayLabel(key: string, value: unknown) {
+    if (key === 'search') return `Recherche: "${value}"`;
+    if (key === 'type') return value === 'bank' ? 'Banques' : 'Mobile Money';
+    if (key === 'isActive') return value === 'true' ? 'Actifs' : 'Inactifs';
+    return String(value);
+  }
 
   function openNewSheet() {
     selectedInstitution = null;
     isSheetOpen = true;
   }
+
+  function handleEdit(inst: BankInstitution) {
+    selectedInstitution = inst;
+    isSheetOpen = true;
+  }
+
+  // --- Mutation handlers ---
+  async function handleCreate(data: {
+    name: string;
+    shortName: string;
+    country: string;
+    type: 'bank' | 'mobile_money';
+    swiftCode: string;
+    isActive: boolean;
+  }): Promise<BankInstitution> {
+    return await $createMutation.mutateAsync({
+      name: data.name,
+      code: data.shortName,
+      swift_code: data.swiftCode || undefined,
+      is_mobile_money: data.type === 'mobile_money',
+      country_code: data.country,
+      is_active: data.isActive,
+    });
+  }
+
+  async function handleUpdate(id: string, data: {
+    name: string;
+    shortName: string;
+    country: string;
+    type: 'bank' | 'mobile_money';
+    swiftCode: string;
+    isActive: boolean;
+  }) {
+    await $updateMutation.mutateAsync({
+      bankId: id,
+      data: {
+        name: data.name,
+        code: data.shortName,
+        swift_code: data.swiftCode || undefined,
+        is_mobile_money: data.type === 'mobile_money',
+        country_code: data.country,
+        is_active: data.isActive,
+      },
+    });
+  }
+
+  async function handleDelete(instId: string) {
+    await $deleteMutation.mutateAsync(instId);
+  }
+
+  async function handleUploadLogo(bankId: string, file: File) {
+    await $uploadLogoMutation.mutateAsync({ bankId, file });
+  }
+
+  // Enregistrer les actions dans le store UI (comme les pages LeavesBoard/employés)
+  $effect(() => {
+    ui.addActions('banking-directory', BankingActionsSnippet);
+    return () => {
+      ui.removeActions('banking-directory');
+    };
+  });
 </script>
 
 
-{#snippet FilterSection(title: string, options: string[], filterKey: 'type')}
-  <DropdownMenu.Label class="text-[0.75rem]! font-bold text-slate-400 uppercase tracking-widest px-2 py-2">
-    {title}
-  </DropdownMenu.Label>
-  {#each options as option}
-    <DropdownMenu.CheckboxItem 
-      checked={bankingStore.institutionFilters[filterKey].includes(option as any)}
-      onCheckedChange={() => {
-         if (filterKey === 'type') bankingStore.toggleInstitutionType(option as any);
+<div class="flex flex-col h-full bg-white">
+  {@render Header()}
+
+  <div class="flex flex-col flex-1 overflow-hidden">
+    <FilterChips 
+      filters={filtersWithSearch}
+      activeFiltersCount={activeFiltersCount}
+      getDisplayLabel={getFilterDisplayLabel}
+      onRemove={(key, value) => {
+        if (key === 'search') {
+          bankingStore.institutionFilters.search = '';
+        } else if (key === 'isActive') {
+          bankingStore.institutionFilters.isActive = null;
+        } else {
+          bankingStore.toggleInstitutionType(value as any);
+        }
       }}
-      class="rounded-lg py-1.5 px-2 text-[0.85rem]! cursor-pointer pl-7"
-    >
-      {option === 'bank' ? 'Banques' : 'Mobile Money'}
-    </DropdownMenu.CheckboxItem>
-  {/each}
-{/snippet}
+      onReset={() => bankingStore.resetInstitutionFilters()}
+      class="px-6 py-1.5 border-b border-slate-50 bg-white/50"
+    />
+
+    <!-- Overhead loading bar during refetch -->
+    {#if $banksQuery.isFetching || isFiltering}
+      <div class="h-0.5 bg-slate-100 overflow-hidden shrink-0">
+        <div class="h-full bg-primary animate-[loadingSlide_1.2s_ease-in-out_infinite] rounded-full" style="width: 30%"></div>
+      </div>
+    {/if}
+
+    <main class="flex flex-1 flex-col overflow-hidden min-h-0">
+      {#if $banksQuery.isPending}
+        <div class="flex-1 flex items-center justify-center" in:fly={{ y: 15, duration: 300 }}>
+          <AnimateSpin text="Chargement des institutions" />
+        </div>
+      {:else if $banksQuery.error}
+        <div class="flex-1 flex items-center justify-center" in:fly={{ y: 15, duration: 300 }}>
+          <Empty 
+            title="Erreur de chargement"
+            description="Impossible de charger la liste des institutions financières."
+            icon="alert-circle"
+            iconSize={28}
+            iconStrokeWidth={1.3}
+            iconClass="text-rose-300"
+          >
+            <Button onclick={() => get(banksQuery).refetch()} class="h-7">
+              <AppIcon name="refresh" size={15} />
+              Réessayer
+            </Button>
+          </Empty>
+        </div>
+      {:else if institutions.length === 0}
+        <div class="flex-1 flex items-center justify-center" in:fly={{ y: 15, duration: 300 }}>
+          <Empty 
+            title="Aucune institution"
+            description={activeFiltersCount > 0
+              ? "Aucune institution ne correspond à vos critères."
+              : "Aucune institution financière n'a encore été enregistrée."}
+            icon={activeFiltersCount > 0 ? "search-x" : "bank"}
+            iconSize={28}
+            iconStrokeWidth={1.3}
+            iconClass="text-slate-300"
+          >
+            {#if activeFiltersCount > 0}
+              <Button variant="ghost" onclick={() => bankingStore.resetInstitutionFilters()} class="h-7 bg-slate-50">
+                <AppIcon name="x" size={16} class="text-slate-400" />
+                Réinitialiser les filtres
+              </Button>
+            {:else}
+              <Button onclick={openNewSheet} class="h-7">
+                <AppIcon name="plus" size={15} />
+                Nouvelle institution
+              </Button>
+            {/if}
+          </Empty>
+        </div>
+      {:else}
+        <div class="flex-1 overflow-y-auto p-5 scroll-smooth custom-scrollbar" in:fly={{ y: 15, duration: 300, delay: 80 }}>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {#each institutions as institution (institution.id)}
+              <div in:fly={{ y: 20, duration: 400 }}>
+                <BankCard 
+                  {institution} 
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                />
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/if}
+    </main>
+  </div>
+</div>
 
 
 {#snippet Header()}
@@ -56,118 +294,44 @@
         />
       </div>
       
-      <div class="flex items-center gap-2">
-        <DropdownMenu.Root>
-          <DropdownMenu.Trigger>
-            {#snippet child({ props })}
-              <Button 
-                {...props}
-                variant="outline" 
-                class="h-7.5 px-4 gap-2 text-slate-600 border-slate-200 shadow-fine"
-              >
-                <AppIcon 
-                  name="filter" 
-                  size={16} 
-                  class={bankingStore.activeInstitutionFiltersCount > 0 ? "text-primary" : "text-slate-400"} 
-                />
-                <span class="text-[0.86rem]">Type</span>
-                {#if bankingStore.activeInstitutionFiltersCount > 0}
-                  <div transition:scale={{ duration: 200 }}>
-                    <Badge class="h-4 min-w-4 p-0 flex items-center justify-center bg-primary text-white font-medium rounded-full text-[0.6rem] border-none">
-                      {bankingStore.activeInstitutionFiltersCount}
-                    </Badge>
-                  </div>
-                {/if}
-              </Button>
-            {/snippet}
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Content align="end" class="w-50 p-0 rounded-md shadow-fine border-slate-100 bg-white overflow-hidden">
-            <div class="p-2 max-h-80 overflow-y-auto">
-              {@render FilterSection("Type d'entité", ["bank", "mobile_money"], "type")}
-            </div>
-
-            {#if bankingStore.activeInstitutionFiltersCount > 0}
-              <div class="p-2 bg-slate-50/50 border-t border-slate-100">
-                <Button variant="ghost" onclick={() => bankingStore.resetInstitutionFilters()} class="w-full h-8 text-[0.84rem] bg-white text-rose-500 hover:text-rose-600 hover:bg-rose-50! font-medium">
-                  Réinitialiser
-                </Button>
-              </div>
-            {/if}
-          </DropdownMenu.Content>
-        </DropdownMenu.Root>
-
-        <Button 
-          variant="default" 
-          class="h-7.5 px-4 gap-2 bg-primary text-white shadow-fine rounded-lg hover:bg-primary/90 transition-all cursor-pointer"
-          onclick={openNewSheet}
-        >
-          <AppIcon name="plus" size={16} />
-          <span class="text-[0.86rem]">Nouvelle institution</span>
-        </Button>
-      </div>
+      <Button 
+        variant="default" 
+        class="h-7.5 px-4 bg-primary text-white shadow-fine rounded-lg hover:bg-primary/90 transition-all cursor-pointer"
+        onclick={openNewSheet}
+      >
+        <AppIcon name="plus" size={17} />
+        <span class="text-[0.86rem]">Nouvelle institution</span>
+      </Button>
     </div>
   </div>
 {/snippet}
 
 
-<div class="flex flex-col h-full bg-white">
-  {@render Header()}
-
-  <div class="flex flex-col flex-1 overflow-hidden">
-    <FilterChips 
-      filters={bankingStore.institutionFilters}
-      activeFiltersCount={bankingStore.activeInstitutionFiltersCount}
-      onRemove={(key, value) => {
-        if (key === 'type') bankingStore.toggleInstitutionType(value as any);
-      }}
-      onReset={() => bankingStore.resetInstitutionFilters()}
-      class="px-6 py-2 border-b border-slate-50 bg-white/50"
-    />
-
-    <div class="flex-1 overflow-y-auto p-5 scroll-smooth custom-scrollbar">
-      {#if institutions.length > 0}
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {#each institutions as institution (institution.id)}
-            <div in:fly={{ y: 20, duration: 400 }}>
-              <BankCard 
-                {institution} 
-                onEdit={(inst) => {
-                  selectedInstitution = inst;
-                  isSheetOpen = true;
-                }}
-              />
-            </div>
-          {/each}
-        </div>
-      {:else}
-        <div in:fade class="h-full">
-          <Empty 
-            icon="search"
-            title="Aucune institution"
-            iconClass="text-slate-300"
-            description="Désolé, nous n'avons trouvé aucun établissement correspondant à votre recherche."
-          >
-            <Button 
-              variant="outline" 
-              class="border-slate-200 h-9 rounded-lg px-4 text-[0.83rem] shadow-fine"
-              onclick={() => bankingStore.resetInstitutionFilters()}
-            >
-              Réinitialiser les filtres
-            </Button>
-          </Empty>
-        </div>
-      {/if}
-    </div>
-  </div>
-</div>
+<!-- WRAPPER FOR ui.addActions -->
+{#snippet BankingActionsSnippet()}
+  <BankingActions />
+{/snippet}
 
 
-<BankInstitutionSheet bind:open={isSheetOpen} bind:institution={selectedInstitution} />
+<BankInstitutionSheet 
+  bind:open={isSheetOpen} 
+  bind:institution={selectedInstitution} 
+  onCreate={handleCreate}
+  onUpdate={handleUpdate}
+  onUploadLogo={handleUploadLogo}
+/>
 
 
 <style>
   .custom-scrollbar::-webkit-scrollbar { width: 4px; }
   .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
   .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+  :global {
+    @keyframes loadingSlide {
+      0% { transform: translateX(-100%); }
+      50% { transform: translateX(200%); }
+      100% { transform: translateX(400%); }
+    }
+  }
 </style>
 

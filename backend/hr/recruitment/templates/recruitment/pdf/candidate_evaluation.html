@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>
+    {{ title }} - {{ candidate.last_name }} {{ candidate.middle_name }} {{ candidate.first_name }}
+  </title>
+  <style>
+    @page {
+      size: A4;
+      margin: 1.2cm;
+      @bottom-right {
+        content: "Page " counter(page) " / " counter(pages);
+        font-size: 8pt; color: #94a3b8;
+      }
+      @bottom-left {
+        content: "Oxiliere HR • {% now 'd/m/Y H:i' %}";
+        font-size: 8pt; color: #94a3b8;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 8pt; line-height: 1.35;
+      color: #1e293b; margin: 0; padding: 0; background: #ffffff;
+    }
+    h1, h2, h3, h4, p { margin: 0; }
+    .bold { font-weight: bold; }
+    .muted { color: #64748b; }
+
+    .header {
+      display: table; width: 100%;
+      border-bottom: 1px solid #dbe2ea;
+      padding-bottom: 12px; margin-bottom: 16px;
+    }
+    .header-photo { display: table-cell; width: 80px; vertical-align: top; }
+    .header-content { display: table-cell; vertical-align: middle; padding-left: 12px; }
+    .photo-wrapper {
+      width: 70px; height: 70px; border-radius: 6px; overflow: hidden;
+      border: 1px solid #dbe2ea; background: #f8fafc;
+    }
+    .photo-wrapper img { width: 70px; height: 70px; object-fit: cover; display: block; }
+    .photo-placeholder {
+      width: 100%; height: 100%; line-height: 70px; text-align: center;
+      font-size: 18pt; font-weight: bold; color: #94a3b8;
+    }
+    .candidate-name { font-size: 12pt; font-weight: bold; color: #0f172a; margin-bottom: 2px; }
+    .candidate-role { font-size: 8pt; color: #64748b; margin-bottom: 8px; }
+    .badge {
+      display: inline-block; padding: 2px 7px; border-radius: 10px;
+      font-size: 8pt; font-weight: bold; background: #f1f5f9; color: #334155; margin-right: 4px;
+    }
+    .badge-source { background: #e0e7ff; color: #4338ca; }
+    .badge-priority { background: #fef3c7; color: #92400e; }
+
+    .section { margin-bottom: 14px; }
+    .section-title {
+      font-size: 9pt; text-transform: uppercase; letter-spacing: 0.7px;
+      font-weight: bold; color: #475569;
+      border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 8px;
+    }
+    .two-columns { display: table; width: 100%; border-spacing: 8px 0; }
+    .col { display: table-cell; width: 50%; vertical-align: top; }
+    .three-cols { display: table; width: 100%; border-spacing: 6px 0; }
+    .col3 { display: table-cell; width: 33.33%; vertical-align: top; }
+
+    .card {
+      border: 1px solid #e2e8f0; border-radius: 6px;
+      padding: 10px; margin-bottom: 10px;
+    }
+    .card:last-child { margin-bottom: 0; }
+
+    .field { margin-bottom: 6px; }
+    .field:last-child { margin-bottom: 0; }
+    .field-label {
+      font-size: 7pt; text-transform: uppercase; color: #94a3b8;
+      font-weight: bold; margin-bottom: 1px; letter-spacing: 0.4px;
+    }
+    .field-value { font-size: 8pt; color: #0f172a; }
+    .field-value.highlight { font-weight: bold; }
+
+    .table-wrapper { border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; margin-top: 6px; }
+    table { width: 100%; border-collapse: collapse; }
+    thead { background: #f8fafc; }
+    th {
+      text-align: left; padding: 7px 8px; font-size: 7.5pt;
+      text-transform: uppercase; letter-spacing: 0.4px;
+      color: #64748b; border-bottom: 1px solid #e2e8f0;
+    }
+    td {
+      padding: 7px 8px; font-size: 8pt;
+      border-bottom: 1px solid #f1f5f9; vertical-align: top;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    .empty-row { text-align: center; color: #94a3b8; padding: 14px; }
+
+    .skill-badge {
+      display: inline-block; padding: 1px 6px; border: 1px solid #e2e8f0;
+      border-radius: 8px; font-size: 7.5pt; color: #334155;
+      margin-right: 3px; margin-bottom: 3px; background: #f8fafc;
+    }
+
+    .offer-card {
+      border: 1px solid #d1fae5; border-radius: 6px;
+      padding: 10px; background: #f0fdf6; margin-top: 8px;
+    }
+
+    .score-table td:first-child { width: 44%; font-weight: bold; color: #0f172a; }
+    .score-table td:nth-child(2) { text-align: center; width: 14%; }
+    .score-table td:nth-child(3) { text-align: center; width: 20%; font-weight: bold; color: #0f172a; }
+    .score-table td:nth-child(4) { text-align: center; width: 22%; }
+    .score-table th:first-child { width: 44%; }
+    .score-table th:nth-child(2) { text-align: center; width: 14%; }
+    .score-table th:nth-child(3) { text-align: center; width: 20%; }
+    .score-table th:nth-child(4) { text-align: center; width: 22%; }
+
+    .score-max { color: #64748b; font-weight: normal; font-size: 7pt; }
+
+    .interview-status {
+      display: inline-block; padding: 1px 5px; border-radius: 8px;
+      font-size: 7pt; font-weight: bold;
+    }
+    .status-completed { background: #d1fae5; color: #065f46; }
+    .status-scheduled { background: #e0e7ff; color: #3730a3; }
+    .status-cancelled { background: #fee2e2; color: #991b1b; }
+    .status-no-show { background: #fef3c7; color: #92400e; }
+
+    .footer-note {
+      margin-top: 16px; padding-top: 8px;
+      border-top: 1px solid #e2e8f0; text-align: center; font-size: 8pt; color: #94a3b8;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========================================================
+       HEADER
+  ======================================================== -->
+  <div class="header">
+    <div class="header-photo">
+      <div class="photo-wrapper">
+        {% if photo_url %}
+          <img src="{{ photo_url }}" alt="{{ candidate.last_name }}">
+        {% else %}
+          <div class="photo-placeholder">
+            {{ candidate.last_name|slice:":1" }}{{ candidate.first_name|slice:":1" }}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="header-content">
+      <div class="candidate-name">
+        {{ candidate.last_name }} {{ candidate.middle_name }} {{ candidate.first_name }}
+      </div>
+      <div class="candidate-role">{{ candidate.email|default:"-" }}</div>
+      <span class="badge badge-source">{{ candidate.get_source_display }}</span>
+      <span class="badge badge-priority">{{ candidate.get_priority_display }}</span>
+      {% if candidate.location %}<span class="badge">{{ candidate.location }}</span>{% endif %}
+    </div>
+  </div>
+
+  <!-- ========================================================
+       PERSONAL INFO
+  ======================================================== -->
+  <div class="section">
+    <div class="section-title">Informations personnelles</div>
+    <div class="two-columns">
+      <div class="col">
+        <div class="card">
+          <div class="field">
+            <div class="field-label">Téléphone</div>
+            <div class="field-value">{{ candidate.phone|default:"-" }}</div>
+          </div>
+          <div class="field">
+            <div class="field-label">Email</div>
+            <div class="field-value">{{ candidate.email|default:"-" }}</div>
+          </div>
+          {% if candidate.linkedin_profile %}
+          <div class="field">
+            <div class="field-label">LinkedIn</div>
+            <div class="field-value">{{ candidate.linkedin_profile }}</div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      <div class="col">
+        <div class="card">
+          <div class="field">
+            <div class="field-label">Poste visé</div>
+            <div class="field-value">
+            {% with first=applications_data.0 %}
+              {{ first.app.target_position.name|default:candidate.position|default:"-" }}
+            {% endwith %}
+            </div>
+          </div>
+          <div class="field">
+            <div class="field-label">Expérience</div>
+            <div class="field-value">{{ candidate.experience|default:"-" }}</div>
+          </div>
+          <div class="field">
+            <div class="field-label">Source</div>
+            <div class="field-value">{{ candidate.get_source_display }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       SUMMARY
+  ======================================================== -->
+  {% if candidate.summary %}
+  <div class="section">
+    <div class="section-title">Résumé</div>
+    <div class="card"><p>{{ candidate.summary }}</p></div>
+  </div>
+  {% endif %}
+
+  <!-- ========================================================
+       SKILLS
+  ======================================================== -->
+  <div class="section">
+    <div class="section-title">Compétences</div>
+    <div class="card">
+      {% if candidate.skills %}
+        {% for skill in candidate.skills %}
+          <span class="skill-badge">{{ skill }}</span>
+        {% endfor %}
+      {% else %}
+        <p class="muted">Aucune compétence listée</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ========================================================
+       NOTES (candidat)
+  ======================================================== -->
+  {% if candidate.notes %}
+  <div class="section">
+    <div class="section-title">Notes internes</div>
+    <div class="card"><p>{{ candidate.notes }}</p></div>
+  </div>
+  {% endif %}
+
+  <!-- ========================================================
+       APPLICATIONS / POSTULATIONS
+  ======================================================== -->
+  <div class="section">
+    <div class="section-title">Postulations</div>
+
+    {% for entry in applications_data %}
+    {% with app=entry.app %}
+    <div class="card">
+      <div class="two-columns">
+        <div class="col">
+          <div class="field">
+            <div class="field-label">Offre</div>
+            <div class="field-value highlight">{{ app.job_offer.title }}</div>
+          </div>
+          <div class="field">
+            <div class="field-label">Poste cible</div>
+            <div class="field-value">{{ app.target_position.name|default:"-" }}</div>
+          </div>
+          <div class="field">
+            <div class="field-label">Date de candidature</div>
+            <div class="field-value">{{ app.applied_at|date:"d/m/Y H:i" }}</div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="field">
+            <div class="field-label">Statut</div>
+            <div class="field-value highlight">{{ app.get_status_display }}</div>
+          </div>
+          <div class="field">
+            <div class="field-label">Priorité</div>
+            <div class="field-value">{{ app.get_priority_display }}</div>
+          </div>
+        </div>
+      </div>
+
+      {% if app.cover_letter %}
+      <div style="margin-top: 8px; padding: 6px 8px; background: #f8fafc; border-radius: 4px;">
+        <div class="field-label">Lettre de motivation</div>
+        <p style="margin-top: 2px;">{{ app.cover_letter|truncatechars:300 }}</p>
+      </div>
+      {% endif %}
+
+      <!-- ==================================================
+           EVALUATION SCORES BY CRITERIA (FROM TEMPLATE)
+      ================================================== -->
+      <div style="margin-top: 10px;">
+        <div class="field-label" style="margin-bottom: 4px;">Grille d'évaluation</div>
+        {% if entry.criteria %}
+        <div class="table-wrapper">
+          <table class="score-table">
+            <thead>
+              <tr>
+                <th>Critère</th>
+                <th>Poids</th>
+                <th>Score</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in entry.criteria %}
+              <tr>
+                <td>{{ item.name }}</td>
+                <td>×{{ item.weight }}</td>
+                <td>
+                  {% if item.score is not None %}
+                    {{ item.score }}/5
+                  {% else %}
+                    <span style="color: #94a3b8;">—</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if item.source == 'requirement' %}Prérequis
+                  {% elif item.source == 'skill' %}Compétence
+                  {% else %}{{ item.source }}
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div style="color: #94a3b8; font-size: 7.5pt;">
+          Aucun critère d'évaluation défini pour ce poste
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- EVALUATION NOTES -->
+      {% if app.evaluation_notes %}
+      <div style="margin-top: 8px; padding: 6px 8px; background: #f8fafc; border-radius: 4px;">
+        <div class="field-label">Notes d'évaluation</div>
+        <p style="margin-top: 2px;">{{ app.evaluation_notes }}</p>
+      </div>
+      {% endif %}
+
+      <!-- OFFER DETAILS -->
+      {% if app.salary_min or app.salary_max %}
+      <div class="offer-card">
+        <div class="two-columns">
+          <div class="col">
+            <div class="field">
+              <div class="field-label">Salaire proposé</div>
+              <div class="field-value highlight">
+                {{ app.salary_min|default:"-" }} - {{ app.salary_max|default:"-" }} {{ app.salary_currency|default:"USD" }}
+              </div>
+            </div>
+          </div>
+          <div class="col">
+            <div class="field">
+              <div class="field-label">Date de début</div>
+              <div class="field-value highlight">
+                {{ app.offer_start_date|date:"d F Y"|default:"Non définie" }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- INTERVIEWS -->
+      {% with interviews=app.interviews.all %}
+        {% if interviews %}
+        <div style="margin-top: 10px;">
+          <div class="field-label" style="margin-bottom: 4px;">Entretiens</div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Date</th>
+                  <th>Statut</th>
+                  <th>Durée</th>
+                  <th>Interviewer</th>
+                  <th>Score</th>
+                  <th>Feedback</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for interview in interviews %}
+                <tr>
+                  <td class="bold">{{ interview.get_interview_type_display }}</td>
+                  <td>{{ interview.scheduled_at|date:"d/m/Y H:i" }}</td>
+                  <td>
+                    <span class="interview-status
+                      {% if interview.status == 'COMPLETED' %}status-completed
+                      {% elif interview.status == 'SCHEDULED' %}status-scheduled
+                      {% elif interview.status == 'CANCELLED' %}status-cancelled
+                      {% elif interview.status == 'NO_SHOW' %}status-no-show
+                      {% endif %}
+                    ">{{ interview.get_status_display }}</span>
+                  </td>
+                  <td>{{ interview.duration_minutes }} min</td>
+                  <td>
+                    {% with emp=interview.interviewer %}
+                      {{ emp.last_name }} {{ emp.middle_name }} {{ emp.first_name }}
+                    {% endwith %}
+                  </td>
+                  <td style="font-size: 10pt; white-space: nowrap;">
+                    {% if interview.score is not None %}
+                      {% for i in "12345"|make_list %}
+                        {% if forloop.counter <= interview.score %}★{% else %}☆{% endif %}
+                      {% endfor %}
+                    {% else %}
+                      <span style="color: #94a3b8;">—</span>
+                    {% endif %}
+                  </td>
+                  <td>{% if interview.feedback %}{{ interview.feedback|truncatechars:120 }}{% else %}<span style="color: #94a3b8;">—</span>{% endif %}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Interview details (feedback / score / strengths / weaknesses / would_hire / next_steps) -->
+        {% for interview in interviews %}
+          {% if interview.feedback or interview.score is not None or interview.strengths or interview.weaknesses or interview.would_hire is not None or interview.next_steps or interview.video_link %}
+          <div style="margin-top: 6px; padding: 6px 8px; background: #fafcff; border: 1px solid #e2e8f0; border-radius: 4px;">
+            <div class="field-label">
+              Détail entretien — {{ interview.get_interview_type_display }} ({{ interview.scheduled_at|date:"d/m/Y" }})
+            </div>
+            {% if interview.score is not None %}
+            <div style="margin-top: 3px;">
+              <span style="font-weight: bold;">Note :</span>
+              <span style="color: #0f172a;">{{ interview.score }}/5</span>
+            </div>
+            {% endif %}
+            {% if interview.feedback %}
+            <div style="margin-top: 3px;">
+              <span style="font-weight: bold;">Feedback :</span>
+              <p style="margin: 1px 0 0 0; color: #334155;">{{ interview.feedback }}</p>
+            </div>
+            {% endif %}
+            {% if interview.strengths %}
+            <div style="margin-top: 3px;">
+              <span style="color: #059669; font-weight: bold;">Points forts :</span>
+              <ul style="margin: 1px 0 0 0; padding-left: 14px; color: #334155;">
+                {% for s in interview.strengths %}<li>{{ s }}</li>{% endfor %}
+              </ul>
+            </div>
+            {% endif %}
+            {% if interview.weaknesses %}
+            <div style="margin-top: 3px;">
+              <span style="color: #dc2626; font-weight: bold;">Axes d'amélioration :</span>
+              <ul style="margin: 1px 0 0 0; padding-left: 14px; color: #334155;">
+                {% for w in interview.weaknesses %}<li>{{ w }}</li>{% endfor %}
+              </ul>
+            </div>
+            {% endif %}
+            {% if interview.would_hire is not None %}
+            <div style="margin-top: 3px;">
+              <span style="font-weight: bold;">Recommandation :</span>
+              {% if interview.would_hire %}
+                <span style="color: #059669;">✓ Avis favorable</span>
+              {% else %}
+                <span style="color: #dc2626;">✗ Avis défavorable</span>
+              {% endif %}
+            </div>
+            {% endif %}
+            {% if interview.next_steps %}
+            <div style="margin-top: 3px;">
+              <span style="font-weight: bold;">Prochaines étapes :</span>
+              <span style="color: #334155;">{{ interview.next_steps }}</span>
+            </div>
+            {% endif %}
+            {% if interview.video_link %}
+            <div style="margin-top: 3px;">
+              <span style="font-weight: bold;">Lien visio :</span>
+              <span style="color: #2563eb;">{{ interview.video_link }}</span>
+            </div>
+            {% endif %}
+          </div>
+          {% endif %}
+        {% endfor %}
+
+        {% endif %}
+      {% endwith %}
+
+    </div>
+    {% endwith %}
+    {% empty %}
+    <div class="card"><p class="muted">Aucune candidature enregistrée</p></div>
+    {% endfor %}
+  </div>
+
+  <!-- ========================================================
+       FOOTER
+  ======================================================== -->
+  <div class="footer-note">
+    Document généré automatiquement par Oxiliere HR
+  </div>
+</body>
+</html>

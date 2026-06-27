@@ -13,14 +13,14 @@ class CareerService:
     """
 
     @transaction.atomic
-    def assign_initial_position(self, employee, position_id, department_id, start_date):
+    def assign_initial_position(self, employee, position_id, org_unit_id, start_date):
         """
         Creates the first position history record for a new employee.
         """
         history = EmployeePositionHistory.objects.create(
             employee=employee,
             position_id=position_id,
-            department_id=department_id,
+            org_unit_id=org_unit_id,
             start_date=start_date,
             is_current=True
         )

@@ -31,7 +31,7 @@
       employeeId: selectedEmployee.id,
       employeeName: selectedEmployee.name,
       avatarUrl: selectedEmployee.avatarUrl,
-      department: selectedEmployee.department,
+      orgUnit: selectedEmployee.orgUnit ?? '',
       date,
       checkIn,
       checkOut,

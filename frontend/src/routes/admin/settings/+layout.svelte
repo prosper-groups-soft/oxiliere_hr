@@ -3,7 +3,7 @@
   import { browser } from "$app/environment";
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
   import { cn } from "@/utilities/common/css";
-  import { adminStore } from "$lib/features/admin/stores/admin.svelte";
+  import { adminStore } from "@/features/admin/stores/admin.svelte";
 
   $effect(() => {
     if (browser) {
@@ -12,11 +12,11 @@
   });
 
   const tabs = [
-    { id: "users", label: "Utilisateurs", icon: "users", path: "/admin/settings/users" },
-    { id: "access", label: "Sécurité & Accès", icon: "shield-check", path: "/admin/settings/access" },
+    { id: "access", label: "Utilisateurs & Accès", icon: "shield-check", path: "/admin/settings/access" },
     { id: "leaves", label: "Congés", icon: "calendar-days", path: "/admin/settings/leaves" },
+    { id: "attendance", label: "Pointage", icon: "clock", path: "/admin/settings/attendance" },
     { id: "tax", label: "Fiscalité", icon: "calculator", path: "/admin/settings/tax" },
-    { id: "currency", label: "Devises", icon: "banknote", path: "/admin/settings/currency" }
+    { id: "my-company", label: "Mon Entreprise", icon: "office", path: "/admin/settings/my-company" }
   ];
 
   const currentTab = $derived(
@@ -42,10 +42,10 @@
         <a
           href={tab.path}
           class={cn(
-            "flex items-center gap-3 px-3 py-1.5 rounded-lg text-[0.86rem] transition-colors",
+            "flex items-center gap-3 px-3 py-1.5 rounded-lg text-[0.875rem] transition-colors",
             currentTab.id === tab.id
               ? "bg-indigo-50 text-indigo-700 font-medium"
-              : "text-slate-800 hover:bg-slate-50 hover:text-slate-900"
+              : "text-black hover:bg-slate-50"
           )}
         >
           <AppIcon name={tab.icon} size={19} class={currentTab.id === tab.id ? "text-blue-600" : "text-slate-500"} />
@@ -56,7 +56,7 @@
 
     <!-- Help Section -->
     <div class="p-1 py-2 border-t border-slate-100 bg-slate-50/50">
-      <div class="flex items-start gap-1.5 text-[0.76rem] text-slate-500">
+      <div class="flex items-start gap-1.5 text-slate-600">
         <AppIcon name="info" size={15} class="shrink-0 mt-0.5" />
         <p class="text-[0.8rem]">
           Les modifications sont sauvegardées manuellement.

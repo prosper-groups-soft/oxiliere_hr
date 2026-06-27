@@ -24,12 +24,12 @@ class TaxCalculationService:
         # 2. Calculate annual tax using progressive brackets
         for bracket in brackets:
             # If income exceeds the bracket's lower limit
-            if annual_income > bracket.lower_limit:
+            if annual_income > bracket.lower_limit.amount:
                 # Determine the upper boundary for calculation
-                upper_limit = bracket.upper_limit if bracket.upper_limit else annual_income
+                upper_limit = bracket.upper_limit.amount if bracket.upper_limit else annual_income
                 
                 # Calculate the portion of income within this specific bracket
-                taxable_in_bracket = min(annual_income, upper_limit) - bracket.lower_limit
+                taxable_in_bracket = min(annual_income, upper_limit) - bracket.lower_limit.amount
                 
                 if taxable_in_bracket > 0:
                     tax_for_bracket = taxable_in_bracket * (bracket.rate_percentage / Decimal('100'))
@@ -51,7 +51,7 @@ class TaxCalculationService:
         first_bracket = brackets[0] if brackets else None
         if first_bracket:
             if first_bracket.min_tax_amount is not None:
-                min_tax = first_bracket.min_tax_amount
+                min_tax = first_bracket.min_tax_amount.amount
             if first_bracket.max_tax_percentage is not None:
                 max_tax_cap_rate = first_bracket.max_tax_percentage / Decimal('100')
 

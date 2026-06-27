@@ -13,8 +13,8 @@ const MOCK_ACTIONS: AuditAction[] = ['CREATE', 'UPDATE', 'DELETE', 'LOGIN', 'LOG
 const MOCK_MODULES: AuditModule[] = ['employees', 'attendance', 'leaves', 'payroll', 'recruitment', 'banking', 'jobs'];
 
 const MOCK_TEMPLATES: Array<{ action: AuditAction; module: AuditModule; description: string; entityLabel?: string; diff?: { before: Record<string, unknown>; after: Record<string, unknown> } }> = [
-  { action: 'CREATE',  module: 'employees',   description: "Création d'un employé",         entityLabel: 'Nouveau employé',             diff: { before: {}, after: { name: 'Jean Dupont', department: 'RH', status: 'active' } } },
-  { action: 'UPDATE',  module: 'employees',   description: "Modification d'un employé",      entityLabel: 'Jean Dupont',                 diff: { before: { department: 'RH' }, after: { department: 'Finance' } } },
+  { action: 'CREATE',  module: 'employees',   description: "Création d'un employé",         entityLabel: 'Nouveau employé',             diff: { before: {}, after: { name: 'Jean Dupont', orgUnit: 'RH', status: 'active' } } },
+  { action: 'UPDATE',  module: 'employees',   description: "Modification d'un employé",      entityLabel: 'Jean Dupont',                 diff: { before: { orgUnit: 'RH' }, after: { orgUnit: 'Finance' } } },
   { action: 'DELETE',  module: 'employees',   description: "Suppression d'un employé",       entityLabel: 'Marie Curie'                  },
   { action: 'APPROVE', module: 'leaves',      description: "Approbation d'une demande",      entityLabel: 'Congé annuel — 5 jours',      diff: { before: { status: 'pending' }, after: { status: 'approved' } } },
   { action: 'REJECT',  module: 'leaves',      description: "Rejet d'une demande de congé",   entityLabel: 'Congé maladie — 3 jours',     diff: { before: { status: 'pending' }, after: { status: 'rejected' } } },

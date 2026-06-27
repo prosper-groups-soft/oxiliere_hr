@@ -13,8 +13,8 @@
 </script>
 
 
-<Button variant="default" size="sm" onclick={onNew} class="shadow-fine bg-primary text-white text-[0.83rem] hover:text-white rounded-lg">
-  <AppIcon name="plus" size={16} />
+<Button variant="default" size="sm" onclick={onNew} class="shadow-fine bg-primary text-white text-[0.84rem] hover:text-white rounded-lg">
+  <AppIcon name="plus" size={17} />
   Créer {labelElement}
 </Button>
 

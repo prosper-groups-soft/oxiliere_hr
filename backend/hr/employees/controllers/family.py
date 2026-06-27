@@ -20,13 +20,18 @@ from hr.employees.schemas import (
     EmployeeEducationUpdate,
     EmployeeEducationOut,
 )
-from hr.employees.models import EmployeeChild, EmployeeEducation
+
+from hr.employees.models import (
+    EmployeeChild, 
+    EmployeeEducation
+)
 
 # Services
 from hr.employees.services import (
     EmployeeFamilyService,
     EmployeeEducationService,
     EmployeeQueryService,
+    EmployeeCacheService,
 )
 
 
@@ -43,10 +48,12 @@ class EmployeeFamilyController(ControllerBase):
         family_service: EmployeeFamilyService,
         education_service: EmployeeEducationService,
         query_service: EmployeeQueryService,
+        cache_service: EmployeeCacheService,
     ):
         self.family_service = family_service
         self.education_service = education_service
         self.query_service = query_service
+        self.cache_service = cache_service
 
     @http_post('/{employee_id}/family/children', response={201: EmployeeChildOut})
     def add_child(self, employee_id: UUID, data: EmployeeChildCreate):
@@ -59,11 +66,14 @@ class EmployeeFamilyController(ControllerBase):
         logger.info(f"[API] Adding child for {employee.matricule}")
 
         try:
-            return 201, self.family_service.declare_child(
+            result = self.family_service.declare_child(
                 employee=employee,
                 data=data.model_dump(),
                 actor=actor,
             )
+            # Invalidate cache so get_employee_detail returns fresh data
+            self.cache_service.clear_employee_cache(employee)
+            return 201, result
         except ValidationError as e:
             return self.create_response(e.message_dict, status_code=400)
 
@@ -75,7 +85,29 @@ class EmployeeFamilyController(ControllerBase):
 
         logger.info(f"[API] Removing child record {child_id}")
         self.family_service.remove_child(child=child, actor=actor)
+        # Invalidate cache so get_employee_detail returns fresh data
+        self.cache_service.clear_employee_cache(child.parent)
         return 204, None
+
+    @http_patch('/family/children/{child_id}', response=EmployeeChildOut)
+    def update_child(self, child_id: UUID, data: EmployeeChildCreate):
+        """ Updates details of an existing child record. """
+        child = get_object_or_404(EmployeeChild, id=child_id)
+        actor = getattr(self.context.request, 'user', None)
+
+        logger.info(f"[API] Updating child record {child_id}")
+
+        try:
+            result = self.family_service.update_child_info(
+                child=child,
+                data=data.model_dump(exclude_unset=True),
+                actor=actor,
+            )
+            # Invalidate cache so get_employee_detail returns fresh data
+            self.cache_service.clear_employee_cache(child.parent)
+            return result
+        except ValidationError as e:
+            return self.create_response(e.message_dict, status_code=400)
 
     @http_post('/{employee_id}/education', response={201: EmployeeEducationOut})
     def add_education(self, employee_id: UUID, data: EmployeeEducationCreate):
@@ -109,4 +141,17 @@ class EmployeeFamilyController(ControllerBase):
             data=data.model_dump(exclude_unset=True),
             actor=actor,
         )
+
+    @http_delete('/education/{education_id}', response={204: None})
+    def remove_education(self, education_id: UUID):
+        """ Removes an existing academic record. """
+        education = get_object_or_404(EmployeeEducation, id=education_id)
+        actor = getattr(self.context.request, 'user', None)
+
+        logger.info(f"[API] Removing academic record {education_id}")
+
+        self.education_service.remove_education(education=education, actor=actor)
+        # Invalidate cache so get_employee_detail returns fresh data
+        self.cache_service.clear_employee_cache(education.employee)
+        return 204, None
 

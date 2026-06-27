@@ -1,8 +1,9 @@
 <script lang="ts">
   import type { LeaveBalance } from '../../../types/types';
-  import { LEAVE_TYPE_LABELS, LEAVE_TYPE_COLORS } from '../../../types/types';
+  import { LEAVE_TYPE_LABELS, LEAVE_TYPE_COLORS } from '../../../constants/leaves';
   import AppIcon from '@/components/layout/elements/AppIcon.svelte';
   import { cn } from '@/utilities/common/css';
+
 
   let { balance }: { balance: LeaveBalance } = $props();
 
@@ -36,10 +37,7 @@
     <!-- Circular Progress -->
     <div class="relative h-16 w-16 flex items-center justify-center">
       <svg class="transform -rotate-90" width="64" height="64">
-        <circle
-          cx="32" cy="32" r="28"
-          stroke="#f1f5f9" stroke-width="4" fill="none"
-        />
+        <circle cx="32" cy="32" r="28" stroke="#f1f5f9" stroke-width="4" fill="none" />
         <circle
           cx="32" cy="32" r="28"
           stroke={balance.type === 'annual' ? '#3b82f6' : balance.type === 'sick' ? '#f43f5e' : balance.type === 'circumstantial' ? '#f59e0b' : '#94a3b8'}

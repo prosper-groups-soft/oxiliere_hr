@@ -12,6 +12,7 @@ from hr.leaves.models import (
     LeaveTransaction,
     LeaveRecall
 )
+from hr.leaves.enums import LeaveStatus
 from hr.leaves.services.cache import LeaveCacheService
 
 
@@ -55,6 +56,49 @@ def invalidate_leave_request_cache(sender, instance, **kwargs):
             logger.error(f"Error refreshing employee request data: {e}")
 
     transaction.on_commit(clear_cache)
+
+
+@receiver(post_save, sender=LeaveRequest)
+def sync_leave_to_calendar(sender, instance, created, **kwargs):
+    """
+    Automatically creates or removes a CalendarEvent when a leave request
+    is approved or cancelled.
+    """
+    from hr.calendar.models import CalendarEvent as CalEvent
+    from hr.calendar.enums import CalendarEventType, CalendarEventStatus
+
+    def perform_sync():
+        try:
+            if instance.status == LeaveStatus.APPROVED:
+                # Create a CalendarEvent for this approved leave
+                employee_name = str(instance.employee)
+                country = getattr(instance.employee, 'nationality', None) or 'CD'
+
+                CalEvent.objects.get_or_create(
+                    event_type=CalendarEventType.LEAVE,
+                    start_date=instance.start_date,
+                    end_date=instance.end_date,
+                    defaults={
+                        'name': f"Congé - {employee_name}",
+                        'is_workable': True,
+                        'status': CalendarEventStatus.APPROVED,
+                        'country_code': country,
+                        'description': f"Leave {instance.category} for {employee_name}: {instance.comment or ''}",
+                    }
+                )
+
+            elif instance.status in (LeaveStatus.CANCELLED, LeaveStatus.REJECTED):
+                # Remove matching CalendarEvent when leave is cancelled/rejected
+                CalEvent.objects.filter(
+                    event_type=CalendarEventType.LEAVE,
+                    start_date=instance.start_date,
+                    end_date=instance.end_date,
+                ).delete()
+
+        except Exception as e:
+            logger.error(f"Error syncing leave to calendar: {e}")
+
+    transaction.on_commit(perform_sync)
 
 
 @receiver([post_save, post_delete], sender=LeaveBalance)

@@ -1,9 +1,8 @@
 import logging
-from typing import List
+from typing import List, Literal
 from uuid   import UUID
 from ninja  import Query
 from injector import inject
-from oxutils.permissions.perms import ScopePermission
 
 from django.core.exceptions import ValidationError
 from django.shortcuts       import get_object_or_404
@@ -17,28 +16,38 @@ from ninja_extra import (
     ControllerBase
 )
 
+from oxutils.permissions.perms import ScopePermission
 from oxutils.pagination.cursor import CursorPagination
 
-from hr.attendance.models  import TimeSheet, TimePunch
+from hr.attendance.models  import (
+    TimeSheet,
+    TimePunch,
+)
+from hr.attendance.enums  import PunchType
 from hr.attendance.schemas import (
     PunchCreateIn,
+    SelfPunchIn,
+    SelfPunchOut,
     PunchAdjustIn,
     PunchOut,
     TimeSheetOut,
+    TimeSheetUpdateIn,
     TimeSheetFilter,
+    DailyViewFilter,
+    DailyViewEntryOut,
     CanModifyOut,
     AttendanceSettingsOut,
     AttendanceSettingsUpdateIn,
 )
-
 from hr.attendance.services import (
-    AttendanceService, 
+    AttendanceService,
     ValidationService,
-    PunchService
+    PunchService,
+    DailyViewService,
+    AttendanceCacheService,
 )
 # Cache integration
 from hr.services.cache_helpers import cache_api_response
-from hr.attendance.services    import AttendanceCacheService
 
 
 logger = logging.getLogger(__name__)
@@ -58,7 +67,20 @@ class AttendanceController(ControllerBase):
         self.attendance_service = attendance_service
         self.validation_service = validation_service
         self.punch_service = punch_service
-        
+
+    @http_get('/daily-view', response={200: List[DailyViewEntryOut]}, permissions=[ScopePermission('attendance:r')])
+    def get_daily_view(self, filters: DailyViewFilter = Query(...)):
+        """
+        Returns the enriched daily attendance view for a given date.
+        Delegates all business logic to DailyViewService.
+        """
+        logger.info(
+            "Daily view requested",
+            extra={"date": filters.date.isoformat() if hasattr(filters.date, 'isoformat') else str(filters.date)},
+        )
+        entries = DailyViewService.build_daily_view(filters)
+        return 200, entries
+
     @http_post('/punches/clock-in', response={201: PunchOut}, permissions=[ScopePermission('attendance:w')])
     def clock_in(self, employee_id: UUID, data: PunchCreateIn):
         """ Records a clock-in punch with location validation. """
@@ -133,6 +155,66 @@ class AttendanceController(ControllerBase):
             logger.exception("Critical error in Punch API")
             raise
 
+    @http_post('/punches/manual', response={201: PunchOut}, permissions=[ScopePermission('attendance:w')])
+    def create_manual_punch(self, data: PunchCreateIn):
+        """ Creates a manual punch by HR from the daily register view. """
+        actor = self.context.request.user
+
+        try:
+            punch = self.punch_service.record_punch(
+                actor_user=actor,
+                timestamp=data.timestamp,
+                punch_type=data.punch_type or PunchType.WORK,
+                is_manual=True,
+                employee_id=data.employee_id,
+                latitude=data.latitude,
+                longitude=data.longitude
+            )
+            return 201, punch
+
+        except ValidationError as e:
+            return self.create_response(
+                {"detail": str(e.message)},
+                status_code=400,
+            )
+        except Exception as e:
+            logger.exception("Critical error in Punch API")
+            raise
+
+    @http_post('/punches/self', response={201: SelfPunchOut}, permissions=[ScopePermission('attendance:w')])
+    def self_punch(self, data: SelfPunchIn):
+        """ Self check-in/out by an employee. Resolves employee from the authenticated user. """
+        actor = self.context.request.user
+
+        try:
+            punch = self.punch_service.record_punch(
+                actor_user=actor,
+                timestamp=data.timestamp,
+                punch_type=PunchType.WORK,
+                is_manual=False,
+                employee_id=None,  # Resolved from user
+                latitude=data.latitude,
+                longitude=data.longitude
+            )
+
+            # Determine if clock-in (new punch) or clock-out (closed existing)
+            action: Literal["in", "out"] = "out" if punch.end_at else "in"
+
+            return 201, {
+                "punch": punch,
+                "action": action,
+                "employee_id": punch.timesheet.employee.id,
+            }
+
+        except ValidationError as e:
+            return self.create_response(
+                {"detail": str(e.message)},
+                status_code=400,
+            )
+        except Exception as e:
+            logger.exception("Critical error in SelfPunch API")
+            raise
+
     @http_patch('/punch/{punch_id}', response={200: PunchOut}, permissions=[ScopePermission('attendance:w')])
     def adjust_existing_punch(self, punch_id: UUID, data: PunchAdjustIn):
         """ Endpoint for HR to adjust an existing punch segment. """
@@ -146,7 +228,7 @@ class AttendanceController(ControllerBase):
                 end_at=data.end_at,
                 punch_type=data.punch_type
             )
-            
+
             logger.info(
                 "Punch manually adjusted by HR",
                 extra={
@@ -155,7 +237,7 @@ class AttendanceController(ControllerBase):
                     "employee_id": punch.timesheet.employee.id
                 }
             )
-            
+
             return 200, updated_punch
 
         except ValidationError as e:
@@ -172,7 +254,7 @@ class AttendanceController(ControllerBase):
 
         try:
             self.punch_service.delete_punch(punch)
-            
+
             logger.info(
                 "Punch deleted by HR",
                 extra={
@@ -181,7 +263,7 @@ class AttendanceController(ControllerBase):
                     "employee_id": punch.timesheet.employee.id
                 }
             )
-            
+
             return 204, None
 
         except ValidationError as e:
@@ -189,7 +271,7 @@ class AttendanceController(ControllerBase):
                 {"detail": str(e.message)},
                 status_code=400,
             )
-            
+
     @http_get('/entries', response=List[TimeSheetOut], permissions=[ScopePermission('attendance:r')])
     @paginate(CursorPagination)
     @cache_api_response(timeout=60*15, key_prefix="registry_entries", user_specific=False)
@@ -229,6 +311,42 @@ class AttendanceController(ControllerBase):
             "can_modify": can_modify,
             "reason": reason,
         }
+
+    @http_patch('/timesheets/{timesheet_id}', response={200: TimeSheetOut}, permissions=[ScopePermission('attendance:w')])
+    def update_timesheet(self, timesheet_id: UUID, data: TimeSheetUpdateIn):
+        """ Updates a timesheet (remarks and/or status). Useful for marking absences as excused. """
+        actor = self.context.request.user
+        timesheet = get_object_or_404(TimeSheet, id=timesheet_id)
+
+        if not self.validation_service.can_modify_attendance(timesheet):
+            return self.create_response(
+                {"detail": "This timesheet is locked and cannot be modified."},
+                status_code=400,
+            )
+
+        updated = False
+        if data.remarks is not None:
+            timesheet.remarks = data.remarks
+            updated = True
+        if data.status is not None:
+            timesheet.status = data.status
+            updated = True
+
+        if updated:
+            timesheet.save()
+            AttendanceCacheService.clear_employee_cache(timesheet.employee)
+
+            logger.info(
+                "Timesheet updated by HR",
+                extra={
+                    "timesheet_id": str(timesheet_id),
+                    "actor_id": actor.id,
+                    "employee_id": timesheet.employee.id,
+                    "status": timesheet.status,
+                },
+            )
+
+        return 200, timesheet
 
     @http_get('/settings', response=AttendanceSettingsOut, permissions=[ScopePermission('attendance:r')])
     def get_settings(self):

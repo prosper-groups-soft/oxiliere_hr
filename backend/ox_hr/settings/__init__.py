@@ -8,18 +8,18 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from .base import *
-from .apps import *
-from .auth import *
-from .databases import *
-from .caches import *
-from .nats import *
+from .base        import *
+from .apps        import *
+from .auth        import *
+from .databases   import *
+from .caches      import *
+from .nats        import *
 from .permissions import *
-from .locale import *
-from .email import *
-from .static import *
-from .logging import *
-from .celery import *
+from .locale      import *
+from .email       import *
+from .static      import *
+from .logging     import *
+from .celery      import *
 
 from oxutils.logger.settings import *
 

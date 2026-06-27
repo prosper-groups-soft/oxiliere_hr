@@ -20,91 +20,112 @@
             "created_at": "2026-01-10T10:40:00Z",
             "updated_at": "2026-01-10T10:40:00Z",
             "policy": "019c03bd04fe70f7a19701bde6049c70",
-            "years_of_service": 1,
-            "bonus_days": 1
-        }
-    },
-    {
-        "model": "hr_leaves.seniorityrule",
-        "pk": "019c03becc35793190d64710503f453a",
-        "fields": {        
-            "created_at": "2026-01-10T10:40:00Z",
-            "updated_at": "2026-01-10T10:40:00Z",
-            "policy": "019c03bd04fe70f7a19701bde6049c70",
             "years_of_service": 5,
-            "bonus_days": 2
+            "bonus_days": 1
         }
     },
     {
         "model": "hr_leaves.circumstanceleaverule",
         "pk": "019c03bf048d71b3a8bde46cec780d60",
-        "fields": {        
+        "fields": {
             "created_at": "2026-01-10T10:40:00Z",
             "updated_at": "2026-01-10T10:40:00Z",
             "policy": "019c03bd04fe70f7a19701bde6049c70",
-            "type": "marriage_employee",
+            "type": "MARRIAGE_EMPLOYEE",
             "duration_days": 2,
-            "is_paid": true
+            "is_paid": true,
+            "description": "Mariage de l'employé"
         }
     },
     {
         "model": "hr_leaves.circumstanceleaverule",
         "pk": "019c03bf42077a1d94f6ee53861c9186",
-        "fields": {        
+        "fields": {
             "created_at": "2026-01-10T10:40:00Z",
             "updated_at": "2026-01-10T10:40:00Z",
             "policy": "019c03bd04fe70f7a19701bde6049c70",
-            "type": "birth_spouse",
+            "type": "BIRTH_SPOUSE",
             "duration_days": 2,
-            "is_paid": true
+            "is_paid": true,
+            "description": "Naissance d'un enfant"
         }
     },
     {
         "model": "hr_leaves.circumstanceleaverule",
         "pk": "019c03bf863479c4a5f3ec0dc8930b02",
-        "fields": {        
+        "fields": {
             "created_at": "2026-01-10T10:40:00Z",
             "updated_at": "2026-01-10T10:40:00Z",
             "policy": "019c03bd04fe70f7a19701bde6049c70",
-            "type": "death_1st_degree",
+            "type": "DEATH_FIRST_DEGREE",
             "duration_days": 4,
-            "is_paid": true
+            "is_paid": true,
+            "description": "Décès du conjoint ou d'un enfant"
         }
     },
     {
         "model": "hr_leaves.circumstanceleaverule",
         "pk": "019c03bfc1537ca2b6c902c4c0b99805",
-        "fields": {        
+        "fields": {
             "created_at": "2026-01-10T10:40:00Z",
             "updated_at": "2026-01-10T10:40:00Z",
             "policy": "019c03bd04fe70f7a19701bde6049c70",
-            "type": "death_2nd_degree",
+            "type": "DEATH_SECOND_DEGREE",
             "duration_days": 2,
-            "is_paid": true
+            "is_paid": true,
+            "description": "Décès d'un parent ou grand-parent"
         }
     },
     {
         "model": "hr_leaves.circumstanceleaverule",
         "pk": "019c03bffb817783ac96e8dd5d77aadf",
-        "fields": {        
+        "fields": {
             "created_at": "2026-01-10T10:40:00Z",
             "updated_at": "2026-01-10T10:40:00Z",
             "policy": "019c03bd04fe70f7a19701bde6049c70",
-            "type": "child_marriage",
+            "type": "CHILD_MARRIAGE",
             "duration_days": 1,
-            "is_paid": true
+            "is_paid": true,
+            "description": "Mariage d'un enfant"
         }
     },
     {
         "model": "hr_leaves.circumstanceleaverule",
         "pk": "019c03c03db672c998fda6a16e189d4a",
-        "fields": {        
+        "fields": {
             "created_at": "2026-01-10T10:40:00Z",
             "updated_at": "2026-01-10T10:40:00Z",
             "policy": "019c03bd04fe70f7a19701bde6049c70",
-            "type": "moving",
+            "type": "MOVING",
             "duration_days": 1,
-            "is_paid": true
+            "is_paid": true,
+            "description": "Déménagement du domicile"
+        }
+    },
+    {
+        "model": "hr_leaves.circumstanceleaverule",
+        "pk": "019c03c07dba70fd9721e4acad0bb800",
+        "fields": {
+            "created_at": "2026-01-10T10:40:00Z",
+            "updated_at": "2026-01-10T10:40:00Z",
+            "policy": "019c03bd04fe70f7a19701bde6049c70",
+            "type": "CHILD_HOSPITALIZATION",
+            "duration_days": 3,
+            "is_paid": true,
+            "description": "Hospitalisation d'un enfant"
+        }
+    },
+    {
+        "model": "hr_leaves.circumstanceleaverule",
+        "pk": "019c03c07dba70fd9721e4acad0bb801",
+        "fields": {
+            "created_at": "2026-01-10T10:40:00Z",
+            "updated_at": "2026-01-10T10:40:00Z",
+            "policy": "019c03bd04fe70f7a19701bde6049c70",
+            "type": "OTHER",
+            "duration_days": 2,
+            "is_paid": true,
+            "description": "Autre circonstance légale"
         }
     }
 ]

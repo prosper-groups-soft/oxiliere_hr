@@ -1,0 +1,2 @@
+Sur les modèles de présence hebdomadaire, nous devrons ajouter un message d'erreur dans le sheet pour signaler si un modèle du même nom existe déjà. Le message d'erreur est affiché avec le composant ValidationError, on peut imaginer même un système où une fois la valeur saisie, on envoie une requête au backend pour vérifier si un nom similaire existe. Cela permettra d'afficher l'erreur en temps réel.
+

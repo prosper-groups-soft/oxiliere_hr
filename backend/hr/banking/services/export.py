@@ -2,6 +2,7 @@ import pandas as pd
 from typing            import List, Dict
 from django.utils      import timezone
 from hr.banking.models import BankAccount
+from hr.banking.enums import AccountStatus
 from hr.payroll.models import EmployeePayslip, PayrollRun
 
 
@@ -21,9 +22,8 @@ class BankFileGenerator:
         employee_ids = [p.contract.employee.id for p in payslips]
         accounts = BankAccount.objects.filter(
             employee_id__in=employee_ids,
-            is_active=True,
-            verified=True,
-            currency=currency
+            status=AccountStatus.VERIFIED,
+            default_currency=currency
         ).select_related('bank', 'employee')
         
         if bank_code:

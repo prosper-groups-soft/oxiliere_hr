@@ -4,6 +4,7 @@
   import * as Tooltip from "@/components/ui/tooltip";
   import { cn } from "@/utilities/common/css";
 
+  
   const { 
   content,
   children,
@@ -13,9 +14,11 @@
   defaultOpen = false,
   stopClickPropagation = true,
   asChild = false,
+  contentClass = '',
   }: {
     content: string;
     children: Snippet<[any]>;
+    contentClass?: string;
     side?: "top" | "bottom" | "left" | "right";
     hotkeys?: [string, number][] | null;
     delayDuration?: number;
@@ -43,7 +46,7 @@
       {/snippet}
     </Tooltip.Trigger>
     <Tooltip.Content 
-      class="z-200" 
+      class={cn('z-200', contentClass)} 
       side={side} 
       collisionPadding={16} 
       {...(stopClickPropagation && { onClick: (event: Event) => event.stopPropagation() })}

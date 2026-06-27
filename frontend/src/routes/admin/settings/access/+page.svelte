@@ -1,16 +1,22 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { browser } from '$app/environment';
+  import { replaceState } from '$app/navigation';
+  import { page } from '$app/state';
+  import { Button } from "@/components/ui/button";
+  import AppIcon from "@/components/layout/elements/AppIcon.svelte";
   import { accessStore } from '@/features/admin/access/stores/accessStore.svelte';
+  import { 
+    ERROR_MESSAGES, 
+    getFriendlyErrorMessage 
+  } from '@/constants/errors';
   import AnimateSpin from '@/components/layout/elements/AnimateSpin.svelte';
   import Empty from '@/components/shared/containers/empty/Empty.svelte';
 
-  import GroupSheet from '@/features/admin/access/components/sheets/GroupSheet.svelte';
-  import RolePermissionSheet from '@/features/admin/access/components/sheets/RolePermissionSheet.svelte';
   import AccessTabs from '@/features/admin/access/components/nav/AccessTabs.svelte';
-  import GroupsGrid from '@/features/admin/access/components/GroupsGrid.svelte';
-  import RolesTable from '@/features/admin/access/components/RolesTable.svelte';
-  import type { Group, Role } from '@/features/admin/access/types/access.types';
-  import { notification } from '@/stores/notification.svelte';
+  import UsersManagement from '@/features/admin/access/components/mgmt/UsersManagement.svelte';
+  import GroupsManagement from '@/features/admin/access/components/mgmt/GroupsManagement.svelte';
+  import RolesManagement from '@/features/admin/access/components/mgmt/RolesManagement.svelte';
 
   onMount(() => {
     accessStore.init();
@@ -18,120 +24,97 @@
 
   // --- Tabs Logic ---
   const TABS = [
-    { id: 'groups', label: 'Groupes de sécurité', icon: 'users' },
-    { id: 'roles', label: 'Rôles & Scopes', icon: 'key' }
+    { id: 'users', label: 'Utilisateurs', icon: 'user' },
+    { id: 'groups', label: 'Groupes', icon: 'users' },
+    { id: 'roles', label: 'Rôles', icon: 'key' }
   ];
-  let activeTabId = $state('groups');
+  // Read tab from URL once on mount (not in $effect to avoid reactivity loop)
+  onMount(() => {
+    if (browser) {
+      const params = new URLSearchParams(window.location.search);
+      const tabFromUrl = params.get('tab');
+      const validTabs = TABS.map(t => t.id);
+      if (tabFromUrl && validTabs.includes(tabFromUrl)) {
+        accessStore.activeTabId = tabFromUrl;
+      }
+    }
+  });
 
   function handleTabChange(tabId: string) {
-    activeTabId = tabId;
-  }
-
-  // --- Sheet State ---
-  let isGroupSheetOpen = $state(false);
-  let selectedGroup = $state<Group | null>(null);
-
-  let isRoleSheetOpen = $state(false);
-  let selectedRole = $state<Role | null>(null);
-
-  function openGroupSheet(group: Group | null = null) {
-    selectedGroup = group;
-    isGroupSheetOpen = true;
-  }
-
-  function openRoleSheet(role: Role) {
-    selectedRole = role;
-    isRoleSheetOpen = true;
-  }
-
-  async function handleDeleteGroup(slug: string) {
-    notification.confirm({
-      title: 'Supprimer le groupe',
-      message: 'Êtes-vous sûr de vouloir supprimer ce groupe ? Cette action est irréversible.',
-      type: 'danger',
-      yesText: 'Supprimer',
-      onYes: async () => {
-        try {
-          await accessStore.deleteGroup(slug);
-          notification.toast.success("Groupe supprimé.");
-        } catch (e: any) {
-          notification.toast.error("Erreur lors de la suppression.");
-        }
-      }
+    accessStore.activeTabId = tabId;
+    // Defer URL update using requestIdleCallback or setTimeout fallback
+    const scheduleUpdate = typeof requestIdleCallback !== 'undefined' 
+      ? (cb: () => void) => requestIdleCallback(cb, { timeout: 100 })
+      : (cb: () => void) => setTimeout(cb, 0);
+    
+    scheduleUpdate(() => {
+      const url = new URL(page.url);
+      url.searchParams.set('tab', tabId);
+      replaceState(url, {});
     });
-  }
-
-  async function handleSyncGroup(slug: string) {
-    try {
-      await accessStore.syncGroup(slug);
-      notification.toast.success("Synchronisation terminée.");
-    } catch (e: any) {
-      notification.toast.error("Échec de la synchronisation.");
-    }
   }
 </script>
 
 
+<svelte:head>
+  <title>Paramètres - Sécurité & Accès | Oxiliere HR</title>
+</svelte:head>
+
+
 <div class="h-full flex flex-col animate-in fade-in duration-500">
+
   <!-- Tabs Navigation Header -->
   <div class="border-b border-slate-100 pr-8 pl-1 pt-1.5 flex items-center justify-between bg-white sticky top-0 z-10">
     <AccessTabs 
       tabs={TABS} 
-      activeTabId={activeTabId} 
+      activeTabId={accessStore.activeTabId} 
       onTabChange={handleTabChange} 
     />
   </div>
 
   <!-- Content Area -->
   <div class="flex-1 overflow-hidden">
+  
     {#if accessStore.isLoading && accessStore.groups.length === 0}
       <div class="flex justify-center items-center h-full">
-        <AnimateSpin text="Chargement des configurations de sécurité..." />
+        <AnimateSpin text="Chargement" />
       </div>
     {:else if accessStore.error && accessStore.groups.length === 0}
-      <div class="py-12 bg-white rounded-xl border border-red-200 shadow-none max-w-2xl mx-auto mt-10">
+      <div class="flex justify-center items-center h-full">
         <Empty 
-          icon="alert-octagon" 
+          icon="alert-circle" 
           title="Erreur de Connexion" 
-          description={accessStore.error || "Impossible de communiquer avec le serveur d'authentification."} 
+          description={getFriendlyErrorMessage(accessStore.error) || ERROR_MESSAGES.NETWORK.UNKNOWN} 
           iconClass="text-red-400" 
-          iconSize={32} 
-        />
+          iconContainerClass="bg-red-50/30"
+          iconSize={28}
+          iconStrokeWidth={1.3} 
+        >
+          <Button 
+            onclick={() => accessStore.init()}
+            variant="outline" 
+            class="h-7 mt-2 rounded-lg transition-colors"
+          >
+            <AppIcon name="refresh-cw" />
+            Réessayer
+          </Button> 
+        </Empty>
       </div>
     {:else}
-      
-      <!-- TAB CONTENT: GROUPS -->
-      {#if activeTabId === 'groups'}
-        <GroupsGrid 
-          groups={accessStore.groups} 
-          onEdit={openGroupSheet}
-          onSync={handleSyncGroup}
-          onDelete={handleDeleteGroup}
-          onCreate={() => openGroupSheet()}
-        />
-      {/if}
-
-      <!-- TAB CONTENT: ROLES -->
-      {#if activeTabId === 'roles'}
-        <RolesTable 
-          roles={accessStore.roles}
-          getGrantsForRole={accessStore.getGrantsForRole}
-          onExplore={openRoleSheet}
-        />
-      {/if}
-
+      <!-- All tabs mounted but hidden with opacity transition to prevent flash -->
+      <div class="relative h-full">
+        <div class="absolute inset-0 transition-opacity duration-200 {accessStore.activeTabId === 'users' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}">
+          <UsersManagement />
+        </div>
+        <div class="absolute inset-0 transition-opacity duration-200 {accessStore.activeTabId === 'groups' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}">
+          <GroupsManagement />
+        </div>
+        <div class="absolute inset-0 transition-opacity duration-200 {accessStore.activeTabId === 'roles' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}">
+          <RolesManagement />
+        </div>
+      </div>
     {/if}
+
   </div>
 </div>
 
-
-<!-- Modals / Sheets via Portals -->
-<GroupSheet 
-  bind:open={isGroupSheetOpen} 
-  group={selectedGroup} 
-/>
-
-<RolePermissionSheet 
-  bind:open={isRoleSheetOpen} 
-  role={selectedRole} 
-/>

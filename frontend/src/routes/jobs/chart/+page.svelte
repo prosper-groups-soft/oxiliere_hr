@@ -1,21 +1,23 @@
 <script lang="ts">
   import OrgCanvas from "@/features/jobs/components/org-chart/OrgCanvas.svelte";
   import OrgDrawer from "@/features/jobs/components/org-chart/OrgDrawer.svelte";
-  import type { Department } from "@/features/jobs/types/types";
-  import { jobsStore } from "$lib/features/jobs/stores/jobs.svelte";
+  import type { OrgUnit } from "@/features/jobs/types/org.types";
+  import { jobsStore } from "@/features/jobs/stores/jobs.svelte";
 
   let isDrawerOpen = $state(false);
-  let selectedDept = $state<Department | null>(null);
+  let selectedOrgUnit = $state<OrgUnit | null>(null);
 
-  function handleSelect(dept: Department) {
-    selectedDept = dept;
+  function handleSelect(unit: OrgUnit) {
+    // Spread pour forcer une nouvelle référence d'objet
+    // → Svelte détecte le changement de prop même si c'est le même ID
+    selectedOrgUnit = { ...unit };
     isDrawerOpen = true;
   }
 
   // Sync drawer state back to store for OrgNode highlights/animations
   $effect(() => {
     if (!isDrawerOpen) {
-      jobsStore.setDept(null);
+      jobsStore.setOrgUnit(null);
     }
   });
 </script>
@@ -26,6 +28,8 @@
   <OrgCanvas onSelect={handleSelect} />
 
   <!-- Selection Drawer -->
-  <OrgDrawer bind:open={isDrawerOpen} department={selectedDept} />
+  {#key selectedOrgUnit?.id}
+    <OrgDrawer bind:open={isDrawerOpen} orgUnit={selectedOrgUnit} />
+  {/key}
 </div>
 

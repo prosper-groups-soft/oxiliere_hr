@@ -148,7 +148,7 @@
             
             {#if $queryOrg.isLoading}
               <DropdownMenu.Item class="gap-3 p-2 text-slate-800">
-                <AnimateSpin text="Chargement..." />
+                <AnimateSpin text="Chargement des organisations" textPosition="right" />
               </DropdownMenu.Item>
             {:else if $queryOrg.isError}
                <DropdownMenu.Item class="gap-3 p-2 text-red-500">

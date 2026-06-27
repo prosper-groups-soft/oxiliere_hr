@@ -127,3 +127,39 @@ class EmployeeRecordController(ControllerBase):
         )
         return 204, None
 
+    @http_patch('/documents/{document_id}', response=EmployeeDocumentOut)
+    def update_document(
+        self, 
+        document_id: UUID, 
+        data: EmployeeDocumentCreate
+    ):
+        """ Updates a document record. """
+        document = get_object_or_404(EmployeeDocument, id=document_id)
+        actor = getattr(self.context.request, 'user', None)
+
+        logger.info(f"[API] Updating document {document_id}")
+        
+        return self.doc_service.update_document(
+            document=document,
+            data=data.model_dump(exclude_unset=True),
+            actor=actor
+        )
+
+    @http_post('/documents/{document_id}/upload', response=EmployeeDocumentOut)
+    def upload_document_file(
+        self, 
+        document_id: UUID, 
+        file: File[UploadedFile]
+    ):
+        """ Replaces the physical file of an existing document record. """
+        document = get_object_or_404(EmployeeDocument, id=document_id)
+        actor = getattr(self.context.request, 'user', None)
+
+        logger.info(f"[API] Uploading file for document {document_id}")
+        
+        return self.doc_service.replace_document_file(
+            document=document,
+            file_obj=file,
+            actor=actor
+        )
+

@@ -5,17 +5,18 @@ import type {
 	Advance,
 	PayrollFilters,
 	PayrollStatus,
-	Currency
+	Currency,
+	ExcludedEmployee
 } from '../types/types';
 import { PAYROLL_STEPS } from '../types/types';
 
 const MOCK_EMPLOYEES = [
-	{ id: 1, name: 'Jean-Paul Mabuso', department: 'IT', baseSalary: 2500, currency: 'USD' as Currency },
-	{ id: 2, name: 'Merveille Kabamba', department: 'RH', baseSalary: 1800, currency: 'USD' as Currency },
-	{ id: 3, name: 'Christian Luvambo', department: 'Finance', baseSalary: 2200, currency: 'USD' as Currency },
-	{ id: 4, name: 'Grace Mbuyi', department: 'Commercial', baseSalary: 1500, currency: 'USD' as Currency },
-	{ id: 5, name: 'Patrick Kalala', department: 'Production', baseSalary: 1200, currency: 'USD' as Currency },
-	{ id: 6, name: 'Sophie Tshibola', department: 'Administration', baseSalary: 1600, currency: 'USD' as Currency }
+	{ id: 1, name: 'Jean-Paul Mabuso', orgUnit: 'IT', baseSalary: 2500, currency: 'USD' as Currency },
+	{ id: 2, name: 'Merveille Kabamba', orgUnit: 'RH', baseSalary: 1800, currency: 'USD' as Currency },
+	{ id: 3, name: 'Christian Luvambo', orgUnit: 'Finance', baseSalary: 2200, currency: 'USD' as Currency },
+	{ id: 4, name: 'Grace Mbuyi', orgUnit: 'Commercial', baseSalary: 1500, currency: 'USD' as Currency },
+	{ id: 5, name: 'Patrick Kalala', orgUnit: 'Production', baseSalary: 1200, currency: 'USD' as Currency },
+	{ id: 6, name: 'Sophie Tshibola', orgUnit: 'Administration', baseSalary: 1600, currency: 'USD' as Currency }
 ];
 
 const CURRENT_PERIOD = '2024-03';
@@ -118,14 +119,14 @@ export class PayrollStore {
 	filters = $state<PayrollFilters>({
 		search: '',
 		status: [],
-		department: [],
+		orgUnit: [],
 		period: CURRENT_PERIOD
 	});
 
 	// --- Statistics ---
-	excludedEmployees = $state([
-		{ employeeName: 'Jean Marc', reason: 'Fin de contrat', department: 'Admin' },
-		{ employeeName: 'Marie Claire', reason: 'En congé prolongé', department: 'RH' }
+	excludedEmployees = $state<ExcludedEmployee[]>([
+		{ employeeName: 'Jean Marc', reason: 'Fin de contrat', orgUnit: 'Admin' },
+		{ employeeName: 'Marie Claire', reason: 'En congé prolongé', orgUnit: 'RH' }
 	]);
 
 	// --- Derived ---
@@ -158,19 +159,19 @@ export class PayrollStore {
 		this.activeEmployeesCount > 0 ? Math.round((this.completeProfilesCount / this.activeEmployeesCount) * 100) : 0
 	);
 
-	departmentDistribution = $derived(
+	orgUnitDistribution = $derived(
 		MOCK_EMPLOYEES.reduce((acc, emp) => {
-			acc[emp.department] = (acc[emp.department] || 0) + 1;
+			acc[emp.orgUnit] = (acc[emp.orgUnit] || 0) + 1;
 			return acc;
 		}, {} as Record<string, number>)
 	);
 	filteredPayslips = $derived.by(() => {
 		return this.payslips.filter(p => {
 			const matchesSearch = p.employeeName.toLowerCase().includes(this.filters.search.toLowerCase()) ||
-				p.department.toLowerCase().includes(this.filters.search.toLowerCase());
+				p.orgUnit.toLowerCase().includes(this.filters.search.toLowerCase());
 			const matchesStatus = this.filters.status.length === 0 || this.filters.status.includes(p.status);
-			const matchesDept = this.filters.department.length === 0 || this.filters.department.includes(p.department);
-			return matchesSearch && matchesStatus && matchesDept;
+			const matchesOrgUnit = this.filters.orgUnit.length === 0 || this.filters.orgUnit.includes(p.orgUnit);
+			return matchesSearch && matchesStatus && matchesOrgUnit;
 		});
 	});
 
@@ -218,7 +219,7 @@ export class PayrollStore {
 	);
 
 	activeFiltersCount = $derived(
-		this.filters.status.length + this.filters.department.length
+		this.filters.status.length + this.filters.orgUnit.length
 	);
 
 	// --- Pagination ---
@@ -292,7 +293,7 @@ export class PayrollStore {
 				id: `payslip-${emp.id}-${period}`,
 				employeeId: emp.id,
 				employeeName: emp.name,
-				department: emp.department,
+				orgUnit: emp.orgUnit,
 				period,
 				baseSalary,
 				lines,
@@ -375,7 +376,7 @@ export class PayrollStore {
 		this.filters = {
 			search: '',
 			status: [],
-			department: [],
+			orgUnit: [],
 			period: this.currentPeriod
 		};
 		this.currentPage = 1;

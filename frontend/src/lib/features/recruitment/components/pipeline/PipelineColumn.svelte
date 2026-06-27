@@ -4,47 +4,52 @@
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
   import { Badge } from "@/components/ui/badge";
   import { cn } from "@/utilities/common/css";
-  import CandidateCard from "../lists/views/candidate/CandidateCard.svelte";
-  import type { Candidate, CandidateStage } from "../../types/types";
+  import ApplicationCard from "./views/ApplicationCard.svelte";
+  import type { PipelineApplicationItem, CandidateStage } from "../../types/types";
   import { fly } from "svelte/transition";
   import { cubicOut } from "svelte/easing";
-  import { stageConfig } from "../../stores/recruitment.svelte";
+  import { STAGE_CONFIG, PIPELINE_BADGE_CONFIG } from "../../constants/recruitment";
 
+  
   let { 
     stage,
     title,
-    candidates = [],
-    onCandidateEdit,
-    onCandidateDelete,
+    applications = [],
+    onApplicationEdit,
+    onApplicationDelete,
     onScheduleInterview,
     onViewProfile,
     onUpdateStage,
-    onDrop
+    onDrop,
+    onFeedback,
+    onEvaluate
   } = $props<{
     stage: CandidateStage;
     title: string;
-    candidates: Candidate[];
-    onCandidateEdit?: (candidate: Candidate) => void;
-    onCandidateDelete?: (candidate: Candidate) => void;
-    onScheduleInterview?: (candidate: Candidate) => void;
-    onViewProfile?: (candidate: Candidate) => void;
-    onUpdateStage?: (candidate: Candidate, newStage: string) => void;
-    onDrop: (candidateId: string, newStage: CandidateStage) => void;
+    applications: PipelineApplicationItem[];
+    onApplicationEdit?: (item: PipelineApplicationItem) => void;
+    onApplicationDelete?: (item: PipelineApplicationItem) => void;
+    onScheduleInterview?: (item: PipelineApplicationItem) => void;
+    onViewProfile?: (item: PipelineApplicationItem) => void;
+    onUpdateStage?: (item: PipelineApplicationItem, newStage: string) => void;
+    onDrop: (applicationId: string, newStage: CandidateStage) => void;
+    onFeedback?: (item: PipelineApplicationItem) => void;
+    onEvaluate?: (item: PipelineApplicationItem) => void;
   }>();
 
-  let items = $state<Candidate[]>([]);
+  let items = $state<PipelineApplicationItem[]>([]);
 
   $effect(() => {
-    items = [...candidates];
+    items = applications.map((item: PipelineApplicationItem) => ({ ...item, id: item.application.applicationId }));
   });
 
   const flipDurationMs = 200;
 
-  function handleDndConsider(e: CustomEvent<DndEvent<Candidate>>) {
+  function handleDndConsider(e: CustomEvent<DndEvent<PipelineApplicationItem>>) {
     items = e.detail.items;
   }
 
-  function handleDndFinalize(e: CustomEvent<DndEvent<Candidate>>) {
+  function handleDndFinalize(e: CustomEvent<DndEvent<PipelineApplicationItem>>) {
     const { items: newItems, info } = e.detail;
     items = newItems;
     
@@ -53,25 +58,17 @@
     }
   }
 
-  const badgeConfig: Record<CandidateStage, { color: string, bgColor: string, borderColor: string }> = {
-    'SCREENING':  { color: 'text-blue-700', bgColor: 'bg-blue-100', borderColor: 'border-blue-200' },
-    'SHORTLIST':  { color: 'text-amber-700', bgColor: 'bg-amber-100', borderColor: 'border-amber-200' },
-    'INTERVIEW':  { color: 'text-purple-700', bgColor: 'bg-purple-100', borderColor: 'border-purple-200' },
-    'OFFER':      { color: 'text-emerald-700', bgColor: 'bg-emerald-100', borderColor: 'border-emerald-200' },
-    'REJECTED':   { color: 'text-red-700', bgColor: 'bg-red-100', borderColor: 'border-red-200' }
-  };
-
-  const config = $derived(stageConfig[stage as CandidateStage]);
-  const badgeCfg = $derived(badgeConfig[stage as CandidateStage]);
+  const config = $derived(STAGE_CONFIG[stage as CandidateStage]);
+  const badgeCfg = $derived(PIPELINE_BADGE_CONFIG[stage as CandidateStage]);
   
   // Calculate average time in stage
   function averageTimeInStage() {
-    if (candidates.length === 0) return 0;
-    const totalDays = candidates.reduce((sum: number, c: Candidate) => {
-      const days = Math.floor((new Date().getTime() - new Date(c.lastStageChange).getTime()) / (1000 * 60 * 60 * 24));
+    if (applications.length === 0) return 0;
+    const totalDays = applications.reduce((sum: number, item: PipelineApplicationItem) => {
+      const days = Math.floor((new Date().getTime() - new Date(item.application.lastStageChange).getTime()) / (1000 * 60 * 60 * 24));
       return sum + days;
     }, 0);
-    return Math.round(totalDays / candidates.length);
+    return Math.round(totalDays / applications.length);
   }
 </script>
 
@@ -85,7 +82,7 @@
   {@render Header()}
 
   <div 
-    class="flex-1 overflow-y-auto p-2 space-y-2 min-h-[150px] outline-none"
+    class="flex-1 overflow-y-auto p-2 space-y-2 min-h-37.5 outline-none"
     use:dndzone={{
       items, 
       flipDurationMs, 
@@ -98,15 +95,17 @@
     {#if items.length === 0}
       {@render Empty()}
     {:else}
-      {#each items as candidate (candidate.id)}
+      {#each items as item (item.id)}
         <div animate:flip={{ duration: flipDurationMs }}>
-          <CandidateCard 
-            {candidate}
-            onEdit={onCandidateEdit}
-            onDelete={onCandidateDelete}
+          <ApplicationCard 
+            {item}
+            onEdit={onApplicationEdit}
+            onDelete={onApplicationDelete}
             onScheduleInterview={onScheduleInterview}
             onViewProfile={onViewProfile}
             onUpdateStage={onUpdateStage}
+            onFeedback={onFeedback}
+            onEvaluate={onEvaluate}
           />
         </div>
       {/each}
@@ -133,9 +132,9 @@
 
 
 {#snippet Empty()}
-  <div class="flex flex-col items-center justify-center h-full min-h-[200px] text-center py-8 pointer-events-none">
+  <div class="flex flex-col items-center justify-center h-full min-h-50 text-center py-8 pointer-events-none">
     <AppIcon name={config.icon} size={24} class="text-slate-400 mb-3" strokeWidth={1} />
-    <p class="text-[0.82rem] text-slate-500 font-medium">Aucun candidat</p>
+    <p class="text-[0.82rem] text-slate-500 font-medium">Aucune candidature</p>
     <p class="text-[0.75rem] text-slate-500 mt-1">Glissez-déposez ici</p>
   </div>
 {/snippet}
@@ -147,7 +146,7 @@
       <div class="flex items-center gap-2">
         <AppIcon name="info" size={14} class="text-slate-400" />
         <span class="text-[0.75rem] text-slate-500">
-          {items.length} candidat{items.length !== 1 ? 's' : ''}
+          {items.length} candidature{items.length !== 1 ? 's' : ''}
         </span>
       </div>
       {#if averageTimeInStage() > 7}

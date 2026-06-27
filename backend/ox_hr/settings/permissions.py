@@ -2,6 +2,7 @@ from .apps import INSTALLED_APPS
 
 
 ACCESS_MANAGER_SCOPE = "access"
+ACCESS_MANAGER_ROLE = None     # No specific role required - any role with access permission works
 ACCESS_MANAGER_GROUP = "manager"  # Must match a slug in PERMISSION_PRESET["group"]
 ACCESS_MANAGER_CONTEXT = {}
 
@@ -16,6 +17,7 @@ ACCESS_SCOPES = [
     "jobs",
     "banking",
     "calendar",
+    "performance",
 ]
 
 
@@ -70,11 +72,11 @@ PERMISSION_PRESET = {
         ],
 
         # --- ROLE: HR MANAGER ---
-        # Full operational management + Read access to access
+        # Full operational management + Read/Write access to access
         {
             "role": "hr_manager", 
             "scope": "access", 
-            "actions": ["r"]
+            "actions": ["r", "w"]
         },
         {
             "role": "hr_manager", 
@@ -111,6 +113,11 @@ PERMISSION_PRESET = {
             "scope": "payroll", 
             "actions": ["r", "a"] # Final consultation and validation
         },  
+        {
+            "role": "hr_manager",
+            "scope": "performance",
+            "actions": ["r", "w", "u", "d"]
+        },
 
         # --- ROLE: EMPLOYEE ---
         # Self-service strict with context of ownership ('own')
@@ -135,6 +142,12 @@ PERMISSION_PRESET = {
         {
             "role": "employee",
             "scope": "calendar",
+            "actions": ["r"],
+            "context": {"own": True}
+        },
+        {
+            "role": "employee",
+            "scope": "performance",
             "actions": ["r"],
             "context": {"own": True}
         },

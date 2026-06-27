@@ -3,62 +3,70 @@
   import { Button } from '@/components/ui/button';
   import { employeeStore } from '@/features/employees/stores/employees.svelte';
   import { ui } from "@/stores/ui.svelte";
-  
+  import { get_api_base_origin } from '@/utilities/http/urls';
   import AnimateSpin from '@/components/layout/elements/AnimateSpin.svelte';
   import AppIcon from '@/components/layout/elements/AppIcon.svelte';
-  import EmployeeDetailsHeader from '@/features/employees/components/mngt/details/header/EmployeeDetailsHeader.svelte';
+  import EmployeeProfileHeader from '@/features/employees/components/mgmt/profile/header/EmployeeProfileHeader.svelte';
 
+  
   let { children } = $props();
 
-  // Get reactive employee
+  // Dérivations réactives pour suivre l'URL et le store
   const employeeId = $derived(page.params.id);
-  const employee = $derived(employeeId ? employeeStore.getById(employeeId) : null);
+  const employee = $derived(employeeStore.current);
 
   /**
-   * GLOBAL ACTION REGISTRATION
-   * We use 'profile-global' to persist this action across all sub-tabs.
+   * RÉACTIVITÉ DU CHARGEMENT
+   * Cet effet se déclenche à chaque fois que 'employeeId' change.
    */
   $effect(() => {
-    ui.addActions('profile-global', exportAction);
-    
+    if (employeeId) {
+      // On vide le profil actuel pour déclencher l'affichage du loader
+      // si on passe d'un employé A à un employé B.
+      employeeStore.setCurrent(null);
+      employeeStore.getFullProfileById(employeeId);
+    }
+  });
+
+  /**
+   * ACTIONS GLOBALES (UI)
+   */
+  $effect(() => {
+    ui.addActions('profile-global', ExportAction);
     return () => ui.removeActions('profile-global');
   });
 </script>
 
 
-{#snippet exportAction()}
+{#snippet ExportAction()}
   <Button 
     variant="outline" 
     size="sm" 
-    class="h-6 gap-2 px-3 bg-slate-100 hover:bg-slate-200 transition-colors border-0" 
-    onclick={() => console.log('Exporting Profile for:', employee?.name)}
+    class="h-7.5 gap-2 px-3 hover:bg-slate-200 transition-colors border-0" 
+    onclick={() => window.open(`${get_api_base_origin()}/api/employees/${employee?.id}/export/`, '_blank')}
   >
-    <AppIcon name="download" size={18} />
-    <span class="hidden sm:inline text-sm font-medium text-slate-600">Exporter</span>
+    <AppIcon name="download" size={18} class="text-slate-400" />
+    <span class="hidden sm:inline text-[0.84rem] text-slate-600">Exporter</span>
   </Button>
 {/snippet}
 
 
 {#if employee}
-  <div class="space-y-2">
-
-    <EmployeeDetailsHeader {employee} />
+  <div class="flex flex-col h-full">
+    <EmployeeProfileHeader {employee} />
     
-    <main class="h-full">
+    <main class="flex-1 overflow-auto">
       {@render children()}
     </main>
-
   </div>
 {:else}
   <div class="h-full flex items-center justify-center">
-    <AnimateSpin text="Chargement du profil..." />
+    <AnimateSpin text="Chargement du profil" />
   </div>
 {/if}
 
 
 <style>
-
-  /* Animation of content when changing tabs */
   main {
     animation: slideUp 0.3s ease-out;
   }

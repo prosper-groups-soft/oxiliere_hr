@@ -1,15 +1,51 @@
-export type AttendanceStatus = 'PRESENT' | 'LATE' | 'ABSENT' | 'LEAVE' | 'OFF' | 'PENDING';
-export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0 = Sunday, 1 = Monday, etc.
+import type { AttendanceStatus, AttendanceTabId, DayOfWeek } from '../constants/attendance.constants';
+export type { AttendanceStatus, AttendanceTabId, DayOfWeek };
+
+// Constantes — import local + re-export
+import { 
+	STATUS_LABELS, STATUS_COLORS, STATUS_PILL,
+	STATUS_OPTIONS, TAB_LABELS, TAB_OPTIONS,
+	BACKEND_WEEKDAYS, FRONTEND_WEEKDAYS
+} from '../constants/attendance.constants';
+export {
+	STATUS_LABELS,
+	STATUS_COLORS,
+	STATUS_PILL,
+	STATUS_OPTIONS,
+	TAB_LABELS,
+	TAB_OPTIONS,
+	BACKEND_WEEKDAYS,
+	FRONTEND_WEEKDAYS,
+};
+
 
 export interface AttendanceRecord {
 	id: string;
-	employeeId: number;
+	employeeId: string | number;
 	employeeName: string;
+	firstName?: string;
+	lastName?: string;
+	jobTitle?: string;
 	avatarUrl?: string;
-	department: string;
+	orgUnit: string;
+	orgUnitId?: string;
 	date: string; // ISO format
 	checkIn: string | null; // HH:mm
 	checkOut: string | null; // HH:mm
+	checkInAt?: string | null; // ISO datetime
+	checkOutAt?: string | null; // ISO datetime
+	checkInPunchId?: string | null; // UUID for inline editing
+	checkOutPunchId?: string | null;
+	isManualEntry?: boolean;
+	expectedIn?: string; // HH:mm
+	expectedOut?: string; // HH:mm
+	expectedBreakDuration?: number; // minutes
+
+	isWorkingDay: boolean;
+	scheduleName?: string;
+	scheduleSource?: string; // "policy" | "override" | "holiday" | "none"
+
+	remarks?: string;
 	status: AttendanceStatus;
 	workDuration: number; // in minutes
 	overtime: number; // in minutes
@@ -28,7 +64,8 @@ export interface Shift {
 
 export interface AttendanceFilters {
 	search: string;
-	department: string[];
+	orgUnit: string[];
+	recurrence: string[];
 	status: AttendanceStatus[];
 	dateRange: {
 		from: string;
@@ -47,7 +84,7 @@ export interface AttendanceStats {
 
 export interface ShiftAssignment {
 	id: string;
-	employeeId: number;
+	employeeId: string | number;
 	shiftId: string;
 	date: string; // ISO format
 }
@@ -57,32 +94,33 @@ export interface WorkPeriod {
 	startTime: string; // HH:mm
 	endTime: string; // HH:mm
 	type: 'work' | 'break';
-	name?: string; // ex: "morning", "lunch break", "afternoon"
+	name?: string;
 }
 
 export interface DayPattern {
 	isOff: boolean;
-	periods: WorkPeriod[]; // List of time of work/break
+	periods: WorkPeriod[];
 }
 
 export interface WorkPolicy {
 	id?: string;
 	name: string;
 	description?: string;
-	pattern: Record<DayOfWeek, DayPattern>; // day index -> DayPattern
+	pattern: Record<DayOfWeek, DayPattern>;
 	targetHours?: number;
 	createdAt?: string;
 }
 
 export interface PolicyAssignment {
 	id: string;
-	employeeId: number;
+	employeeId: string | number;
 	policyId: string;
 	startDate: string;
 	endDate?: string;
 	isOverride?: boolean;
 	overrideStartDate?: string;
 	overrideEndDate?: string;
+	recurrence?: string;
+	recurrenceCount?: number | null;
 }
 
-export type AttendanceTabId = 'register' | 'config' | 'policies';

@@ -1,9 +1,14 @@
 import logging
-from typing   import List
+from typing   import List, Optional
 from injector import inject
+from ninja import Query
 from ninja.pagination import paginate
+from ninja_extra.pagination import (
+    paginate,
+    PageNumberPaginationExtra,
+    PaginatedResponseSchema
+)
 from oxutils.permissions.perms import ScopePermission
-from oxutils.pagination.cursor import CursorPagination
 
 from ninja_extra import (
     api_controller,
@@ -14,9 +19,11 @@ from ninja_extra import (
 )
 from django.core.exceptions import ValidationError
 
+from hr.recruitment.filters import InterviewFilter
 from hr.recruitment.schemas import (
     InterviewScheduleIn,
     InterviewFeedbackIn,
+    InterviewUpdateIn,
     InterviewOut,
 )
 
@@ -37,14 +44,14 @@ class InterviewController(ControllerBase):
     def __init__(self, interview_service: InterviewService):
         self.interview_service = interview_service
 
-    @http_get('/', response=List[InterviewOut], permissions=[ScopePermission('recruitment:r')])
-    @paginate(CursorPagination)
-    def list_interviews(self):
+    @http_get('/', response=PaginatedResponseSchema[InterviewOut], permissions=[ScopePermission('recruitment:r')])
+    @paginate(PageNumberPaginationExtra, page_size=50)
+    def list_interviews(self, filters: InterviewFilter = Query(...)):
         """
-        Lists all interviews.
+        Lists all interviews, optionally filtered by candidate_id.
         """
-        logger.info("[API] Listing all interviews")
-        return self.interview_service.get_all_interviews()
+        qs = self.interview_service.get_all_interviews()
+        return filters.filter(qs)
 
     @http_post('/', response={201: InterviewOut}, permissions=[ScopePermission('recruitment:w')])
     @inject
@@ -94,7 +101,7 @@ class InterviewController(ControllerBase):
             )
 
     @http_patch('/{interview_id}/feedback', response=InterviewOut, permissions=[ScopePermission('recruitment:u')])
-    def submit_interview_feedback(self, interview_id: int, data: InterviewFeedbackIn):
+    def submit_interview_feedback(self, interview_id: str, data: InterviewFeedbackIn):
         """
         Records the interview score and qualitative feedback
         after the interview has been conducted.
@@ -108,7 +115,12 @@ class InterviewController(ControllerBase):
             return self.interview_service.submit_feedback(
                 interview_id=interview_id,
                 score=data.score,
-                notes=data.notes,
+                feedback=data.feedback,
+                strengths=data.strengths,
+                weaknesses=data.weaknesses,
+                would_hire=data.would_hire,
+                next_steps=data.next_steps,
+                status=data.status,
             )
 
         except ValidationError as e:
@@ -121,6 +133,39 @@ class InterviewController(ControllerBase):
             logger.error(
                 f"[API] Unexpected error while submitting feedback "
                 f"for interview {interview_id}: {e}",
+                exc_info=True,
+            )
+            return self.create_response(
+                {"detail": "An unexpected error occurred."},
+                status_code=500,
+            )
+
+    @http_patch('/{interview_id}', response=InterviewOut, permissions=[ScopePermission('recruitment:u')])
+    def update_interview_details(self, interview_id: str, data: InterviewUpdateIn):
+        """
+        Updates an existing interview's mutable fields
+        (interviewer, schedule, type, duration, notes).
+        """
+        logger.info(
+            f"[API] Updating interview {interview_id}"
+        )
+
+        try:
+            return self.interview_service.update_interview(
+                interview_id=interview_id,
+                **data.model_dump(exclude_none=True)
+            )
+
+        except ValidationError as e:
+            logger.warning(
+                f"[API] Validation error while updating interview "
+                f"{interview_id}: {e}"
+            )
+            return self.create_response({"detail": str(e)}, status_code=400)
+        except Exception as e:
+            logger.error(
+                f"[API] Unexpected error while updating interview "
+                f"{interview_id}: {e}",
                 exc_info=True,
             )
             return self.create_response(

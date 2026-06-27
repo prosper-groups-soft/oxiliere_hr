@@ -6,15 +6,9 @@ from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from auditlog.registry import auditlog
 
-from hr.models import BaseAuditableModel
-from .enums import (
-    AccountType,
-    BankAccountAction,
-)
-from hr.enums import ( 
-    Currency, 
-    CountryCode,
-)
+from hr.models.base import BaseAuditableModel
+from .enums   import AccountType, AccountStatus, BankAccountAction
+from hr.enums import Currency, CountryCode
 
 
 class Bank(BaseAuditableModel):
@@ -27,7 +21,6 @@ class Bank(BaseAuditableModel):
     )
     code = models.CharField(
         max_length=10, 
-        unique=True, 
         verbose_name=_("Bank Code"),
         help_text=_("Unique identifier for payroll processing.")
     )
@@ -42,6 +35,13 @@ class Bank(BaseAuditableModel):
         default=False, 
         verbose_name=_("Mobile Money"),
         help_text=_("Enable for telco-based wallet providers.")
+    )
+    logo = models.ImageField(
+        upload_to='banking/logos/', 
+        null=True, 
+        blank=True,
+        verbose_name=_("Logo"),
+        help_text=_("Brand logo of the financial institution.")
     )
     country_code = models.CharField(
         max_length=3, 
@@ -60,10 +60,17 @@ class Bank(BaseAuditableModel):
         ordering = ["name"]
         verbose_name = _("Bank")
         verbose_name_plural = _("Banks")
+        constraints = [
+            models.UniqueConstraint(
+                fields=['code'],
+                condition=models.Q(deleted__isnull=True),
+                name='unique_bank_code'
+            ),
+        ]
 
     def clean(self):
         if self.name:
-            self.name = self.name.strip().title()
+            self.name = self.name.strip()
         if self.code:
             self.code = self.code.strip().upper()
         if self.swift_code:
@@ -72,7 +79,6 @@ class Bank(BaseAuditableModel):
                 raise ValidationError(_("Standard banks must have 8 or 11 characters SWIFT code."))
 
     def save(self, *args, **kwargs):
-        self.clean()
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -119,12 +125,17 @@ class BankAccount(BaseAuditableModel):
         verbose_name=_("Type"),
         help_text=_("Category of account (e.g., Checking, Savings).")
     )
-    currency = models.CharField(
-        max_length=3, 
-        choices=Currency.choices, 
-        default=Currency.CDF, 
-        verbose_name=_("Currency"),
-        help_text=_("The primary currency for this account.")
+    currencies = models.JSONField(
+        default=list,
+        verbose_name=_("Currencies"),
+        help_text=_("List of supported currencies (e.g., ['USD', 'CDF']).")
+    )
+    default_currency = models.CharField(
+        max_length=3,
+        choices=Currency.choices,
+        default=Currency.USD,
+        verbose_name=_("Default Currency"),
+        help_text=_("Primary display currency for this account.")
     )
     iban = models.CharField(
         max_length=34, 
@@ -138,10 +149,12 @@ class BankAccount(BaseAuditableModel):
         verbose_name=_("Primary"),
         help_text=_("Mark as the main account for salary payments.")
     )
-    verified = models.BooleanField(
-        default=False, 
-        verbose_name=_("Verified"),
-        help_text=_("Confirm account details have been validated.")
+    status = models.CharField(
+        max_length=20,
+        choices=AccountStatus.choices,
+        default=AccountStatus.PENDING,
+        verbose_name=_("Status"),
+        help_text=_("Verification status of the account.")
     )
     verified_at = models.DateTimeField(
         null=True, 
@@ -155,10 +168,6 @@ class BankAccount(BaseAuditableModel):
         verbose_name=_("RIB/Proof Document"),
         help_text=_("Official document certifying account ownership.")
     )
-    is_active = models.BooleanField(
-        default=True, 
-        verbose_name=_("Active")
-    )
     notes = models.TextField(
         blank=True, 
         null=True, 
@@ -170,13 +179,17 @@ class BankAccount(BaseAuditableModel):
         ordering = ["-is_primary", "-created_at"]
         verbose_name = _("Bank Account")
         verbose_name_plural = _("Bank Accounts")
-        unique_together = [('bank', 'account_number', 'currency')]
         constraints = [
             models.UniqueConstraint(
-                fields=['employee', 'currency'],
-                condition=models.Q(is_primary=True),
-                name='unique_primary_account_per_employee_currency'
-            )
+                fields=['bank', 'account_number'],
+                condition=models.Q(deleted__isnull=True),
+                name='unique_bank_account_number'
+            ),
+            models.UniqueConstraint(
+                fields=['employee'],
+                condition=models.Q(is_primary=True, deleted__isnull=True),
+                name='unique_primary_account_per_employee'
+            ),
         ]
 
     def clean(self):
@@ -184,7 +197,7 @@ class BankAccount(BaseAuditableModel):
             self.account_number = re.sub(r'[^0-9A-Z]', '', self.account_number.strip().upper())
         if self.account_name:
             self.account_name = self.account_name.strip().upper()
-        if self.verified and not self.verified_at:
+        if self.status == AccountStatus.VERIFIED and not self.verified_at:
             self.verified_at = timezone.now()
 
     def save(self, *args, **kwargs):
@@ -193,7 +206,7 @@ class BankAccount(BaseAuditableModel):
 
     def __str__(self):
         indicator = " [PRIMARY]" if self.is_primary else ""
-        return f"{self.employee} - {self.bank.name} ({self.currency}){indicator}"
+        return f"{self.employee} - {self.bank.name} ({self.default_currency}){indicator}"
 
 
 class BankAccountHistory(BaseAuditableModel):

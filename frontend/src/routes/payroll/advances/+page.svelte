@@ -133,7 +133,7 @@
         await payrollStore.rejectAdvance(advanceId);
       } else {
         // For other status changes, update directly
-        await payrollStore.updateAdvanceStatus(advanceId, newStatus);
+        // await payrollStore.updateAdvanceStatus(advanceId, newStatus);
       }
       notification.toast.success(`Avance déplacée vers ${statusLabels[newStatus]}`);
     } catch (error) {
@@ -204,6 +204,7 @@
             description="Aucune demande d'avance ne correspond à vos critères de recherche."
             icon="banknote"
             iconSize={28}
+            iconStrokeWidth={1.3}
           />
         {:else}
           <!-- Kanban Board -->

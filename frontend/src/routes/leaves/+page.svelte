@@ -5,3 +5,4 @@
     goto('/leaves/requests', { replaceState: true });
   });
 </script>
+

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import AnimateSpin from "@/components/layout/elements/AnimateSpin.svelte";
 
   onMount(() => {
     goto('/jobs/chart', { replaceState: true });
@@ -9,6 +10,6 @@
 
 
 <div class="h-full flex items-center justify-center">
-  <div class="animate-pulse text-slate-300">Redirection...</div>
+  <AnimateSpin text="Rédirection" />
 </div>
 

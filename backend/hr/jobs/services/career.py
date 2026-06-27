@@ -7,7 +7,8 @@ from django.utils import timezone
 from hr.employees.models import Employee
 from hr.jobs.models import (
     Position, 
-    Department, 
+    OrgUnit, 
+    SeniorityLevel,
     EmployeePositionHistory
 )
 
@@ -23,10 +24,11 @@ class CareerService:
         self, 
         employee: Employee, 
         position: Position, 
-        department: Department, 
+        org_unit: OrgUnit, 
+        seniority_level: Optional[SeniorityLevel] = None,
         start_date: Optional[date] = None
     ) -> EmployeePositionHistory:
-        """ Formally records an employee's starting role and department. """
+        """ Formally records an employee's starting role and organizational unit. """
         start_date = start_date or timezone.now().date()
 
         if EmployeePositionHistory.objects.filter(employee=employee).exists():
@@ -37,7 +39,8 @@ class CareerService:
         history = EmployeePositionHistory.objects.create(
             employee=employee,
             position=position,
-            department=department,
+            org_unit=org_unit,
+            seniority_level=seniority_level,
             start_date=start_date,
             is_current=True
         )
@@ -50,11 +53,12 @@ class CareerService:
         self,
         employee: Employee,
         new_position: Position,
-        new_department: Optional[Department] = None,
+        new_seniority_level: Optional[SeniorityLevel] = None,
+        new_org_unit: Optional[OrgUnit] = None,
         effective_date: Optional[date] = None,
         description: Optional[str] = None
     ) -> EmployeePositionHistory:
-        """ Processes promotions, lateral moves, or departmental transfers. """
+        """ Processes promotions, lateral moves, or organizational unit transfers. """
         effective_date = effective_date or timezone.now().date()
         
         current_history = EmployeePositionHistory.objects.filter(
@@ -66,26 +70,36 @@ class CareerService:
             if effective_date < current_history.start_date:
                 raise ValueError("Effective date cannot precede the current role's start date.")
             
-            if current_history.position == new_position and current_history.department == new_department:
+            # If everything is the same, no need to move
+            if (current_history.position == new_position and 
+                current_history.org_unit == new_org_unit and 
+                current_history.seniority_level == new_seniority_level):
                 return current_history
 
+            # Close current history
+            current_history.is_current = False
+            current_history.end_date = effective_date
+            current_history.save(update_fields=['is_current', 'end_date'])
+
+        # Create new history entry
         new_history = EmployeePositionHistory.objects.create(
             employee=employee,
             position=new_position,
-            department=new_department or (current_history.department if current_history else None),
+            org_unit=new_org_unit or (current_history.org_unit if current_history else None),
+            seniority_level=new_seniority_level or (current_history.seniority_level if current_history else None),
             start_date=effective_date,
             is_current=True,
-            description=description or f"Transition to {new_position.name}"
+            description=description or f"Transition vers {new_position.name}"
         )
 
         logger.info(f"Employee {employee.id} transitioned to {new_position.name}")
         return new_history
 
-    def get_active_staff_count(self, department: Department, include_subs: bool = True) -> int:
-        """ Calculates current headcount for a specific department. """
-        query = models.Q(department=department)
+    def get_active_staff_count(self, org_unit: OrgUnit, include_subs: bool = True) -> int:
+        """ Calculates current headcount for a specific organizational unit. """
+        query = models.Q(org_unit=org_unit)
         if include_subs:
-            query |= models.Q(department__parent=department) 
+            query |= models.Q(org_unit__parent=org_unit) 
             
         return EmployeePositionHistory.objects.filter(query, is_current=True).count()
 
@@ -97,9 +111,9 @@ class CareerService:
             end = entry.end_date or timezone.now().date()
             duration = (end - entry.start_date).days
             summary.append({
-                "position": entry.position.name,
-                "level": entry.position.level,
-                "department": entry.department.name if entry.department else None,
+                "position": entry.position.name if entry.position else "Inconnu",
+                "level": entry.seniority_level.label if entry.seniority_level else None,
+                "org_unit": entry.org_unit.name if entry.org_unit else None,
                 "days_spent": duration,
                 "is_current": entry.is_current
             })

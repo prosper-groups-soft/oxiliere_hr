@@ -12,23 +12,25 @@ class PaymentMethod(TextChoices):
 
 class RemunerationType(TextChoices):
     """Calculation method for employee compensation."""
-    FIXED = "FIXED", _('Fixed Salary')
-    HOURLY = "HOURLY", _('Hourly Rate')
+    FIXED = "FIXED", _('Salaire Fixe')
+    HOURLY = "HOURLY", _('Taux Horaire')
+    GROSS_UP = "GROSS_UP", _('Brutage (Net à Brut)')
 
 
 class SalaryBaseType(TextChoices):
     """Determines if the base salary is expressed as Gross or Net."""
-    GROSS = "GROSS", _('Gross (Brut)')
-    NET = "NET", _('Net (Brutage)')
+    GROSS = "GROSS", _('Salaire Brut')
+    NET = "NET", _('Salaire Net')
 
 
 class ContractType(TextChoices):
-    """Employment contract categories."""
-    CDI = "CDI", _('CDI (Indefinite Contract)')
-    CDD = "CDD", _('CDD (Fixed-term Contract)')
-    INTERNSHIP = "INTERNSHIP", _('Internship')
-    FREELANCE = "FREELANCE", _('Freelance / Service Agreement')
-    TEMPORARY = "TEMPORARY", _('Temporary / Interim')
+    """Employment contract categories (Aligned with DRC Labor Law)."""
+    CDI = "CDI", _('CDI (Indéterminé)')
+    CDD = "CDD", _('CDD (Durée Déterminée)')
+    INTERNSHIP = "INTERNSHIP", _('Stage Professionnel')
+    FREELANCE = "FREELANCE", _('Consultance / Freelance')
+    PROBATION = "PROBATION", _('Période d\'Essai')
+    TEMPORARY = "TEMPORARY", _('Journalier / Temporaire')
 
 
 class PayrollStatus(TextChoices):
@@ -73,9 +75,11 @@ class BonusTypes(TextChoices):
 
 class PaymentPeriod(TextChoices):
     """Payroll frequency cycles."""
-    DAILY = "DAILY", _('Daily')
-    PER_TASK = "PER_TASK", _('Per Task')
-    MONTHLY = "MONTHLY", _('Monthly')
+    DAILY = "DAILY", _('Journalier')
+    WEEKLY = "WEEKLY", _('Hebdomadaire')
+    BIWEEKLY = "BIWEEKLY", _('Quinzaine / Bi-mensuel')
+    MONTHLY = "MONTHLY", _('Mensuel')
+    PER_TASK = "PER_TASK", _('À la tâche / Forfaitaire')
 
 
 class PayslipStatus(TextChoices):
@@ -95,7 +99,7 @@ class SocialContributionType(TextChoices):
 
 class OvertimeRuleType(TextChoices):
     """Types of overtime calculation rules."""
-    FIRST_TWO_HOURS = "FIRST_TWO_HOURS", _('First 2 hours beyond 45h/week (130%)')
+    FIRST_TIER = "FIRST_TIER", _('First 6 hours beyond 45h/week (130%)')
     SUBSEQUENT_HOURS = "SUBSEQUENT_HOURS", _('Subsequent hours (160%)')
     WEEKEND = "WEEKEND", _('Weekend/Rest day (200%)')
     HOLIDAY = "HOLIDAY", _('Public holiday (200%)')
@@ -106,6 +110,9 @@ class LegalAllowanceType(TextChoices):
     FAMILY = "FAMILY", _('Family Allowance (Allocation Familiale)')
     HOUSING = "HOUSING", _('Housing Allowance (Contre-valeur Logement)')
     TRANSPORT = "TRANSPORT", _('Transport Allowance (Allocation de Transport)')
+    MEAL = "MEAL", _('Meal Allowance (Panier)')
+    RISK_PREMIUM = "RISK_PREMIUM", _('Risk Premium (Prime de Risque)')
+    DIRTY_WORK = "DIRTY_WORK", _('Dirty Work Allowance (Prime de Salissure)')
 
 
 class ExchangeRateSource(TextChoices):
@@ -130,3 +137,4 @@ class AdvanceDeductionWindow(TextChoices):
     """Determines the time period during which deductions are applied."""
     ALL_MONTHS = "ALL_MONTHS", _('All Months (Until fully repaid)')
     CUSTOM_PERIOD = "CUSTOM_PERIOD", _('Custom Period (Between defined dates)')
+

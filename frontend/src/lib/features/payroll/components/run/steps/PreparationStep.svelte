@@ -30,18 +30,18 @@
     variables: payrollStore.variablesDetected,
     completionRate: payrollStore.completionRate,
     completeProfiles: payrollStore.completeProfilesCount,
-    departments: payrollStore.departmentDistribution
+    orgUnits: payrollStore.orgUnitDistribution
   });
 
-  const deptColors: Record<string, { bg: string; text: string; dot: string }> = {
+  const orgUnitColors: Record<string, { bg: string; text: string; dot: string }> = {
     'IT': { bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-500' },
     'RH': { bg: 'bg-rose-100', text: 'text-rose-700', dot: 'bg-rose-500' },
     'Finance': { bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-500' },
     'Admin': { bg: 'bg-amber-100', text: 'text-amber-700', dot: 'bg-amber-500' }
   };
 
-  const getDeptColor = (dept: string) => 
-    deptColors[dept] || { bg: 'bg-slate-100', text: 'text-slate-600', dot: 'bg-slate-400' };
+  const getOrgUnitColor = (orgUnit: string) => 
+    orgUnitColors[orgUnit] || { bg: 'bg-slate-100', text: 'text-slate-600', dot: 'bg-slate-400' };
 
   function handlePeriodChange(e: Event) {
     const newVal = (e.target as HTMLInputElement).value;
@@ -61,7 +61,7 @@
       </div>
       <div class="flex flex-col">
         <span class="text-sm text-slate-700 font-medium">{emp.employeeName}</span>
-        <span class="text-[0.75rem] text-slate-400">{emp.department}</span>
+        <span class="text-[0.75rem] text-slate-400">{emp.orgUnit}</span>
       </div>
     </div>
     <div class="flex items-center gap-3">
@@ -75,11 +75,11 @@
 {/snippet}
 
 
-{#snippet DeptBadge(dept: string)}
-  {@const colors = getDeptColor(dept)}
+{#snippet OrgUnitBadge(orgUnit: string)}
+  {@const colors = getOrgUnitColor(orgUnit)}
   <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[0.72rem] font-medium {colors.bg} {colors.text}">
     <span class="h-1.5 w-1.5 rounded-full {colors.dot}"></span>
-    {dept}
+    {orgUnit}
   </span>
 {/snippet}
 
@@ -186,8 +186,8 @@
           <Separator class="flex-1 opacity-50" />
         </div>
         <div class="flex flex-wrap gap-1.5">
-          {#each Object.entries(stats.departments) as [dept, count]}
-            {@render DeptBadge(dept)}
+          {#each Object.entries(stats.orgUnits) as [orgUnit, count]}
+            {@render OrgUnitBadge(orgUnit)}
           {/each}
         </div>
       </div>
@@ -200,7 +200,7 @@
           </div>
           {#each excludedEmployees as ex}
             <div class="flex items-center justify-between text-[0.82rem]">
-              <span class="text-slate-700 font-medium text-[0.82rem]">{ex.employeeName} ({ex.department})</span>
+              <span class="text-slate-700 font-medium text-[0.82rem]">{ex.employeeName} ({ex.orgUnit})</span>
               <span class="text-rose-600 text-[0.82rem]">{ex.reason}</span>
             </div>
           {/each}
@@ -212,7 +212,7 @@
           <div class="pt-4 border-t border-slate-100">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-3">
               {#each activeEmployees.length > 0 ? activeEmployees : Array(6) as emp, i}
-                {@render EmployeeRow(emp.employeeName ? emp : { employeeName: `Employé #00${i+1}`, department: 'Département' }, i)}
+                {@render EmployeeRow(emp.employeeName ? emp : { employeeName: `Employé #00${i+1}`, orgUnit: 'Unité organisationnelle' }, i)}
               {/each}
             </div>
           </div>

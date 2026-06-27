@@ -1,8 +1,13 @@
+import os
 from .base import BASE_DIR
 
 
-LOG_FILE_PATH = BASE_DIR.parent.parent / 'logs' / 'hr_logs.log'
-LOG_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
+LOG_FILE_PATH = os.environ.get(
+    'OXI_LOG_FILE_PATH',
+    str(BASE_DIR.parent.parent / 'logs' / 'hr_logs.log')
+)
+LOG_FILE_PATH_PARENT = os.path.dirname(LOG_FILE_PATH)
+os.makedirs(LOG_FILE_PATH_PARENT, exist_ok=True)
 
 
 HR_LOGGING_CONFIG = {
@@ -27,4 +32,3 @@ HR_LOGGING_CONFIG = {
         },
     },
 }
-

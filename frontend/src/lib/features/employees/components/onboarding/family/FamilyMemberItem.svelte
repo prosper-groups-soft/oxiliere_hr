@@ -3,6 +3,7 @@
   import type { Child } from "../../../types/types";
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
   import { Button } from "@/components/ui/button";
+  import { REVERSE_GENDER_MAPPING } from "@/features/employees/constants/mappings";
 
   interface Props {
     member: Child;
@@ -26,7 +27,19 @@
     <div>
       <p class="font-semibold text-slate-900 text-[0.85rem] tracking-tight">{member.name}</p>
       <div class="flex items-center gap-2 mt-0.5">
-        <p class="text-[0.7rem] text-slate-500">{new Date(member.birthDate).toLocaleDateString()}</p>
+        <p class="text-[0.8rem] text-slate-500">{new Date(member.birthDate).toLocaleDateString()}</p>
+        {#if member.gender}
+          <span class="text-[0.8rem] text-slate-400">•</span>
+          <p class="text-[0.8rem] text-slate-500">
+            {REVERSE_GENDER_MAPPING[member.gender as keyof typeof REVERSE_GENDER_MAPPING] || 'Non spécifié'}
+          </p>
+        {/if}
+        {#if member.isDependent !== undefined}
+          <span class="text-[0.8rem] text-slate-400">•</span>
+          <p class="text-[0.8rem] text-slate-500">
+            {member.isDependent ? 'À charge' : 'Indépendant'}
+          </p>
+        {/if}
       </div>
     </div>
   </div>

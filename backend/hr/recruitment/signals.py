@@ -7,6 +7,7 @@ from hr.recruitment.models import (
     Application,
     Interview
 )
+from hr.jobs.models import Position
 from hr.recruitment.services.cache import RecruitmentCacheService
 
 
@@ -14,6 +15,15 @@ from hr.recruitment.services.cache import RecruitmentCacheService
 def invalidate_offer_cache(sender, instance, **kwargs):
     """Invalidate job offer cache."""
     RecruitmentCacheService.clear_offer_cache(instance)
+
+
+@receiver([post_save, post_delete], sender=Position)
+def invalidate_position_related_offers(sender, instance, **kwargs):
+    """Invalidate job offer cache when a position is modified."""
+    # Get all job offers that reference this position
+    related_offers = instance.job_offers.all()
+    for offer in related_offers:
+        RecruitmentCacheService.clear_offer_cache(offer)
 
 
 @receiver([post_save, post_delete], sender=Candidate)

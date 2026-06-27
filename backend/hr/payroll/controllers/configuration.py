@@ -63,6 +63,7 @@ from hr.payroll.services import (
 )
 # Cache integration
 from hr.services.cache_helpers import cache_api_response
+from hr.payroll.services.cache import PayrollCacheService
 
 
 logger = logging.getLogger(__name__)
@@ -94,21 +95,38 @@ class PayrollConfigurationController(ControllerBase):
     # ===== PAYROLL CONFIGURATION =====
 
     @http_get('/', response=PayrollConfigurationOut, permissions=[ScopePermission('payroll:r')])
-    @cache_api_response(timeout=60*60*24, key_prefix="payroll_config", user_specific=False)
     def get_configuration(self):
         """
         Retrieve global payroll configuration (singleton pattern).
         Returns the current payroll settings for the entire system.
+        Auto-initializes from fixture if not exists.
         """
         logger.debug("[Payroll Config] Retrieving global configuration")
 
-        config = PayrollConfiguration.objects.first()
+        # Try to get cached config first
+        config = PayrollCacheService.get_configuration()
+
         if not config:
-            logger.warning("[Payroll Config] No configuration found (create one)")
-            return self.create_response(
-                {"detail": "Payroll configuration not initialized"},
-                status_code=404,
-            )
+            logger.warning("[Payroll Config] No configuration found, initializing from fixture...")
+            try:
+                # Initialize from fixture
+                summary = self.init_service.init_payroll_configurations()
+                logger.info(f"[Payroll Config] Auto-initialized: {summary}")
+
+                # Retry getting the config (from DB, not cache)
+                config = PayrollConfiguration.objects.first()
+                if not config:
+                    logger.error("[Payroll Config] Failed to auto-initialize")
+                    return self.create_response(
+                        {"detail": "Failed to initialize payroll configuration"},
+                        status_code=500,
+                    )
+            except Exception as e:
+                logger.error(f"[Payroll Config] Error auto-initializing: {str(e)}")
+                return self.create_response(
+                    {"detail": f"Error initializing payroll configuration: {str(e)}"},
+                    status_code=500,
+                )
 
         return config
 
@@ -147,7 +165,6 @@ class PayrollConfigurationController(ControllerBase):
                 data=data.model_dump(exclude_unset=True),
                 actor=actor,
             )
-            logger.info("[Payroll Config] Configuration updated successfully")
             return config
 
         except ValidationError as e:
@@ -268,7 +285,7 @@ class PayrollConfigurationController(ControllerBase):
     # ===== OVERTIME RULES =====
 
     @http_get('/overtime/', response=List[OvertimeRuleOut], permissions=[ScopePermission('payroll:r')])
-    @cache_api_response(timeout=60*60*24, key_prefix="social_rates", user_specific=False)
+    @cache_api_response(timeout=60*60*24, key_prefix="overtime_rules", user_specific=False)
     def list_overtime_rules(self, filters: OvertimeRuleListFilterIn = Query(...)):
         """
         List all overtime rules (multipliers by hour count or holiday status).
@@ -276,7 +293,7 @@ class PayrollConfigurationController(ControllerBase):
         """
         logger.debug("[Overtime] Listing overtime rules", extra={"filters": filters.model_dump()})
 
-        qs = OvertimeRule.objects.all().order_by('rule_type', 'starting_hour')
+        qs = OvertimeRule.objects.all().order_by('rule_type', 'multiplier')
         return filters.filter(qs)
 
     @http_post('/overtime/', response={201: OvertimeRuleOut}, permissions=[ScopePermission('payroll:w')])
@@ -330,7 +347,7 @@ class PayrollConfigurationController(ControllerBase):
         """
         logger.debug("[Taxes] Listing tax brackets", extra={"filters": filters.model_dump()})
 
-        qs = TaxBracket.objects.all().order_by('fiscal_year', 'min_amount')
+        qs = TaxBracket.objects.all().order_by('lower_limit')
         return filters.filter(qs)
 
     @http_post('/tax-brackets/', response={201: TaxBracketOut}, permissions=[ScopePermission('payroll:w')])

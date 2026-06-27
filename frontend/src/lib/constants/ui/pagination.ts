@@ -7,3 +7,5 @@ export const PAGINATION_LABELS = {
 	GO_TO: 'Aller à',
 	PAGE: 'Page'
 };
+
+export const DEFAULT_PAGE_SIZE = 10

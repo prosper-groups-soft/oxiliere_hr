@@ -5,6 +5,7 @@ from django.db.models.signals import post_save, post_delete
 from .models import (
     ShiftPolicy, 
     ShiftDetail, 
+    ShiftPeriod,
     EmploymentScheme, 
     TimePunch, 
     DailyRegister,
@@ -19,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 @receiver([post_save, post_delete], sender=ShiftPolicy)
 @receiver([post_save, post_delete], sender=ShiftDetail)
+@receiver([post_save, post_delete], sender=ShiftPeriod)
 @receiver([post_save, post_delete], sender=EmploymentScheme)
 @receiver([post_save, post_delete], sender=TimePunch)
 @receiver([post_save, post_delete], sender=DailyRegister)

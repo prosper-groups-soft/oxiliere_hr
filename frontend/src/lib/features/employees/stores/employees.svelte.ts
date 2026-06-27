@@ -1,188 +1,31 @@
-import type { Employee, EmployeeFilters } from '../types/types';
+import type { Employee, EmployeeFilters, EmployeeFullProfile } from '../types/types';
+import { employeesEndpoint } from '../api/employees.endpoints';
 
-// Mock Data
-const MOCK_EMPLOYEES: Employee[] = [
-	{
-		id: 1,
-		name: 'Alice Dupont',
-		jobTitle: 'Senior Frontend Engineer',
-		department: 'Engineering',
-		status: 'Actif',
-		location: 'Paris HQ',
-		contractType: 'Permanent',
-		joinDate: '2021-03-15',
-		phone: '0895105540',
-		email: 'kibangula.prosper@oxiliere.com',
-		avatarUrl: '',
-		role: 'Software Engineer'
-	},
-	{
-		id: 2,
-		name: 'Bob Martin',
-		jobTitle: 'Product Manager',
-		department: 'Product',
-		status: 'Actif',
-		location: 'Remote',
-		contractType: 'Permanent',
-		joinDate: '2022-06-01',
-		phone: '0895105540',
-		email: 'kibangula.prosper@oxiliere.com',
-		avatarUrl: '',
-		role: 'Software Engineer'
-	},
-	{
-		id: 3,
-		name: 'Charlie Durand',
-		jobTitle: 'Sales Representative',
-		department: 'Sales',
-		status: 'En intégration',
-		location: 'Lyon Office',
-		contractType: 'Fixed-term',
-		joinDate: '2024-02-10',
-		phone: '0895105540',
-		email: 'kibangula.prosper@oxiliere.com',
-		avatarUrl: '',
-		role: 'Software Engineer'
-	},
-	{
-		id: 4,
-		name: 'David Leroy',
-		jobTitle: 'Marketing Specialist',
-		department: 'Marketing',
-		status: 'Actif',
-		location: 'Paris HQ',
-		contractType: 'Permanent',
-		joinDate: '2023-11-20',
-		phone: '0895105540',
-		email: 'kibangula.prosper@oxiliere.com',
-		avatarUrl: '',
-		role: 'Software Engineer'
-	},
-	{
-		id: 5,
-		name: 'Eve Moreau',
-		jobTitle: 'HR Coordinator',
-		department: 'Human Resources',
-		status: 'Suspendu',
-		location: 'Bordeaux Hub',
-		contractType: 'Permanent',
-		joinDate: '2022-09-12',
-		phone: '0895105540',
-		email: 'kibangula.prosper@oxiliere.com',
-		avatarUrl: '',
-		role: 'Software Engineer'
-	},
-	{
-		id: 6,
-		name: 'Frank Petit',
-		jobTitle: 'Financial Analyst',
-		department: 'Finance',
-		status: 'Terminé',
-		location: 'Paris HQ',
-		contractType: 'Freelance',
-		joinDate: '2020-05-15',
-		phone: '0895105540',
-		email: 'kibangula.prosper@oxiliere.com',
-		avatarUrl: '',
-		role: 'Software Engineer'
-	},
-	{
-		id: 7,
-		name: 'Grace Thomas',
-		jobTitle: 'Backend Developer',
-		department: 'Engineering',
-		status: 'Actif',
-		location: 'Remote',
-		contractType: 'Permanent',
-		joinDate: '2023-01-10',
-		phone: '0895105540',
-		email: 'kibangula.prosper@oxiliere.com',
-		avatarUrl: '',
-		role: 'Software Engineer'
-	},
-	{
-		id: 8,
-		name: 'Hugo Richard',
-		jobTitle: 'UX Designer',
-		department: 'Product',
-		status: 'Actif',
-		location: 'Lyon Office',
-		contractType: 'Apprenticeship',
-		joinDate: '2024-01-05',
-		phone: '0895105540',
-		email: 'kibangula.prosper@oxiliere.com',
-		avatarUrl: '',
-		role: 'Software Engineer'
-	},
-	{
-		id: 9,
-		name: 'Ivy Bernard',
-		jobTitle: 'DevOps Engineer',
-		department: 'Engineering',
-		status: 'Actif',
-		location: 'Paris HQ',
-		contractType: 'Permanent',
-		joinDate: '2021-12-01',
-		phone: '0895105540',
-		email: 'kibangula.prosper@oxiliere.com',
-		avatarUrl: '',
-		role: 'Software Engineer'
-	},
-	{
-		id: 10,
-		name: 'Jack Simon',
-		jobTitle: 'Account Manager',
-		department: 'Sales',
-		status: 'Actif',
-		location: 'Bordeaux Hub',
-		contractType: 'Permanent',
-		joinDate: '2022-04-18',
-		phone: '0895105540',
-		email: 'kibangula.prosper@oxiliere.com',
-		avatarUrl: '',
-		role: 'Software Engineer'
-	},
-	{
-		id: 11,
-		name: 'Kelly Rose',
-		jobTitle: 'Content Writer',
-		department: 'Marketing',
-		status: 'Actif',
-		location: 'Remote',
-		contractType: 'Internship',
-		joinDate: '2024-01-15',
-		phone: '0895105540',
-		email: 'kibangula.prosper@oxiliere.com',
-		avatarUrl: '',
-		role: 'Software Engineer'
-	},
-	{
-		id: 12,
-		name: 'Leo Michel',
-		jobTitle: 'Tech Lead',
-		department: 'Engineering',
-		status: 'Actif',
-		location: 'Lyon Office',
-		contractType: 'Permanent',
-		joinDate: '2019-10-25',
-		phone: '0895105540',
-		email: 'kibangula.prosper@oxiliere.com',
-		avatarUrl: '',
-		role: 'Software Engineer'
-	}
-];
 
 export class EmployeeStore {
 	// --- Reactive State (Runes) ---
-	employees = $state(MOCK_EMPLOYEES);
+	// Données chargées depuis le backend (via queries)
+	employees = $state<Employee[]>([]);
+	isLoading = $state(false);
+	error = $state<string | null>(null);
+	current = $state<EmployeeFullProfile | null>(null);
+	
+	// Métadonnées de pagination du serveur
+	serverTotalCount = $state(0);
+	serverTotalPages = $state(1);
+	
+	// Filtres UI (côté client pour affichage)
 	searchQuery = $state('');
 	sortBy = $state('name');
-	sortOrder = $state<'asc' | 'desc'>('asc'); // New: Handles sort direction
+	sortOrder = $state<'asc' | 'desc'>('asc');
 	filters = $state<EmployeeFilters>({
-		department: [],
+		orgUnit: [],
 		status: [],
-		location: []
+		location: [],
+		contractType: []
 	});
+	
+	// Pagination côté client (pour la vue)
 	currentPage = $state(1);
 	perPage = $state(8);
 	viewMode = $state<'list' | 'grid'>('list');
@@ -199,58 +42,106 @@ export class EmployeeStore {
 	// --- Derived State ---
 
 	/**
-	 * Main processing pipeline: Filters -> Sorts (Dynamic Direction)
+	 * Les données sont filtrées et triées par le backend.
+	 * On retourne directement les données reçues du serveur.
 	 */
 	filteredEmployees = $derived.by(() => {
-		// 1. Filtering Logic
-		let result = MOCK_EMPLOYEES.filter((emp) => {
-			const searchLower = this.searchQuery.toLowerCase();
-			const matchesSearch =
-				emp.name.toLowerCase().includes(searchLower) ||
-				emp.jobTitle.toLowerCase().includes(searchLower) ||
-				emp.contractType.toLowerCase().includes(searchLower);
-
-			const matchesDept =
-				this.filters.department.length === 0 || this.filters.department.includes(emp.department);
-			const matchesStatus =
-				this.filters.status.length === 0 || this.filters.status.includes(emp.status);
-			const matchesLoc =
-				this.filters.location.length === 0 || this.filters.location.includes(emp.location);
-
-			return matchesSearch && matchesDept && matchesStatus && matchesLoc;
-		});
-
-		// 2. Sorting Logic with Directional multiplier
-		return [...result].sort((a, b) => {
-			let comparison = 0;
-
-			if (this.sortBy === 'name') {
-				comparison = a.name.localeCompare(b.name);
-			} else if (this.sortBy === 'joinDate') {
-				comparison = new Date(a.joinDate).getTime() - new Date(b.joinDate).getTime();
-			} else if (this.sortBy === 'status') {
-				comparison = a.status.localeCompare(b.status);
-			}
-
-			// If desc, multiply result by -1 to flip order
-			return this.sortOrder === 'asc' ? comparison : -comparison;
-		});
+		// Le backend s'occupe déjà du filtrage et du tri
+		// On retourne les données telles quelles
+		return this.employees;
 	});
 
 	paginatedEmployees = $derived.by(() => {
-		return this.filteredEmployees.slice(
-			(this.currentPage - 1) * this.perPage,
-			this.currentPage * this.perPage
-		);
+		// Le backend pagine déjà, on retourne les données telles quelles
+		return this.filteredEmployees;
 	});
 
-	totalCount = $derived(this.filteredEmployees.length);
-	totalPages = $derived(Math.ceil(this.totalCount / this.perPage) || 1);
+	totalCount = $derived(this.serverTotalCount);
+	totalPages = $derived(this.serverTotalPages);
 	activeFiltersCount = $derived(
-		this.filters.department.length + this.filters.status.length + this.filters.location.length
+		((this.filters.orgUnit as string[] | undefined)?.length || 0) + 
+		((this.filters.status as string[] | undefined)?.length || 0) + 
+		((this.filters.location as string[] | undefined)?.length || 0) +
+		((this.filters.contractType as string[] | undefined)?.length || 0)
 	);
 
 	// --- Actions ---
+
+	/**
+	 * Met à jour les données depuis le serveur
+	 * Appelé par les queries après un fetch
+	 */
+	setEmployees(data: Employee[], total?: number, pages?: number) {
+		this.employees = data;
+		if (total !== undefined) {
+			this.serverTotalCount = total;
+		}
+		if (pages !== undefined) {
+			this.serverTotalPages = pages;
+		}
+	}
+
+	setLoading(loading: boolean) {
+		this.isLoading = loading;
+	}
+
+	setError(err: string | null) {
+		this.error = err;
+	}
+	
+	setCurrent(employee: EmployeeFullProfile | null) {
+        this.current = employee;
+    }
+
+	getById(id: string | number): Employee | undefined {
+        // Si c'est une chaîne qui ressemble à un UUID, on ne parse surtout pas en Int
+        if (typeof id === 'string' && id.includes('-')) {
+            return this.employees.find((emp) => emp.id === id);
+        }
+        
+        // Pour les IDs numériques classiques
+        const lookFor = typeof id === 'string' ? parseInt(id, 10) : id;
+        return this.employees.find((emp) => emp.id === lookFor);
+    }
+
+	async getFullProfileById(id: string): Promise<EmployeeFullProfile | null> {
+		try {
+			const fullProfile = await employeesEndpoint.retrieve(id);
+			this.current = fullProfile;
+			return fullProfile;
+		} catch (error) {
+			console.error('Error fetching full profile:', error);
+			return null;
+		}
+	}
+
+	/**
+	 * Ajoute un employé à la liste (après création)
+	 */
+	addEmployee(employee: Employee) {
+		this.employees = [employee, ...this.employees];
+	}
+
+	/**
+	 * Met à jour un employé dans la liste
+	 */
+	updateEmployee(id: string | number, data: Partial<Employee>) {
+		const numId = typeof id === 'string' ? parseInt(id, 10) : id;
+		const index = this.employees.findIndex((emp) => emp.id === numId);
+		if (index !== -1) {
+			this.employees[index] = { ...this.employees[index], ...data };
+			// Trigger reactivity by reassigning the array
+			this.employees = [...this.employees];
+		}
+	}
+
+	/**
+	 * Supprime un employé de la liste
+	 */
+	removeEmployee(id: string | number) {
+		const numId = typeof id === 'string' ? parseInt(id, 10) : id;
+		this.employees = this.employees.filter((emp) => emp.id !== numId);
+	}
 
 	/**
 	 * Toggles the sort direction between 'asc' and 'desc'
@@ -283,11 +174,16 @@ export class EmployeeStore {
 	}
 
 	toggleFilter(category: keyof EmployeeFilters, value: string) {
-		const current = this.filters[category];
+		// Only handle array-type filters (orgUnit, status, location)
+		if (category === 'gender' || category === 'marital_status' || category === 'is_active') {
+			return; // Skip non-array filters for now
+		}
+		
+		const current = (this.filters[category] as string[]) || [];
 		if (current.includes(value)) {
-			this.filters[category] = current.filter((v) => v !== value);
+			(this.filters as Record<string, string[]>)[category] = current.filter((v) => v !== value);
 		} else {
-			this.filters[category] = [...current, value];
+			(this.filters as Record<string, string[]>)[category] = [...current, value];
 		}
 		this.currentPage = 1;
 	}
@@ -312,27 +208,14 @@ export class EmployeeStore {
 	}
 
 	resetFilters() {
-		this.filters = { department: [], status: [], location: [] };
+		this.filters = { orgUnit: [], status: [], location: [], contractType: [] };
 		this.searchQuery = '';
 		this.sortBy = 'name';
-		this.sortOrder = 'asc'; // Reset to default ascending
+		this.sortOrder = 'asc';
 		this.currentPage = 1;
-	}
-
-	getById(id: string | number): Employee | undefined {
-		const numId = typeof id === 'string' ? parseInt(id, 10) : id;
-		return this.employees.find((emp) => emp.id === numId);
-	}
-
-	updateEmployee(id: string | number, data: Partial<Omit<Employee, 'id'>>) {
-		const numId = typeof id === 'string' ? parseInt(id, 10) : id;
-		const index = this.employees.findIndex((emp) => emp.id === numId);
-		if (index !== -1) {
-			this.employees[index] = { ...this.employees[index], ...data };
-			// Trigger reactivity by reassigning the array
-			this.employees = [...this.employees];
-		}
 	}
 }
 
+
 export const employeeStore = new EmployeeStore();
+

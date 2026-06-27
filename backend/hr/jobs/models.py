@@ -3,16 +3,16 @@ from django.db import models
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 from auditlog.registry import auditlog
+from django.db.models import Q, UniqueConstraint
 
-from hr.models import BaseAuditableModel
-from .enums import PositionLevel
+from hr.models.base import BaseAuditableModel
+from .enums import PositionLevel, OrgUnitType, TransitionType
 
 
 class JobFamily(BaseAuditableModel):
     """ High-level functional career category (e.g., Engineering, HR, Finance). """
     name = models.CharField(
         max_length=255, 
-        unique=True,
         verbose_name=_("Family Name")
     )
     description = models.TextField(
@@ -36,33 +36,57 @@ class JobFamily(BaseAuditableModel):
 
 
 class Position(BaseAuditableModel):
-    """ Specific role and seniority level within a Job Family. """
+    """ 
+    Specific role within a Job Family. Seniority levels are now linked via PositionSeniority.
+    This allows employees to progress through levels within the same position.
+    """
     job_family = models.ForeignKey(
         JobFamily, 
         on_delete=models.CASCADE, 
         related_name="positions",
         help_text="The job family this position belongs to."
     )
+    org_unit = models.ForeignKey(
+        'OrgUnit',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="positions",
+        verbose_name=_("Organizational Unit"),
+        help_text="The org unit this position is attached to."
+    )
     name = models.CharField(
         max_length=100,
         help_text="Title of the position (e.g., Software Engineer, Recruiter)."
-    )
-    level = models.CharField(
-        max_length=20,
-        choices=PositionLevel,
-        default=PositionLevel.JUNIOR,
-        verbose_name=_("Seniority Level")
     )
     description = models.TextField(
         blank=True, 
         null=True,
         verbose_name=_("Job Description")
     )
+    requirements = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name=_("Requirements"),
+        help_text="List of specific requirements for this position"
+    )
+    skills = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name=_("Key Skills"),
+        help_text="List of key skills with levels, e.g. [{'name': 'React', 'level': 3}]"
+    )
 
     class Meta:
         db_table = "jobs_position"
-        ordering = ["job_family__name", "level", "name"]
-        unique_together = ('job_family', 'name', 'level')
+        ordering = ["job_family__name", "name"]
+        constraints = [
+            UniqueConstraint(
+                fields=['job_family', 'name'],
+                condition=Q(deleted__isnull=True),
+                name='unique_active_position'
+            ),
+        ]
         verbose_name = _("Position")
 
     def clean(self):
@@ -70,31 +94,153 @@ class Position(BaseAuditableModel):
             self.name = self.name.strip().title()
 
     def __str__(self):
-        return f"{self.name} ({self.get_level_display()})"
+        return self.name
 
 
-class Department(BaseAuditableModel):
-    """ Organizational unit or functional department. """
+class SeniorityLevel(BaseAuditableModel):
+    """ 
+    Dynamic definition of seniority levels with requirements.
+    Allows customization of the 9 standard levels per organization.
+    """
+    level = models.CharField(
+        max_length=20,
+        choices=PositionLevel,
+        unique=True,
+        verbose_name=_("Position Level")
+    )
+    rank = models.PositiveSmallIntegerField(
+        default=1,
+        verbose_name=_("Hierarchy Rank"),
+        help_text="Numeric rank for ordering (1=lowest, 9=highest)"
+    )
+    label = models.CharField(
+        max_length=100,
+        verbose_name=_("Display Label")
+    )
+    requirements = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name=_("Requirements"),
+        help_text="List of requirements/prerequisites for this level"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name=_("Is Active")
+    )
+
+    class Meta:
+        db_table = "jobs_seniority_level"
+        ordering = ["rank"]
+        verbose_name = _("Seniority Level Definition")
+        verbose_name_plural = _("Seniority Level Definitions")
+
+    def __str__(self):
+        return f"{self.label} ({self.level})"
+
+
+class PositionSeniority(BaseAuditableModel):
+    """
+    Links a Position to available SeniorityLevels with specific salary ranges.
+    Allows progression through levels within the same position.
+    """
+    position = models.ForeignKey(
+        Position,
+        on_delete=models.CASCADE,
+        related_name="seniority_levels",
+        verbose_name=_("Position")
+    )
+    seniority_level = models.ForeignKey(
+        SeniorityLevel,
+        on_delete=models.PROTECT,
+        verbose_name=_("Seniority Level")
+    )
+    salary_min = models.PositiveIntegerField(
+        verbose_name=_("Minimum Salary for this level")
+    )
+    salary_max = models.PositiveIntegerField(
+        verbose_name=_("Maximum Salary for this level")
+    )
+    rank = models.PositiveSmallIntegerField(
+        default=1,
+        verbose_name=_("Progression Rank"),
+        help_text=_("Order within career ladder (1=first, highest=last)")
+    )
+    next_level = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="previous_level",
+        verbose_name=_("Next Level in Progression")
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name=_("Is Active")
+    )
+
+    class Meta:
+        db_table = "jobs_position_seniority"
+        ordering = ["position", "rank"]
+        constraints = [
+            UniqueConstraint(
+                fields=['position', 'seniority_level'],
+                condition=Q(deleted__isnull=True),
+                name='unique_position_seniority'
+            ),
+        ]
+        verbose_name = _("Position Seniority Level")
+        verbose_name_plural = _("Position Seniority Levels")
+
+    def clean(self):
+        if self.salary_min > self.salary_max:
+            raise ValidationError(_("Salary min cannot exceed salary max"))
+
+    def __str__(self):
+        return f"{self.position.name} - {self.seniority_level.label} (FC{self.salary_min:,}-{self.salary_max:,})"
+
+
+class OrgUnit(BaseAuditableModel):
+    """ 
+    Organizational unit - represents any structural entity in the company hierarchy.
+    Can be a department, division, team, function, branch, or project.
+    """
     name = models.CharField(
         max_length=100, 
-        unique=True,
-        verbose_name=_("Department Name")
+        verbose_name=_("Unit Name")
+    )
+    type = models.CharField(
+        max_length=20,
+        choices=OrgUnitType.choices,
+        default=OrgUnitType.DEPARTMENT,
+        verbose_name=_("Unit Type")
     )
     parent = models.ForeignKey(
         'self', 
         on_delete=models.SET_NULL, 
         null=True, 
         blank=True, 
-        related_name="sub_departments",
-        verbose_name=_("Parent Department")
+        related_name="sub_units",
+        verbose_name=_("Parent Unit")
     )
     manager = models.ForeignKey(
         "hr_employees.Employee", 
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="department_managed",
-        verbose_name=_("Department Manager")
+        related_name="units_managed",
+        verbose_name=_("Unit Manager")
+    )
+    affoint = models.ForeignKey(
+        "hr_employees.Employee", 
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="units_deputized",
+        verbose_name=_("Adjoint/Deputy")
+    )
+    authorized_headcount = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_("Authorized Headcount")
     )
     description = models.TextField(
         blank=True, 
@@ -103,16 +249,30 @@ class Department(BaseAuditableModel):
     )
 
     class Meta:
-        db_table = "jobs_department"
+        db_table = "jobs_orgunit"
         ordering = ["name"]
-        verbose_name = _("Department")
+        verbose_name = _("Organizational Unit")
+        verbose_name_plural = _("Organizational Units")
 
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.get_type_display()})"
+
+    @property
+    def employee_count(self) -> int:
+        """Returns the number of employees currently assigned to this unit."""
+        return self.position_history.filter(is_current=True).count()
+
+    @property
+    def total_employee_count(self) -> int:
+        """Returns the total number of employees in this unit and all sub-units."""
+        count = self.employee_count
+        for sub_unit in self.sub_units.all():
+            count += sub_unit.total_employee_count
+        return count
 
 
 class EmployeePositionHistory(BaseAuditableModel):
-    """ Records an employee's career progression and departmental assignments. """
+    """ Records an employee's career progression and organization unity assignments. """
     employee = models.ForeignKey(
         "hr_employees.Employee",
         on_delete=models.CASCADE,
@@ -122,16 +282,32 @@ class EmployeePositionHistory(BaseAuditableModel):
     position = models.ForeignKey(
         Position,
         on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name="employee_histories",
         verbose_name=_("Position held")
     )
-    department = models.ForeignKey(
-        Department,
+    seniority_level = models.ForeignKey(
+        SeniorityLevel,
         on_delete=models.PROTECT,
         null=True,
         blank=True,
-        related_name="employee_position_histories",
-        verbose_name=_("Assigned Department")
+        related_name="employee_histories",
+        verbose_name=_("Seniority Level at Assignment")
+    )
+    salary_at_assignment = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name=_("Salary at Assignment"),
+        help_text="Captured salary when this position was assigned"
+    )
+    org_unit = models.ForeignKey(
+        OrgUnit,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="position_history",
+        verbose_name=_("Assigned Unit")
     )
     start_date = models.DateField(
         default=timezone.now,
@@ -155,6 +331,7 @@ class EmployeePositionHistory(BaseAuditableModel):
     class Meta:
         db_table = "jobs_employee_position_history"
         ordering = ["-start_date"]
+        unique_together = ('employee', 'position', 'seniority_level', 'is_current')
         verbose_name = _("Position History")
         verbose_name_plural = _("Position Histories")
 
@@ -170,6 +347,71 @@ class EmployeePositionHistory(BaseAuditableModel):
                 is_current=True
             ).exclude(id=self.id).update(is_current=False, end_date=timezone.now().date())
         super().save(*args, **kwargs)
+
+
+class EmployeeTransition(BaseAuditableModel):
+    """ Records a specific career movement event (promotion, transfer, hire, offboard). """
+    employee = models.ForeignKey(
+        "hr_employees.Employee",
+        on_delete=models.CASCADE,
+        related_name="transitions",
+        verbose_name=_("Employee")
+    )
+    transition_type = models.CharField(
+        max_length=20,
+        choices=TransitionType,
+        verbose_name=_("Transition Type")
+    )
+    from_position = models.ForeignKey(
+        Position,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="transitions_from",
+        verbose_name=_("From Position")
+    )
+    from_seniority_level = models.ForeignKey(
+        SeniorityLevel,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="transitions_from",
+        verbose_name=_("From Seniority Level")
+    )
+    to_position = models.ForeignKey(
+        Position,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="transitions_to",
+        verbose_name=_("To Position")
+    )
+    to_seniority_level = models.ForeignKey(
+        SeniorityLevel,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="transitions_to",
+        verbose_name=_("To Seniority Level")
+    )
+    date = models.DateField(
+        default=timezone.now,
+        verbose_name=_("Transition Date")
+    )
+    reason = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name=_("Reason/Notes")
+    )
+
+    class Meta:
+        db_table = "jobs_employee_transition"
+        ordering = ["-date", "-created_at"]
+        verbose_name = _("Employee Transition")
+        verbose_name_plural = _("Employee Transitions")
+
+    def __str__(self):
+        return f"{self.employee} - {self.get_transition_type_display()} ({self.date})"
 
 
 class Training(BaseAuditableModel):
@@ -233,10 +475,87 @@ class Training(BaseAuditableModel):
                 raise ValidationError(_("Expiry date must be after the start date."))
 
 
+class Vacancy(BaseAuditableModel):
+    """ Records open job positions that need to be filled. """
+    class Priority(models.TextChoices):
+        HIGH = 'HIGH', _('High')
+        MEDIUM = 'MEDIUM', _('Medium')
+        LOW = 'LOW', _('Low')
+
+    class Status(models.TextChoices):
+        OPEN = 'OPEN', _('Open')
+        IN_PROGRESS = 'IN_PROGRESS', _('In Progress')
+        RECRUITMENT = 'RECRUITMENT', _('External Recruitment')
+        CANCELLED = 'CANCELLED', _('Cancelled')
+        FILLED = 'FILLED', _('Filled')
+
+    position = models.ForeignKey(
+        Position,
+        on_delete=models.CASCADE,
+        related_name='vacancies',
+        verbose_name=_('Position')
+    )
+    priority = models.CharField(
+        max_length=20,
+        choices=Priority.choices,
+        default=Priority.MEDIUM,
+        verbose_name=_('Priority')
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.OPEN,
+        verbose_name=_('Status')
+    )
+    opened_date = models.DateField(
+        default=timezone.now,
+        verbose_name=_('Opened Date')
+    )
+    target_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name=_('Target Fill Date')
+    )
+    reason = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name=_('Reason/Notes')
+    )
+    filled_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name=_('Filled Date')
+    )
+    filled_by_transition = models.ForeignKey(
+        EmployeeTransition,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='filled_vacancy',
+        verbose_name=_('Filled By Transition')
+    )
+
+    class Meta:
+        db_table = "jobs_vacancy"
+        ordering = ['-opened_date', '-priority']
+        verbose_name = _('Vacancy')
+        verbose_name_plural = _('Vacancies')
+        indexes = [
+            models.Index(fields=['status', 'priority']),
+            models.Index(fields=['opened_date']),
+        ]
+
+    def __str__(self):
+        return f"{self.position.name} - {self.get_status_display()}"
+
+
 # --- Audit log registration ---
 auditlog.register(JobFamily)
 auditlog.register(Position)
-auditlog.register(Department)
+auditlog.register(SeniorityLevel)
+auditlog.register(OrgUnit)
 auditlog.register(EmployeePositionHistory)
+auditlog.register(EmployeeTransition)
 auditlog.register(Training)
+auditlog.register(Vacancy)
 

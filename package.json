@@ -1,0 +1,8 @@
+{
+	"dependencies": {
+		"qs": "^6.15.1"
+	},
+	"devDependencies": {
+		"@types/qs": "^6.15.0"
+	}
+}

@@ -1,7 +1,9 @@
 <script lang="ts">
-  import LeavesDashboard from "@/features/leaves/components/requests/LeavesDashboard.svelte";
+  import LeavesBoard from "@/features/leaves/components/requests/LeavesBoard.svelte";
 </script>
 
+
 <div class="h-full">
-  <LeavesDashboard />
+  <LeavesBoard />
 </div>
+

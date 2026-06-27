@@ -5,7 +5,18 @@ import type {
 	GroupCreate, 
 	RoleGrantCreate 
 } from '../types/access.types';
-import AccessEndpoints from '../api/access.endpoints';
+import { accessService } from '../services/access.service';
+import { getFriendlyErrorMessage } from '@/constants/errors';
+import { accessQueryKeys } from '../queries/accessQueries.svelte';
+import type { QueryClient } from '@tanstack/svelte-query';
+
+
+/**
+ * Internal helper that verify if a role is locked.
+ */
+function isLockedRoleInternal(slug: string): boolean {
+	return slug === 'admin';
+}
 
 
 export class AccessStore {
@@ -17,8 +28,16 @@ export class AccessStore {
 	
 	isLoading = $state(false);
 	error = $state<string | null>(null);
+	activeTabId = $state('users');
+	selectedRole = $state<Role | null>(null);
+	
+	private queryClient: QueryClient | null = null;
 
 	// --- Actions ---
+	
+	setQueryClient(client: QueryClient) {
+		this.queryClient = client;
+	}
 	
 	async init() {
 		this.isLoading = true;
@@ -30,40 +49,39 @@ export class AccessStore {
 				this.fetchRoleGrants()
 			]);
 		} catch (e: any) {
-			this.error = e.message || "Erreur lors du chargement des accès";
+			this.error = getFriendlyErrorMessage(e);
 		} finally {
 			this.isLoading = false;
 		}
 	}
 
 	async fetchScopes() {
-		const response = await AccessEndpoints.scopes.list();
-		this.scopes = response || [];
+		this.scopes = await accessService.listScopes();
 	}
 
 	async fetchRoles() {
-		const response = await AccessEndpoints.roles.list();
-		this.roles = response.results || [];
+		const response = await accessService.listRoles();
+		this.roles = response || [];
 	}
 
 	async fetchGroups() {
-		const response = await AccessEndpoints.groups.list();
-		this.groups = response.results || [];
+		const response = await accessService.listGroups();
+		this.groups = response || [];
 	}
 
 	async fetchRoleGrants() {
-		const response = await AccessEndpoints.roleGrants.list();
-		this.roleGrants = response.results || [];
+		const response = await accessService.listRoleGrants();
+		this.roleGrants = response || [];
 	}
 
 	async createGroup(data: GroupCreate) {
 		this.isLoading = true;
 		try {
-			const newGroup = await AccessEndpoints.groups.create(data);
+			const newGroup = await accessService.createGroup(data);
 			await this.fetchGroups();
 			return newGroup;
 		} catch (e: any) {
-			this.error = e.message;
+			this.error = getFriendlyErrorMessage(e);
 			throw e;
 		} finally {
 			this.isLoading = false;
@@ -74,12 +92,11 @@ export class AccessStore {
 		this.isLoading = true;
 		this.error = null;
 		try {
-			// PUT: slug first for URL mapping (:slug), data becomes body
-			const response = await AccessEndpoints.groups.update(slug, data);
+			const response = await accessService.updateGroup(slug, data);
 			await this.fetchGroups();
 			return response;
 		} catch (e: any) {
-			this.error = e.message;
+			this.error = getFriendlyErrorMessage(e);
 			throw e;
 		} finally {
 			this.isLoading = false;
@@ -90,8 +107,7 @@ export class AccessStore {
 		this.isLoading = true;
 		this.error = null;
 		try {
-			// DELETE: slug first for URL mapping (:slug)
-			await AccessEndpoints.groups.destroy(slug);
+			await accessService.deleteGroup(slug);
 			await this.fetchGroups();
 		} catch (e: any) {
 			this.error = e.message;
@@ -104,11 +120,14 @@ export class AccessStore {
 	async createRoleGrant(data: RoleGrantCreate) {
 		this.error = null;
 		try {
-			const rg = await AccessEndpoints.roleGrants.create(data);
+			const rg = await accessService.createRoleGrant(data);
 			await this.fetchRoleGrants();
+			if (this.queryClient) {
+				this.queryClient.invalidateQueries({ queryKey: accessQueryKeys.roleGrants() });
+			}
 			return rg;
 		} catch (e: any) {
-			this.error = e.message;
+			this.error = getFriendlyErrorMessage(e);
 			throw e;
 		}
 	}
@@ -116,10 +135,17 @@ export class AccessStore {
 	async updateRoleGrant(id: number, actions: string[]) {
 		this.error = null;
 		try {
-			await AccessEndpoints.roleGrants.update([id], { actions });
+			const rg = this.roleGrants.find(item => item.id === id);
+			if (rg && isLockedRoleInternal(rg.role.slug)) {
+				throw new Error("Modification interdite pour ce rôle système.");
+			}
+			await accessService.updateRoleGrant(id, actions);
 			await this.fetchRoleGrants();
+			if (this.queryClient) {
+				this.queryClient.invalidateQueries({ queryKey: accessQueryKeys.roleGrants() });
+			}
 		} catch (e: any) {
-			this.error = e.message;
+			this.error = getFriendlyErrorMessage(e);
 			throw e;
 		}
 	}
@@ -127,22 +153,38 @@ export class AccessStore {
 	async deleteRoleGrant(id: number) {
 		this.error = null;
 		try {
-			await AccessEndpoints.roleGrants.destroy([id]);
+			const rg = this.roleGrants.find(item => item.id === id);
+			if (rg && isLockedRoleInternal(rg.role.slug)) {
+				throw new Error("Suppression interdite pour ce rôle système.");
+			}
+			await accessService.deleteRoleGrant(id);
 			await this.fetchRoleGrants();
+			if (this.queryClient) {
+				this.queryClient.invalidateQueries({ queryKey: accessQueryKeys.roleGrants() });
+			}
 		} catch (e: any) {
-			this.error = e.message;
+			this.error = getFriendlyErrorMessage(e);
 			throw e;
 		}
 	}
 
-	async syncGroup(slug: string) {
+	async restoreRoleDefaults(roleSlug: string) {
+		this.isLoading = true;
 		this.error = null;
 		try {
-			const response = await AccessEndpoints.syncGroup(slug).create();
-			return response;
+			if (isLockedRoleInternal(roleSlug)) {
+				throw new Error("Restauration interdite pour ce rôle système.");
+			}
+			await accessService.restoreRoleDefaults(roleSlug);
+			await this.fetchRoleGrants();
+			if (this.queryClient) {
+				this.queryClient.invalidateQueries({ queryKey: accessQueryKeys.roleGrants() });
+			}
 		} catch (e: any) {
 			this.error = e.message;
 			throw e;
+		} finally {
+			this.isLoading = false;
 		}
 	}
 
@@ -153,4 +195,7 @@ export class AccessStore {
 }
 
 
+// Export instance (named and default)
 export const accessStore = new AccessStore();
+export default accessStore;
+

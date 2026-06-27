@@ -117,8 +117,8 @@ class EmployeeLifecycleController(ControllerBase):
             employee=employee,
             termination_date=payload.get('end_date'),  # Schema → service mapping
             reason=payload.get('reason'),
+            departure_type=payload.get('departure_type', 'TERMINATED'),
             actor=actor,
         )
 
         return employee
-

@@ -182,7 +182,7 @@ POST /api/v1/recruitment/job-offers
 {
   "title": "Développeur Senior Python",
   "target_position_id": "pos_123",
-  "department_id": "dept_456",
+  "org_unit_id": "orgunit_456",
   "description": "Nous recherchons un développeur Python...",
   "requirements": "5+ ans d'expérience, Django, PostgreSQL...",
   "salary_range": "40000 - 60000 USD",

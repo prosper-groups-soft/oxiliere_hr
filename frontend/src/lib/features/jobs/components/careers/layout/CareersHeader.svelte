@@ -3,27 +3,42 @@
   import SearchBar from "@/components/shared/elements/SearchBar.svelte";
   import { cn } from "@/utilities/common/css";
 
-  let { 
-    searchQuery = $bindable(),
-    activeTab = $bindable('positions')
+  let {
+    searchQuery = $bindable(''),
+    activeTab = $bindable('positions'),
+    onSearchQueryChange,
+    onClear
   } = $props<{
-    searchQuery: string;
-    activeTab: 'positions' | 'seniority';
+    searchQuery?: string;
+    activeTab?: 'positions' | 'seniority';
+    onSearchQueryChange?: (value: string) => void;
+    onClear?: () => void;
   }>();
 
   function handleTabChange(tab: 'positions' | 'seniority') {
     activeTab = tab;
   }
+
+  function handleSearchChange(value: string) {
+    searchQuery = value;
+    onSearchQueryChange?.(value);
+  }
+
+  function handleClear() {
+    searchQuery = '';
+    onClear?.();
+  }
 </script>
 
 
-<div class="flex items-center justify-between gap-4 pb-2.5 pt-1 border-b border-slate-100 px-4 bg-white/50 backdrop-blur-md pr-6">
+<div class="flex items-center justify-between gap-4 pb-2 pt-0.5 border-b border-slate-100 px-4 bg-white/50 backdrop-blur-md pr-6">
   {@render Nav()}
-  
   <!-- Search Bar -->
   <div class="flex-1 max-w-125">
-    <SearchBar 
+    <SearchBar
       bind:value={searchQuery}
+      onSearch={handleSearchChange}
+      onClear={handleClear}
       placeholder={activeTab === 'positions' ? 'Chercher un poste...' : 'Chercher un niveau...'}
       class="w-full"
       inputClass="h-9 pl-9 pr-9 rounded-[14px] text-[0.85rem] bg-[#f5f6f7]"

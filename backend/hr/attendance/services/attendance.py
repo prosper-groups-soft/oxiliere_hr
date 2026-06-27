@@ -1,7 +1,7 @@
 from __future__ import annotations
 import logging
-from datetime     import datetime, date, timedelta
-from django.db    import transaction
+from datetime   import datetime, date, timedelta
+from django.db  import transaction
 from django.utils import timezone
 
 from hr.attendance.models import (
@@ -69,16 +69,85 @@ class AttendanceService:
         return timesheet
 
     @staticmethod
-    def finalize_daily_register(register: DailyRegister) -> None:
-        """ Consolidates daily statistics and locks the registry for administrative review. """
+    @transaction.atomic
+    def finalize_daily_register(target_date: date) -> DailyRegister:
+        """ Finalizes the daily register: auto-closes orphan punches,
+            computes all timesheets, consolidates stats, and locks the day. """
+        # 1. Get or create the register for this date
+        register, _ = DailyRegister.objects.get_or_create(date=target_date)
+
+        # 2. Auto-close any punches without end_at (employee forgot clock-out)
+        AttendanceService._close_orphan_punches(target_date)
+
+        # 3. Compute every timesheet for this day
+        sheets = register.sheets.select_related('employee').all()
+        for sheet in sheets:
+            AttendanceService.compute_timesheet_totals(sheet)
+
+        # Refresh to get updated statuses
         sheets = register.sheets.all()
+
+        # 4. Consolidate statistics
         register.total_absences = sheets.filter(status=TimeSheetStatus.ABSENT).count()
+        register.total_excused = sheets.filter(status=TimeSheetStatus.EXCUSED).count()
         register.total_employees_expected = sheets.exclude(status=TimeSheetStatus.HOLIDAY).count()
         register.is_finalized = True
         register.save()
-        
+
+        # 5. Invalidate cache
         master_key = generate_cache_key("hr:attendance:register:master", register.date)
         invalidate_cache_keys(master_key)
+
+        logger.info(
+            "Daily register finalized",
+            extra={
+                "date": target_date,
+                "register_id": register.id,
+                "total_sheets": sheets.count(),
+                "total_absences": register.total_absences,
+                "total_expected": register.total_employees_expected,
+            },
+        )
+
+        return register
+
+    # --- Orphan Punch Auto-Close ---
+
+    @staticmethod
+    def _close_orphan_punches(target_date: date) -> None:
+        """ Closes any open WORK punch without end_at by setting
+            end_at to the employee's scheduled end_time for that date.
+            If no schedule is found, the punch is left open (HR will handle it). """
+        open_punches = TimePunch.objects.filter(
+            timesheet__register__date=target_date,
+            punch_type=PunchType.WORK,
+            end_at__isnull=True,
+        ).select_related('timesheet__employee').only(
+            'id', 'start_at', 'timesheet__employee',
+            'timesheet__register__date',
+        )
+
+        closed_count = 0
+        for punch in open_punches:
+            employee = punch.timesheet.employee
+            schedule = SchedulingService.get_expected_schedule(employee, target_date)
+            if not schedule:
+                continue  # No schedule → leave open for manual HR fix
+
+            # Combine schedule.end_time with punch date
+            naive_end = datetime.combine(target_date, schedule.end_time)
+            end_at = timezone.make_aware(naive_end)
+
+            punch.end_at = end_at
+            punch.is_manual_entry = True  # Mark as auto-closed
+            punch.save()
+            closed_count += 1
+
+        if closed_count:
+            logger.info(
+                "Auto-closed orphan punches",
+                extra={"date": target_date, "count": closed_count},
+            )
 
     # --- Internal Logic ---
 

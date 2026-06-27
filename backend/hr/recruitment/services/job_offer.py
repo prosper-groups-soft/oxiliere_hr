@@ -1,7 +1,7 @@
 import logging
 from django.utils import timezone
 from hr.recruitment.models import JobOffer
-from hr.jobs.models import Position, Department
+from hr.jobs.models import Position
 from hr.employees.models import Employee
 
 
@@ -14,24 +14,36 @@ class JobOfferService:
     including creation, publication, and retrieval of public listings.
     """
 
-    def create_offer(self, title, target_position_id, department_id, recruiter_id, **kwargs):
+    def create_offer(self, title, target_position_ids, vacancy_ids, recruiter_id, position_slots=None, **kwargs):
         """
         Creates a new job offer.
         Accepts IDs for relationships and fetches the corresponding objects.
+        position_slots: dict mapping position_id -> number of slots for that position
         """
-        target_position = Position.objects.get(id=target_position_id)
-        department = Department.objects.get(id=department_id)
-        recruiter = Employee.objects.get(id=recruiter_id)
+        target_positions = Position.objects.filter(id__in=target_position_ids)
+        recruiter = Employee.objects.get(id=recruiter_id) if recruiter_id else None
+
+        # Calculate total slots from position_slots if provided, otherwise use kwargs['slots'] or default
+        if position_slots:
+            total_slots = sum(position_slots.values())
+        else:
+            total_slots = kwargs.get('slots', 1)
+
+        # Remove slots from kwargs to avoid duplicate keyword argument error in create()
+        kwargs.pop('slots', None)
 
         offer = JobOffer.objects.create(
             title=title,
-            target_position=target_position,
-            department=department,
             recruiter=recruiter,
+            slots=total_slots,
+            position_slots=position_slots or {},
             **kwargs
         )
+        offer.target_positions.set(target_position_ids)
+        if vacancy_ids:
+            offer.vacancies.set(vacancy_ids)
         logger.info(
-            f"[JobOfferService] Job offer created: {title} for department {department.name}"
+            f"[JobOfferService] Job offer created: {title} with {target_positions.count()} positions and {len(vacancy_ids) if vacancy_ids else 0} vacancies"
         )
         return offer
 
@@ -61,7 +73,6 @@ class JobOfferService:
         logger.info(f"[JobOfferService] Job offer closed: {offer.title}")
         return offer
 
-
     def get_public_listings(self):
         """
         Returns active and published job offers available to external candidates.
@@ -70,5 +81,40 @@ class JobOfferService:
             is_published=True,
             is_active=True,
             end_date__gte=timezone.now().date()
-        ).select_related('target_position', 'department')
+        ).prefetch_related('target_positions', 'vacancies', 'vacancies__position')
+
+    def get_all_offers(self):
+        """
+        Returns all job offers.
+        """
+        return JobOffer.objects.all().prefetch_related('target_positions', 'vacancies', 'vacancies__position')
+
+    def update_offer(self, offer_id, **data):
+        """
+        Updates an existing job offer.
+        """
+        offer = JobOffer.objects.get(id=offer_id)
+        
+        # Handle relationships
+        if 'target_position_ids' in data:
+            target_positions = data.pop('target_position_ids')
+            offer.target_positions.set(target_positions)
+        
+        if 'vacancy_ids' in data:
+            vacancies = data.pop('vacancy_ids')
+            offer.vacancies.set(vacancies)
+            
+        if 'recruiter_id' in data:
+            recruiter_id = data.pop('recruiter_id')
+            offer.recruiter = Employee.objects.get(id=recruiter_id) if recruiter_id else None
+            
+        # Update other fields
+        for key, value in data.items():
+            if value is not None:
+                setattr(offer, key, value)
+                
+        offer.save()
+        logger.info(f"[JobOfferService] Job offer updated: {offer.title}")
+        return offer
+
 

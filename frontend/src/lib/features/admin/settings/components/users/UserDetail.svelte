@@ -5,7 +5,7 @@
   import { slide } from "svelte/transition";
   import type { User } from "../../types/user.types";
   import { Badge } from "@/components/ui/badge";
-  import PermissionMatrix from "../../../access/components/PermissionMatrix.svelte";
+  import PermissionMatrix from "@/features/admin/access/components/permissions/PermissionMatrix.svelte";
   import { getAvatarColors } from "../../utilities/avatar.utils";
   import Empty from "@/components/shared/containers/empty/Empty.svelte";
 
@@ -117,7 +117,8 @@
                     title="Aucun groupe" 
                     description="Cet utilisateur n'appartient à aucun groupe." 
                     icon="users"
-                    iconSize={24}
+                    iconSize={24}                      
+                    iconStrokeWidth={1.3} 
                  />
                </div>
              {/if}

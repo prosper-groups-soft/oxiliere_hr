@@ -1,7 +1,7 @@
 <script lang="ts">
   import { fade, fly } from "svelte/transition";
   import { cubicOut } from "svelte/easing";
-  import SeniorityMatrix from "@/features/jobs/components/careers/seniority/SeniorityMatrix.svelte";
+  import SeniorityList from "@/features/jobs/components/careers/seniority/SeniorityList.svelte";
   import PositionsList from "@/features/jobs/components/careers/positions/PositionsList.svelte";
   import CareersHeader from "@/features/jobs/components/careers/layout/CareersHeader.svelte";
   import PositionsActions from "@/features/jobs/components/careers/layout/actions/PositionsActions.svelte";
@@ -12,6 +12,23 @@
   import { ui } from "@/stores/ui.svelte";
   import { notification } from "@/stores/notification.svelte";
   import { jobsStore } from "@/features/jobs/stores/jobs.svelte";
+  import { 
+    useSeniorityLevelsQuery, 
+    syncSeniorityLevels,
+    useCreateSeniorityLevelMutation,
+    useUpdateSeniorityLevelMutation,
+    useDeleteSeniorityLevelMutation,
+    useResetSeniorityLevelsMutation,
+    usePositionsQuery,
+    useCreatePositionMutation,
+    useUpdatePositionMutation,
+    useDeletePositionMutation,
+    useJobFamiliesQuery,
+    useCreateJobFamilyMutation,
+    useUpdateJobFamilyMutation,
+    useDeleteJobFamilyMutation
+  } from "@/features/jobs/queries/jobQueries";
+  import { useOrgUnitsQuery } from "@/features/jobs/queries/orgQueries";
   import type { 
     JobPosition, 
     SeniorityLevelDefinition 
@@ -23,7 +40,83 @@
   let showSenioritySheet = $state(false);
   let editingPosition = $state<JobPosition | null>(null);
   let editingSeniority = $state<SeniorityLevelDefinition | null>(null);
-  let isResettingSeniority = $state(false);
+  
+  // Search queries
+  let senioritySearchQuery = $state('');
+  
+  // Search query courante selon l'onglet
+  let currentSearchQuery = $derived(
+    activeTab === 'positions' ? positionsStore.searchQuery : senioritySearchQuery
+  );
+  
+  // Mettre à jour la bonne source quand la recherche change
+  function handleSearchChange(value: string) {
+    if (activeTab === 'positions') {
+      positionsStore.searchQuery = value;
+    } else {
+      senioritySearchQuery = value;
+    }
+  }
+
+  // Réinitialiser la recherche selon l'onglet actif
+  function handleClearSearch() {
+    if (activeTab === 'positions') {
+      positionsStore.searchQuery = '';
+    } else {
+      senioritySearchQuery = '';
+    }
+  }
+
+  // --- TanStack Query: Seniority Levels ---
+  const seniorityQuery = useSeniorityLevelsQuery();
+  const createSeniorityMutation = useCreateSeniorityLevelMutation();
+  const updateSeniorityMutation = useUpdateSeniorityLevelMutation();
+  const deleteSeniorityMutation = useDeleteSeniorityLevelMutation();
+  const resetSeniorityMutation = useResetSeniorityLevelsMutation();
+
+  // --- TanStack Query: Positions ---
+  const positionsQuery = usePositionsQuery();
+  const createPositionMutation = useCreatePositionMutation();
+  const updatePositionMutation = useUpdatePositionMutation();
+  const deletePositionMutation = useDeletePositionMutation();
+
+  // --- TanStack Query: JobFamilies ---
+  const jobFamiliesQuery = useJobFamiliesQuery();
+  const createJobFamilyMutation = useCreateJobFamilyMutation();
+  const updateJobFamilyMutation = useUpdateJobFamilyMutation();
+  const deleteJobFamilyMutation = useDeleteJobFamilyMutation();
+
+  // --- TanStack Query: OrgUnits ---
+  const orgUnitsQuery = useOrgUnitsQuery(() => 1, () => 500); // Non-paginated, load all
+
+  // Sync backend data to store
+  $effect(() => {
+    syncSeniorityLevels($seniorityQuery);
+  });
+
+  // Sync positions to store
+  $effect(() => {
+    const data = $positionsQuery.data;
+    if (data?.length) {
+      jobsStore.positions = data;
+    }
+  });
+
+  // Sync orgUnits to store
+  $effect(() => {
+    const data = $orgUnitsQuery.data;
+    if (data?.results?.length) {
+      jobsStore.setOrgUnits(data.results);
+    }
+  });
+
+  // Sync jobFamilies to store
+  $effect(() => {
+    const data = $jobFamiliesQuery.data;
+    if (data?.length) {
+      jobsStore.setJobFamilies(data);
+    }
+  });
 
   // Persistence
   $effect(() => {
@@ -74,22 +167,26 @@
     showSenioritySheet = true;
   }
 
-  function handleResetSeniority() {
-    isResettingSeniority = true;
-    jobsStore.restoreDefaultSeniorityLevels();
-    notification.toast.success("Niveaux réinitialisés par défaut");
-    setTimeout(() => isResettingSeniority = false, 1000);
-  }
-
   function openSeniorityDelete(lvl: SeniorityLevelDefinition) {
     notification.confirm({
       title: 'Supprimer le niveau ?',
       message: `Voulez-vous vraiment supprimer le niveau "${lvl.name}" ? Cette action est irréversible.`,
       type: 'danger',
       yesText: 'Supprimer',
-      onYes: () => {
-        jobsStore.deleteSeniorityLevel(lvl.id);
-        notification.toast.success(`Le niveau "${lvl.name}" a été supprimé.`);
+      onYes: async () => {
+        await $deleteSeniorityMutation.mutateAsync(lvl.id);
+      }
+    });
+  }
+
+  function handleReset() {
+    notification.confirm({
+      title: 'Réinitialiser les niveaux ?',
+      message: 'Voulez-vous vraiment réinitialiser tous les niveaux de séniorité aux valeurs par défaut ? Cette action supprimera toutes vos configurations personnalisées.',
+      type: 'warning',
+      yesText: 'Réinitialiser',
+      onYes: async () => {
+        await $resetSeniorityMutation.mutateAsync();
       }
     });
   }
@@ -97,14 +194,55 @@
   function openPositionDelete(pos: JobPosition) {
     notification.confirm({
       title: 'Supprimer le poste ?',
-      message: `Voulez-vous vraiment supprimer le poste "${pos.title}" ?`,
+      message: `Voulez-vous vraiment supprimer le poste "${pos.name}" ?`,
       type: 'danger',
       yesText: 'Supprimer',
-      onYes: () => {
-        jobsStore.deletePosition(pos.id);
-        notification.toast.success(`Le poste "${pos.title}" a été supprimé.`);
+      onYes: async () => {
+        await $deletePositionMutation.mutateAsync(pos.id);
       }
     });
+  }
+
+  function handlePositionSave(data: any, positionId?: string) {
+    if (positionId) {
+      // Update existing position
+      return $updatePositionMutation.mutateAsync({ 
+        id: positionId, 
+        data: {
+          name: data.title,
+          family_name: data.familyName,
+          org_unit_id: data.orgUnitId || null,
+          description: data.description,
+          seniority_levels: data.seniority_levels,
+          requirements: data.requirements,
+          skills: data.skills
+        }
+      });
+    } else {
+      // Create new position - need family_name
+      return $createPositionMutation.mutateAsync({
+        name: data.title,
+        family_name: data.familyName,
+        org_unit_id: data.orgUnitId || null,
+        description: data.description,
+        seniority_levels: data.seniority_levels,
+        requirements: data.requirements,
+        skills: data.skills
+      });
+    }
+  }
+
+  // --- JobFamily Handlers ---
+  function handleCreateJobFamily(name: string, description?: string) {
+    return $createJobFamilyMutation.mutateAsync({ name, description });
+  }
+
+  function handleUpdateJobFamily(id: string, name: string, description?: string) {
+    return $updateJobFamilyMutation.mutateAsync({ id, data: { name, description } });
+  }
+
+  function handleDeleteJobFamily(id: string, name: string) {
+    $deleteJobFamilyMutation.mutateAsync(id);
   }
 </script>
 
@@ -122,17 +260,19 @@
 
 {#snippet SeniorityActionsSnippet()}
   <SeniorityActions 
-    isResetting={isResettingSeniority} 
-    onAdd={openSeniorityAdd} 
-    onReset={handleResetSeniority} 
+    onAdd={openSeniorityAdd}
+    onReset={handleReset}
+    isResetting={$resetSeniorityMutation.isPending}
   />
 {/snippet}
 
 
 <div class="flex h-full flex-col overflow-hidden min-h-0">
-  <CareersHeader 
+  <CareersHeader
     bind:activeTab
-    bind:searchQuery={positionsStore.searchQuery} 
+    searchQuery={currentSearchQuery}
+    onSearchQueryChange={handleSearchChange}
+    onClear={handleClearSearch}
   />
 
   <main class="flex-1 grid grid-cols-1 overflow-hidden min-h-0">
@@ -143,12 +283,23 @@
             onEdit={openPositionEdit}
             onDelete={openPositionDelete}
             onNew={openPositionAdd}
+            onRetry={() => $positionsQuery.refetch()}
+            isLoading={$positionsQuery.isLoading}
+            isError={$positionsQuery.isError}
+            error={$positionsQuery.error}
+            searchQuery={positionsStore.searchQuery}
           />
         {:else}
-          <SeniorityMatrix 
-            onEdit={openSeniorityEdit} 
+          <SeniorityList
+            onEdit={openSeniorityEdit}
             onDelete={openSeniorityDelete}
-            onNew={openSeniorityAdd} 
+            onNew={openSeniorityAdd}
+            onClearSearch={() => senioritySearchQuery = ''}
+            onRetry={() => $seniorityQuery.refetch()}
+            isLoading={$seniorityQuery.isLoading}
+            isError={$seniorityQuery.isError}
+            error={$seniorityQuery.error}
+            searchQuery={senioritySearchQuery}
           />
         {/if}
       </div>
@@ -159,10 +310,26 @@
 
 <PositionSheet 
   bind:open={showPositionSheet} 
-  bind:position={editingPosition} 
+  bind:position={editingPosition}
+  onSave={handlePositionSave}
+  onCreateJobFamily={handleCreateJobFamily}
+  onUpdateJobFamily={handleUpdateJobFamily}
+  onDeleteJobFamily={handleDeleteJobFamily}
 />
+
 <SenioritySheet 
   bind:open={showSenioritySheet} 
   bind:level={editingSeniority} 
+  onSave={async (data, levelId) => {
+    if (levelId) {
+      await $updateSeniorityMutation.mutateAsync({ 
+        id: levelId, 
+        data, 
+        originalLevel: editingSeniority || undefined 
+      });
+    } else {
+      await $createSeniorityMutation.mutateAsync(data);
+    }
+  }}
 />
 

@@ -24,6 +24,7 @@ from .gen import (
 from .geo import (
     calculate_geo_distance
 )
+from .employee_utils import get_employee_full_name
 
 
 __all__ = [
@@ -44,6 +45,7 @@ __all__ = [
     'generate_daily_register_code',
     'get_contract_seq_key',
     'get_rotate_value',
-    'calculate_geo_distance'
+    'calculate_geo_distance',
+    'get_employee_full_name',
 ]
 

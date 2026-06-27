@@ -61,7 +61,7 @@
     </Avatar>
     <div class="flex flex-col ml-3 min-w-0">
       <span class="text-[0.88rem] text-slate-900 font-medium truncate leading-tight">{payslip.employeeName}</span>
-      <span class="text-[0.8rem] text-slate-400 truncate mt-0.5">{payslip.department}</span>
+      <span class="text-[0.8rem] text-slate-400 truncate mt-0.5">{payslip.orgUnit}</span>
     </div>
   </div>
 

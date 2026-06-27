@@ -3,27 +3,36 @@
   import SearchBar from "@/components/shared/elements/SearchBar.svelte";
   import { cn } from "@/utilities/common/css";
 
-  let { 
-    searchQuery = $bindable(),
-    activeTab = $bindable('transitions')
+  let {
+    searchQuery = $bindable(''),
+    activeTab = $bindable('transitions'),
+    onSearchQueryChange
   } = $props<{
-    searchQuery: string;
-    activeTab: 'transitions' | 'vacancies';
+    searchQuery?: string;
+    activeTab?: 'transitions' | 'vacancies';
+    onSearchQueryChange?: (value: string) => void;
   }>();
 
   function handleTabChange(tab: 'transitions' | 'vacancies') {
     activeTab = tab;
   }
+
+  function handleSearchChange(value: string) {
+    searchQuery = value;
+    onSearchQueryChange?.(value);
+  }
 </script>
 
 
-<div class="flex items-center justify-between gap-4 pb-2.5 pt-1 border-b border-slate-100 px-4 bg-white pr-6">
+<div class="flex items-center justify-between gap-4 pb-2 pt-0.5 border-b border-slate-100 px-4 bg-white/50 backdrop-blur-md pr-6">
   {@render Nav()}
 
   <!-- Search Bar -->
   <div class="flex-1 max-w-125">
-    <SearchBar 
+    <SearchBar
       bind:value={searchQuery}
+      onSearch={handleSearchChange}
+      onClear={() => { onSearchQueryChange?.(''); }}
       placeholder={activeTab === 'transitions' ? 'Chercher un mouvement...' : 'Chercher un besoin...'}
       class="w-full"
       inputClass="h-9 pl-9 pr-9 rounded-[14px] text-[0.85rem] bg-[#f5f6f7]"
@@ -58,7 +67,7 @@
         name="refresh" 
         size={17} 
         strokeWidth={activeTab === 'transitions' ? 2 : 1.5}
-        class={activeTab === 'transitions' ? "text-primary" : "text-slate-500"} 
+        class={activeTab === 'transitions' ? "text-primary" : "text-slate-400"} 
       />
       Mouvements
     </button>
@@ -75,7 +84,7 @@
         name="inbox" 
         size={17} 
         strokeWidth={activeTab === 'vacancies' ? 2 : 1.5}
-        class={activeTab === 'vacancies' ? "text-primary" : "text-slate-500"} 
+        class={activeTab === 'vacancies' ? "text-primary" : "text-slate-400"} 
       />
       Besoins
     </button>

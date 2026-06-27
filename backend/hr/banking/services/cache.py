@@ -2,6 +2,7 @@ import logging
 from django.core.cache import cache
 from django_redis      import get_redis_connection
 from hr.banking.models import Bank, BankAccount
+from hr.banking.enums import AccountStatus
 # Cache integration
 from hr.services.cache_helpers import (
     invalidate_cache_prefix,
@@ -88,8 +89,7 @@ class BankingCacheService:
         
         if accounts is None:
             accounts = list(BankAccount.objects.filter(
-                is_active=True,
-                verified=True
+                status=AccountStatus.VERIFIED
             ).order_by('bank__name'))
             
             cache.set(cache_key, accounts, timeout=60*60)
@@ -121,7 +121,7 @@ class BankingCacheService:
             account = BankAccount.objects.filter(
                 employee=employee,
                 is_primary=True,
-                is_active=True
+                status=AccountStatus.VERIFIED
             ).first()
             
             if account:
@@ -137,8 +137,8 @@ class BankingCacheService:
         
         if accounts is None:
             accounts = list(BankAccount.objects.filter(
-                currency=currency_code,
-                is_active=True
+                default_currency=currency_code,
+                status=AccountStatus.VERIFIED
             ).order_by('bank__name'))
             
             cache.set(cache_key, accounts, timeout=60*60)

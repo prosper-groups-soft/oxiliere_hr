@@ -1,15 +1,16 @@
 from __future__ import annotations
 from datetime   import timedelta
-from django.conf              import settings
-from django.core.exceptions   import ValidationError
-from django.db                import models
+from django.conf            import settings
+from django.core.exceptions import ValidationError
+from django.db              import models
+from django.db.models       import Q
 from django.utils.translation import gettext_lazy as _
 from auditlog.registry import auditlog
-
-from hr.models import BaseAuditableModel
+from hr.models.base    import BaseAuditableModel
 from .enums    import (
     TimeSheetStatus,
-    PunchType
+    PunchType,
+    RecurrenceType,
 )
 from hr.utils.gen import generate_daily_register_code
 from hr.enums     import WeekdayEnum
@@ -17,17 +18,24 @@ from hr.enums     import WeekdayEnum
 
 class ShiftPolicy(BaseAuditableModel):
     """ Template defining working hours and break rules (e.g., Standard 40h). """
-    name = models.CharField(max_length=255, unique=True, verbose_name=_("Policy Name"))
+    name = models.CharField(max_length=255, verbose_name=_("Policy Name"))
     description = models.TextField(blank=True, verbose_name=_("Description"))
     
-    weekly_target_hours = models.DurationField(
-        default=timedelta(hours=40),
+    weekly_target_hours = models.PositiveSmallIntegerField(
+        default=40,
         verbose_name=_("Weekly Target")
     )
 
     class Meta:
         db_table = "atnd_shift_policy"
         ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['name'],
+                condition=Q(deleted__isnull=True),
+                name='unique_shift_policy_name'
+            ),
+        ]
         verbose_name = _("Shift Policy")
         verbose_name_plural = _("Shift Policies")
 
@@ -60,8 +68,41 @@ class ShiftDetail(BaseAuditableModel):
 
     class Meta:
         db_table = "atnd_shift_detail"
-        unique_together = ("policy", "weekday")
+        constraints = [
+            models.UniqueConstraint(
+                fields=['policy', 'weekday'],
+                condition=Q(deleted__isnull=True),
+                name='unique_shift_detail_policy_weekday'
+            ),
+        ]
         verbose_name = _("Shift Detail")
+
+
+class ShiftPeriod(BaseAuditableModel):
+    """ Specific scheduled interval (work or break) within a ShiftDetail. """
+    shift_detail = models.ForeignKey(
+        ShiftDetail, 
+        on_delete=models.CASCADE, 
+        related_name="periods"
+    )
+    name = models.CharField(max_length=100, blank=True, verbose_name=_("Period Name"))
+    period_type = models.CharField(
+        max_length=20, 
+        choices=PunchType.choices, 
+        default=PunchType.WORK,
+        verbose_name=_("Period Type")
+    )
+    start_time = models.TimeField(verbose_name=_("Start Time"))
+    end_time = models.TimeField(verbose_name=_("End Time"))
+
+    class Meta:
+        db_table = "atnd_shift_period"
+        ordering = ["start_time"]
+        verbose_name = _("Shift Period")
+        verbose_name_plural = _("Shift Periods")
+
+    def __str__(self) -> str:
+        return f"{self.shift_detail.weekday} - {self.name or self.period_type} ({self.start_time}-{self.end_time})"
 
 
 class EmploymentScheme(BaseAuditableModel):
@@ -77,6 +118,40 @@ class EmploymentScheme(BaseAuditableModel):
     valid_until = models.DateField(null=True, blank=True, verbose_name=_("Expiry Date"))
     
     is_active = models.BooleanField(default=True, verbose_name=_("Active"))
+    recurrence = models.CharField(
+        max_length=20,
+        choices=RecurrenceType.choices,
+        default=RecurrenceType.NONE,
+        verbose_name=_("Recurrence"),
+    )
+    
+    # Override / replacement policy (temporary shift change)
+    override_policy = models.ForeignKey(
+        ShiftPolicy,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="override_schemes",
+        verbose_name=_("Override Policy"),
+    )
+    override_valid_from = models.DateField(
+        null=True, blank=True,
+        verbose_name=_("Override Effective Date"),
+    )
+    override_valid_until = models.DateField(
+        null=True, blank=True,
+        verbose_name=_("Override Expiry Date"),
+    )
+    override_recurrence = models.CharField(
+        max_length=20,
+        choices=RecurrenceType.choices,
+        default=RecurrenceType.NONE,
+        verbose_name=_("Override Recurrence"),
+    )
+    override_recurrence_count = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        verbose_name=_("Override Recurrence Count"),
+    )
 
     class Meta:
         db_table = "atnd_employment_scheme"
@@ -92,7 +167,13 @@ class ShiftAssignment(BaseAuditableModel):
     
     class Meta:
         db_table = "atnd_shift_assignment"
-        unique_together = ("employee", "date")
+        constraints = [
+            models.UniqueConstraint(
+                fields=['employee', 'date'],
+                condition=Q(deleted__isnull=True),
+                name='unique_shift_assignment_employee_date'
+            ),
+        ]
 
 
 class RotationPattern(BaseAuditableModel):
@@ -114,6 +195,7 @@ class DailyRegister(BaseAuditableModel):
     
     total_employees_expected = models.PositiveIntegerField(default=0)
     total_absences = models.PositiveIntegerField(default=0)
+    total_excused = models.PositiveIntegerField(default=0)
     is_finalized = models.BooleanField(default=False, verbose_name=_("Finalized"))
 
     class Meta:
@@ -148,7 +230,13 @@ class TimeSheet(BaseAuditableModel):
 
     class Meta:
         db_table = "atnd_timesheet"
-        unique_together = ("employee", "register")
+        constraints = [
+            models.UniqueConstraint(
+                fields=['employee', 'register'],
+                condition=Q(deleted__isnull=True),
+                name='unique_timesheet_employee_register'
+            ),
+        ]
         verbose_name = _("Time Sheet")
 
     def clean(self):
@@ -262,6 +350,7 @@ class AttendanceSettings(BaseAuditableModel):
 # --- Audit log registration ---
 auditlog.register(ShiftPolicy)
 auditlog.register(ShiftDetail)
+auditlog.register(ShiftPeriod)
 auditlog.register(EmploymentScheme)
 auditlog.register(ShiftAssignment)
 auditlog.register(RotationPattern)

@@ -2,7 +2,8 @@ from django.core.cache         import cache
 from hr.services.cache_helpers import (
     generate_cache_key, 
     CacheKeys, 
-    invalidate_cache_prefix
+    invalidate_cache_prefix,
+    invalidate_cache_pattern
 )
 from hr.employees.models import Employee
 
@@ -124,6 +125,6 @@ class EmployeeCacheService:
         cache.delete(generate_cache_key("hr:employees:all", "active_only"))
 
         # API Cache
-        EmployeeCacheService.clear_api_cache_prefix(f"employee_detail_{employee_id}")
+        invalidate_cache_pattern(f"employee_detail:shared:/api/employees/{employee_id}")
         EmployeeCacheService.clear_api_cache_prefix("employee_list")
 

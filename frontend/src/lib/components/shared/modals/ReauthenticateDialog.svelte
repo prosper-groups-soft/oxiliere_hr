@@ -4,7 +4,7 @@
   import { Input } from "@/components/ui/input/index.js";
   import { Label } from "@/components/ui/label/index.js";
   import { Spinner } from "@/components/ui/spinner/index.js";
-  import { AuthEndpoint } from "@/features/auth/api/auth.endpoints";
+  import { AuthEndpoint, MFAEndpoint } from "@/features/auth/api/auth.endpoints";
   import { Lock, Smartphone } from "@lucide/svelte";
   import { toast } from "svelte-sonner";
 
@@ -104,99 +104,101 @@
   }
 </script>
 
+
 <Dialog.Root bind:open={isOpen}>
-    <Dialog.Content class="sm:max-w-md">
-        <Dialog.Header>
-            <div class="flex items-center space-x-3 mb-4">
-                <div class="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
-                    {#if mode === 'password'}
-                        <Lock class="h-6 w-6 text-blue-600" />
-                    {:else}
-                        <Smartphone class="h-6 w-6 text-blue-600" />
-                    {/if}
-                </div>
-                <div>
-                    <Dialog.Title class="text-lg font-semibold text-gray-900">
-                        {title}
-                    </Dialog.Title>
-                    <Dialog.Description class="text-sm text-gray-600">
-                        {description}
-                    </Dialog.Description>
-                </div>
-            </div>
-        </Dialog.Header>
-
-        <div class="space-y-4">
-            {#if mode === 'password'}
-                <div class="space-y-2">
-                    <Label for="password">Mot de passe</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      bind:value={password}
-                      placeholder="Saisissez votre mot de passe"
-                      disabled={loading}
-                      onkeydown={handleKeydown}
-                      class="w-full"
-                    />
-                </div>
-            {:else}
-                <div class="space-y-2">
-                    <Label for="totp">Code d'authentification</Label>
-                    <Input
-                        id="totp"
-                        type="text"
-                        bind:value={totpCode}
-                        placeholder="000000"
-                        maxlength={6}
-                        disabled={loading}
-                        onkeydown={handleKeydown}
-                        class="w-full text-center text-lg tracking-widest font-mono"
-                    />
-                    <p class="text-xs text-gray-500">
-                        Ouvrez votre application d'authentification et saisissez le code à 6 chiffres
-                    </p>
-                </div>
-            {/if}
-            
-            <div class="flex justify-end w-full">
-                <Button 
-                    variant="link" 
-                    onclick={switchMode}
-                    disabled={loading}
-                    class="text-sm p-0"
-                >
-                    {mode === 'password' ? 'Utiliser l\'authentification à deux facteurs' : 'Utiliser le mot de passe'}
-                </Button>
-            </div>
-
-            {#if error}
-                <div class="rounded-md bg-red-50 p-3">
-                    <p class="text-sm text-red-800">{error}</p>
-                </div>
-            {/if}
+  <Dialog.Content class="sm:max-w-md">
+    <Dialog.Header>
+      <div class="flex items-center space-x-3 mb-4">
+        <div class="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
+          {#if mode === 'password'}
+            <Lock class="h-6 w-6 text-blue-600" />
+          {:else}
+            <Smartphone class="h-6 w-6 text-blue-600" />
+          {/if}
         </div>
+        <div>
+          <Dialog.Title class="text-lg font-semibold text-gray-900">
+            {title}
+          </Dialog.Title>
+          <Dialog.Description class="text-sm text-gray-600">
+            {description}
+          </Dialog.Description>
+        </div>
+      </div>
+    </Dialog.Header>
 
-        <Dialog.Footer class="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 space-y-2 space-y-reverse sm:space-y-0 mt-6">
-            <Button
-                variant="outline"
-                onclick={closeModal}
-                disabled={loading}
-                class="w-full sm:w-auto"
-            >
-                Annuler
-            </Button>
-            
-            <Button
-                onclick={handleSubmit}
-                disabled={loading || (mode === 'password' ? !password.trim() : !totpCode.trim())}
-                class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
-            >
-                {#if loading}
-                    <Spinner size="small" class="mr-2 text-current" />
-                {/if}
-                {mode === 'password' ? 'Confirmer' : 'Valider le code'}
-            </Button>
-        </Dialog.Footer>
-    </Dialog.Content>
+    <div class="space-y-4">
+      {#if mode === 'password'}
+        <div class="space-y-2">
+          <Label for="password">Mot de passe</Label>
+          <Input
+            id="password"
+            type="password"
+            bind:value={password}
+            placeholder="Saisissez votre mot de passe"
+            disabled={loading}
+            onkeydown={handleKeydown}
+            class="w-full"
+          />
+        </div>
+      {:else}
+        <div class="space-y-2">
+          <Label for="totp">Code d'authentification</Label>
+          <Input
+            id="totp"
+            type="text"
+            bind:value={totpCode}
+            placeholder="000000"
+            maxlength={6}
+            disabled={loading}
+            onkeydown={handleKeydown}
+            class="w-full text-center text-lg tracking-widest font-mono"
+          />
+          <p class="text-xs text-gray-500">
+            Ouvrez votre application d'authentification et saisissez le code à 6 chiffres
+          </p>
+        </div>
+      {/if}
+        
+      <div class="flex justify-end w-full">
+        <Button 
+            variant="link" 
+            onclick={switchMode}
+            disabled={loading}
+            class="text-sm p-0"
+        >
+          {mode === 'password' ? 'Utiliser l\'authentification à deux facteurs' : 'Utiliser le mot de passe'}
+        </Button>
+      </div>
+
+      {#if error}
+        <div class="rounded-md bg-red-50 p-3">
+          <p class="text-sm text-red-800">{error}</p>
+        </div>
+      {/if}
+    </div>
+
+    <Dialog.Footer class="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 space-y-2 space-y-reverse sm:space-y-0 mt-6">
+      <Button
+        variant="outline"
+        onclick={closeModal}
+        disabled={loading}
+        class="w-full sm:w-auto"
+      >
+        Annuler
+      </Button>
+        
+      <Button
+        onclick={handleSubmit}
+        disabled={loading || (mode === 'password' ? !password.trim() : !totpCode.trim())}
+        class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
+      >
+        {#if loading}
+          <Spinner size="small" class="mr-2 text-current" />
+        {/if}
+        {mode === 'password' ? 'Confirmer' : 'Valider le code'}
+      </Button>
+    </Dialog.Footer>
+  </Dialog.Content>
 </Dialog.Root>
+

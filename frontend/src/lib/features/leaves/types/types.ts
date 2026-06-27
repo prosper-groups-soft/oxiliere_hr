@@ -1,22 +1,45 @@
 export type LeaveType = 'annual' | 'sick' | 'circumstantial' | 'unpaid';
 export type LeaveStatus = 'pending' | 'approved' | 'rejected';
 
+
+/**
+ * Sous-types de congés circonstanciels (Code du Travail RDC).
+ * Correspond au backend CircumstanceType.
+ */
+export type CircumstanceType =
+	| 'MARRIAGE'
+	| 'BIRTH'
+	| 'DEATH_SPOUSE_CHILD'
+	| 'DEATH_ANCESTOR'
+	| 'CHILD_MARRIAGE'
+	| 'MOVING'
+	| 'CHILD_HOSPITALIZATION'
+	| 'OTHER';
+
+
 export interface LeaveRequest {
 	id: string;
-	employeeId: number;
+	employeeId: string;
 	employeeName: string;
+	firstName?: string;
+	lastName?: string;
+	middleName?: string;
 	avatarUrl?: string;
-	department: string;
+	jobTitle?: string;
+	orgUnit: string;
 	type: LeaveType;
 	status: LeaveStatus;
 	startDate: string; // ISO date
 	endDate: string;   // ISO date
 	days: number;
 	reason?: string;
+	circumstanceType?: string;
+	attachment?: string;
 	approver?: string;
 	createdAt: string; // ISO date
 	respondedAt?: string;
 }
+
 
 export interface LeaveBalance {
 	employeeId: number;
@@ -28,11 +51,13 @@ export interface LeaveBalance {
 	expiryDate?: string; // ISO date
 }
 
+
 export interface SeniorityRule {
 	minYears: number;
 	maxYears?: number;
 	extraDays: number;
 }
+
 
 export interface LeavePolicy {
 	id: string;
@@ -46,36 +71,46 @@ export interface LeavePolicy {
 	description?: string;
 }
 
+
 export interface LeavesFilters {
 	search: string;
-	department: string[];
+	orgUnit: string[];
 	type: LeaveType[];
 	status: LeaveStatus[];
 }
 
-export const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
-	annual: 'Annuel',
-	sick: 'Maladie',
-	circumstantial: 'Circonstanciel',
-	unpaid: 'Sans solde',
-};
 
-export const LEAVE_TYPE_COLORS: Record<LeaveType, { bg: string; text: string; dot: string }> = {
-	annual: { bg: 'bg-blue-50', text: 'text-blue-700', dot: 'bg-blue-500' },
-	sick: { bg: 'bg-rose-50', text: 'text-rose-700', dot: 'bg-rose-500' },
-	circumstantial: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
-	unpaid: { bg: 'bg-slate-50', text: 'text-slate-600', dot: 'bg-slate-400' },
-};
+/**
+ * Detailed breakdown of a single day in a leave preview period.
+ */
+export interface DayDetail {
+	date: string;           // ISO date YYYY-MM-DD
+	dayName: string;        // e.g. 'LUNDI'
+	isWorking: boolean;
+	reason: 'working' | 'public_holiday' | 'company_closure' | 'non_working_day' | 'no_scheme';
+	eventType?: string;     // CalendarEventType or null
+	eventName?: string;     // Name of the holiday/closure
+	startTime?: string;     // HH:MM
+	endTime?: string;       // HH:MM
+}
 
-export const LEAVE_STATUS_LABELS: Record<LeaveStatus, string> = {
-	pending: 'En attente',
-	approved: 'Approuvé',
-	rejected: 'Refusé',
-};
+/**
+ * Breakdown of excluded days by reason.
+ */
+export interface ExcludedDays {
+	publicHolidays: string[];
+	closures: string[];
+	nonWorkingPolicyDays: string[];
+	totalExcluded: number;
+}
 
-export const LEAVE_STATUS_COLORS: Record<LeaveStatus, { bg: string; text: string }> = {
-	pending: { bg: 'bg-amber-50', text: 'text-amber-700' },
-	approved: { bg: 'bg-emerald-50', text: 'text-emerald-700' },
-	rejected: { bg: 'bg-rose-50', text: 'text-rose-700' },
-};
+/**
+ * Response from GET /api/leaves/working-days-count
+ */
+export interface WorkingDaysCount {
+	workingDays: number;
+	calendarDays: number;
+	excluded: ExcludedDays;
+	dayDetails: DayDetail[];
+}
 

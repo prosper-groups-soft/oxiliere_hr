@@ -1,0 +1,380 @@
+[
+  {
+    "model": "hr_banking.bank",
+    "pk": "019ef941-0001-7000-8000-000000000001",
+    "fields": {
+      "name": "United Bank For Africa DRC SA (UBA)",
+      "code": "UBA",
+      "swift_code": "UNAFCKIN",
+      "is_mobile_money": false,
+      "logo": null,
+      "country_code": "CD",
+      "is_active": true,
+      "deleted": null,
+      "created_at": "2026-06-25T12:00:00Z",
+      "updated_at": "2026-06-25T12:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "hr_banking.bank",
+    "pk": "019ef941-0001-7000-8000-000000000002",
+    "fields": {
+      "name": "Trust Merchant Bank (TMB)",
+      "code": "TMB",
+      "swift_code": "TMBCKIN",
+      "is_mobile_money": false,
+      "logo": null,
+      "country_code": "CD",
+      "is_active": true,
+      "deleted": null,
+      "created_at": "2026-06-25T12:00:00Z",
+      "updated_at": "2026-06-25T12:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "hr_banking.bank",
+    "pk": "019ef941-0001-7000-8000-000000000003",
+    "fields": {
+      "name": "Standard Bank Congo",
+      "code": "STAN",
+      "swift_code": "SBICKIN",
+      "is_mobile_money": false,
+      "logo": null,
+      "country_code": "CD",
+      "is_active": true,
+      "deleted": null,
+      "created_at": "2026-06-25T12:00:00Z",
+      "updated_at": "2026-06-25T12:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "hr_banking.bank",
+    "pk": "019ef941-0001-7000-8000-000000000004",
+    "fields": {
+      "name": "Solidaire Banque SA",
+      "code": "SOLI",
+      "swift_code": "",
+      "is_mobile_money": false,
+      "logo": null,
+      "country_code": "CD",
+      "is_active": true,
+      "deleted": null,
+      "created_at": "2026-06-25T12:00:00Z",
+      "updated_at": "2026-06-25T12:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "hr_banking.bank",
+    "pk": "019ef941-0001-7000-8000-000000000005",
+    "fields": {
+      "name": "Sofibanque SA",
+      "code": "SOFI",
+      "swift_code": "",
+      "is_mobile_money": false,
+      "logo": null,
+      "country_code": "CD",
+      "is_active": true,
+      "deleted": null,
+      "created_at": "2026-06-25T12:00:00Z",
+      "updated_at": "2026-06-25T12:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "hr_banking.bank",
+    "pk": "019ef941-0001-7000-8000-000000000006",
+    "fields": {
+      "name": "FirstBank DRC SA",
+      "code": "FBN",
+      "swift_code": "FBNICKIN",
+      "is_mobile_money": false,
+      "logo": null,
+      "country_code": "CD",
+      "is_active": true,
+      "deleted": null,
+      "created_at": "2026-06-25T12:00:00Z",
+      "updated_at": "2026-06-25T12:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "hr_banking.bank",
+    "pk": "019ef941-0001-7000-8000-000000000007",
+    "fields": {
+      "name": "Equity Banque Commerciale du Congo SA (Equity BCDC)",
+      "code": "EQBK",
+      "swift_code": "EQUIBCKI",
+      "is_mobile_money": false,
+      "logo": null,
+      "country_code": "CD",
+      "is_active": true,
+      "deleted": null,
+      "created_at": "2026-06-25T12:00:00Z",
+      "updated_at": "2026-06-25T12:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "hr_banking.bank",
+    "pk": "019ef941-0001-7000-8000-000000000008",
+    "fields": {
+      "name": "Ecobank",
+      "code": "ECO",
+      "swift_code": "ECOCICKI",
+      "is_mobile_money": false,
+      "logo": null,
+      "country_code": "CD",
+      "is_active": true,
+      "deleted": null,
+      "created_at": "2026-06-25T12:00:00Z",
+      "updated_at": "2026-06-25T12:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "hr_banking.bank",
+    "pk": "019ef941-0001-7000-8000-000000000009",
+    "fields": {
+      "name": "CRDB Bank DR Congo SA",
+      "code": "CRDB",
+      "swift_code": "",
+      "is_mobile_money": false,
+      "logo": null,
+      "country_code": "CD",
+      "is_active": true,
+      "deleted": null,
+      "created_at": "2026-06-25T12:00:00Z",
+      "updated_at": "2026-06-25T12:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "hr_banking.bank",
+    "pk": "019ef941-0001-7000-8000-000000000010",
+    "fields": {
+      "name": "Citi Group Congo SA",
+      "code": "CITI",
+      "swift_code": "CITICOCG",
+      "is_mobile_money": false,
+      "logo": null,
+      "country_code": "CD",
+      "is_active": true,
+      "deleted": null,
+      "created_at": "2026-06-25T12:00:00Z",
+      "updated_at": "2026-06-25T12:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "hr_banking.bank",
+    "pk": "019ef941-0001-7000-8000-000000000011",
+    "fields": {
+      "name": "Rawbank",
+      "code": "RAW",
+      "swift_code": "RAWBANKI",
+      "is_mobile_money": false,
+      "logo": null,
+      "country_code": "CD",
+      "is_active": true,
+      "deleted": null,
+      "created_at": "2026-06-25T12:00:00Z",
+      "updated_at": "2026-06-25T12:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "hr_banking.bank",
+    "pk": "019ef941-0001-7000-8000-000000000012",
+    "fields": {
+      "name": "Bank of Africa RDC (BOA)",
+      "code": "BOA",
+      "swift_code": "BOFACKIN",
+      "is_mobile_money": false,
+      "logo": null,
+      "country_code": "CD",
+      "is_active": true,
+      "deleted": null,
+      "created_at": "2026-06-25T12:00:00Z",
+      "updated_at": "2026-06-25T12:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "hr_banking.bank",
+    "pk": "019ef941-0001-7000-8000-000000000013",
+    "fields": {
+      "name": "Access Bank RDC",
+      "code": "ACD",
+      "swift_code": "",
+      "is_mobile_money": false,
+      "logo": null,
+      "country_code": "CD",
+      "is_active": true,
+      "deleted": null,
+      "created_at": "2026-06-25T12:00:00Z",
+      "updated_at": "2026-06-25T12:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "hr_banking.bank",
+    "pk": "019ef941-0001-7000-8000-000000000014",
+    "fields": {
+      "name": "Afriland First Bank",
+      "code": "AFRI",
+      "swift_code": "AFFBCKIN",
+      "is_mobile_money": false,
+      "logo": null,
+      "country_code": "CD",
+      "is_active": true,
+      "deleted": null,
+      "created_at": "2026-06-25T12:00:00Z",
+      "updated_at": "2026-06-25T12:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "hr_banking.bank",
+    "pk": "019ef941-0001-7000-8000-000000000015",
+    "fields": {
+      "name": "BGFI Bank RDC",
+      "code": "BGFI",
+      "swift_code": "BGFICKIN",
+      "is_mobile_money": false,
+      "logo": null,
+      "country_code": "CD",
+      "is_active": true,
+      "deleted": null,
+      "created_at": "2026-06-25T12:00:00Z",
+      "updated_at": "2026-06-25T12:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "hr_banking.bank",
+    "pk": "019ef941-0001-7000-8000-000000000016",
+    "fields": {
+      "name": "Advans Banque Congo",
+      "code": "ADV",
+      "swift_code": "",
+      "is_mobile_money": false,
+      "logo": null,
+      "country_code": "CD",
+      "is_active": true,
+      "deleted": null,
+      "created_at": "2026-06-25T12:00:00Z",
+      "updated_at": "2026-06-25T12:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "hr_banking.bank",
+    "pk": "019ef941-0001-7000-8000-000000000017",
+    "fields": {
+      "name": "BIAC (Banque Internationale pour l'Afrique au Congo)",
+      "code": "BIAC",
+      "swift_code": "",
+      "is_mobile_money": false,
+      "logo": null,
+      "country_code": "CD",
+      "is_active": true,
+      "deleted": null,
+      "created_at": "2026-06-25T12:00:00Z",
+      "updated_at": "2026-06-25T12:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "hr_banking.bank",
+    "pk": "019ef941-0001-7000-8000-000000000018",
+    "fields": {
+      "name": "M-PESA (Vodacom)",
+      "code": "MPES",
+      "swift_code": "",
+      "is_mobile_money": true,
+      "logo": null,
+      "country_code": "CD",
+      "is_active": true,
+      "deleted": null,
+      "created_at": "2026-06-25T12:00:00Z",
+      "updated_at": "2026-06-25T12:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "hr_banking.bank",
+    "pk": "019ef941-0001-7000-8000-000000000019",
+    "fields": {
+      "name": "Airtel Money",
+      "code": "AIRT",
+      "swift_code": "",
+      "is_mobile_money": true,
+      "logo": null,
+      "country_code": "CD",
+      "is_active": true,
+      "deleted": null,
+      "created_at": "2026-06-25T12:00:00Z",
+      "updated_at": "2026-06-25T12:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "hr_banking.bank",
+    "pk": "019ef941-0001-7000-8000-000000000020",
+    "fields": {
+      "name": "Orange Money",
+      "code": "ORAN",
+      "swift_code": "",
+      "is_mobile_money": true,
+      "logo": null,
+      "country_code": "CD",
+      "is_active": true,
+      "deleted": null,
+      "created_at": "2026-06-25T12:00:00Z",
+      "updated_at": "2026-06-25T12:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "hr_banking.bank",
+    "pk": "019ef941-0001-7000-8000-000000000021",
+    "fields": {
+      "name": "AfriMobile",
+      "code": "AFRM",
+      "swift_code": "",
+      "is_mobile_money": true,
+      "logo": null,
+      "country_code": "CD",
+      "is_active": true,
+      "deleted": null,
+      "created_at": "2026-06-25T12:00:00Z",
+      "updated_at": "2026-06-25T12:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  }
+]

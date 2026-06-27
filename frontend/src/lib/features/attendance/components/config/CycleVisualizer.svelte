@@ -1,28 +1,27 @@
 <script lang="ts">
   import { attendanceStore } from "../../stores/attendance.svelte";
-  import { employeeStore } from "@/features/employees/stores/employees.svelte";
+  import { get } from 'svelte/store';
+  import { useAssignmentsQuery, getAssignmentTotalCount, useDeleteAssignmentMutation } from "../../queries/attendanceQueries";
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
+  import AnimateSpin from '@/components/layout/elements/AnimateSpin.svelte';
   import { Button } from "@/components/ui/button";
-  import type { 
-    WorkPolicy, 
-    PolicyAssignment 
-  } from "../../types/types";
+  import type { WorkPolicy, PolicyAssignment } from "../../types/types";
+  import { RECURRENCE_LABELS } from "../../constants/attendance.constants";
   import type { Employee } from "@/features/employees/types/types";
   import SearchBar from "@/components/shared/elements/SearchBar.svelte";
   import Empty from "@/components/shared/containers/empty/Empty.svelte";
+  import EmptyButton from "@/components/shared/containers/empty/EmptyButton.svelte";
   import { notification } from "@/stores/notification.svelte";
+  import { getFriendlyErrorMessage } from '@/constants/errors';
   import AssignmentSheet from "./sheets/shift/AssignmentSheet.svelte";
   import BulkAssignmentSheet from "./sheets/shift/BulkAssignmentSheet.svelte";
   import PolicyComparisonSheet from "./sheets/shift/PolicyComparisonSheet.svelte";
   import EmployeeCard from "./views/EmployeeCard.svelte";
-  
-  import { fade, fly, scale } from 'svelte/transition';
+  import { fade, fly } from 'svelte/transition';
   import { flip } from 'svelte/animate';
-  import * as DropdownMenu from "@/components/ui/dropdown-menu";
-  import { Badge } from "@/components/ui/badge";
-  import TooltipWrapper from "@/components/shared/containers/TooltipWrapper.svelte";
   import FilterChips from "@/components/shared/elements/FilterChips.svelte";
-  import { cn } from "@/utilities/common/css";
+  import DataPagination from "@/components/layout/elements/DataPagination.svelte";
+
 
   interface EmployeeWithAssignment extends Employee {
     baseAssignment?: PolicyAssignment;
@@ -31,71 +30,169 @@
     overridePolicy?: WorkPolicy;
   }
 
-  const sortLabels: Record<string, string> = {
-    name: "Nom (A-Z)",
-    department: "Département",
-    policy: "Modèle"
-  };
+
+  // Pagination state
+  let page = $state(1);
+  let perPage = $state(10);
+
+  // TanStack Queries — read all filters/sort from the attendanceStore
+  const assignmentsQuery = useAssignmentsQuery(
+    () => page,
+    () => perPage,
+    () => attendanceStore.filters.search,
+    () => attendanceStore.filters.orgUnit.join(','),
+    () => attendanceStore.filters.recurrence.join(','),
+    () => attendanceStore.sortBy,
+    () => attendanceStore.sortOrder,
+  );
+
+  // Delete mutation
+  const deleteAssignmentMutation = useDeleteAssignmentMutation();
+
+  const assignmentTotalCount = $derived(getAssignmentTotalCount($assignmentsQuery.data));
+  const totalPages = $derived(Math.ceil(assignmentTotalCount / perPage) || 1);
+
+  const isLoading = $derived($assignmentsQuery.isLoading);
+  const isError = $derived($assignmentsQuery.isError);
 
   let selectedEmployee = $state<EmployeeWithAssignment | null>(null);
   let showAssignmentSheet = $state(false);
   let showBulkAssignmentSheet = $state(false);
   let showComparisonSheet = $state(false);
+  let deletingId = $state<string | null>(null);
 
-  const employeesWithAssignments = $derived.by(() => {
-    return employeeStore.employees
-      .map(emp => {
-        const baseAssignment = attendanceStore.policyAssignments.find(pa => pa.employeeId === emp.id && !pa.isOverride);
-        const overrideAssignment = attendanceStore.policyAssignments.find(pa => pa.employeeId === emp.id && pa.isOverride);
-        
-        const basePolicy = baseAssignment ? attendanceStore.policies.find(p => p.id === baseAssignment.policyId) : undefined;
-        const overridePolicy = overrideAssignment ? attendanceStore.policies.find(p => p.id === overrideAssignment.policyId) : undefined;
-        
-        return {
-          ...emp,
-          baseAssignment,
-          overrideAssignment,
-          basePolicy,
-          overridePolicy
-        } as EmployeeWithAssignment;
-      })
-      .filter(emp => emp.basePolicy || emp.overridePolicy); 
-  }); 
+  // Listen for the custom event dispatched by sheets after a successful save
+  $effect(() => {
+    function handleAssignmentsChanged() {
+      get(assignmentsQuery).refetch();
+    }
+    document.addEventListener('assignments-changed', handleAssignmentsChanged);
+    return () => document.removeEventListener('assignments-changed', handleAssignmentsChanged);
+  });
 
-  const filteredEmployees = $derived.by(() => {
-    let result = [...employeesWithAssignments];
-    
-    // Filter
-    if (attendanceStore.filters.search) {
-      const search = attendanceStore.filters.search.toLowerCase();
-      result = result.filter(emp => 
-        emp.name.toLowerCase().includes(search) ||
-        emp.department.toLowerCase().includes(search) ||
-        emp.email?.toLowerCase().includes(search)
-      );
+  // Re-fetch quand les filtres, la recherche, le tri ou la pagination changent
+  $effect(() => {
+    attendanceStore.filters.search;
+    attendanceStore.filters.orgUnit;
+    attendanceStore.filters.recurrence;
+    attendanceStore.sortBy;
+    attendanceStore.sortOrder;
+    page;
+    perPage;
+    get(assignmentsQuery).refetch();
+  });
+
+  // Build cards directly from the API response, deduplicated by employee_id
+  const assignmentCards = $derived.by(() => {
+    const schemes = $assignmentsQuery.data?.results ?? [];
+    const map = new Map<string, EmployeeWithAssignment>();
+    for (const scheme of schemes) {
+      const emp = {
+        id: scheme.employee_id,
+        name: scheme.employee_name,
+        first_name: scheme.first_name,
+        last_name: scheme.last_name,
+        middle_name: scheme.middle_name,
+        profile_photo: scheme.profile_photo,
+        jobTitle: scheme.job_title ?? '',
+        orgUnit: scheme.org_unit_name ?? '',
+        orgUnitId: scheme.org_unit_id ?? undefined,
+        status: '',
+        location: '',
+        contractType: '',
+        joinDate: '',
+        phone: '',
+        email: '',
+        avatarUrl: scheme.profile_photo ?? '',
+        role: '',
+        current_status: scheme.current_status ? { status: scheme.current_status } as any : undefined,
+        baseAssignment: {
+          id: scheme.id,
+          employeeId: scheme.employee_id,
+          policyId: scheme.policy_id,
+          startDate: scheme.valid_from,
+          endDate: scheme.valid_until ?? undefined,
+          recurrence: scheme.recurrence,
+        } as PolicyAssignment,
+        basePolicy: { id: scheme.policy_id, name: scheme.policy_name } as WorkPolicy,
+        overrideAssignment: scheme.override_policy_id ? {
+          id: scheme.id,
+          employeeId: scheme.employee_id,
+          policyId: scheme.override_policy_id,
+          startDate: scheme.override_valid_from ?? scheme.valid_from,
+          endDate: scheme.override_valid_until ?? undefined,
+          recurrence: scheme.override_recurrence,
+          recurrenceCount: scheme.override_recurrence_count,
+        } as PolicyAssignment : undefined,
+        overridePolicy: scheme.override_policy_name
+          ? { id: scheme.override_policy_id!, name: scheme.override_policy_name } as WorkPolicy
+          : undefined,
+      } as EmployeeWithAssignment;
+      // Keep the latest scheme for each employee (dedup by employee id)
+      map.set(scheme.employee_id, emp);
     }
-    
-    if (attendanceStore.filters.department.length > 0) {
-      result = result.filter(emp => attendanceStore.filters.department.includes(emp.department));
-    }
-    
-    // Sort
+    return Array.from(map.values());
+  });
+
+  // Client-side sort only — filtering is done server-side via query params
+  const sortedEmployees = $derived.by(() => {
+    const result = [...assignmentCards];
+    const sortBy = attendanceStore.sortBy;
+    const sortOrder = attendanceStore.sortOrder;
+
     result.sort((a, b) => {
       let comparison = 0;
-      if (attendanceStore.sortBy === 'name') {
+      if (sortBy === 'name') {
         comparison = a.name.localeCompare(b.name);
-      } else if (attendanceStore.sortBy === 'department') {
-        comparison = a.department.localeCompare(b.department);
-      } else if (attendanceStore.sortBy === 'policy') {
-        const policyA = a.basePolicy?.name || '';
-        const policyB = b.basePolicy?.name || '';
-        comparison = policyA.localeCompare(policyB);
+      } else if (sortBy === 'orgUnit') {
+        comparison = (a.orgUnit || '').localeCompare(b.orgUnit || '');
+      } else if (sortBy === 'policy') {
+        comparison = (a.basePolicy?.name || '').localeCompare(b.basePolicy?.name || '');
       }
-      return attendanceStore.sortOrder === 'asc' ? comparison : -comparison;
+      return sortOrder === 'asc' ? comparison : -comparison;
     });
     
     return result;
   });
+
+  // Labels personnalisés pour les filtres
+  function getDisplayLabel(key: string, value: string): string {
+    switch (key) {
+      case 'orgUnit':
+        const card = assignmentCards.find(c => c.orgUnitId === value);
+        return card ? `Unité: ${card.orgUnit}` : `Unité: ${value}`;
+      case 'recurrence':
+        return RECURRENCE_LABELS[value] ?? value;
+      default:
+        return value;
+    }
+  }
+
+  // If no results on current page, go back to page 1
+  $effect(() => {
+    if (sortedEmployees.length === 0 && page > 1) {
+    page = 1;
+    }
+  });
+
+
+
+  function handlePageChange(newPage: number) {
+    page = newPage;
+  }
+
+  function handlePrevPage() {
+    if (page > 1) page--;
+  }
+
+  function handleNextPage() {
+    if (page < totalPages) page++;
+  }
+
+  function handlePerPageChange(newSize: number) {
+    perPage = newSize;
+    page = 1;
+  }
 
   function openAssignmentSheet(employee: EmployeeWithAssignment) {
     selectedEmployee = employee;
@@ -110,24 +207,31 @@
     removeAssignment(employee);
   }
 
-  function openBulkAssignmentSheet() {
-    showBulkAssignmentSheet = true;
-  }
-
   function openComparisonSheet(employee: EmployeeWithAssignment) {
     selectedEmployee = employee;
     showComparisonSheet = true;
   }
 
-  function removeAssignment(employee: EmployeeWithAssignment) {
+  async function removeAssignment(employee: EmployeeWithAssignment) {
+    if (deletingId) return;
+    const assignment = employee.baseAssignment || employee.overrideAssignment;
+    if (!assignment) return;
+
     notification.confirm({
       title: "Suppression de l'affectation",
       message: `Êtes-vous sûr de vouloir supprimer l'affectation du modèle pour ${employee.name} ?`,
-      onYes: () => {
-        const index = attendanceStore.policyAssignments.findIndex(pa => pa.employeeId === employee.id);
-        if (index !== -1) {
-          attendanceStore.policyAssignments.splice(index, 1);
-          attendanceStore.policyAssignments = [...attendanceStore.policyAssignments];
+      type: 'danger',
+      yesText: 'Supprimer',
+      noText: 'Annuler',
+      onYes: async () => {
+        deletingId = assignment.id;
+        try {
+          await $deleteAssignmentMutation.mutateAsync(assignment.id);
+          notification.toast.success('Affectation supprimée avec succès');
+        } catch (err) {
+          notification.toast.error('Erreur lors de la suppression de l\'affectation');
+        } finally {
+          deletingId = null;
         }
       }
     });
@@ -138,45 +242,121 @@
 <div class="flex h-full flex-col bg-white overflow-hidden min-h-0">
   {@render Header()}
 
-  <div class="flex flex-1 flex-col overflow-hidden min-h-0">
-    <FilterChips 
-      filters={attendanceStore.filters}
-      activeFiltersCount={attendanceStore.activeFiltersCount}
-      onRemove={(key, value) => attendanceStore.toggleFilter(key as any, value)}
-      onReset={() => attendanceStore.resetFilters()}
-      class="px-6 py-2 border-b border-slate-50"
-    />
+  <div class="relative flex flex-1 flex-col overflow-hidden min-h-0">
 
-    <div class="custom-scrollbar flex-1 overflow-auto p-6">
-      {#if filteredEmployees.length === 0}
-        <div in:fade={{ duration: 200 }}>
+      {#if isLoading}
+        <div transition:fade={{ duration: 200 }} class="absolute inset-0 flex items-center justify-center">
+          <AnimateSpin text="Chargement des affectations" />
+        </div>
+
+      {:else if isError}
+        <div transition:fade={{ duration: 200 }} class="absolute inset-0 flex items-center justify-center p-8">
+          <Empty
+            title="Erreur de chargement"
+            description={getFriendlyErrorMessage($assignmentsQuery.error)}
+            icon="alert-circle"
+            iconClass="text-red-400"
+            iconSize={28}
+            iconStrokeWidth={1.3}
+            iconContainerClass="bg-red-50/30"
+          >
+            <Button onclick={() => {
+              $assignmentsQuery.refetch();
+            }} variant="outline" class="h-7 rounded-lg">
+              <AppIcon name="refresh-cw" />
+              Réessayer
+            </Button>
+          </Empty>
+        </div>
+
+      {:else if assignmentCards.length === 0 && !attendanceStore.filters.search && attendanceStore.filters.orgUnit.length === 0 && attendanceStore.filters.recurrence.length === 0}
+        <div transition:fade={{ duration: 200 }} class="absolute inset-0 flex items-center justify-center">
           <Empty 
-            title="Aucun planning trouvé" 
-            description="Aucun employé avec un planning ne correspond à votre recherche."
+            title="Aucune affectation trouvée"
+            description="Aucun employé n'a encore de modèle de travail assigné. Commencez par affecter un modèle."
             icon="calendar-days"
-            iconSize={32}
-            iconStrokeWidth={1.2}
-            iconClass="text-primary"
-          />
+            iconSize={28}
+            iconStrokeWidth={1.3}
+            iconClass="text-slate-400"
+          >
+            <EmptyButton 
+              labelElement="une affectation"
+              onNew={() => showBulkAssignmentSheet = true}
+            />
+          </Empty>
         </div>
+
       {:else}
-        <div 
-          class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-          in:fly={{ y: 20, duration: 400, delay: 100 }}
-        >
-          {#each filteredEmployees as employee (employee.id)}
-            <div animate:flip={{ duration: 400 }}>
-              <EmployeeCard 
-                {employee} 
-                onEdit={handleEditEmployee}
-                onRemove={handleRemoveEmployee}
-                onViewDetail={openComparisonSheet}
-              />
+        <FilterChips 
+          filters={{
+            search: attendanceStore.filters.search ? [attendanceStore.filters.search] : [],
+            orgUnit: attendanceStore.filters.orgUnit,
+            recurrence: attendanceStore.filters.recurrence,
+          }}
+          activeFiltersCount={attendanceStore.activeFiltersCount + (attendanceStore.filters.search ? 1 : 0)}
+          getDisplayLabel={(key, value) => key === 'search' ? `Recherche : ${value}` : getDisplayLabel(key, value)}
+          onRemove={(key, value) => {
+            if (key === 'search') { attendanceStore.filters.search = ''; }
+            else { attendanceStore.toggleFilter(key as any, value); }
+          }}
+          onReset={() => { attendanceStore.resetFilters(); }}
+          class="px-6 py-1 pt-0! border-b border-slate-50 shrink-0"
+          badgeClass="bg-amber-50 text-amber-600 border-amber-100/50"
+        />
+
+        {#if sortedEmployees.length === 0}
+          <div class="flex-1 flex items-center justify-center">
+            <Empty 
+              title="Aucun résultat trouvé" 
+              description="Aucun employé avec un planning ne correspond à votre recherche."
+              icon="search-x"
+              iconSize={28}
+              iconStrokeWidth={1.3}
+              iconClass="text-slate-400"
+            >
+              <Button variant="ghost" onclick={() => attendanceStore.resetFilters()} class="h-7 bg-slate-50">
+                <AppIcon name="x" size={16} class="text-slate-400" />
+                Réinitialiser la recherche
+              </Button>
+            </Empty>
+          </div>
+        {:else}
+          <div class="custom-scrollbar flex-1 overflow-auto p-6">
+            <div 
+              class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+              in:fly={{ y: 20, duration: 400, delay: 100 }}
+            >
+              {#each sortedEmployees as employee (employee.id)}
+                <div animate:flip={{ duration: 400 }}>
+                  <EmployeeCard 
+                    {employee} 
+                    onEdit={handleEditEmployee}
+                    onRemove={handleRemoveEmployee}
+                    onViewDetail={openComparisonSheet}
+                  />
+                </div>
+              {/each} 
             </div>
-          {/each} 
-        </div>
+          </div>
+
+          {#if assignmentTotalCount > 0}
+          <div class="px-6 py-0.5 border-t border-slate-100 bg-white sticky bottom-0 z-10">
+            <DataPagination
+              currentCount={sortedEmployees.length}
+              totalCount={assignmentTotalCount}
+              currentPage={page}
+              {totalPages}
+              perPage={perPage}
+              onPageChange={handlePageChange}
+              onPerPageChange={handlePerPageChange}
+              onNext={handleNextPage}
+              onPrev={handlePrevPage}
+              unitLabel="employés"
+            />
+          </div>
+          {/if}
+        {/if}
       {/if}
-    </div>
   </div>
 </div>
 
@@ -201,142 +381,18 @@
         />
       </div>
       
-      <div class="flex items-center gap-2">
-        {@render SortMenu()}
-        {@render Actions()}
-      </div>
-    </div>
-  </div>
-{/snippet}
-
-
-{#snippet SortMenu()}
-  <div class="flex items-center bg-white border border-slate-200 rounded-lg shadow-fine overflow-hidden">
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger>
-        {#snippet child({ props })}
-          <button 
-            {...props} 
-            class="h-7.5 px-3 flex items-center justify-start gap-2 cursor-pointer outline-none hover:bg-slate-50 transition-all min-w-35 max-w-50 border-none bg-transparent"
-          >
-            <div class="flex shrink-0 items-center justify-center">
-              <AppIcon name="sort" size={16} class="text-slate-500" />
-            </div>
-            
-            <span class="text-[0.84rem] text-slate-700 w-26 font-medium truncate">
-              {sortLabels[attendanceStore.sortBy] || "Trier par"}
-            </span>
-          </button>
-        {/snippet}
-      </DropdownMenu.Trigger>
-
-      <DropdownMenu.Content align="start" class="p-1 rounded-lg shadow-fine bg-white border-slate-100">
-        <DropdownMenu.Label class="px-2 py-1.5 text-[0.7rem]! font-bold text-slate-400 uppercase tracking-widest">
-          Critères
-        </DropdownMenu.Label>
-        <DropdownMenu.Separator class="my-1 bg-slate-50" />
-          <DropdownMenu.RadioGroup value={attendanceStore.sortBy} onValueChange={(v) => attendanceStore.setSort(v)}>
-            <DropdownMenu.RadioItem value="name" class="py-2 pr-3 pl-7 rounded-lg cursor-pointer text-[0.84rem]!">
-              Nom (A-Z)
-            </DropdownMenu.RadioItem>
-            
-            <DropdownMenu.RadioItem value="department" class="py-2 pr-3 pl-7 rounded-lg cursor-pointer text-[0.84rem]!">
-              Département
-            </DropdownMenu.RadioItem>
-
-            <DropdownMenu.RadioItem value="policy" class="py-2 pr-3 pl-7 rounded-lg cursor-pointer text-[0.84rem]!">
-              Modèle
-            </DropdownMenu.RadioItem>
-          </DropdownMenu.RadioGroup>
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
-
-    <div class="w-8 h-7.5 shrink-0 flex items-center justify-center border-l border-slate-100 bg-slate-50/30">
-      <TooltipWrapper content={attendanceStore.sortOrder === 'asc' ? 'Ordre croissant' : 'Ordre décroissant'}>
-        {#snippet children(props)}
-          <button 
-            {...props}
-            onclick={() => attendanceStore.toggleSortOrder()}
-            class="w-full h-full flex items-center justify-center hover:bg-slate-100 transition-colors cursor-pointer"
-          >
-            <div class={cn("transition-transform duration-300 flex items-center justify-center", attendanceStore.sortOrder === 'desc' ? "rotate-180" : "rotate-0")}>
-              <AppIcon name="arrow-up" size={15} class={attendanceStore.sortOrder === 'desc' ? "text-blue-600" : "text-slate-400"} />
-            </div>
-          </button>
-        {/snippet}
-      </TooltipWrapper>
-    </div>
-  </div>
-{/snippet}
-
-
-{#snippet Actions()}
-  <div class="flex items-center gap-3">
-    <!-- Filtres -->
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger 
-        class="inline-flex items-center justify-center bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-lg shadow-fine h-7.5 px-3 gap-2 cursor-pointer transition-all"
+      <!-- Add Assignment Button -->
+      <Button
+        onclick={() => showBulkAssignmentSheet = true}
+        variant="default"
+        size="sm"
+        class="h-7 px-3 text-[0.84rem] text-white shadow-fine rounded-lg transition-all"
       >
-        <AppIcon name="filter" size={16} class={attendanceStore.activeFiltersCount > 0 ? "text-blue-500" : "text-slate-400"} />
-        <span class="text-[0.84rem] text-slate-700">Filtrer</span>
-        {#if attendanceStore.activeFiltersCount > 0}
-          <div transition:scale={{ duration: 200, start: 0.8 }}>
-            <Badge class="h-4.5 min-w-4.5 p-0 flex items-center justify-center bg-blue-500 text-white font-medium rounded-full text-[0.65rem] border-none">
-              {attendanceStore.activeFiltersCount}
-            </Badge>
-          </div>
-        {/if}
-      </DropdownMenu.Trigger>
-
-      <DropdownMenu.Content align="end" class="w-64 p-0 rounded-md shadow-fine border-slate-100 bg-white overflow-hidden">
-        <div class="p-3 border-b border-slate-50 bg-slate-50/30">
-          <input 
-            type="text" 
-            placeholder="Chercher un département..." 
-            class="w-full text-[0.83rem] p-1.5 border rounded-md bg-white outline-none focus:border-blue-300"
-          />
-        </div>
-
-        <div class="p-2 max-h-80 overflow-y-auto">
-          {@render FilterSection("Département", ["Ingénierie", "Produit", "Vente", "RH"], "department")}
-        </div>
-
-        {#if attendanceStore.activeFiltersCount > 0}
-          <div class="p-2 bg-slate-50/50 border-t border-slate-100">
-            <Button variant="ghost" onclick={() => attendanceStore.resetFilters()} class="w-full h-8 text-[0.84rem] bg-white text-red-500 hover:text-red-600 hover:bg-red-50! font-medium">
-              Réinitialiser tout
-            </Button>
-          </div>
-        {/if}
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
-
-    <Button
-      onclick={openBulkAssignmentSheet}
-      size="sm"
-      variant="default"
-      class="bg-blue-600 hover:bg-blue-700 h-7.5 px-3 text-[0.84rem] text-white rounded-lg shadow-fine"
-    >
-      <AppIcon name="plus" size={17} />
-      Affecter
-    </Button>
+        <AppIcon name="plus" size={15} />
+        Affecter
+      </Button>
+    </div>
   </div>
-{/snippet}
-
-
-{#snippet FilterSection(label: string, options: string[], filterKey: 'status' | 'department' | 'policy')}
-  <DropdownMenu.Label class="text-[0.75rem]! font-bold text-slate-400 uppercase tracking-widest px-2 py-2">
-    {label}
-  </DropdownMenu.Label>
-  {#each options as option}
-    <DropdownMenu.CheckboxItem 
-      checked={(attendanceStore.filters[filterKey] as any[]).includes(option)}
-      onCheckedChange={() => attendanceStore.toggleFilter(filterKey, option)}
-      class="rounded-lg py-1.5 px-2 text-[0.85rem]! cursor-pointer pl-7"
-    >
-      {option}
-    </DropdownMenu.CheckboxItem>
-  {/each}
 {/snippet}
 
 
@@ -352,4 +408,3 @@
     border-radius: 10px;
   }
 </style>
-

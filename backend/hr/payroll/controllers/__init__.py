@@ -4,6 +4,7 @@ Payroll Module Controllers
 Exports all payroll API controllers for registration in the main router.
 """
 
+from typing         import Any
 from .configuration import PayrollConfigurationController
 from .contracts     import EmployeeContractController
 from .payslips      import PayrollRunController
@@ -11,7 +12,7 @@ from .advances      import SalaryAdvanceController
 from .adjustments   import PayrollAdjustmentsController
 
 
-def get_all_ctrls_payroll():
+def get_all_ctrls_payroll() -> tuple[type[Any], ...]:
     """
     Returns a tuple of all controllers related to payroll management for API routing registration.
     """

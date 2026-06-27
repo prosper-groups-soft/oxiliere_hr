@@ -4,13 +4,7 @@
   import { calendarStore } from "@/features/calendar/stores/calendar.svelte";
   import { Badge } from "@/components/ui/badge";
   import { scale } from 'svelte/transition';
-  import type { EventType } from "@/features/calendar/types/types";
-
-  const typeOptions: { value: EventType; label: string }[] = [
-    { value: 'holiday', label: 'Jours Fériés' },
-    { value: 'closure', label: 'Fermetures' },
-    { value: 'training', label: 'Formations' }
-  ];
+  import { TYPE_OPTIONS } from "@/features/calendar/constants/event.constants";
 
   let activeFiltersCount = $derived(calendarStore.typeFilters.length);
 </script>
@@ -42,7 +36,7 @@
       </DropdownMenu.Label>
       <DropdownMenu.Separator class="my-1 bg-slate-50" />
       
-      {#each typeOptions as option}
+      {#each TYPE_OPTIONS as option}
         <DropdownMenu.CheckboxItem 
           checked={calendarStore.typeFilters.includes(option.value)}
           onCheckedChange={() => calendarStore.toggleTypeFilter(option.value)}

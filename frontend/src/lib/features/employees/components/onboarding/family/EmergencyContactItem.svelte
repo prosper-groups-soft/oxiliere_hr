@@ -4,6 +4,7 @@
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
   import { Button } from "@/components/ui/button";
   import { cn } from "@/utilities/common/css";
+  import { REVERSE_RELATION_MAPPING } from "@/features/employees/constants/mappings";
 
   interface Props {
     contact: EmergencyContact;
@@ -42,12 +43,16 @@
     <div>
       <div class="flex items-center gap-2">
         <p class="font-semibold text-slate-900 text-[0.85rem] tracking-tight">{contact.name}</p>
-        <span class="text-[0.65rem] font-bold text-slate-400 uppercase tracking-widest px-1.5 py-0.5 bg-slate-50 rounded border border-slate-100">{contact.relation}</span>
+        <span class="text-[0.78rem] font-medium text-slate-500 px-2 py-0.5 bg-slate-50 rounded-full border border-slate-100">
+          {REVERSE_RELATION_MAPPING[contact.relation] || contact.relation}
+        </span>
         {#if contact.primary}
-          <span class="text-[0.65rem] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">PRINCIPAL</span>
+          <span class="text-[0.72rem] font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-blue-100">
+            PRINCIPAL
+          </span>
         {/if}
       </div>
-      <p class="text-[0.75rem] text-slate-500 mt-0.5">{contact.phone}</p>
+      <p class="text-[0.8rem] text-slate-500 mt-0.5">{contact.phone}</p>
     </div>
   </div>
   <div class="flex items-center gap-2">

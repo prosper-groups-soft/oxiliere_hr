@@ -9,6 +9,13 @@ class AccountType(TextChoices):
     OTHER = "OTHER", _('Other')                     # Other
 
 
+class AccountStatus(TextChoices):
+    PENDING = "PENDING", _('Pending')
+    VERIFIED = "VERIFIED", _('Verified')
+    REJECTED = "REJECTED", _('Rejected')
+    BLOCKED = "BLOCKED", _('Blocked')
+
+
 class BankAccountAction(TextChoices):
     CREATED = "CREATED", _('Created')
     UPDATED = "UPDATED", _('Updated')

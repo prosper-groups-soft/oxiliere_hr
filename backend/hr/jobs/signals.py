@@ -4,16 +4,16 @@ from django.dispatch import receiver
 from hr.jobs.models import (
     JobFamily,
     Position,
-    Department,
+    OrgUnit,
     EmployeePositionHistory
 )
 from hr.jobs.services.cache import JobsCacheService
 
 
-@receiver([post_save, post_delete], sender=Department)
-def invalidate_department_cache(sender, instance, **kwargs):
-    """ Automatically clears organizational structure caches when departments change. """
-    JobsCacheService.clear_department_cache()
+@receiver([post_save, post_delete], sender=OrgUnit)
+def invalidate_org_unit_cache(sender, instance, **kwargs):
+    """ Automatically clears organizational structure caches when org units change. """
+    JobsCacheService.clear_org_unit_cache()
 
 
 @receiver([post_save, post_delete], sender=JobFamily)
@@ -33,9 +33,9 @@ def invalidate_position_cache(sender, instance, **kwargs):
 
 @receiver([post_save, post_delete], sender=EmployeePositionHistory)
 def invalidate_employee_position_history(sender, instance, **kwargs):
-    """ Updates career history and departmental headcount caches. """
+    """ Updates career history and organizational unit headcount caches. """
     JobsCacheService.clear_employee_position_cache(instance.employee)
     
-    if instance.department_id:
-        JobsCacheService.clear_department_positions_cache(instance.department_id)
+    if instance.org_unit_id:
+        JobsCacheService.clear_org_unit_positions_cache(instance.org_unit_id)
 

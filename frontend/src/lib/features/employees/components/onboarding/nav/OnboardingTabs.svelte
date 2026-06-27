@@ -5,7 +5,6 @@
   import AppIcon from '@/components/layout/elements/AppIcon.svelte';
   import { cn } from '@/utilities/common/css'; 
   import { onboardingStore } from "../../../stores/onboarding.svelte";
-  import { Button } from '@/components/ui/button';
   import { notification } from '@/stores/notification.svelte';
 
   const { steps } = onboardingStore;
@@ -34,15 +33,15 @@
       </Tabs.List>
     </Tabs.Root>
 
-    {@render AutoSyncIndicator()}
-
+    
   </div>
 </div>
 
 
 {#snippet TabTrigger(tab: typeof steps[0])}
-  <Tabs.Trigger 
-    value={tab.id} 
+  <Tabs.Trigger
+    value={tab.id}
+    data-sveltekit-preload-data="tap"
     class={cn(
       "relative flex items-center gap-2.5 bg-transparent shadow-none transition-all duration-300",
       "rounded-none border-none px-4 outline-none focus-visible:ring-0",
@@ -52,7 +51,7 @@
       "data-[state=active]:focus:bg-transparent"
     )}
   >
-    <AppIcon name={tab.icon} size={18} class="group-data-[state=active]:text-primary" />
+    <AppIcon name={tab.icon} size={18} class="text-slate-500 group-data-[state=active]:text-primary" />
     <span class="text-[0.879rem] tracking-tight">{tab.label}</span>  
 
     {#if onboardingStore.currentStep === tab.id}
@@ -66,28 +65,4 @@
 {/snippet}
 
 
-{#snippet AutoSyncIndicator()}
-  <div class="flex items-center gap-2.5 text-slate-500 select-none pr-2">
-    {#if onboardingStore.isSyncing}
-      <div class="h-2 w-2 rounded-full bg-blue-500 animate-pulse"></div>
-      <span class="text-[0.72rem] font-medium">Enregistrement...</span>
-    {:else if onboardingStore.isRestoredDraft}
-      <div class="flex items-center gap-2">
-        <div class="h-2 w-2 rounded-full bg-green-400"></div>
-        <span class="text-[0.72rem] font-medium tracking-tight text-green-600 whitespace-nowrap">Brouillon restauré</span>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onclick={handleStartFresh}
-          class="h-5.5 px-2 text-[0.72rem] text-slate-400 hover:text-slate-600 font-medium"
-        >
-          Recommencer
-        </Button>
-      </div>
-    {:else if onboardingStore.lastSaved}
-      <div class="h-2 w-2 rounded-full bg-emerald-500/80"></div>
-      <span class="text-[0.72rem] font-medium tracking-tight whitespace-nowrap">Enregistré à {onboardingStore.lastSaved}</span>
-    {/if}
-  </div>
-{/snippet}
 

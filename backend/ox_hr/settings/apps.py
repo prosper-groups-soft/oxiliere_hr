@@ -11,6 +11,7 @@ HR_MODULES = [
     'hr.banking',
     'hr.calendar',
     'hr.payroll',
+    'hr.performance',
 ]
 
 
@@ -19,6 +20,7 @@ SHARED_APPS = [
     'cacheops',
     'core',
     'django.contrib.contenttypes',
+    'django.contrib.postgres',
     'django.contrib.staticfiles',
     'django.contrib.sessions',
     'django.contrib.auth',
@@ -35,6 +37,7 @@ SHARED_APPS = [
     'ninja',
     'ninja_extra',
     'ninja_jwt',
+    'djmoney',
 ]
 
 
@@ -57,6 +60,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'core.middleware.TokenTenantMiddleware',  # Add TokenTenant for Basic Auth compatibility
     'django_structlog.middlewares.RequestMiddleware',
     'auditlog.middleware.AuditlogMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',

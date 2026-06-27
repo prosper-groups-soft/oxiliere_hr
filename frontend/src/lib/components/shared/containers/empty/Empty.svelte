@@ -8,12 +8,13 @@
 		title,
 		description = 'Aucun enregistrement.',
 		icon = 'file-x',
-		iconSize = 34,
+		iconSize = 30,
 		iconClass = 'text-slate-400',
+		iconContainerClass = 'bg-slate-50',
 		iconStrokeWidth = 1.5,
 		class: className,
     	titleSize = "0.91rem",
-    	descriptionSize = "0.83rem",
+    	descriptionSize = "0.84rem",
 		children
 	}: WithElementRef<HTMLAttributes<HTMLDivElement>> & {
 		title?: string;
@@ -21,6 +22,7 @@
 		icon?: string;
 		iconSize?: number;
 		iconClass?: string;
+		iconContainerClass?: string;
     	titleSize?: string;
     	descriptionSize?: string; 
 		iconStrokeWidth?: number;
@@ -32,7 +34,7 @@
 
 <div class={cn('h-full flex flex-col items-center justify-center py-12 px-4 text-center', className)}>
 	<div 
-		class="rounded-2xl bg-slate-100 flex items-center justify-center mb-4"
+		class={cn('rounded-2xl flex items-center justify-center mb-4', iconContainerClass)}
 		style="width: {containerSize}px; height: {containerSize}px;"
 	>
 		<AppIcon 

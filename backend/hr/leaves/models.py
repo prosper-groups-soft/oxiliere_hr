@@ -5,7 +5,7 @@ from django.utils.translation import gettext_lazy as _
 from auditlog.registry import auditlog
 
 from hr.employees.models import Employee
-from hr.models import BaseAuditableModel
+from hr.models.base import BaseAuditableModel
 from .enums import (
     LeaveCategory, 
     LeaveStatus, 
@@ -53,6 +53,18 @@ class LeavePolicy(BaseAuditableModel):
         default=3,
         verbose_name=_("Expiration Month"),
         help_text=_("Month (1-12) when carried-over days expire (e.g., 3 for March).")
+    )
+
+    # Limites de demande
+    max_consecutive_days = models.PositiveIntegerField(
+        default=30,
+        verbose_name=_("Max Consecutive Days"),
+        help_text=_("Maximum consecutive working days allowed per request.")
+    )
+    notice_period_days = models.PositiveIntegerField(
+        default=15,
+        verbose_name=_("Notice Period Days"),
+        help_text=_("Minimum advance notice required for leave requests.")
     )
 
     class Meta:
@@ -124,6 +136,12 @@ class CircumstanceLeaveRule(BaseAuditableModel):
     is_paid = models.BooleanField(
         default=True,
         verbose_name=_("Paid Leave")
+    )
+    description = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name=_("Description"),
+        help_text=_("Optional description for this leave type (e.g., 'Mariage de l\'employé')")
     )
 
     class Meta:

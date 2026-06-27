@@ -36,7 +36,7 @@ export interface Payslip {
 	id: string;
 	employeeId: number;
 	employeeName: string;
-	department: string;
+	orgUnit: string;
 	period: string;
 	baseSalary: number;
 	lines: PayslipLine[];
@@ -66,8 +66,14 @@ export interface Advance {
 export interface PayrollFilters {
 	search: string;
 	status: PayrollStatus[];
-	department: string[];
+	orgUnit: string[];
 	period: string;
+}
+
+export interface ExcludedEmployee {
+	employeeName: string;
+	reason: string;
+	orgUnit: string;
 }
 
 
@@ -112,7 +118,7 @@ export const ADVANCE_RISK_LABELS: Record<Advance['riskLevel'], string> = {
 };
 
 
-export const DEPARTMENTS = ['IT', 'RH', 'Finance', 'Commercial', 'Production', 'Administration'];
+export const ORG_UNITS = ['IT', 'RH', 'Finance', 'Commercial', 'Production', 'Administration'];
 
 export const PAYROLL_STEPS: PayrollStep[] = ['preparation', 'calculation', 'review', 'approval', 'payment'];
 

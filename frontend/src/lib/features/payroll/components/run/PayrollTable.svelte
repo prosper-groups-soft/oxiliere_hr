@@ -7,7 +7,7 @@
   import { 
     PAYROLL_STATUS_COLORS, 
     PAYROLL_STATUS_LABELS,
-    DEPARTMENTS 
+    ORG_UNITS 
   } from "../../types/types";
 
   let sortColumn = $state<'employeeName' | 'grossPay' | 'netPay' | 'status'>('employeeName');
@@ -45,8 +45,8 @@
     }
   }
 
-  function toggleDepartmentFilter(dept: string) {
-    payrollStore.toggleFilter('department', dept);
+  function toggleOrgUnitFilter(orgUnit: string) {
+    payrollStore.toggleFilter('orgUnit', orgUnit);
   }
 </script>
 
@@ -65,17 +65,17 @@
 
     <div class="flex items-center gap-2 overflow-hidden">
       <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
-        {#each DEPARTMENTS as dept}
+        {#each ORG_UNITS as orgUnit}
           <button
-            onclick={() => toggleDepartmentFilter(dept)}
+            onclick={() => toggleOrgUnitFilter(orgUnit)}
             class={cn(
               "px-3.5 py-1.5 text-[0.78rem] font-bold rounded-full transition-all border shrink-0 uppercase tracking-tight",
-              payrollStore.filters.department.includes(dept)
+              payrollStore.filters.orgUnit.includes(orgUnit)
                 ? "bg-primary text-white border-primary shadow-sm"
                 : "bg-white text-slate-500 border-slate-200 hover:border-primary/40 hover:text-primary transition-all cursor-pointer"
             )}
           >
-            {dept}
+            {orgUnit}
           </button>
         {/each}
       </div>
@@ -83,9 +83,9 @@
   </div>
 
   <FilterChips 
-    filters={{ department: payrollStore.filters.department }}
-    activeFiltersCount={payrollStore.filters.department.length}
-    onRemove={(key, value) => toggleDepartmentFilter(value)}
+    filters={{ orgUnit: payrollStore.filters.orgUnit }}
+    activeFiltersCount={payrollStore.filters.orgUnit.length}
+    onRemove={(key, value) => toggleOrgUnitFilter(value)}
     onReset={() => payrollStore.resetFilters()}
     class="py-2.5 bg-slate-50/30 border-b border-slate-50"
   />
@@ -149,7 +149,7 @@
               </div>
             </td>
             <td class="px-6 py-4">
-              <span class="text-[0.85rem] font-semibold text-slate-500 bg-slate-100/50 px-2 py-1 rounded-md">{payslip.department}</span>
+              <span class="text-[0.85rem] font-semibold text-slate-500 bg-slate-100/50 px-2 py-1 rounded-md">{payslip.orgUnit}</span>
             </td>
             <td class="px-6 py-4 text-right">
               <span class="text-[0.9rem] font-bold text-slate-700">

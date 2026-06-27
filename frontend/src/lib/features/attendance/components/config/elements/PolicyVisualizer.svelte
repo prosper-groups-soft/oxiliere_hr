@@ -1,9 +1,11 @@
 <script lang="ts">
-  import type { WorkPolicy, WorkPeriod, DayPattern, DayOfWeek } from "../../../types/types";
+  import type { WorkPolicy, WorkPeriod, DayPattern } from "../../../types/types";
   import { slide } from 'svelte/transition';
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
   import { cn } from "@/utilities/common/css";
+  import { DAYS } from "../../../constants/attendance.constants";
 
+  
   let { 
     policy, 
     overlayPolicy = null,
@@ -27,16 +29,6 @@
   function toggleSection(section: keyof typeof expanded) {
     expanded[section] = !expanded[section];
   }
-
-  const days: { label: string; index: DayOfWeek }[] = [
-    { label: "Lundi", index: 1 },
-    { label: "Mardi", index: 2 },
-    { label: "Mercredi", index: 3 },
-    { label: "Jeudi", index: 4 },
-    { label: "Vendredi", index: 5 },
-    { label: "Samedi", index: 6 },
-    { label: "Dimanche", index: 0 },
-  ];
 
   // --- Logic Helpers ---
   function calculateHours(periods: WorkPeriod[], type: 'work' | 'break' = 'work') {
@@ -67,7 +59,10 @@
   }
 
   function getStats(p: WorkPolicy) {
-    const patterns = Object.values(p.pattern) as DayPattern[];
+    const patterns = Object.values(p?.pattern ?? {}) as DayPattern[];
+    if (patterns.length === 0) {
+      return { activeDays: 0, workHours: 0, breakHours: 0, ratio: 0 };
+    }
     const work = patterns.reduce((acc, pattern) => acc + (pattern ? calculateHours(pattern.periods, 'work') : 0), 0);
     const breaks = patterns.reduce((acc, pattern) => acc + (pattern ? calculateHours(pattern.periods, 'break') : 0), 0);
     const total = work + breaks;
@@ -85,6 +80,7 @@
 </script>
 
 
+{#if policy}
 <div class="space-y-6">
   <!-- 1. Grid of days (Superposition) -->
   <section class="space-y-3">
@@ -112,7 +108,7 @@
           </div>
           <div class="flex items-center gap-1.5">
             <div class="w-2 h-2 rounded-sm bg-primary"></div>
-            <span class="text-[0.7rem] text-slate-500 font-medium uppercase tracking-tight">Shift</span>
+            <span class="text-[0.7rem] text-slate-500 font-medium uppercase tracking-tight">Remplacement</span>
           </div>
         </div>
       {/if}
@@ -120,10 +116,10 @@
 
     {#if expanded.planning}
       <div class="grid grid-cols-7 gap-2" transition:slide>
-        {#each days as day}
-          {@const baseRange = getWorkRange(policy.pattern[day.index]?.periods)}
-          {@const overlayRange = overlayPolicy ? getWorkRange(overlayPolicy.pattern[day.index]?.periods) : null}
-          {@const hasOverlay = !!overlayPolicy && !!overlayRange && overlayRange !== "OFF"}
+        {#each DAYS as day}
+          {@const baseRange = getWorkRange(policy.pattern?.[day.index]?.periods)}
+          {@const overlayRange = overlayPolicy ? getWorkRange(overlayPolicy.pattern?.[day.index]?.periods) : null}
+          {@const hasOverlay = !!overlayPolicy}
           {@const isBaseOff = baseRange === "OFF"}
 
           <div class="text-center group">
@@ -171,17 +167,16 @@
           <AppIcon name="chevron-right" size={14} />
         </div>
         <h4 class="text-[0.81rem] font-semibold text-slate-400 uppercase tracking-widest group-hover:text-slate-500 transition-colors flex items-center gap-1.5">
-          <AppIcon name="list" size={13} />
             Détails des périodes
           </h4>
       </button>
       
       {#if expanded.details}
         <div class="space-y-3 max-h-[450px] overflow-y-auto px-0.5 custom-scrollbar" transition:slide>
-          {#each days as day}
-            {@const basePattern = policy.pattern[day.index]}
-            {@const overlayPattern = overlayPolicy?.pattern[day.index]}
-            {@const hasOverlay = !!overlayPolicy && !!overlayPattern}
+          {#each DAYS as day}
+            {@const basePattern = policy.pattern?.[day.index]}
+            {@const overlayPattern = overlayPolicy?.pattern?.[day.index]}
+            {@const hasOverlay = !!overlayPolicy}
             {@const baseActive = basePattern && !basePattern.isOff && basePattern.periods?.length > 0}
             {@const overlayActive = overlayPattern && !overlayPattern.isOff && overlayPattern.periods?.length > 0}
 
@@ -218,7 +213,7 @@
                 </div>
 
                 <!-- Periods Row -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 gap-3">
                   <!-- Base Periods -->
                   {#if baseActive}
                     <div class={cn("space-y-1", hasOverlay && "opacity-20 grayscale pointer-events-none")}>
@@ -288,6 +283,7 @@
     {/if}
   </section>
 </div>
+{/if}
 
 
 {#snippet CompactRange({ range, variant }: { range: any, variant: 'base' | 'overlay' })}
@@ -317,7 +313,7 @@
 {#snippet PeriodRow({ period, variant }: { period: WorkPeriod, variant: 'base' | 'overlay' })}
   {@const isWork = period.type === 'work'}
   <div class={cn(
-    "flex items-center justify-between px-2 py-1.5 rounded border bg-white",
+    "flex items-center justify-between px-4 py-2 rounded border bg-white",
     variant === 'overlay' 
     ? (isWork ? "border-primary/20 hover:border-primary/40" : "border-amber-100")
     : "border-slate-50"
@@ -330,7 +326,7 @@
         : "bg-amber-500"
       )}></div>
       <span class="text-[0.83rem] font-medium text-slate-600 truncate">
-        {period.name || (isWork ? 'Travail' : 'Pause')}
+        {period.name} — {isWork ? 'Travail' : 'Pause'}
       </span>
     </div>
     <div class="flex items-center gap-2 shrink-0">
