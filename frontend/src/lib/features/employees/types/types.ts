@@ -42,6 +42,7 @@ export interface EmployeeFilters {
 	marital_status?: string;
 	is_active?: boolean;
 	has_scheme?: boolean;
+	has_active_contract?: boolean;
 }
 
 
@@ -154,8 +155,32 @@ export interface EmployeeContract {
 	start_date: string;
 	end_date?: string | null;
 	is_active: boolean;
+	/** Salaire net négocié en USD à l'embauche (métamodèle Règle 5) */
+	negotiated_salary_usd?: number | null;
+	/** Régime de travail : TEMPS_PLEIN | TEMPS_PARTIEL_50/60/80 | EXPATRIE */
+	work_regime?: string;
+	/** Clauses particulières du contrat */
+	contractual_clauses?: string;
+	/** Éléments de paie assignés à ce contrat (S10) */
+	pay_elements?: ContractPayElementItem[];
 	created_at: string;
 	updated_at: string;
+}
+
+/** Élément de paie d'un contrat (S10) — miroir du backend ContractAdjustment */
+export interface ContractPayElementItem {
+	id: string;
+	catalog_code?: string | null;
+	label: string;
+	value_type: string;
+	amount: number | null;
+	custom_amount: number | null;
+	custom_percentage: number | null;
+	is_active: boolean;
+	is_taxable: boolean;
+	recurrence: string;
+	start_period: string;
+	end_period: string | null;
 }
 
 
@@ -196,6 +221,8 @@ export interface EmployeeFullProfile {
 	current_address?: EmployeeAddress | null;
 	current_status?: EmployeeStatusHistory | null;
 	current_contract?: EmployeeContract | null;
+	/** Éléments de paie du contrat courant (S10) */
+	contract_adjustments?: ContractPayElementItem[];
 	user?: {
 		id: string;
 		email: string;
@@ -396,6 +423,12 @@ export interface EmployeeContractCreate {
 	end_date?: string | null;
 	currency: string;
 	is_active: boolean;
+	/** Salaire net négocié en USD (métamodèle) */
+	negotiated_salary_usd?: number | null;
+	/** Régime de travail */
+	work_regime?: string;
+	/** Clauses particulières */
+	contractual_clauses?: string;
 }
 
 

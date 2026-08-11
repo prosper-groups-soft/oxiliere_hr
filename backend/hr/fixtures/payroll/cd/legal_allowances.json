@@ -1,27 +1,12 @@
 [
   {
     "model": "hr_payroll.legalallowance",
-    "pk": "019c03b25373729c8093ab2ba88ddb60",
-    "fields": {
-      "allowance_type": "FAMILY",
-      "calculation_mode": "FIXED",
-      "base_amount": "262.00",
-      "formula_description": "Minimum légal : 1/27 du SMIG par enfant par jour ouvré. Non imposable (Exonéré IPR).",
-      "is_taxable": false,
-      "taxable_threshold_percentage": null,
-      "is_active": true,
-      "created_at": "2026-01-26T00:00:00Z",
-      "updated_at": "2026-01-26T00:00:00Z"
-    }
-  },
-  {
-    "model": "hr_payroll.legalallowance",
     "pk": "019c03b293027d9ca4e7409c8d91b832",
     "fields": {
       "allowance_type": "HOUSING",
       "calculation_mode": "FIXED",
       "base_amount": "0.00",
-      "formula_description": "Indemnité de logement. Exonérée d'IPR jusqu'à 30% du salaire brut. L'excédent est imposable.",
+      "formula_description": "Indemnité de logement : charge de l'employeur. Montant fixe négocié au contrat (à paramétrer). À défaut, plafond légal : 30 % du salaire de base, exonéré d'IPR (IRPP). L'excédent au-delà de 30 % est imposable.",
       "is_taxable": true,
       "taxable_threshold_percentage": "30.00",
       "is_active": true,
@@ -36,52 +21,7 @@
       "allowance_type": "TRANSPORT",
       "calculation_mode": "FIXED",
       "base_amount": "2000.00",
-      "formula_description": "Indemnité de transport journalière. Exonérée d'IPR si elle ne dépasse pas les coûts réels (usage local : 4 courses).",
-      "is_taxable": false,
-      "taxable_threshold_percentage": null,
-      "is_active": true,
-      "created_at": "2026-01-26T00:00:00Z",
-      "updated_at": "2026-01-26T00:00:00Z"
-    }
-  },
-  {
-    "model": "hr_payroll.legalallowance",
-    "pk": "019f0803-0768-73ff-bcc1-7efef36f2c50",
-    "fields": {
-      "allowance_type": "MEAL",
-      "calculation_mode": "FIXED",
-      "base_amount": "0.00",
-      "formula_description": "Prime de panier (indemnité repas). Exonérée d'IPR selon la réglementation en vigueur.",
-      "is_taxable": false,
-      "taxable_threshold_percentage": null,
-      "is_active": true,
-      "created_at": "2026-01-26T00:00:00Z",
-      "updated_at": "2026-01-26T00:00:00Z"
-    }
-  },
-  {
-    "model": "hr_payroll.legalallowance",
-    "pk": "019f0803-0769-719e-be03-73e30c14de3e",
-    "fields": {
-      "allowance_type": "RISK_PREMIUM",
-      "calculation_mode": "FIXED",
-      "base_amount": "0.00",
-      "formula_description": "Prime de risque pour travaux dangereux ou insalubres. Exonérée d'IPR selon conditions légales.",
-      "is_taxable": false,
-      "taxable_threshold_percentage": null,
-      "is_active": true,
-      "created_at": "2026-01-26T00:00:00Z",
-      "updated_at": "2026-01-26T00:00:00Z"
-    }
-  },
-  {
-    "model": "hr_payroll.legalallowance",
-    "pk": "019f0803-076a-7dae-a578-9c27dfa64f54",
-    "fields": {
-      "allowance_type": "DIRTY_WORK",
-      "calculation_mode": "FIXED",
-      "base_amount": "0.00",
-      "formula_description": "Prime de salissure pour travaux salissants. Exonérée d'IPR selon la réglementation en vigueur.",
+      "formula_description": "Indemnité de transport : charge de l'employeur. 2 000 CDF par jour de présence. Montant mensuel = 2 000 × jours travaillés (ex. 26 jours → 52 000 CDF). Exonérée d'IPR (IRPP) si elle ne dépasse pas les coûts réels.",
       "is_taxable": false,
       "taxable_threshold_percentage": null,
       "is_active": true,

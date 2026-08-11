@@ -1,12 +1,7 @@
 <script lang="ts">
   import { payrollStore } from "@/features/payroll/stores/payroll.svelte";
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
-  import { 
-    Card, 
-    CardContent, 
-    CardHeader, 
-    CardTitle 
-  } from "@/components/ui/card";
+  import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
   import { Separator } from "@/components/ui/separator";
   import Input from "@/components/ui/input/input.svelte";
   import { slide, fade } from "svelte/transition";
@@ -21,7 +16,7 @@
   const activeEmployees = $derived(payrollStore.payslips);
   const excludedEmployees = $derived(payrollStore.excludedEmployees);
   
-  // Statistics from store
+  // Statistiques du store
   const stats = $derived({
     activeCount: payrollStore.activeEmployeesCount,
     excludedCount: payrollStore.excludedEmployeesCount,
@@ -60,14 +55,14 @@
         {index + 1}
       </div>
       <div class="flex flex-col">
-        <span class="text-sm text-slate-700 font-medium">{emp.employeeName}</span>
-        <span class="text-[0.75rem] text-slate-400">{emp.orgUnit}</span>
+        <span class="text-sm text-slate-700 font-medium">{emp.employee.fullName}</span>
+        <span class="text-[0.75rem] text-slate-400">{emp.employee.orgUnit}</span>
       </div>
     </div>
     <div class="flex items-center gap-3">
-       <div class="flex items-center gap-1 text-[0.7rem] font-medium {emp.baseSalary > 0 || index < 5 ? 'text-emerald-600' : 'text-amber-600'}">
-          <AppIcon name={emp.baseSalary > 0 || index < 5 ? 'circle-check' : 'circle-alert'} size={14} />
-          {emp.baseSalary > 0 || index < 5 ? 'Profil complet' : 'RIB manquant'}
+       <div class="flex items-center gap-1 text-[0.7rem] font-medium {emp.contract.baseSalary > 0 || index < 5 ? 'text-emerald-600' : 'text-amber-600'}">
+          <AppIcon name={emp.contract.baseSalary > 0 || index < 5 ? 'circle-check' : 'circle-alert'} size={14} />
+          {emp.contract.baseSalary > 0 || index < 5 ? 'Profil complet' : 'RIB manquant'}
        </div>
        <span class="text-[0.75rem] text-slate-500 bg-slate-100 px-2 py-0.5 rounded font-medium">CDI</span>
     </div>
@@ -212,7 +207,7 @@
           <div class="pt-4 border-t border-slate-100">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-3">
               {#each activeEmployees.length > 0 ? activeEmployees : Array(6) as emp, i}
-                {@render EmployeeRow(emp.employeeName ? emp : { employeeName: `Employé #00${i+1}`, orgUnit: 'Unité organisationnelle' }, i)}
+                {@render EmployeeRow(emp.employee?.fullName ? emp : { employee: { fullName: `Employé #00${i+1}`, orgUnit: 'Unité organisationnelle' } }, i)}
               {/each}
             </div>
           </div>

@@ -1,0 +1,311 @@
+[
+    {
+        "model": "hr_payroll.professionalcategory",
+        "pk": "019c04a1000000000000000000000001",
+        "fields": {
+            "classe": 1,
+            "echelon": 1,
+            "label": "Manœuvre ordinaire",
+            "application": "Personnel non qualifié",
+            "is_active": true
+        }
+    },
+    {
+        "model": "hr_payroll.professionalcategory",
+        "pk": "019c04a1000000000000000000000002",
+        "fields": {
+            "classe": 1,
+            "echelon": 2,
+            "label": "Manœuvre ordinaire",
+            "application": "Personnel non qualifié",
+            "is_active": true
+        }
+    },
+    {
+        "model": "hr_payroll.professionalcategory",
+        "pk": "019c04a1000000000000000000000003",
+        "fields": {
+            "classe": 1,
+            "echelon": 3,
+            "label": "Manœuvre ordinaire",
+            "application": "Personnel non qualifié",
+            "is_active": true
+        }
+    },
+    {
+        "model": "hr_payroll.professionalcategory",
+        "pk": "019c04a1000000000000000000000004",
+        "fields": {
+            "classe": 1,
+            "echelon": 4,
+            "label": "Manœuvre ordinaire",
+            "application": "Personnel non qualifié",
+            "is_active": true
+        }
+    },
+    {
+        "model": "hr_payroll.professionalcategory",
+        "pk": "019c04a1000000000000000000000005",
+        "fields": {
+            "classe": 2,
+            "echelon": 1,
+            "label": "Ouvrier spécialisé",
+            "application": "Personnel avec formation de base",
+            "is_active": true
+        }
+    },
+    {
+        "model": "hr_payroll.professionalcategory",
+        "pk": "019c04a1000000000000000000000006",
+        "fields": {
+            "classe": 2,
+            "echelon": 2,
+            "label": "Ouvrier spécialisé",
+            "application": "Personnel avec formation de base",
+            "is_active": true
+        }
+    },
+    {
+        "model": "hr_payroll.professionalcategory",
+        "pk": "019c04a1000000000000000000000007",
+        "fields": {
+            "classe": 2,
+            "echelon": 3,
+            "label": "Ouvrier spécialisé",
+            "application": "Personnel avec formation de base",
+            "is_active": true
+        }
+    },
+    {
+        "model": "hr_payroll.professionalcategory",
+        "pk": "019c04a1000000000000000000000008",
+        "fields": {
+            "classe": 2,
+            "echelon": 4,
+            "label": "Ouvrier spécialisé",
+            "application": "Personnel avec formation de base",
+            "is_active": true
+        }
+    },
+    {
+        "model": "hr_payroll.professionalcategory",
+        "pk": "019c04a1000000000000000000000009",
+        "fields": {
+            "classe": 3,
+            "echelon": 1,
+            "label": "Ouvrier qualifié / Agent de maîtrise",
+            "application": "Personnel avec qualification technique",
+            "is_active": true
+        }
+    },
+    {
+        "model": "hr_payroll.professionalcategory",
+        "pk": "019c04a1000000000000000000000010",
+        "fields": {
+            "classe": 3,
+            "echelon": 2,
+            "label": "Ouvrier qualifié / Agent de maîtrise",
+            "application": "Personnel avec qualification technique",
+            "is_active": true
+        }
+    },
+    {
+        "model": "hr_payroll.professionalcategory",
+        "pk": "019c04a1000000000000000000000011",
+        "fields": {
+            "classe": 3,
+            "echelon": 3,
+            "label": "Ouvrier qualifié / Agent de maîtrise",
+            "application": "Personnel avec qualification technique",
+            "is_active": true
+        }
+    },
+    {
+        "model": "hr_payroll.professionalcategory",
+        "pk": "019c04a1000000000000000000000012",
+        "fields": {
+            "classe": 3,
+            "echelon": 4,
+            "label": "Ouvrier qualifié / Agent de maîtrise",
+            "application": "Personnel avec qualification technique",
+            "is_active": true
+        }
+    },
+    {
+        "model": "hr_payroll.professionalcategory",
+        "pk": "019c04a1000000000000000000000013",
+        "fields": {
+            "classe": 4,
+            "echelon": 1,
+            "label": "Agent de maîtrise supérieur / Technicien",
+            "application": "Personnel avec diplôme technique",
+            "is_active": true
+        }
+    },
+    {
+        "model": "hr_payroll.professionalcategory",
+        "pk": "019c04a1000000000000000000000014",
+        "fields": {
+            "classe": 4,
+            "echelon": 2,
+            "label": "Agent de maîtrise supérieur / Technicien",
+            "application": "Personnel avec diplôme technique",
+            "is_active": true
+        }
+    },
+    {
+        "model": "hr_payroll.professionalcategory",
+        "pk": "019c04a1000000000000000000000015",
+        "fields": {
+            "classe": 4,
+            "echelon": 3,
+            "label": "Agent de maîtrise supérieur / Technicien",
+            "application": "Personnel avec diplôme technique",
+            "is_active": true
+        }
+    },
+    {
+        "model": "hr_payroll.professionalcategory",
+        "pk": "019c04a1000000000000000000000016",
+        "fields": {
+            "classe": 4,
+            "echelon": 4,
+            "label": "Agent de maîtrise supérieur / Technicien",
+            "application": "Personnel avec diplôme technique",
+            "is_active": true
+        }
+    },
+    {
+        "model": "hr_payroll.professionalcategory",
+        "pk": "019c04a1000000000000000000000017",
+        "fields": {
+            "classe": 5,
+            "echelon": 1,
+            "label": "Cadre subalterne",
+            "application": "Personnel avec diplôme universitaire (BAC+2/3)",
+            "is_active": true
+        }
+    },
+    {
+        "model": "hr_payroll.professionalcategory",
+        "pk": "019c04a1000000000000000000000018",
+        "fields": {
+            "classe": 5,
+            "echelon": 2,
+            "label": "Cadre subalterne",
+            "application": "Personnel avec diplôme universitaire (BAC+2/3)",
+            "is_active": true
+        }
+    },
+    {
+        "model": "hr_payroll.professionalcategory",
+        "pk": "019c04a1000000000000000000000019",
+        "fields": {
+            "classe": 5,
+            "echelon": 3,
+            "label": "Cadre subalterne",
+            "application": "Personnel avec diplôme universitaire (BAC+2/3)",
+            "is_active": true
+        }
+    },
+    {
+        "model": "hr_payroll.professionalcategory",
+        "pk": "019c04a1000000000000000000000020",
+        "fields": {
+            "classe": 5,
+            "echelon": 4,
+            "label": "Cadre subalterne",
+            "application": "Personnel avec diplôme universitaire (BAC+2/3)",
+            "is_active": true
+        }
+    },
+    {
+        "model": "hr_payroll.professionalcategory",
+        "pk": "019c04a1000000000000000000000021",
+        "fields": {
+            "classe": 6,
+            "echelon": 1,
+            "label": "Cadre moyen",
+            "application": "Personnel avec BAC+4/5",
+            "is_active": true
+        }
+    },
+    {
+        "model": "hr_payroll.professionalcategory",
+        "pk": "019c04a1000000000000000000000022",
+        "fields": {
+            "classe": 6,
+            "echelon": 2,
+            "label": "Cadre moyen",
+            "application": "Personnel avec BAC+4/5",
+            "is_active": true
+        }
+    },
+    {
+        "model": "hr_payroll.professionalcategory",
+        "pk": "019c04a1000000000000000000000023",
+        "fields": {
+            "classe": 6,
+            "echelon": 3,
+            "label": "Cadre moyen",
+            "application": "Personnel avec BAC+4/5",
+            "is_active": true
+        }
+    },
+    {
+        "model": "hr_payroll.professionalcategory",
+        "pk": "019c04a1000000000000000000000024",
+        "fields": {
+            "classe": 6,
+            "echelon": 4,
+            "label": "Cadre moyen",
+            "application": "Personnel avec BAC+4/5",
+            "is_active": true
+        }
+    },
+    {
+        "model": "hr_payroll.professionalcategory",
+        "pk": "019c04a1000000000000000000000025",
+        "fields": {
+            "classe": 7,
+            "echelon": 1,
+            "label": "Cadre supérieur / Cadre de collaboration",
+            "application": "Personnel avec haute qualification",
+            "is_active": true
+        }
+    },
+    {
+        "model": "hr_payroll.professionalcategory",
+        "pk": "019c04a1000000000000000000000026",
+        "fields": {
+            "classe": 7,
+            "echelon": 2,
+            "label": "Cadre supérieur / Cadre de collaboration",
+            "application": "Personnel avec haute qualification",
+            "is_active": true
+        }
+    },
+    {
+        "model": "hr_payroll.professionalcategory",
+        "pk": "019c04a1000000000000000000000027",
+        "fields": {
+            "classe": 7,
+            "echelon": 3,
+            "label": "Cadre supérieur / Cadre de collaboration",
+            "application": "Personnel avec haute qualification",
+            "is_active": true
+        }
+    },
+    {
+        "model": "hr_payroll.professionalcategory",
+        "pk": "019c04a1000000000000000000000028",
+        "fields": {
+            "classe": 7,
+            "echelon": 4,
+            "label": "Cadre supérieur / Cadre de collaboration",
+            "application": "Personnel avec haute qualification",
+            "is_active": true
+        }
+    }
+]
+

@@ -16,6 +16,18 @@
   const employee = $derived(employeeStore.current);
 
   /**
+   * Onglet actif du profil — dérivé de l'URL (responsabilité du layout).
+   * Le header reçoit la valeur toute calculée (SRP : découplage navigation/présentation).
+   */
+  const PROFILE_TABS = ['profile', 'contract', 'education', 'family', 'account', 'documents', 'timeline'] as const;
+  const activeTabId = $derived.by(() => {
+    const path = page.url.pathname.replace(/\/$/, '');
+    const lastSegment = path.split('/').pop() ?? '';
+    if (lastSegment === employeeId) return 'profile';
+    return (PROFILE_TABS as readonly string[]).includes(lastSegment) ? lastSegment : 'profile';
+  });
+
+  /**
    * RÉACTIVITÉ DU CHARGEMENT
    * Cet effet se déclenche à chaque fois que 'employeeId' change.
    */
@@ -53,7 +65,7 @@
 
 {#if employee}
   <div class="flex flex-col h-full">
-    <EmployeeProfileHeader {employee} />
+    <EmployeeProfileHeader {employee} {activeTabId} />
     
     <main class="flex-1 overflow-auto">
       {@render children()}

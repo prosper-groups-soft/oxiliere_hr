@@ -250,7 +250,7 @@
       <!-- Section 1: Propriétaire -->
       <div class="space-y-4">
         <div class="space-y-2">
-          <Label for="employee-select" class="text-[0.875rem] font-medium text-slate-700">Employé <span class="text-rose-500">*</span></Label>
+          <Label for="employee-select" class="text-[0.875rem] font-medium text-slate-700">Titulaire <span class="text-rose-500">*</span></Label>
           <Select.Root type="single" bind:value={formData.employeeId} onValueChange={() => clearValidationError('employeeId')}>
             <Select.Trigger id="employee-select" class={cn(
               "h-10 bg-white border-slate-200 rounded-md w-full shadow-fine font-normal text-[0.875rem] cursor-pointer",
@@ -468,9 +468,5 @@
 </Sheet.Root>
 
 
-<style>
-  .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-</style>
+
 

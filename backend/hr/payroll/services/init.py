@@ -11,7 +11,8 @@ from hr.payroll.models import (
     PayrollAdjustment,
     SMIGConfiguration,
     SocialContributionRate,
-    PayrollConfiguration
+    PayrollConfiguration,
+    ProfessionalCategory,
 )
 
 
@@ -23,13 +24,14 @@ class PayrollInitService:
     def init_payroll_configurations(self):
         """Global initialization with logging of steps."""
         configs = {
-            'payroll_config_defaults.json': PayrollConfiguration,
-            'ipr_tax_brackets.json'       : TaxBracket,
-            'legal_allowances.json'       : LegalAllowance,
-            'overtime_rules.json'         : OvertimeRule,
-            'payroll_adjustments.json'    : PayrollAdjustment,
-            'smig_defaults.json'          : SMIGConfiguration,
-            'social_contributions.json'   : SocialContributionRate,
+            'payroll_config_defaults.json'   : PayrollConfiguration,
+            'irpp_2026_tax_brackets.json'    : TaxBracket,
+            'legal_allowances.json'          : LegalAllowance,
+            'overtime_rules.json'            : OvertimeRule,
+            'payroll_adjustments.json'       : PayrollAdjustment,
+            'smig_defaults.json'             : SMIGConfiguration,
+            'social_contributions.json'      : SocialContributionRate,
+            'professional_categories.json'   : ProfessionalCategory,
         }
         
         summary = {}
@@ -92,5 +94,30 @@ class PayrollInitService:
                 logger.error(f"[{model_class.__name__}] Error processing PK {pk}: {str(e)}")
                 raise
 
+        return count
+
+    def reset_legal_allowances(self) -> int:
+        """Recharge uniquement les allocations légales depuis leur fixture (réinitialisation ciblée)."""
+        count = self._load_fixture_to_model('legal_allowances.json', LegalAllowance)
+        if count > 0:
+            PayrollCacheService.clear_allowance_cache()
+            PayrollCacheService.clear_legal_allowances_cache()
+            logger.info(f"Legal allowances reset: {count} allowances reloaded from fixture.")
+        return count
+
+    def reset_adjustments(self) -> int:
+        """Recharge uniquement le catalogue d'éléments de paie depuis sa fixture (réinitialisation ciblée)."""
+        count = self._load_fixture_to_model('payroll_adjustments.json', PayrollAdjustment)
+        if count > 0:
+            PayrollCacheService.clear_adjustment_types_cache()
+            logger.info(f"Payroll adjustments reset: {count} items reloaded from fixture.")
+        return count
+
+    def reset_professional_categories(self) -> int:
+        """Recharge la grille des catégories professionnelles (7 classes x 4 échelons) depuis la fixture."""
+        count = self._load_fixture_to_model('professional_categories.json', ProfessionalCategory)
+        if count > 0:
+            PayrollCacheService.clear_config_cache()
+            logger.info(f"Professional categories reset: {count} entries reloaded from fixture.")
         return count
 

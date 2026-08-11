@@ -8,19 +8,23 @@
 
   let { payslip, onClick }: { payslip: any; onClick?: (payslipId: string) => void } = $props();
 
-  // --- État Tooltip ---
+  // --- État de la bulle d'info (tooltip) ---
   let tooltipPosition = $state<{ x: number; y: number } | null>(null);
-  const palette = $derived(getAvatarPalette(payslip.employeeName));
+  /** Palette de couleurs pour l'avatar, dérivée du nom complet */
+  const palette = $derived(getAvatarPalette(payslip.employee.fullName));
 
   // --- Logique des montants ---
   const stats = $derived.by(() => {
-    const gross = payslip.grossPay || 0;
-    const net = payslip.netPay || 0;
-    
-    const taxes = payslip.lines?.filter((l: any) => l.type === 'deduction' && !l.label.toLowerCase().includes('avance'))
+    const allLines = payslip.sections?.flatMap((s: any) => s.lines) || [];
+    const gross = payslip.summary.grossSalary || 0;
+    const net = payslip.summary.netPay || 0;
+
+    // Total des déductions (taxes) : lignes de type 'deduction' qui ne sont pas des avances
+    const taxes = allLines.filter((l: any) => l.type === 'deduction' && !l.label.toLowerCase().includes('avance'))
                   .reduce((sum: number, l: any) => sum + Math.abs(l.amount), 0) || 0;
-    
-    const advances = payslip.lines?.filter((l: any) => l.type === 'deduction' && l.label.toLowerCase().includes('avance'))
+
+    // Total des avances déduites
+    const advances = allLines.filter((l: any) => l.type === 'deduction' && l.label.toLowerCase().includes('avance'))
                      .reduce((sum: number, l: any) => sum + Math.abs(l.amount), 0) || 0;
 
     return { 
@@ -31,7 +35,8 @@
     };
   });
 
-  // --- Fonctions Tooltip ---
+  // --- Fonctions d'affichage/masquage de la bulle d'info ---
+  /** Met à jour la position de la bulle d'info au survol de la barre de répartition */
   function updateTooltip(event: MouseEvent) {
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
     tooltipPosition = {
@@ -40,6 +45,7 @@
     };
   }
 
+  /** Masque la bulle d'info au survol */
   function hideTooltip() {
     tooltipPosition = null;
   }
@@ -54,24 +60,24 @@
 >
   <div class="flex items-center w-[30%] min-w-0">
     <Avatar class="h-10 w-10 shrink-0 rounded-full border border-slate-200">
-      <AvatarImage src={payslip.avatarUrl} alt={payslip.employeeName} />
+      <AvatarImage src={payslip.avatarUrl} alt={payslip.employee.fullName} />
       <AvatarFallback class={cn("text-[0.7rem] font-bold", palette.bg, palette.text)}>
-        {getInitials(...payslip.employeeName.split(' '))}
+        {getInitials(...payslip.employee.fullName.split(' '))}
       </AvatarFallback>
     </Avatar>
     <div class="flex flex-col ml-3 min-w-0">
-      <span class="text-[0.88rem] text-slate-900 font-medium truncate leading-tight">{payslip.employeeName}</span>
-      <span class="text-[0.8rem] text-slate-400 truncate mt-0.5">{payslip.orgUnit}</span>
+      <span class="text-[0.88rem] text-slate-900 font-medium truncate leading-tight">{payslip.employee.fullName}</span>
+      <span class="text-[0.8rem] text-slate-400 truncate mt-0.5">{payslip.employee.orgUnit}</span>
     </div>
   </div>
 
   <div class="flex items-center w-[20%] gap-2">
-    {#if payslip.lines?.some((l: any) => l.label.toLowerCase().includes('prime'))}
+    {#if payslip.sections?.some((s: any) => s.lines.some((l: any) => l.label.toLowerCase().includes('prime')))}
       <div class="px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded text-[0.6rem] font-bold uppercase border border-emerald-100/50">
         Prime
       </div>
     {/if}
-    {#if payslip.lines?.some((l: any) => l.label.toLowerCase().includes('avance'))}
+    {#if payslip.sections?.some((s: any) => s.lines.some((l: any) => l.label.toLowerCase().includes('avance')))}
       <div class="px-2 py-0.5 bg-amber-50 text-amber-600 rounded text-[0.6rem] font-bold uppercase border border-amber-100/50">
         Avance
       </div>

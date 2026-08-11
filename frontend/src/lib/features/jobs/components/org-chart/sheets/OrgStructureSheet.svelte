@@ -4,12 +4,7 @@
   import { Label } from "@/components/ui/label";
   import { Button } from "@/components/ui/button";
   import * as Avatar from "@/components/ui/avatar";
-  import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger
-  } from "@/components/ui/select";
+  import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
   import { Badge } from "@/components/ui/badge";
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
   import Empty from "@/components/shared/containers/empty/Empty.svelte";
@@ -19,25 +14,19 @@
   import { getInitials } from "@/utilities/common/string";
   import { getAvatarPalette } from "@/utilities/common/func";
   import { cn } from "@/utilities/common/css";
-  import { 
-    useCreateOrgUnitMutation, 
-    useUpdateOrgUnitMutation 
-  } from "../../../queries/orgQueries";
+  import { useCreateOrgUnitMutation, useUpdateOrgUnitMutation } from "../../../queries/orgQueries";
   import AnimateSpin from "@/components/layout/elements/AnimateSpin.svelte";
   import ConfirmAction from "@/components/shared/actions/ConfirmAction.svelte";
   import { notification } from "@/stores/notification.svelte";
   import type { NodeType } from "../../../types/types";
-  import type { 
-    OrgUnit, 
-    OrgUnitCreate, 
-    OrgUnitUpdate 
-  } from '../../../types/org.types';
+  import type { OrgUnit, OrgUnitCreate, OrgUnitUpdate } from '../../../types/org.types';
   import type { Employee } from "@/features/employees/types/types";
   import { slide, fade } from 'svelte/transition';
   import { orgUnitSchema } from '../../../schemas/orgUnit.schema';
   import ValidationError from "@/components/ui/validation-error";
   import { z } from 'zod';
 
+  
   let { 
     open = $bindable(false),
     preselectedParentId = $bindable(null),
@@ -693,14 +682,5 @@
 </Sheet.Root>
 
 
-<style>
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 4px;
-  }
-  
-  .custom-scrollbar::-webkit-scrollbar-thumb { 
-    background: #e2e8f0; 
-    border-radius: 10px; 
-  }
-</style>
+
 

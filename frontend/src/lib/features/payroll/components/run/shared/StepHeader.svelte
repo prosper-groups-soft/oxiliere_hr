@@ -13,6 +13,11 @@
     status?: PayrollStatus | 'pending' | 'loading' | 'completed' | 'error';
     currentStep: PayrollStep;
     hasCurrentRun: boolean;
+    isCreating?: boolean;
+    isCalculating?: boolean;
+    isReviewing?: boolean;
+    isApproving?: boolean;
+    isPaying?: boolean;
     onNew?: () => void;
     onCalculate?: () => void;
     onReview?: () => void;
@@ -27,6 +32,11 @@
     status = 'pending',
     currentStep,
     hasCurrentRun,
+    isCreating = false,
+    isCalculating = false,
+    isReviewing = false,
+    isApproving = false,
+    isPaying = false,
     onNew,
     onCalculate,
     onReview,
@@ -62,8 +72,8 @@
 </script>
 
 
-{#snippet actionButton(label: string, icon: string, onclick: (() => void) | undefined, className: string = "bg-primary")}
-  <Button {onclick} class={cn("text-white h-7.5 px-4 text-[0.85rem]", className)} variant="default">
+{#snippet actionButton(label: string, icon: string, onclick: (() => void) | undefined, className: string = "bg-primary", disabled: boolean = false)}
+  <Button {onclick} disabled={disabled} class={cn("text-white h-7.5 px-4 text-[0.85rem]", className)} variant="default">
     <AppIcon name={icon} size={18} />
     {label}
   </Button>
@@ -93,31 +103,31 @@
 
       <div class="flex items-center gap-2">
         {#if !hasCurrentRun}
-          {@render actionButton("Nouvelle paie", "plus", onNew)}
+          {@render actionButton(isCreating ? "Création…" : "Nouvelle paie", "plus", onNew, "bg-primary", isCreating)}
         
         {:else if currentStep === 'preparation' && status === 'draft'}
-          {@render actionButton("Calculer la paie", "calculator", () => {
+          {@render actionButton(isCalculating ? "Calcul en cours…" : "Calculer la paie", "calculator", () => {
             onCalculate?.();
             onNextStep?.();
-          })}
+          }, "bg-primary", isCalculating)}
         
         {:else if currentStep === 'calculation' && status === 'calculated'}
-          {@render actionButton("Réviser", "eye", () => {
+          {@render actionButton(isReviewing ? "Révision…" : "Réviser", "eye", () => {
             onReview?.();
             onNextStep?.();
-          }, "bg-amber-500 hover:bg-amber-600")}
+          }, "bg-amber-500 hover:bg-amber-600", isReviewing)}
         
         {:else if currentStep === 'review' && status === 'reviewed'}
-          {@render actionButton("Approuver", "circle-check", () => {
+          {@render actionButton(isApproving ? "Approbation…" : "Approuver", "circle-check", () => {
             onApprove?.();
             onNextStep?.();
-          }, "bg-emerald-600 hover:bg-emerald-700")}
+          }, "bg-emerald-600 hover:bg-emerald-700", isApproving)}
         
         {:else if currentStep === 'approval' && status === 'approved'}
-          {@render actionButton("Finaliser le paiement", "banknote", () => {
+          {@render actionButton(isPaying ? "Paiement…" : "Finaliser le paiement", "banknote", () => {
             onPay?.();
             onNextStep?.();
-          }, "bg-purple-600 hover:bg-purple-700")}
+          }, "bg-purple-600 hover:bg-purple-700", isPaying)}
         
         {:else if status === 'paid'}
           <Button variant="outline" size="sm" class="h-7.5 text-[0.85rem] px-4 border-slate-200 text-slate-600 font-medium shadow-fine">

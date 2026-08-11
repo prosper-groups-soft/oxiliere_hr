@@ -5,6 +5,8 @@
   import { isPromise } from '@/utilities/common/func';
   import { cn } from '@/utilities/common/css';
   import AppIcon from '@/components/layout/elements/AppIcon.svelte';
+  import { Label } from '@/components/ui/label';
+  import { Textarea } from '@/components/ui/textarea';
   import { tick } from 'svelte';
   import { fade, scale } from "svelte/transition";
 
@@ -109,7 +111,7 @@
 
   async function handleYes() {
     if (!req?.onYes) return (isOpen = false);
-    const result = req.onYes();
+    const result = req.onYes(req.inputValue);
     if (isPromise(result)) {
       loading = true;
       try { await result; isOpen = false; }
@@ -189,6 +191,18 @@
           <p class="text-slate-600 text-[0.86rem] max-w-md mx-auto leading-relaxed confirm-message">
             {@html req?.message ?? ''}
           </p>
+
+          {#if req?.inputLabel}
+            <div class="px-4 text-left">
+              <Label class="text-[0.82rem]">{req.inputLabel}</Label>
+              <Textarea
+                bind:value={req.inputValue}
+                rows={3}
+                placeholder="Entrez votre commentaire..."
+                class="mt-1.5"
+              />
+            </div>
+          {/if}
         </div>
 
         <div class="w-full flex flex-col sm:flex-row sm:justify-center items-center gap-3 mt-4">

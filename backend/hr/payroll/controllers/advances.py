@@ -4,7 +4,7 @@ from uuid     import UUID
 from injector import inject
 
 from django.core.exceptions import ValidationError
-from ninja import Query
+from ninja import Query, Schema, Body
 from ninja.pagination import paginate
 from ninja_extra import (
     api_controller,
@@ -13,7 +13,11 @@ from ninja_extra import (
     http_patch,
     ControllerBase,
 )
-from oxutils.pagination.cursor import CursorPagination
+from ninja_extra.pagination import (
+    paginate,
+    PageNumberPaginationExtra,
+    PaginatedResponseSchema
+)
 from oxutils.permissions.perms import ScopePermission
 from hr.services.cache_helpers import cache_api_response
 
@@ -36,6 +40,11 @@ from hr.payroll.services.advances.advances_mgmt import AdvanceManagementService
 logger = logging.getLogger(__name__)
 
 
+class AdvanceRejectIn(Schema):
+    """Body schema for rejecting an advance — reason is mandatory."""
+    reason: str
+
+
 @api_controller('/payroll/advances', tags=['Salary Advances'])
 class SalaryAdvanceController(ControllerBase):
     """
@@ -55,9 +64,8 @@ class SalaryAdvanceController(ControllerBase):
 
     # ===== SALARY ADVANCES =====
 
-    @http_get('/', response=List[SalaryAdvanceOut], permissions=[ScopePermission('payroll:r')])
-    @paginate(CursorPagination)
-    @cache_api_response(timeout=60*60, key_prefix="salary_advances_list", user_specific=False)
+    @http_get('/', response=PaginatedResponseSchema[SalaryAdvanceOut], permissions=[ScopePermission('payroll:r')])
+    @paginate(PageNumberPaginationExtra, page_size=50)
     def list_advances(self, filters: AdvanceListFilterIn = Query(...)):
         """
         List salary advances with filtering.
@@ -74,35 +82,13 @@ class SalaryAdvanceController(ControllerBase):
             'employee',
             'requested_by',
             'approved_by',
+        ).prefetch_related(
+            'employee__position_history__position',
+            'employee__position_history__org_unit',
         ).all().order_by('-requested_date')
 
         # Apply filters
         return filters.filter(qs)
-
-    @http_get('/{advance_id}', response=SalaryAdvanceOut, permissions=[ScopePermission('payroll:r')])
-    @cache_api_response(timeout=60*60*24, key_prefix="advance_detail", user_specific=False)
-    def get_advance_detail(self, advance_id: UUID):
-        """
-        Retrieve detailed information about a salary advance.
-        
-        Includes:
-        - Request and approval info
-        - Deduction configuration (base, timing, window, priority)
-        - Current balance and repayment progress
-        - Repayment history
-        """
-        logger.debug("[Advances] Getting advance detail", extra={"advance_id": advance_id})
-
-        try:
-            advance = self.advance_service.get_advance_detail(advance_id)
-            return advance
-
-        except SalaryAdvance.DoesNotExist:
-            logger.warning("[Advances] Advance not found", extra={"advance_id": advance_id})
-            return self.create_response(
-                {"detail": "Advance not found"},
-                status_code=404,
-            )
 
     @http_get('/employee/{employee_id}/active', response=List[SalaryAdvanceOut], permissions=[ScopePermission('payroll:r')])
     def list_active_advances(self, employee_id: UUID):
@@ -174,6 +160,34 @@ class SalaryAdvanceController(ControllerBase):
             logger.warning("[Advances] Validation error", extra={"error": str(e)})
             return self.create_response({"detail": str(e)}, status_code=400)
 
+    @http_post('/{advance_id}/submit', response=SalaryAdvanceOut, permissions=[ScopePermission('payroll:w')])
+    def submit_salary_advance(self, advance_id: UUID):
+        """
+        Submit a draft advance request.
+        Transitions status from DRAFT to PENDING (enters the approval queue).
+        """
+        actor = getattr(self.context.request, 'user', None)
+        logger.info("[Advances] Submitting advance", extra={"advance_id": advance_id, "actor": actor})
+
+        try:
+            advance = self.advance_service.submit_advance(
+                advance_id=advance_id,
+                actor=actor,
+            )
+            logger.info("[Advances] Advance submitted", extra={"advance_id": advance_id})
+            return advance
+
+        except SalaryAdvance.DoesNotExist:
+            logger.warning("[Advances] Advance not found", extra={"advance_id": advance_id})
+            return self.create_response(
+                {"detail": "Advance not found"},
+                status_code=404,
+            )
+
+        except ValidationError as e:
+            logger.warning("[Advances] Cannot submit advance", extra={"error": str(e)})
+            return self.create_response({"detail": str(e)}, status_code=400)
+
     @http_patch('/{advance_id}/approve', response=SalaryAdvanceOut, permissions=[ScopePermission('payroll:a')])
     def approve_salary_advance(self, advance_id: UUID):
         """
@@ -202,19 +216,49 @@ class SalaryAdvanceController(ControllerBase):
             logger.warning("[Advances] Cannot approve advance", extra={"error": str(e)})
             return self.create_response({"detail": str(e)}, status_code=400)
 
+    @http_patch('/{advance_id}/activate', response=SalaryAdvanceOut, permissions=[ScopePermission('payroll:a')])
+    def activate_salary_advance(self, advance_id: UUID):
+        """
+        Activate an approved advance request.
+        Transitions status from APPROVED to ACTIVE (deductible).
+        """
+        actor = getattr(self.context.request, 'user', None)
+        logger.info("[Advances] Activating advance", extra={"advance_id": advance_id, "actor": actor})
+
+        try:
+            advance = self.advance_service.activate_advance(
+                advance_id=advance_id,
+                actor=actor,
+            )
+            logger.info("[Advances] Advance activated", extra={"advance_id": advance_id})
+            return advance
+
+        except SalaryAdvance.DoesNotExist:
+            logger.warning("[Advances] Advance not found", extra={"advance_id": advance_id})
+            return self.create_response(
+                {"detail": "Advance not found"},
+                status_code=404,
+            )
+
+        except ValidationError as e:
+            logger.warning("[Advances] Cannot activate advance", extra={"error": str(e)})
+            return self.create_response({"detail": str(e)}, status_code=400)
+
     @http_patch('/{advance_id}/reject', response=SalaryAdvanceOut, permissions=[ScopePermission('payroll:a')])
-    def reject_advance(self, advance_id: UUID):
+    def reject_advance(self, advance_id: UUID, data: AdvanceRejectIn = Body(...)):
         """
         Reject a pending salary advance request.
         
         Transitions status from PENDING to REJECTED.
+        The reason is mandatory and stored in rejection_reason.
         """
         actor = getattr(self.context.request, 'user', None)
-        logger.info("[Advances] Rejecting advance", extra={"advance_id": advance_id, "actor": actor})
+        logger.info("[Advances] Rejecting advance", extra={"advance_id": advance_id, "reason": data.reason})
 
         try:
             advance = self.advance_service.reject_advance(
                 advance_id=advance_id,
+                reason=data.reason,
                 actor=actor,
             )
             logger.info("[Advances] Advance rejected", extra={"advance_id": advance_id})
@@ -321,19 +365,19 @@ class SalaryAdvanceController(ControllerBase):
         - Priority among multiple advances
         """
         actor = getattr(self.context.request, 'user', None)
-        logger.info("[Advances] Creating configuration", extra={"advance_id": advance_id})
+        logger.info("[Advances] Creating configuration", extra={"advance_id": data.advance})
 
         try:
             config = self.advance_service.create_advance_configuration(
-                advance_id=advance_id,
+                advance_id=data.advance,
                 data=data.model_dump(),
                 actor=actor,
             )
-            logger.info("[Advances] Configuration created", extra={"advance_id": advance_id})
+            logger.info("[Advances] Configuration created", extra={"advance_id": data.advance})
             return 201, config
 
         except SalaryAdvance.DoesNotExist:
-            logger.warning("[Advances] Advance not found", extra={"advance_id": advance_id})
+            logger.warning("[Advances] Advance not found", extra={"advance_id": data.advance})
             return self.create_response(
                 {"detail": "Advance not found"},
                 status_code=404,

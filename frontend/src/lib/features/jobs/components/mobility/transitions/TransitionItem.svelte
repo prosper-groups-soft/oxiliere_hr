@@ -80,7 +80,6 @@
       {employeeName}
     </span>
     <span class="text-[0.84rem] text-slate-400">
-      ID: {transition.employee_id.slice(0, 8)}
     </span>
   </div>
 

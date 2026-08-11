@@ -1,14 +1,11 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { untrack } from 'svelte';
   import { settings } from "@/stores/settings.svelte";
   import { ui } from "@/stores/ui.svelte";
   import { buildFullName } from "@/utilities/common/employee.utils";
   import { employeeStore } from '@/features/employees/stores/employees.svelte';
   import { recruitmentStore } from '@/features/recruitment/stores/recruitment.svelte';
-  //import { taxSettingsStore } from "@/features/admin/settings/stores/taxSettingsStore.svelte";
   import { PAGE_LABELS } from '@/constants/features/navigation';
-  //import { useTaxConfigurationQuery, useTaxBracketsQuery, useContributionsQuery } from "@/features/admin/settings/queries/taxQueries";
   import SideBar from "@/components/layout/shell/SideBar.svelte";
   import TopBar from "@/components/layout/shell/TopBar.svelte";
   import BreadCrumb from "@/components/layout/shell/BreadCrumb.svelte";
@@ -20,27 +17,6 @@
 
   // --- Sidebar management ---
   const setExpanded = (val: boolean) => settings.update('sidebarExpanded', val);
-
-  // --- Global Tax Settings Loading ---
-  //const taxConfigQuery = useTaxConfigurationQuery();
-  //const taxBracketsQuery = useTaxBracketsQuery();
-  //const contributionsQuery = useContributionsQuery();
-  //let hasAttemptedLoad = false;
-  
-  /*
-  $effect(() => {
-    if (untrack(() => taxSettingsStore.hasLoaded) || hasAttemptedLoad) return;
-    
-    const config = $taxConfigQuery.data;
-    const brackets = $taxBracketsQuery.data;
-    const contributions = $contributionsQuery.data;
-    
-    if (config && Array.isArray(brackets) && Array.isArray(contributions)) {
-      hasAttemptedLoad = true;
-      taxSettingsStore.loadFromData(config, brackets, contributions);
-    }
-  });
-  */
 
   /**
    * getLabel : Résout le nom à afficher dans le Breadcrumb et le Titre

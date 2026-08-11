@@ -9,6 +9,7 @@
   import { taxSettingsStore } from "../../stores/taxSettingsStore.svelte";
   import { notification } from "@/stores/notification.svelte";
 
+  
   interface Props {
     saveMutation: CreateMutationResult<{ success: boolean }, Error, void, unknown>;
     resetMutation: CreateMutationResult<{ status: string; summary: Record<string, number> }, Error, void, unknown>;
@@ -83,7 +84,7 @@
     </Button>
     
     <CurrencyToggle 
-      currency={config.currency} 
+      currency={config.currency === 'CDF' ? 'CDF' : 'USD'} 
       onChange={(c) => taxSettingsStore.setCurrency(c)}
       size="sm"
     />

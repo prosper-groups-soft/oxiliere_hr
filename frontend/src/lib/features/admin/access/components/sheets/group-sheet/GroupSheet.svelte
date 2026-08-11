@@ -204,8 +204,5 @@
 </Sheet.Root>
 
 
-<style>
-  .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-</style>
+
 

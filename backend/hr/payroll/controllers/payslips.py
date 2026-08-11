@@ -13,9 +13,13 @@ from ninja_extra      import (
     http_patch,
     ControllerBase,
 )
-from oxutils.pagination.cursor import CursorPagination
+from ninja_extra.pagination import (
+    paginate,
+    PageNumberPaginationExtra,
+    PaginatedResponseSchema
+)
 from oxutils.permissions.perms import ScopePermission
-from hr.services.cache_helpers import cache_api_response
+from hr.services.cache_helpers import cache_api_response, invalidate_cache_prefix
 
 from hr.payroll.models  import PayrollRun
 from hr.payroll.schemas import (
@@ -58,8 +62,8 @@ class PayrollRunController(ControllerBase):
         self.payroll_run_service = payroll_run_service
         self.orchestrator = orchestrator
 
-    @http_get('/', response=List[PayrollRunOut], permissions=[ScopePermission('payroll:r')])
-    @paginate(CursorPagination)
+    @http_get('/', response=PaginatedResponseSchema[PayrollRunOut], permissions=[ScopePermission('payroll:r')])
+    @paginate(PageNumberPaginationExtra, page_size=50)
     @cache_api_response(timeout=60*60*24, key_prefix="payroll_runs_list", user_specific=False)
     def list_payroll_runs(self, filters: PayrollRunListFilterIn = Query(...)):
         """
@@ -73,10 +77,8 @@ class PayrollRunController(ControllerBase):
         """
         logger.debug("[Payroll Run] Listing runs", extra={"filters": filters.model_dump()})
 
-        qs = PayrollRun.objects.all().order_by('-period_end')
-
-        # Apply filters
-        return filters.filter(qs)
+        qs = self.payroll_run_service.list_runs_annotated(filters=filters)
+        return [self.payroll_run_service.serialize_run(run) for run in qs]
 
     @http_get('/{run_id}', response=PayrollRunOut, permissions=[ScopePermission('payroll:r')])
     @cache_api_response(timeout=60*60*24, key_prefix="payroll_run_detail", user_specific=False)
@@ -103,8 +105,8 @@ class PayrollRunController(ControllerBase):
                 status_code=404,
             )
 
-    @http_get('/{run_id}/payslips', response=List[EmployeePayslipOut], permissions=[ScopePermission('payroll:r')])
-    @paginate(CursorPagination)
+    @http_get('/{run_id}/payslips', response=PaginatedResponseSchema[EmployeePayslipOut], permissions=[ScopePermission('payroll:r')])
+    @paginate(PageNumberPaginationExtra, page_size=50)
     @cache_api_response(timeout=60*60, key_prefix="payroll_run_payslips", user_specific=False)
     def list_payslips_in_run(self, run_id: UUID):
         """
@@ -192,6 +194,7 @@ class PayrollRunController(ControllerBase):
                 "[Payroll Run] Payroll run created",
                 extra={"run_id": run.id, "period": f"{run.period_start} to {run.period_end}"},
             )
+            invalidate_cache_prefix('payroll_runs_list')
             return 201, run
 
         except ValidationError as e:
@@ -253,6 +256,9 @@ class PayrollRunController(ControllerBase):
                 "[Payroll Run] Processing started",
                 extra={"run_id": run_id, "task_id": status.get('task_id')},
             )
+            invalidate_cache_prefix('payroll_runs_list')
+            invalidate_cache_prefix('payroll_run_detail')
+            invalidate_cache_prefix('payroll_run_payslips')
             return 202, status
 
         except PayrollRun.DoesNotExist:
@@ -283,6 +289,8 @@ class PayrollRunController(ControllerBase):
                 actor=actor,
             )
             logger.info("[Payroll Run] Run completed", extra={"run_id": run_id})
+            invalidate_cache_prefix('payroll_runs_list')
+            invalidate_cache_prefix('payroll_run_detail')
             return run
 
         except PayrollRun.DoesNotExist:
@@ -294,6 +302,66 @@ class PayrollRunController(ControllerBase):
 
         except ValidationError as e:
             logger.warning("[Payroll Run] Cannot complete run", extra={"error": str(e)})
+            return self.create_response({"detail": str(e)}, status_code=400)
+
+    @http_post('/{run_id}/review', response=PayrollRunOut, permissions=[ScopePermission('payroll:r')])
+    def review_payroll_run(self, run_id: UUID):
+        """
+        Move a processed run into the review stage.
+        Status transition: VALIDATED → REVIEWED.
+        """
+        actor = getattr(self.context.request, 'user', None)
+        logger.info("[Payroll Run] Reviewing payroll run", extra={"run_id": run_id, "actor": actor})
+
+        try:
+            run = self.payroll_run_service.review_payroll_run(
+                run_id=run_id,
+                actor=actor,
+            )
+            logger.info("[Payroll Run] Run reviewed", extra={"run_id": run_id})
+            invalidate_cache_prefix('payroll_runs_list')
+            invalidate_cache_prefix('payroll_run_detail')
+            return run
+
+        except PayrollRun.DoesNotExist:
+            logger.warning("[Payroll Run] Run not found", extra={"run_id": run_id})
+            return self.create_response(
+                {"detail": "Payroll run not found"},
+                status_code=404,
+            )
+
+        except ValidationError as e:
+            logger.warning("[Payroll Run] Cannot review run", extra={"error": str(e)})
+            return self.create_response({"detail": str(e)}, status_code=400)
+
+    @http_post('/{run_id}/approve', response=PayrollRunOut, permissions=[ScopePermission('payroll:r')])
+    def approve_payroll_run(self, run_id: UUID):
+        """
+        Approve a reviewed run, ready for payment.
+        Status transition: REVIEWED → APPROVED.
+        """
+        actor = getattr(self.context.request, 'user', None)
+        logger.info("[Payroll Run] Approving payroll run", extra={"run_id": run_id, "actor": actor})
+
+        try:
+            run = self.payroll_run_service.approve_payroll_run(
+                run_id=run_id,
+                actor=actor,
+            )
+            logger.info("[Payroll Run] Run approved", extra={"run_id": run_id})
+            invalidate_cache_prefix('payroll_runs_list')
+            invalidate_cache_prefix('payroll_run_detail')
+            return run
+
+        except PayrollRun.DoesNotExist:
+            logger.warning("[Payroll Run] Run not found", extra={"run_id": run_id})
+            return self.create_response(
+                {"detail": "Payroll run not found"},
+                status_code=404,
+            )
+
+        except ValidationError as e:
+            logger.warning("[Payroll Run] Cannot approve run", extra={"error": str(e)})
             return self.create_response({"detail": str(e)}, status_code=400)
 
     @http_post('/{run_id}/cancel', response=PayrollRunOut, permissions=[ScopePermission('payroll:a')])
@@ -312,6 +380,8 @@ class PayrollRunController(ControllerBase):
                 actor=actor,
             )
             logger.info("[Payroll Run] Run cancelled", extra={"run_id": run_id})
+            invalidate_cache_prefix('payroll_runs_list')
+            invalidate_cache_prefix('payroll_run_detail')
             return run
 
         except PayrollRun.DoesNotExist:

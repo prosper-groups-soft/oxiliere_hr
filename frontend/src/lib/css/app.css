@@ -1,8 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;300;400;500;700;900&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Ubuntu+Mono:wght@100;300;400;500;700;900&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Geist:wght@100;300;400;500;700;900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@100;300;400;500;700;900&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@100;300;400;500;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Ubuntu+Mono:wght@100;300;400;500;700;900&display=swap');
 
 @import 'tailwindcss';
 
@@ -207,6 +204,12 @@
 
 /* Custom classes */
 
+/* Permet aux textes longs de passer à la ligne (mots longs, URLs, etc.) */
+.wrap-break-word {
+	overflow-wrap: break-word;
+	word-break: break-word;
+}
+
 .comet-title-xl {
 	@apply text-foreground-secondary text-3xl font-medium tracking-[0.01em];
 }
@@ -329,6 +332,31 @@ pre {
 	::-webkit-scrollbar-button {
 		display: none;
 	}
+}
+
+/* Custom scrollbar unifié — utilisée par de nombreux composants.
+   Personnaliser la taille avec --scrollbar-size sur l'élément. */
+.custom-scrollbar {
+	scrollbar-width: thin;
+	scrollbar-color: #cbd5e1 transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+	width: var(--scrollbar-size, 4px);
+	height: var(--scrollbar-size, 4px);
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+	background: #cbd5e1;
+	border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+	background: #94a3b8;
 }
 
 .comet-no-scrollbar::-webkit-scrollbar {

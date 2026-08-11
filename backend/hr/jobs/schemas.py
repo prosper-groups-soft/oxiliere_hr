@@ -1,16 +1,13 @@
 from uuid import UUID
-from typing   import List, Optional
+from typing   import List, Optional, Annotated
 from datetime import date, datetime
 from pydantic import Field
 from ninja    import Schema, ModelSchema
 from hr.jobs.models import (
     JobFamily, 
     Position, 
-    PositionSeniority,
-    SeniorityLevel,
     OrgUnit, 
     EmployeePositionHistory, 
-    EmployeeTransition,
     Training,
     Vacancy
 )
@@ -19,7 +16,7 @@ from hr.schemas import BaseFilter
 from django.db.models import Q
 
 
-# ----------------  JOB CATALOG SCHEMAS  -------------------
+# ---  JOB CATALOG SCHEMAS  ---
 class JobFamilyOut(ModelSchema):
     """ High-level career categories (e.g., Engineering, HR). """
     class Meta:
@@ -53,6 +50,7 @@ class SeniorityLevelOut(Schema):
     rank: int
     label: str
     requirements: List[str]
+    classe: Optional[int] = Field(default=None, ge=1, le=7)
     is_active: bool = True
 
 
@@ -61,6 +59,7 @@ class SeniorityLevelUpdateIn(Schema):
     label: Optional[str] = None
     rank: Optional[int] = None
     requirements: Optional[List[str]] = None
+    classe: Optional[Annotated[int, Field(ge=1, le=7)]] = None
     is_active: Optional[bool] = None
 
 
@@ -70,6 +69,7 @@ class SeniorityLevelCreateIn(Schema):
     label: str  # Required: display name
     rank: int   # Required: hierarchy order
     requirements: List[str] = []
+    classe: Optional[Annotated[int, Field(ge=1, le=7)]] = None
     is_active: bool = True
     
 
@@ -80,6 +80,7 @@ class PositionSeniorityOut(Schema):
     seniority_level: SeniorityLevelOut
     salary_min: int
     salary_max: int
+    echelon: Optional[Annotated[int, Field(ge=1, le=4)]] = None
     rank: int
     next_level_id: Optional[UUID] = None
     is_active: bool = True
@@ -90,6 +91,7 @@ class PositionSeniorityCreateIn(Schema):
     seniority_level: str  # Seniority level code
     salary_min: int
     salary_max: int
+    echelon: Optional[Annotated[int, Field(ge=1, le=4)]] = None
     rank: int = 1
     next_level_id: Optional[UUID] = None
     is_active: bool = True
@@ -100,6 +102,7 @@ class PositionSeniorityUpdateIn(Schema):
     seniority_level: Optional[str] = None
     salary_min: Optional[int] = None
     salary_max: Optional[int] = None
+    echelon: Optional[Annotated[int, Field(ge=1, le=4)]] = None
     rank: Optional[int] = None
     next_level_id: Optional[UUID] = None
     is_active: Optional[bool] = None
@@ -138,7 +141,7 @@ class PositionUpdateIn(Schema):
     skills: Optional[List[dict]] = None
 
 
-# --------------  ORGANIZATIONAL STRUCTURE SCHEMAS  ------------------
+# ---  ORGANIZATIONAL STRUCTURE SCHEMAS  ---
 class OrgChartEmployeeOut(Schema):
     """ Simplified employee representation for org chart display. """
     id: UUID
@@ -227,7 +230,7 @@ class EmployeeAssignIn(Schema):
     position_id: Optional[UUID] = None
 
 
-# -----------  CAREER PROGRESSION  --------------
+# ---  CAREER PROGRESSION  ---
 class CareerHistoryOut(ModelSchema):
     """ Details of an employee's specific role assignment and duration. """
     position: PositionOut
@@ -258,7 +261,7 @@ class InitialAssignmentIn(Schema):
     start_date: Optional[date] = None
 
 
-# -----------  DEVELOPMENT & TRAINING  -------------
+# ---  DEVELOPMENT & TRAINING  ---
 class TrainingOut(ModelSchema):
     """ Records of professional certifications and corporate training. """
     employee: OrgChartEmployeeOut
@@ -289,7 +292,7 @@ class TrainingRecordIn(Schema):
     description: Optional[str] = None
 
 
-# -----------  EMPLOYEE TRANSITIONS  -------------
+# ---  EMPLOYEE TRANSITIONS  ---
 class TransitionOut(Schema):
     """ Employee career movement event (promotion, transfer, hire, offboard). """
     id: UUID
@@ -373,7 +376,7 @@ class TransitionFilter(BaseFilter):
         return Q(date__lte=value)
 
 
-# ----------------  VACANCY SCHEMAS  -------------------
+# ---  VACANCY SCHEMAS  ---
 class VacancyOut(ModelSchema):
     """ Full vacancy output with nested position info. """
     position: PositionOut

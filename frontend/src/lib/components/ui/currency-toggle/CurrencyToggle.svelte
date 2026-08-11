@@ -12,11 +12,12 @@
    * />
    */
   
-  import type { Currency } from '@/constants/finance';
-  
+  // CurrencyToggle ne supporte que USD et CDF (le EUR est une devise secondaire)
+  export type ToggleCurrency = 'USD' | 'CDF';
+
   interface Props {
-    currency: Currency;
-    onChange?: (currency: Currency) => void;
+    currency: ToggleCurrency;
+    onChange?: (currency: ToggleCurrency) => void;
     size?: 'sm' | 'md';
   }
   
@@ -42,7 +43,7 @@
   // Background spacing in pixels for inline styles (Tailwind can't scan dynamic classes)
   const bgSpacing = $derived(size === 'sm' ? 2 : 4);
   
-  function handleClick(newCurrency: Currency) {
+  function handleClick(newCurrency: ToggleCurrency) {
     currency = newCurrency;
     onChange?.(newCurrency);
   }

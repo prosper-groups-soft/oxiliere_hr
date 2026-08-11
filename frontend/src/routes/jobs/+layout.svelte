@@ -4,9 +4,11 @@
   let { children } = $props();
 </script>
 
+
 <svelte:head>
   <title>Oxiliere HR - Poste & Org.</title>
 </svelte:head>
+
 
 <div class="h-full flex flex-col bg-white overflow-hidden">
   <!-- Tabbed Header -->

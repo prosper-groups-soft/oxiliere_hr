@@ -24,17 +24,23 @@ class SocialContributionService:
             # (Rémunération soumise à cotisation)
             calc_base = gross_amount
 
-            # 2. INPP Company Size Validation
+            # 2. INPP : taux par tranche de taille d'entreprise (Correction 0.7 #11)
+            # Au lieu d'exclure, on sélectionne le taux correspondant à la tranche
             if rate.contribution_type == SocialContributionType.INPP:
-                if rate.company_size_min and company_size < rate.company_size_min:
+                # Active rates are filtered by company_size_min/max brackets
+                # The DB should have 1 rate per bracket, and we skip those
+                # that don't match. But if ALL INPP rates have matching criteria,
+                # we take the first matching one (highest priority = smallest bracket)
+                if rate.company_size_min is not None and company_size < rate.company_size_min:
                     continue
-                if rate.company_size_max and company_size > rate.company_size_max:
+                if rate.company_size_max is not None and company_size > rate.company_size_max:
                     continue
+                # Fall through: this rate matches the company size bracket
 
             # 3. Ceiling Application (Mainly for CNSS)
             applied_base = calc_base
-            if rate.ceiling_amount and calc_base > rate.ceiling_amount.amount:
-                applied_base = rate.ceiling_amount.amount
+            if rate.ceiling_amount and calc_base > rate.ceiling_amount:
+                applied_base = rate.ceiling_amount
 
             # 4. Calculate portions using high precision rounding
             employee_amt = (applied_base * (rate.employee_portion / Decimal('100'))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)

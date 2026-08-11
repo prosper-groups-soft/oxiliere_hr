@@ -84,7 +84,7 @@ export function useEmployeeDetailQuery(employeeId: () => string | null) {
       if (!id) throw new Error('Employee ID is required');
       return employeesService.getEmployeeDetail(id);
     },
-    staleTime: 1000 * 60 * 5,
+    staleTime: 0, // Toujours frais : le current_contract (is_active) doit refléter la DB à chaque ouverture/sélection
     gcTime: 1000 * 60 * 10,
     enabled: () => !!employeeId(), // Only run when employeeId is provided
   });

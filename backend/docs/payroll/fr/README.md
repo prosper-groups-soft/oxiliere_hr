@@ -9,7 +9,7 @@ Le module **Payroll** gère l'ensemble du processus de calcul et de distribution
 ### 1. Configuration de la paie
 - **Paramètres globaux** : Devise, méthode de paiement par défaut, heures de travail mensuelles
 - **Allocations** : Allocations familiales, allocations logement avec pourcentages minimums
-- **Heures supplémentaires** : Configuration du multiplicateur (défaut 1.5x)
+- **Heures supplémentaires** : 5 règles de majoration RDC (130 %, 160 %, 200 %, 200 %, 150 %)
 - **Déductions** : Intégration des congés, jours théoriques d'absence
 - **Conversion de devises** : Taux USD/CDF pour les paiements en devises étrangères
 
@@ -23,7 +23,7 @@ Le module **Payroll** gère l'ensemble du processus de calcul et de distribution
 ### 3. Calcul de la paie
 - **Heures travaillées** : Enregistrement des jours travaillés et absence
 - **Allocations légales** : Allocations logement, familiales, SMIG
-- **Heures supplémentaires** : Calcul automatique avec coefficient configurable
+- **Heures supplémentaires** : Calcul automatique avec majorations légales RDC (taux horaire × coefficient)
 - **Cotisations sociales** : INSS, CNSS, taxes selon règles de la RDC
 - **Avances de salaire** : Demandes, approbations et déductions
 
@@ -169,7 +169,6 @@ POST /api/payroll/config
   "work_hours_per_month": 195,
   "housing_allowance_min_percentage": 30.0,
   "family_allowance_min_amount": 262.0,
-  "overtime_multiplier": 1.5,
   "include_leaves_in_payroll": true,
   "exchange_rate_usd_cdf": 2850.0
 }
@@ -249,8 +248,8 @@ POST /api/payroll/advances
 - Plafonds applicables
 
 ### Heures supplémentaires
-- Détection automatique des heures au-delà du seuil
-- Multiplicateur configurable (défaut 1.5x)
+- Détection automatique des heures au-delà du seuil (45h/semaine)
+- Majorations légales RDC configurables : 130 % (6 premières h), 160 % (suivantes), 200 % (week-end), 200 % (fériés), 150 % (nuit)
 - Intégration avec le module Attendance
 
 ## Rapports disponibles

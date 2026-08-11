@@ -13,6 +13,7 @@ from hr.payroll.models import (
     OvertimeRule,
     TaxBracket,
     LegalAllowance,
+    ProfessionalCategory,
 )
 from hr.payroll.services.cache import PayrollCacheService
 
@@ -60,8 +61,11 @@ class ConfigurationService:
             raise ValidationError("Payroll configuration not initialized. Create one first.")
 
         # Update fields
+        # La valeur None (ex. fixed_deduction_per_absent_day) est volontairement
+        # assignée quand le champ est explicitement fourni (exclude_unset=True
+        # garantit que seule la mise à jour partielle des clés présentes arrive).
         for key, value in data.items():
-            if hasattr(config, key) and value is not None:
+            if hasattr(config, key):
                 setattr(config, key, value)
 
         config.save()
@@ -391,9 +395,37 @@ class ConfigurationService:
 
         allowance.save()
         
-        # Invalidate cache
+        # Invalidate both caches :
+        #  - clear_allowance_cache : liste API d'affichage (legal_allowances_list)
+        #  - clear_legal_allowances_cache : clé de calcul du pipeline (hr:payroll:legal_allowances)
+        # Sans le second, l'édition n'aurait aucun effet sur les bulletins tant
+        # que le cache de 24h n'est pas expiré.
         PayrollCacheService.clear_allowance_cache()
+        PayrollCacheService.clear_legal_allowances_cache()
         
         logger.info("[Allowances] Allowance updated and cache cleared", extra={"allowance_id": allowance_id})
         return allowance
+
+    # ===== PROFESSIONAL CATEGORIES (S8) =====
+
+    @classmethod
+    @transaction.atomic
+    def update_professional_category(cls, category_id: UUID, data: Dict[str, Any], actor=None) -> ProfessionalCategory:
+        """ Updates a professional category (classe/échelon) of the legal grid. """
+        logger.debug("[Categories] Updating professional category", extra={"category_id": category_id})
+
+        category = ProfessionalCategory.objects.get(id=category_id)
+
+        # Update fields
+        for key, value in data.items():
+            if hasattr(category, key) and value is not None:
+                setattr(category, key, value)
+
+        category.save()
+
+        # Clear config cache (grille utilisée par l'onboarding/contrat)
+        PayrollCacheService.clear_config_cache()
+
+        logger.info("[Categories] Professional category updated", extra={"category_id": category_id})
+        return category
 

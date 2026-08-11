@@ -13,7 +13,11 @@ from ninja_extra      import (
     http_patch,
     ControllerBase,
 )
-from oxutils.pagination.cursor import CursorPagination
+from ninja_extra.pagination import (
+    paginate,
+    PageNumberPaginationExtra,
+    PaginatedResponseSchema
+)
 from oxutils.permissions.perms import ScopePermission
 
 from hr.payroll.models import (
@@ -23,6 +27,7 @@ from hr.payroll.models import (
     OvertimeRule,
     TaxBracket,
     LegalAllowance,
+    ProfessionalCategory,
 )
 
 from hr.payroll.schemas import (
@@ -55,6 +60,10 @@ from hr.payroll.schemas import (
     LegalAllowanceOut,
     LegalAllowanceUpdateIn,
     LegalAllowanceListFilterIn,
+    # Professional Categories
+    ProfessionalCategoryOut,
+    ProfessionalCategoryCreateIn,
+    ProfessionalCategoryUpdateIn,
 )
 
 from hr.payroll.services import (
@@ -64,6 +73,7 @@ from hr.payroll.services import (
 # Cache integration
 from hr.services.cache_helpers import cache_api_response
 from hr.payroll.services.cache import PayrollCacheService
+from hr.payroll.services.integration.exchange import ExchangeRateService
 
 
 logger = logging.getLogger(__name__)
@@ -173,8 +183,8 @@ class PayrollConfigurationController(ControllerBase):
 
     # ===== SMIG RATES =====
 
-    @http_get('/smig/', response=List[SMIGConfigurationOut], permissions=[ScopePermission('payroll:r')])
-    @paginate(CursorPagination)
+    @http_get('/smig/', response=PaginatedResponseSchema[SMIGConfigurationOut], permissions=[ScopePermission('payroll:r')])
+    @paginate(PageNumberPaginationExtra, page_size=50)
     @cache_api_response(timeout=60*60*24, key_prefix="smig_rates_list", user_specific=False)
     def list_smig_rates(self, filters: SMIGConfigurationListFilterIn = Query(...)):
         """
@@ -229,8 +239,8 @@ class PayrollConfigurationController(ControllerBase):
 
     # ===== SOCIAL CONTRIBUTION RATES =====
 
-    @http_get('/contributions/', response=List[SocialContributionRateOut], permissions=[ScopePermission('payroll:r')])
-    @paginate(CursorPagination)
+    @http_get('/contributions/', response=PaginatedResponseSchema[SocialContributionRateOut], permissions=[ScopePermission('payroll:r')])
+    @paginate(PageNumberPaginationExtra, page_size=50)
     @cache_api_response(timeout=60*60*24, key_prefix="social_contribution_rates_list", user_specific=False)
     def list_contribution_rates(self, filters: SocialContributionRateListFilterIn = Query(...)):
         """
@@ -443,6 +453,96 @@ class PayrollConfigurationController(ControllerBase):
         except ValidationError as e:
             logger.warning("[Allowances] Validation error", extra={"error": str(e)})
             return self.create_response({"detail": str(e)}, status_code=400)
+
+    @http_post('/allowances/reset/', response={200: dict}, permissions=[ScopePermission('payroll:a')])
+    def reset_allowances(self):
+        """
+        Réinitialise les allocations légales depuis les valeurs par défaut (fixture).
+        Recharge UNIQUEMENT legal_allowances.json — ne touche pas aux autres paramètres.
+        """
+        logger.info("[Allowances] Resetting legal allowances from fixture")
+        try:
+            count = self.init_service.reset_legal_allowances()
+            return {"status": "success", "reset_count": count}
+        except Exception as e:
+            logger.error("[Allowances] Error resetting allowances", extra={"error": str(e)})
+            return self.create_response({"detail": str(e)}, status_code=500)
+
+    # ===== PROFESSIONAL CATEGORIES (S8) =====
+
+    @http_get('/professional-categories', response=List[ProfessionalCategoryOut], permissions=[ScopePermission('payroll:r')])
+    def list_professional_categories(self):
+        """
+        Grille des catégories professionnelles (7 classes × 4 échelons).
+        Retourne la grille légale ordonnée par classe puis échelon.
+        """
+        logger.debug("[Categories] Listing professional categories")
+        return list(ProfessionalCategory.objects.filter(is_active=True).order_by('classe', 'echelon'))
+
+    @http_post('/professional-categories', response={201: ProfessionalCategoryOut}, permissions=[ScopePermission('payroll:w')])
+    def create_professional_category(self, data: ProfessionalCategoryCreateIn):
+        """
+        Ajoute une classe/échelon à la grille (usage avancé — la grille légale est fournie par fixture).
+        """
+        actor = getattr(self.context.request, 'user', None)
+        try:
+            category = ProfessionalCategory.objects.create(**data.model_dump())
+            # Purge du cache de configuration (la grille est servie en cache)
+            PayrollCacheService.clear_config_cache()
+            logger.info("[Categories] Professional category created", extra={"category_id": category.id})
+            return 201, category
+        except Exception as e:
+            logger.error("[Categories] Error creating category", extra={"error": str(e)})
+            return self.create_response({"detail": str(e)}, status_code=400)
+
+    @http_patch('/professional-categories/{category_id}', response=ProfessionalCategoryOut, permissions=[ScopePermission('payroll:u')])
+    def update_professional_category(self, category_id: UUID, data: ProfessionalCategoryUpdateIn):
+        """
+        Modifie une classe/échelon (libellé, application, actif).
+        """
+        actor = getattr(self.context.request, 'user', None)
+        try:
+            category = self.config_service.update_professional_category(
+                category_id=category_id,
+                data=data.model_dump(exclude_unset=True),
+                actor=actor,
+            )
+            return category
+        except ProfessionalCategory.DoesNotExist:
+            return self.create_response({"detail": "Professional category not found"}, status_code=404)
+        except ValidationError as e:
+            return self.create_response({"detail": str(e)}, status_code=400)
+
+    @http_post('/professional-categories/reset/', response={200: dict}, permissions=[ScopePermission('payroll:a')])
+    def reset_professional_categories(self):
+        """
+        Réinitialise la grille des catégories professionnelles depuis la fixture
+        (professional_categories.json — 7 classes × 4 échelons).
+        """
+        logger.info("[Categories] Resetting professional categories from fixture")
+        try:
+            count = self.init_service.reset_professional_categories()
+            return {"status": "success", "reset_count": count}
+        except Exception as e:
+            logger.error("[Categories] Error resetting categories", extra={"error": str(e)})
+            return self.create_response({"detail": str(e)}, status_code=500)
+
+    @http_get('/exchange-rate/', response={200: dict}, permissions=[ScopePermission('payroll:r')])
+    def get_exchange_rate(self):
+        """
+        Retrieve the active USD → CDF exchange rate.
+        Priority: live rate (BCC via oxutils.currency) → manual config → default.
+        """
+        try:
+            rate, source = ExchangeRateService.get_exchange_rate_with_source('USD', 'CDF')
+            return {
+                'rate': str(rate),
+                'source': source,
+                'currency_pair': 'USD/CDF',
+            }
+        except Exception as e:
+            logger.error('[ExchangeRate] Error retrieving exchange rate', extra={'error': str(e)})
+            return self.create_response({'detail': str(e)}, status_code=500)
 
     @http_post('/init/', response={200: dict})
     def init_payroll(self):

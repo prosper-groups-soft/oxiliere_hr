@@ -76,9 +76,6 @@ export interface TaxConfig {
 	workDaysPerWeek?: number;
 	housingAllowanceMinPercentage?: number;
 	workHoursPerWeek: number | null;
-	familyAllowanceMinAmount?: number;
-	familyAllowanceSmigDivider?: number;
-	overtimeMultiplier?: number;
 	leaveDeductionDivisor?: number;
 	exchangeRateUsdCdf?: number;
 	exchangeRateSource?: 'MANUAL' | 'API';
@@ -112,7 +109,7 @@ export interface IPRCalculationResult {
  */
 export interface LegalAllowance {
 	id: string;
-	allowance_type: 'FAMILY' | 'HOUSING' | 'TRANSPORT' | 'OTHER';
+	allowance_type: 'HOUSING' | 'TRANSPORT' | 'OTHER';
 	calculation_mode: 'FIXED' | 'PERCENTAGE' | 'FORMULA';
 	base_amount: string | null; // API returns string (Decimal)
 	formula_description: string | null;

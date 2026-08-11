@@ -640,6 +640,9 @@ class EmployeeFilterIn(BaseFilter):
     # Filter by presence of active employment scheme (attendance schedule)
     has_scheme: Optional[bool] = None
 
+    # Filter by presence of an active employment contract
+    has_active_contract: Optional[bool] = None
+
     def filter_org_unit(self, value: Optional[str]) -> Q:
         """Filter by org unit ID (supports comma-separated UUIDs)."""
         if not value:
@@ -684,6 +687,21 @@ class EmployeeFilterIn(BaseFilter):
         if value is None:
             return Q()
         subquery = EmploymentScheme.objects.filter(
+            employee_id=OuterRef('id'),
+            is_active=True
+        )
+        if value:
+            return Q(Exists(subquery))
+        else:
+            return ~Q(Exists(subquery))
+
+    def filter_has_active_contract(self, value: Optional[bool]) -> Q:
+        """Filter by presence of an active employment contract.
+        Uses EXISTS subquery to avoid duplicate rows from JOIN.
+        """
+        if value is None:
+            return Q()
+        subquery = EmployeeContract.objects.filter(
             employee_id=OuterRef('id'),
             is_active=True
         )

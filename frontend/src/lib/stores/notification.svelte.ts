@@ -9,8 +9,12 @@ export interface ConfirmRequest {
 	type?: AlertDialogVariant;
 	yesText?: string;
 	noText?: string;
-	onYes?: (() => void) | (() => Promise<any>);
+	onYes?: ((value?: string) => void) | ((value?: string) => Promise<any>);
 	onNo?: () => void;
+	/** Si renseigné, affiche un textarea dans le dialog */
+	inputLabel?: string;
+	/** Valeur saisie dans le textarea (bindée) */
+	inputValue?: string;
 }
 
 
@@ -47,6 +51,8 @@ class NotificationStore {
 	 * });
 	 */
 	confirm(request: ConfirmRequest) {
+		// Reset inputValue in case it was used before
+		if (!request.inputValue) request.inputValue = '';
 		this.confirmRequest = request;
 	}
 

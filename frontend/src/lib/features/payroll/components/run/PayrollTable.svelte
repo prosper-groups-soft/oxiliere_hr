@@ -6,28 +6,51 @@
   import FilterChips from "@/components/shared/elements/FilterChips.svelte";
   import { 
     PAYROLL_STATUS_COLORS, 
-    PAYROLL_STATUS_LABELS,
-    ORG_UNITS 
+    PAYROLL_STATUS_LABELS
   } from "../../types/types";
+  import { orgService } from "@/features/jobs/services/org.service";
 
-  let sortColumn = $state<'employeeName' | 'grossPay' | 'netPay' | 'status'>('employeeName');
+  
+  /** Unités organisationnelles chargées depuis le backend (/api/organization/units) */
+  let orgUnits = $state<string[]>([]);
+
+  $effect(() => {
+    let cancelled = false;
+    orgService.listOrgUnits(1, 200)
+      .then((res) => {
+        if (cancelled) return;
+        orgUnits = (res.results || []).map(u => u.name).sort((a, b) => a.localeCompare(b));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  });
+  
+
+  /** Colonne de tri actuelle */
+  let sortColumn = $state<'employe' | 'brut' | 'net' | 'statut'>('employe');
+  /** Direction du tri : ascendant ou descendant */
   let sortDirection = $state<'asc' | 'desc'>('asc');
 
+  /** Liste des bulletins triée selon la colonne et la direction actives */
   const sortedPayslips = $derived.by(() => {
     const sorted = [...payrollStore.filteredPayslips];
     sorted.sort((a, b) => {
       let comparison = 0;
       switch (sortColumn) {
-        case 'employeeName':
-          comparison = a.employeeName.localeCompare(b.employeeName);
+        case 'employe':
+          // Tri alphabétique par nom complet de l'employé
+          comparison = a.employee.fullName.localeCompare(b.employee.fullName);
           break;
-        case 'grossPay':
-          comparison = a.grossPay - b.grossPay;
+        case 'brut':
+          // Tri par salaire brut
+          comparison = a.summary.grossSalary - b.summary.grossSalary;
           break;
-        case 'netPay':
-          comparison = a.netPay - b.netPay;
+        case 'net':
+          // Tri par salaire net
+          comparison = a.summary.netPay - b.summary.netPay;
           break;
-        case 'status':
+        case 'statut':
+          // Tri par statut du bulletin
           comparison = a.status.localeCompare(b.status);
           break;
       }
@@ -36,6 +59,7 @@
     return sorted;
   });
 
+  /** Bascule le tri : change la direction si la même colonne, sinon change de colonne */
   function toggleSort(column: typeof sortColumn) {
     if (sortColumn === column) {
       sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
@@ -52,7 +76,7 @@
 
 
 <div class="flex-1 flex flex-col min-h-0 bg-white">
-  <!-- Filters -->
+  <!-- Filtres -->
   <div class="px-6 py-4 flex items-center justify-between gap-6 border-b border-slate-50">
     <SearchBar 
       bind:value={payrollStore.filters.search} 
@@ -65,7 +89,7 @@
 
     <div class="flex items-center gap-2 overflow-hidden">
       <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
-        {#each ORG_UNITS as orgUnit}
+        {#each orgUnits as orgUnit}
           <button
             onclick={() => toggleOrgUnitFilter(orgUnit)}
             class={cn(
@@ -90,46 +114,46 @@
     class="py-2.5 bg-slate-50/30 border-b border-slate-50"
   />
 
-  <!-- Table -->
+  <!-- Tableau -->
   <div class="flex-1 overflow-auto">
     <table class="w-full border-separate border-spacing-0">
       <thead class="bg-slate-50/80 sticky top-0 z-10 backdrop-blur-sm">
         <tr>
           <th class="px-6 py-3.5 text-left border-b border-slate-100">
             <button
-              onclick={() => toggleSort('employeeName')}
+              onclick={() => toggleSort('employe')}
               class="flex items-center gap-1.5 text-[0.7rem] font-bold text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors"
             >
               Employé
-              <AppIcon name="sort" size={14} class={cn(sortColumn === 'employeeName' ? "text-primary" : "opacity-0 group-hover:opacity-100")} />
+              <AppIcon name="sort" size={14} class={cn(sortColumn === 'employe' ? "text-primary" : "opacity-0 group-hover:opacity-100")} />
             </button>
           </th>
           <th class="px-6 py-3.5 text-left text-[0.7rem] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">Département</th>
           <th class="px-6 py-3.5 text-right border-b border-slate-100">
             <button
-              onclick={() => toggleSort('grossPay')}
+              onclick={() => toggleSort('brut')}
               class="flex items-center gap-1.5 justify-end w-full text-[0.7rem] font-bold text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors"
             >
               Salaire Brut
-              <AppIcon name="sort" size={14} class={cn(sortColumn === 'grossPay' ? "text-primary" : "opacity-0")} />
+              <AppIcon name="sort" size={14} class={cn(sortColumn === 'brut' ? "text-primary" : "opacity-0")} />
             </button>
           </th>
           <th class="px-6 py-3.5 text-right border-b border-slate-100">
             <button
-              onclick={() => toggleSort('netPay')}
+              onclick={() => toggleSort('net')}
               class="flex items-center gap-1.5 justify-end w-full text-[0.7rem] font-bold text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors"
             >
               Montant Net
-              <AppIcon name="sort" size={14} class={cn(sortColumn === 'netPay' ? "text-primary" : "opacity-0")} />
+              <AppIcon name="sort" size={14} class={cn(sortColumn === 'net' ? "text-primary" : "opacity-0")} />
             </button>
           </th>
           <th class="px-6 py-3.5 text-center border-b border-slate-100">
             <button
-              onclick={() => toggleSort('status')}
+              onclick={() => toggleSort('statut')}
               class="flex items-center gap-1.5 justify-center w-full text-[0.7rem] font-bold text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors"
             >
               Statut
-              <AppIcon name="sort" size={14} class={cn(sortColumn === 'status' ? "text-primary" : "opacity-0")} />
+              <AppIcon name="sort" size={14} class={cn(sortColumn === 'statut' ? "text-primary" : "opacity-0")} />
             </button>
           </th>
         </tr>
@@ -140,25 +164,25 @@
             <td class="px-6 py-4">
               <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600 group-hover:bg-primary group-hover:text-white transition-all">
-                  {payslip.employeeName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                  {payslip.employee.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                 </div>
                 <div class="flex flex-col">
-                  <span class="text-[0.92rem] font-bold text-slate-800 tracking-tight group-hover:text-primary transition-colors">{payslip.employeeName}</span>
+                  <span class="text-[0.92rem] font-bold text-slate-800 tracking-tight group-hover:text-primary transition-colors">{payslip.employee.fullName}</span>
                   <span class="text-[0.7rem] text-slate-400 font-medium tracking-tight">ID: {payslip.id.slice(-6)}</span>
                 </div>
               </div>
             </td>
             <td class="px-6 py-4">
-              <span class="text-[0.85rem] font-semibold text-slate-500 bg-slate-100/50 px-2 py-1 rounded-md">{payslip.orgUnit}</span>
+              <span class="text-[0.85rem] font-semibold text-slate-500 bg-slate-100/50 px-2 py-1 rounded-md">{payslip.employee.orgUnit}</span>
             </td>
             <td class="px-6 py-4 text-right">
               <span class="text-[0.9rem] font-bold text-slate-700">
-                {payslip.grossPay.toLocaleString('fr-FR', { style: 'currency', currency: 'USD' })}
+                {payslip.summary.grossSalary.toLocaleString('fr-FR', { style: 'currency', currency: 'USD' })}
               </span>
             </td>
             <td class="px-6 py-4 text-right">
               <span class="text-[0.95rem] font-extrabold text-emerald-600">
-                {payslip.netPay.toLocaleString('fr-FR', { style: 'currency', currency: 'USD' })}
+                {payslip.summary.netPay.toLocaleString('fr-FR', { style: 'currency', currency: 'USD' })}
               </span>
             </td>
             <td class="px-6 py-4 text-center">

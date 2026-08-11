@@ -37,6 +37,7 @@ export const employeesEndpoint = {
       if (params.filters.marital_status) queryParams.set('marital_status', params.filters.marital_status);
       if (params.filters.is_active !== undefined) queryParams.set('active_only', params.filters.is_active.toString());
       if (params.filters.has_scheme !== undefined) queryParams.set('has_scheme', params.filters.has_scheme.toString());
+      if (params.filters.has_active_contract !== undefined) queryParams.set('has_active_contract', params.filters.has_active_contract.toString());
       const orgUnitValue = params.filters.orgUnit || params.filters.orgUnit;
       if (orgUnitValue && (Array.isArray(orgUnitValue) ? orgUnitValue.length > 0 : orgUnitValue)) {
         queryParams.set('org_unit', Array.isArray(orgUnitValue) ? orgUnitValue.join(',') : orgUnitValue);

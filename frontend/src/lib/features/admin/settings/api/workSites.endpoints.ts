@@ -1,10 +1,6 @@
 import APIEndPoint from '@/utilities/http/rest';
 import type { PaginatedResponse } from '@/utilities/common/types';
-import type {
-  WorkSite,
-  WorkSiteCreate,
-  WorkSiteUpdate
-} from '../types/workSites.types';
+import type { WorkSite, WorkSiteCreate, WorkSiteUpdate } from '../types/workSites.types';
 
 
 /**

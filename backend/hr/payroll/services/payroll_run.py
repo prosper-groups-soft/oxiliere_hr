@@ -7,6 +7,7 @@ from django.utils import timezone
 from django.db import transaction
 from django.core.exceptions import ValidationError
 from django.db.models import QuerySet, Sum, Count, Q
+from django.db.models.functions import Coalesce
 
 from hr.payroll.models import (
     PayrollRun, 
@@ -62,18 +63,29 @@ class PayrollRunService:
             total_net=Sum('net_amount'),
             # Include tax and social contributions specifically for DRC reporting
             total_ipr=Sum('ipr_amount'), # Income tax
-            total_employee_cnss=Sum('employee_cnss_amount'),
-            total_employer_cost=Sum('employer_total_cost'), # Total cost including INPP/ONEM
+            total_employee_cnss=Sum('cnss_amount'),
+            total_onem=Sum('onem_amount'),
+            total_inpp=Sum('inpp_amount'),
         )
 
         total_gross = aggregates.get("total_gross") or Decimal("0.00")
         total_net = aggregates.get("total_net") or Decimal("0.00")
+        total_employer_liability = (
+            (aggregates.get("total_employee_cnss") or Decimal("0.00"))
+            + (aggregates.get("total_onem") or Decimal("0.00"))
+            + (aggregates.get("total_inpp") or Decimal("0.00"))
+        )
 
         return {
             "id": run.id,
+            "code": run.code,
             "status": run.status,
             "period": f"{run.start_date} - {run.end_date}",
+            "start_date": run.start_date,
+            "end_date": run.end_date,
             "exchange_rate": run.exchange_rate_applied,
+            "created_at": run.created_at,
+            "updated_at": run.updated_at,
             "stats": {
                 "total_count": total_payslips,
                 "processed_count": processed_payslips,
@@ -83,7 +95,7 @@ class PayrollRunService:
                 "gross_total": total_gross,
                 "net_total": total_net,
                 "total_tax_deductions": total_gross - total_net,
-                "employer_liability": aggregates.get("total_employer_cost") or Decimal("0.00"),
+                "employer_liability": total_employer_liability,
             }
         }
 
@@ -153,11 +165,62 @@ class PayrollRunService:
         logger.info("[PayrollRun] Run updated", extra={"run_id": run_id})
         return run
 
+    @classmethod
+    def list_runs_annotated(cls, filters=None, ordering: str = '-created_at'):
+        """
+        Returns payroll runs with list-oriented annotations (payslip count,
+        gross total, employee count) so the list endpoint can serialize
+        directly into PayrollRunOut without N+1 queries.
+        """
+        logger.debug("[PayrollRun] Listing runs with annotations")
+
+        qs = PayrollRun.objects.annotate(
+            _payslip_count=Count('payslips', distinct=True),
+            _gross_total=Coalesce(Sum('payslips__gross_amount'), Decimal('0.00')),
+            _employee_count=Count('payslips__contract', distinct=True),
+        ).order_by(ordering)
+
+        if filters is not None:
+            qs = filters.filter(qs)
+
+        return qs
+
+    @classmethod
+    def serialize_run(cls, run) -> Dict[str, Any]:
+        """
+        Converts a PayrollRun (optionally annotated) into the dict shape
+        expected by PayrollRunOut, computing period_label and closed_at.
+        """
+        status = run.status
+        closed_at = None
+        if status in (PayrollStatus.PAID, PayrollStatus.CANCELED):
+            closed_at = run.updated_at
+
+        period_label = None
+        if run.start_date and run.end_date:
+            period_label = f"{run.start_date} - {run.end_date}"
+
+        return {
+            "id": run.id,
+            "code": run.code,
+            "start_date": run.start_date,
+            "end_date": run.end_date,
+            "status": status,
+            "exchange_rate_applied": run.exchange_rate_applied,
+            "created_at": run.created_at,
+            "updated_at": run.updated_at,
+            "total_payslips": getattr(run, '_payslip_count', 0) or 0,
+            "gross_total": getattr(run, '_gross_total', Decimal('0.00')) or Decimal('0.00'),
+            "employee_count": getattr(run, '_employee_count', 0) or 0,
+            "closed_at": closed_at,
+            "period_label": period_label,
+        }
+
     # ===== STATUS TRANSITIONS =====
 
     @classmethod
     @transaction.atomic
-    def start_payroll_processing(cls, run_id: UUID, actor=None, orchestrator: PayrollOrchestrator=None) -> Dict[str, Any]:
+    def start_payroll_processing(cls, run_id: UUID, actor=None, orchestrator: PayrollOrchestrator | None = None) -> Dict[str, Any]:
         """ Initiates the calculation process for all eligible employee contracts. """
         logger.debug("[PayrollRun] Starting payroll processing", extra={"run_id": run_id})
 
@@ -233,12 +296,14 @@ class PayrollRunService:
 
         run = PayrollRun.objects.get(id=run_id)
 
-        if run.status != PayrollStatus.VALIDATED:
+        if run.status not in (PayrollStatus.VALIDATED, PayrollStatus.REVIEWED, PayrollStatus.APPROVED):
             logger.warning(
                 "[PayrollRun] Cannot complete run",
                 extra={"run_id": run_id, "status": run.status}
             )
-            raise ValidationError(f"Cannot complete run with status {run.status}. Must be VALIDATED.")
+            raise ValidationError(
+                f"Cannot complete run with status {run.status}. Must be VALIDATED, REVIEWED or APPROVED."
+            )
 
         # Verify payslips exist
         payslip_count = run.payslips.count()
@@ -251,6 +316,56 @@ class PayrollRunService:
         run.save()
 
         logger.info("[PayrollRun] Run completed and marked PAID", extra={"run_id": run_id, "payslips": payslip_count})
+        return run
+
+    @classmethod
+    @transaction.atomic
+    def review_payroll_run(cls, run_id: UUID, actor=None) -> PayrollRun:
+        """
+        Moves a processed run into the review stage.
+        Status transition: VALIDATED → REVIEWED.
+        """
+        logger.debug("[PayrollRun] Reviewing payroll run", extra={"run_id": run_id})
+
+        run = PayrollRun.objects.get(id=run_id)
+
+        if run.status != PayrollStatus.VALIDATED:
+            logger.warning(
+                "[PayrollRun] Cannot review run",
+                extra={"run_id": run_id, "status": run.status}
+            )
+            raise ValidationError(f"Cannot review run with status {run.status}. Must be VALIDATED.")
+
+        run.status = PayrollStatus.REVIEWED
+        run.updated_by = actor
+        run.save()
+
+        logger.info("[PayrollRun] Run reviewed", extra={"run_id": run_id})
+        return run
+
+    @classmethod
+    @transaction.atomic
+    def approve_payroll_run(cls, run_id: UUID, actor=None) -> PayrollRun:
+        """
+        Approves a reviewed run, ready for payment.
+        Status transition: REVIEWED → APPROVED.
+        """
+        logger.debug("[PayrollRun] Approving payroll run", extra={"run_id": run_id})
+
+        run = PayrollRun.objects.get(id=run_id)
+
+        if run.status != PayrollStatus.REVIEWED:
+            logger.warning(
+                "[PayrollRun] Cannot approve run",
+                extra={"run_id": run_id, "status": run.status}
+            )
+            raise ValidationError(f"Cannot approve run with status {run.status}. Must be REVIEWED.")
+
+        run.status = PayrollStatus.APPROVED
+        run.updated_by = actor
+        run.save()
+
+        logger.info("[PayrollRun] Run approved", extra={"run_id": run_id})
         return run
 
     @classmethod
@@ -399,17 +514,16 @@ class PayrollRunService:
             "id": payslip.id,
             "payroll_run": payslip.payroll_run_id,
             "contract": payslip.contract_id,
-            "base_salary_snapshot": payslip.base_salary_snapshot.amount if payslip.base_salary_snapshot else None,
-            "gross_amount": payslip.gross_amount.amount if payslip.gross_amount else None,
-            "cnss_amount": payslip.cnss_amount.amount if payslip.cnss_amount else None,
-            "onem_amount": payslip.onem_amount.amount if payslip.onem_amount else None,
-            "inpp_amount": payslip.inpp_amount.amount if payslip.inpp_amount else None,
-            "ipr_amount": payslip.ipr_amount.amount if payslip.ipr_amount else None,
-            "family_allowance": payslip.family_allowance.amount if payslip.family_allowance else None,
-            "housing_allowance": payslip.housing_allowance.amount if payslip.housing_allowance else None,
-            "transport_allowance": payslip.transport_allowance.amount if payslip.transport_allowance else None,
-            "total_adjustments": payslip.total_adjustments.amount if payslip.total_adjustments else None,
-            "net_amount": payslip.net_amount.amount if payslip.net_amount else None,
+            "base_salary_snapshot": payslip.base_salary_snapshot if payslip.base_salary_snapshot else None,
+            "gross_amount": payslip.gross_amount if payslip.gross_amount else None,
+            "cnss_amount": payslip.cnss_amount if payslip.cnss_amount else None,
+            "onem_amount": payslip.onem_amount if payslip.onem_amount else None,
+            "inpp_amount": payslip.inpp_amount if payslip.inpp_amount else None,
+            "ipr_amount": payslip.ipr_amount if payslip.ipr_amount else None,
+            "housing_allowance": payslip.housing_allowance if payslip.housing_allowance else None,
+            "transport_allowance": payslip.transport_allowance if payslip.transport_allowance else None,
+            "total_adjustments": payslip.total_adjustments if payslip.total_adjustments else None,
+            "net_amount": payslip.net_amount if payslip.net_amount else None,
             "worked_days": payslip.worked_days,
             "worked_hours": payslip.worked_hours,
             "overtime_hours": payslip.overtime_hours,
@@ -423,7 +537,7 @@ class PayrollRunService:
             "lines": list(payslip.lines.all()),
             "employee_name": f"{employee.user.first_name} {employee.user.last_name}",
             "employee_id": employee.id,
-            "net_after_advances": payslip.net_amount.amount if payslip.net_amount else None,
+            "net_after_advances": payslip.net_amount if payslip.net_amount else None,
         }
 
     @classmethod
@@ -482,5 +596,4 @@ class PayrollRunService:
         }
 
         return breakdown
-
 

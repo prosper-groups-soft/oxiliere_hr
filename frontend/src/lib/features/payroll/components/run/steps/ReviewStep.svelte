@@ -16,7 +16,7 @@
 
   const totalNet = $derived(payrollStore.totalNetPay);
   const employeeCount = $derived(payslips.length);
-  const anomalies = $derived(payslips.filter(p => (p.netPay || 0) <= 0).length);
+  const anomalies = $derived(payslips.filter(p => (p.summary.netPay || 0) <= 0).length);
   
   // --- State des Filtres (Multi-sélection) ---
   let searchTerm = $state('');
@@ -24,7 +24,7 @@
   let showOnlyWithAnomalies = $state(false);
   
   const orgUnitsList = $derived(() => {
-    const orgUnits = new Set(payslips.map(p => p.orgUnit).filter(Boolean));
+    const orgUnits = new Set(payslips.map(p => p.employee.orgUnit).filter(Boolean));
     return Array.from(orgUnits).sort() as string[];
   });
 
@@ -33,16 +33,16 @@
     let filtered = payslips;
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
-      filtered = filtered.filter(p => 
-        p.employeeName.toLowerCase().includes(search) ||
-        (p.orgUnit.toLowerCase().includes(search))
+      filtered = filtered.filter(p =>
+        p.employee.fullName.toLowerCase().includes(search) ||
+        (p.employee.orgUnit.toLowerCase().includes(search))
       );
     }
     if (selectedOrgUnits.length > 0) {
-      filtered = filtered.filter(p => p.orgUnit && selectedOrgUnits.includes(p.orgUnit));
+      filtered = filtered.filter(p => p.employee.orgUnit && selectedOrgUnits.includes(p.employee.orgUnit));
     }
     if (showOnlyWithAnomalies) {
-      filtered = filtered.filter(p => (p.netPay || 0) <= 0);
+      filtered = filtered.filter(p => (p.summary.netPay || 0) <= 0);
     }
     return filtered;
   });
@@ -281,7 +281,7 @@
   <CardContent class="p-0">
     <div class="overflow-x-auto min-h-[300px]">
       <div class="divide-y divide-slate-100">
-        {#each filteredPayslips() as payslip (payslip.id || payslip.employeeName)}
+        {#each filteredPayslips() as payslip (payslip.id || payslip.employee.fullName)}
           <ReviewEmployeeRow {payslip} onClick={openPayslipDetail} />
         {:else}
           <div class="py-20 text-center flex flex-col items-center justify-center gap-2">

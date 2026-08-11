@@ -19,6 +19,7 @@
   import LeavesActions from './actions/LeavesActions.svelte';
   import { ui } from '@/stores/ui.svelte';
   import AnimateSpin from '@/components/layout/elements/AnimateSpin.svelte';
+  import LoadingBar from '@/components/layout/elements/LoadingBar.svelte';
   import { notification } from '@/stores/notification.svelte';
   import { leaveRequestsEndpoint } from '../../api/leaveRequests.endpoints';
   import LeaveAttachmentPreview from './views/LeaveAttachmentPreview.svelte';
@@ -222,11 +223,7 @@
     />
 
     <!-- Overhead loading bar during refetch -->
-    {#if $leaveQuery.isFetching}
-      <div class="h-0.5 bg-slate-100 overflow-hidden shrink-0">
-        <div class="h-full bg-primary animate-[loadingSlide_1.2s_ease-in-out_infinite] rounded-full" style="width: 30%"></div>
-      </div>
-    {/if}
+    <LoadingBar loading={$leaveQuery.isFetching} />
 
     <main class="flex flex-1 flex-col overflow-hidden min-h-0">
       {#if $leaveQuery.isPending}
@@ -353,6 +350,7 @@
 <!-- Leave Request Sheet -->
 <LeaveRequestSheet bind:open={showRequestSheet} bind:request={editRequest} />
 
+
 {#if attachmentRequest?.attachment}
   <LeaveAttachmentPreview
     fileUrl={attachmentPreviewUrl}
@@ -361,15 +359,5 @@
 {/if}
 
 
-<style>
-  .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-  :global {
-    @keyframes loadingSlide {
-      0% { transform: translateX(-100%); }
-      50% { transform: translateX(200%); }
-      100% { transform: translateX(400%); }
-    }
-  }
-</style>
+
+

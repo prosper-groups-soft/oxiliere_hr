@@ -8,6 +8,7 @@ from hr.jobs.models import (
     EmployeePositionHistory
 )
 from hr.jobs.services.cache import JobsCacheService
+from hr.signals import employee_changed
 
 
 @receiver([post_save, post_delete], sender=OrgUnit)
@@ -38,4 +39,8 @@ def invalidate_employee_position_history(sender, instance, **kwargs):
     
     if instance.org_unit_id:
         JobsCacheService.clear_org_unit_positions_cache(instance.org_unit_id)
+
+    # Signal de domaine : le module employees écoute pour purger son propre
+    # cache (détail employé) sans couplage directionnel jobs → employees.
+    employee_changed.send(sender=sender, employee_id=instance.employee_id)
 

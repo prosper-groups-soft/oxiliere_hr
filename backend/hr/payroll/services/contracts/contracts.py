@@ -168,6 +168,8 @@ class EmployeeContractService:
             contract.currency = data['currency']
         if 'contract_type' in data:
             contract.contract_type = data['contract_type']
+        if 'is_active' in data:
+            contract.is_active = bool(data['is_active'])
 
         contract.updated_by = actor
         contract.save()
@@ -286,8 +288,8 @@ class EmployeeContractService:
 
         contract = cls.get_active_contract(employee_id)
         if contract.remuneration_type == 'HOURLY':
-            return contract.hourly_rate.amount if contract.hourly_rate else Decimal('0')
-        return contract.base_salary.amount if contract.base_salary else Decimal('0')
+            return contract.hourly_rate if contract.hourly_rate else Decimal('0')
+        return contract.base_salary if contract.base_salary else Decimal('0')
 
     @classmethod
     def get_contract_on_date(cls, employee_id: UUID, target_date: date) -> EmployeeContract:

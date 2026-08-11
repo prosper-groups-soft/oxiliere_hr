@@ -2,6 +2,6 @@
   import { goto } from '$app/navigation';
 
   $effect(() => {
-    goto('/performance/reviews', { replaceState: true });
+    goto('/performance/campaigns', { replaceState: true });
   });
 </script>

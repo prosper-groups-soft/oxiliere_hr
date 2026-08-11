@@ -7,7 +7,7 @@
     getScopeLabel,
   } from '../../constants/access.constants';
   import SelectableItem from '@/components/shared/items/SelectableItem.svelte';
-  import AppIcon from '@/components/layout/elements/AppIcon.svelte';
+  import AnimateSpin from '@/components/layout/elements/AnimateSpin.svelte';
 
   interface Props {
     role: Role;
@@ -51,7 +51,7 @@
 <div class="flex-1 flex flex-col min-h-0 overflow-hidden">
   {#if isLoading}
     <div class="flex-1 flex items-center justify-center bg-white/50">
-      <AppIcon name="loader-2" class="animate-spin text-slate-400" size={32} />
+      <AnimateSpin text="" />
     </div>
   {:else if scopes.length === 0}
     <div class="flex-1 flex justify-center items-center">

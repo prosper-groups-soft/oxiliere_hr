@@ -12,6 +12,7 @@ from hr.employees.models import Employee
 from hr.jobs.models import Position, PositionSeniority, EmployeePositionHistory, EmployeeTransition
 from hr.payroll.models import EmployeeContract
 
+
 logger = logging.getLogger(__name__)
 
 

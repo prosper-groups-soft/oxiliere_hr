@@ -61,7 +61,7 @@ axios.defaults.raxConfig = {
 	noResponseRetries: 2,
 
 	retryDelay: 600,
-	httpMethodsToRetry: ['GET', 'POST', 'DELETE', 'PUT'],
+	httpMethodsToRetry: ['GET', 'POST', 'DELETE', 'PUT', 'PATCH'],
 
 	// Retry only when it's an authorized request (refresh token)
 	statusCodesToRetry: [[401, 401]],

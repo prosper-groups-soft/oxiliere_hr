@@ -7,6 +7,7 @@
   import { Button } from "@/components/ui/button";
   import AppIcon from '@/components/layout/elements/AppIcon.svelte';
   import AnimateSpin from '@/components/layout/elements/AnimateSpin.svelte';
+  import LoadingBar from '@/components/layout/elements/LoadingBar.svelte';
   import DataPagination from "@/components/layout/elements/DataPagination.svelte";
   import SearchBar from "@/components/shared/elements/SearchBar.svelte";
   import FilterChips from "@/components/shared/elements/FilterChips.svelte";
@@ -166,11 +167,7 @@
     />
 
     <!-- Overhead loading bar during refetch -->
-    {#if $accountsQuery.isFetching}
-      <div class="h-0.5 bg-slate-100 overflow-hidden shrink-0">
-        <div class="h-full bg-primary animate-[loadingSlide_1.2s_ease-in-out_infinite] rounded-full" style="width: 30%"></div>
-      </div>
-    {/if}
+    <LoadingBar loading={$accountsQuery.isFetching} class="shrink-0" />
 
     <main class="flex flex-1 flex-col overflow-hidden min-h-0">
       {#if $accountsQuery.isPending}
@@ -260,16 +257,5 @@
 <BankAccountSheet bind:open={isSheetOpen} bind:account={selectedAccount} />
 
 
-<style>
-  .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-  :global {
-    @keyframes loadingSlide {
-      0% { transform: translateX(-100%); }
-      50% { transform: translateX(200%); }
-      100% { transform: translateX(400%); }
-    }
-  }
-</style>
+
 

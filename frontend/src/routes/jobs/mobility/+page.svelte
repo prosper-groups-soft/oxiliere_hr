@@ -20,12 +20,11 @@
     transitionQueryKeys
   } from "@/features/jobs/queries/transitionQueries";
   import {
-    useVacanciesQuery,
-    useDeleteVacancyMutation,
-    vacancyQueryKeys,
-    syncVacancies
+    useVacanciesQuery, useDeleteVacancyMutation,
+    vacancyQueryKeys, syncVacancies
   } from "@/features/jobs/queries/vacancyQueries";
 
+  
   // State
   let activeTab = $state<'transitions' | 'vacancies'>('transitions');
 
@@ -174,6 +173,7 @@
     {#key activeTab}
       <div 
         class="col-start-1 row-start-1 flex flex-col min-h-0 overflow-y-auto custom-scrollbar" 
+        style="--scrollbar-size: 6px"
         in:fly={{ y: 8, duration: 350, delay: 80, easing: cubicOut }} 
         out:fade={{ duration: 180 }}
       >
@@ -225,15 +225,4 @@
 <!-- Sheets -->
 <TransitionSheet bind:open={showTransitionSheet} transition={selectedTransition} />
 <VacancySheet bind:open={showVacancySheet} vacancy={selectedVacancy} />
-
-
-<style>
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #e2e8f0;
-    border-radius: 10px;
-  }
-</style>
 

@@ -21,7 +21,7 @@
         variant="ghost" 
         size="sm" 
         onclick={handleBack}
-        class="h-8 px-2 flex items-center gap-2 hidden text-slate-400 hover:text-slate-600 hover:bg-slate-100/50 group transition-all"
+        class="h-8 px-2 flexx items-center gap-2 hidden text-slate-400 hover:text-slate-600 hover:bg-slate-100/50 group transition-all"
       >
         <AppIcon name="prev" size={16} class="group-hover:-translate-x-0.5 transition-transform" />
         <span class="text-[0.65rem] font-bold uppercase tracking-widest opacity-70 group-hover:opacity-100">

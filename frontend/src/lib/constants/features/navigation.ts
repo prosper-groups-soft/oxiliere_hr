@@ -1,10 +1,12 @@
 import { goto } from '$app/navigation';
 
+
 export enum MENU_ITEM_TYPE {
 	link = 'link',
 	router = 'router',
 	button = 'button'
 }
+
 
 export type MenuItem = {
 	id: string;
@@ -16,11 +18,13 @@ export type MenuItem = {
 	onClick?: () => void;
 };
 
+
 export type MenuItemGroup = {
 	id: string;
 	label?: string;
 	items: MenuItem[];
 };
+
 
 export const MENU_ITEMS: MenuItemGroup[] = [
 	{
@@ -79,7 +83,7 @@ export const MENU_ITEMS: MenuItemGroup[] = [
 				type: MENU_ITEM_TYPE.router,
 				icon: 'target',
 				label: 'Évaluations',
-				onClick: () => goto('/performance/reviews')
+				onClick: () => goto('/performance/campaigns')
 			}
 		]
 	},
@@ -124,7 +128,7 @@ export const MENU_ITEMS: MenuItemGroup[] = [
 				type: MENU_ITEM_TYPE.router,
 				icon: 'finance',
 				label: 'Paie',
-				onClick: () => goto('/payroll/payslips')
+				onClick: () => goto('/payroll')
 			},
 			{
 				id: 'banking',
@@ -202,6 +206,7 @@ export const PAGE_LABELS: Record<string, string> = {
 	accounts:     'Mes Comptes',
 	directory:    'Institutions',
 	payroll:      'Paie',
+	"payroll-settings": 'Configuration paie',
 	run:          'Exécution',
 	payslips:     'Bulletins de paie',
 	advances:     'Avances',
@@ -218,6 +223,7 @@ export const PAGE_LABELS: Record<string, string> = {
 	education:    'Éducation',
     performance:  'Évaluations',
     reviews:      'Mes Évaluations',
+    campaigns:    'Campagnes'
 };
 
 

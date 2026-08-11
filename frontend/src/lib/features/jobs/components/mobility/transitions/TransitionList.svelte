@@ -13,6 +13,7 @@
   import { getFriendlyErrorMessage } from '@/constants/errors';
   import { TRANSITION_TYPE_CONFIG } from "../../../constants/transition.constants";
 
+  
   let {
     transitions = [],
     onEdit,
@@ -50,6 +51,7 @@
     onNext?: () => void,
     onPrev?: () => void,
   }>();
+  
 
   const currentCount = $derived(transitions.length);
 
@@ -144,7 +146,7 @@
 
   <!-- État: Données disponibles (list) -->
   {:else if !isLoading && !isError}
-    <div class="flex-1 overflow-auto custom-scrollbar flex flex-col" in:fade={{ duration: 200 }}>
+    <div class="flex-1 overflow-auto custom-scrollbar flex flex-col" style="--scrollbar-size: 5px" in:fade={{ duration: 200 }}>
       
       <!-- Column Headers -->
       <div class="sticky top-0 z-10 flex items-center h-8! px-6 bg-white border-b border-slate-100">
@@ -182,12 +184,4 @@
     </div>
   {/if}
 </div>
-
-
-<style>
-  .custom-scrollbar::-webkit-scrollbar { width: 5px; }
-  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-</style>
 

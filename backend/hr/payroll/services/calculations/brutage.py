@@ -13,7 +13,6 @@ class GrossUpService:
         target_net: Decimal, 
         company_size: int = 1, 
         worked_days: int = 26,
-        child_count: int = 0,
         is_hourly: bool = False,
         std_monthly_hours: Decimal = Decimal('195'),
         tolerance: Decimal = Decimal('1.00')
@@ -35,7 +34,6 @@ class GrossUpService:
                 candidate=candidate, 
                 company_size=company_size,
                 worked_days=worked_days,
-                child_count=child_count,
                 is_hourly=is_hourly,
                 std_monthly_hours=std_monthly_hours
             )
@@ -58,7 +56,6 @@ class GrossUpService:
         candidate: Decimal, 
         company_size: int,
         worked_days: int,
-        child_count: int,
         is_hourly: bool,
         std_monthly_hours: Decimal
     ) -> Decimal:
@@ -80,10 +77,10 @@ class GrossUpService:
         )
         cnss_employee = social['employee_total']
         
-        # 2. Legal Allowances
+        # 2. Legal Allowances (Housing, Transport — family allowance is paid by CNSS)
         allowances = LegalAllowanceService.calculate_allowances(
             worked_days=worked_days,
-            child_count=child_count,
+            child_count=0,
             base_salary=base_salary
         )
         

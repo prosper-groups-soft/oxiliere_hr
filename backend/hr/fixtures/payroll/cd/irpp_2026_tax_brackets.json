@@ -1,0 +1,162 @@
+[
+  {
+    "model": "hr_payroll.taxbracket",
+    "pk": "019c04a1000000000000000000000001",
+    "fields": {
+      "label": "IRPP 2026 Tranche 1 (0 - 43 680 CDF/mois)",
+      "lower_limit": "0.00",
+      "upper_limit": "524160.00",
+      "rate_percentage": "0.00",
+      "min_tax_amount": "0.00",
+      "max_tax_percentage": "30.00",
+      "applies_to_taxable_base": true,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr_payroll.taxbracket",
+    "pk": "019c04a1000000000000000000000002",
+    "fields": {
+      "label": "IRPP 2026 Tranche 2 (43 681 - 119 000 CDF/mois)",
+      "lower_limit": "524161.00",
+      "upper_limit": "1428000.00",
+      "rate_percentage": "15.00",
+      "min_tax_amount": null,
+      "max_tax_percentage": "30.00",
+      "applies_to_taxable_base": true,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr_payroll.taxbracket",
+    "pk": "019c04a1000000000000000000000003",
+    "fields": {
+      "label": "IRPP 2026 Tranche 3 (119 001 - 225 000 CDF/mois)",
+      "lower_limit": "1428001.00",
+      "upper_limit": "2700000.00",
+      "rate_percentage": "20.00",
+      "min_tax_amount": null,
+      "max_tax_percentage": "30.00",
+      "applies_to_taxable_base": true,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr_payroll.taxbracket",
+    "pk": "019c04a1000000000000000000000004",
+    "fields": {
+      "label": "IRPP 2026 Tranche 4 (225 001 - 385 000 CDF/mois)",
+      "lower_limit": "2700001.00",
+      "upper_limit": "4620000.00",
+      "rate_percentage": "22.50",
+      "min_tax_amount": null,
+      "max_tax_percentage": "30.00",
+      "applies_to_taxable_base": true,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr_payroll.taxbracket",
+    "pk": "019c04a1000000000000000000000005",
+    "fields": {
+      "label": "IRPP 2026 Tranche 5 (385 001 - 605 000 CDF/mois)",
+      "lower_limit": "4620001.00",
+      "upper_limit": "7260000.00",
+      "rate_percentage": "25.00",
+      "min_tax_amount": null,
+      "max_tax_percentage": "30.00",
+      "applies_to_taxable_base": true,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr_payroll.taxbracket",
+    "pk": "019c04a1000000000000000000000006",
+    "fields": {
+      "label": "IRPP 2026 Tranche 6 (605 001 - 855 000 CDF/mois)",
+      "lower_limit": "7260001.00",
+      "upper_limit": "10260000.00",
+      "rate_percentage": "30.00",
+      "min_tax_amount": null,
+      "max_tax_percentage": "30.00",
+      "applies_to_taxable_base": true,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr_payroll.taxbracket",
+    "pk": "019c04a1000000000000000000000007",
+    "fields": {
+      "label": "IRPP 2026 Tranche 7 (855 001 - 1 159 000 CDF/mois)",
+      "lower_limit": "10260001.00",
+      "upper_limit": "13908000.00",
+      "rate_percentage": "32.50",
+      "min_tax_amount": null,
+      "max_tax_percentage": "30.00",
+      "applies_to_taxable_base": true,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr_payroll.taxbracket",
+    "pk": "019c04a1000000000000000000000008",
+    "fields": {
+      "label": "IRPP 2026 Tranche 8 (1 159 001 - 1 402 000 CDF/mois)",
+      "lower_limit": "13908001.00",
+      "upper_limit": "16824000.00",
+      "rate_percentage": "35.00",
+      "min_tax_amount": null,
+      "max_tax_percentage": "30.00",
+      "applies_to_taxable_base": true,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr_payroll.taxbracket",
+    "pk": "019c04a1000000000000000000000009",
+    "fields": {
+      "label": "IRPP 2026 Tranche 9 (1 402 001 - 1 913 000 CDF/mois)",
+      "lower_limit": "16824001.00",
+      "upper_limit": "22956000.00",
+      "rate_percentage": "37.50",
+      "min_tax_amount": null,
+      "max_tax_percentage": "30.00",
+      "applies_to_taxable_base": true,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr_payroll.taxbracket",
+    "pk": "019c04a100000000000000000000000a",
+    "fields": {
+      "label": "IRPP 2026 Tranche 10 (1 913 001 CDF/mois et plus)",
+      "lower_limit": "22956001.00",
+      "upper_limit": null,
+      "rate_percentage": "40.00",
+      "min_tax_amount": null,
+      "max_tax_percentage": "30.00",
+      "applies_to_taxable_base": true,
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  }
+]

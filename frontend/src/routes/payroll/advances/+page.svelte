@@ -1,177 +1,196 @@
 <script lang="ts">
-  import { Button } from "@/components/ui/button";
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
   import { payrollStore } from "@/features/payroll/stores/payroll.svelte";
-  import * as DropdownMenu from "@/components/ui/dropdown-menu";
-  import { Badge } from "@/components/ui/badge";
-  import { scale } from "svelte/transition";
+  import { advancesStore } from "@/features/payroll/stores/advances/advancesStore.svelte";
   import SearchBar from "@/components/shared/elements/SearchBar.svelte";
   import FilterChips from "@/components/shared/elements/FilterChips.svelte";
-  import Empty from '@/components/shared/containers/empty/Empty.svelte';
   import { notification } from "@/stores/notification.svelte";
+  import { ui } from "@/stores/ui.svelte";
   import AdvanceRequestSheet from "@/features/payroll/components/advances/sheets/AdvanceRequestSheet.svelte";
-  import AdvanceCard from "@/features/payroll/components/advances/views/AdvanceCard.svelte";
-  import { dndzone, TRIGGERS, type DndEvent } from "svelte-dnd-action";
-  import { flip } from "svelte/animate";
-  import type { Advance, AdvanceStatus } from "@/features/payroll/types/types";
+  import AdvanceDetailSheet from "@/features/payroll/components/advances/sheets/AdvanceDetailSheet.svelte";
+  import AdvanceTable from "@/features/payroll/components/advances/views/AdvanceTable.svelte";
+  import AdvanceActions from "@/features/payroll/components/advances/actions/AdvanceActions.svelte";
+  import AdvanceApproveSheet from "@/features/payroll/components/advances/sheets/AdvanceApproveSheet.svelte";
+  import LoadingBar from "@/components/layout/elements/LoadingBar.svelte";
+  import type { Advance } from "@/features/payroll/types/types";
+  import { ADVANCE_RISK_LABELS, ADVANCE_STATUS_LABELS } from "@/features/payroll/types/types";
 
-  // Filter state
-  let searchTerm = $state('');
-  let showOnlyHighRisk = $state(false);
-  
-  // Archived pagination
-  const ARCHIVED_LIMIT = 10;
-  let archivedLimit = $state(ARCHIVED_LIMIT);
-  
-  // Sheet state
-  let showNewRequestForm = $state(false);
 
-  // Filtered advances
-  const filteredAdvances = $derived.by(() => {
-    return payrollStore.advances.filter(advance => {
-      const matchesSearch = advance.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        advance.reason.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesRisk = !showOnlyHighRisk || advance.riskLevel === 'high';
-      return matchesSearch && matchesRisk;
+  // ── Cycle de vie de la vue 
+  let viewState: 'loading' | 'success' | 'error' | 'offline' = $state('loading');
+
+  async function retry() {
+    viewState = 'loading';
+    try {
+      await payrollStore.syncFromApi('advances');
+      viewState = 'success';
+    } catch {
+      viewState = 'error';
+    }
+  }
+
+  // ── État des filtres (envoyés au backend) 
+  const searchTerm = $derived(advancesStore.searchQuery);
+  const isRefetching = $derived(advancesStore.loading);
+  const riskLevelFilters = $derived(advancesStore.riskLevelFilters);
+  const statusFilters = $derived(advancesStore.statusFilters);
+
+  const activeFiltersCount = $derived(
+    riskLevelFilters.length + statusFilters.length + (advancesStore.searchQuery ? 1 : 0)
+  );
+
+  // ── Avances (filtrées par le backend) 
+  const filteredAdvances = $derived(payrollStore.advances);
+
+  // Chargement initial + refetch quand les filtres changent (server-side)
+  $effect(() => {
+    // Toucher les dépendances réactives du store
+    advancesStore.searchQuery;
+    advancesStore.statusFilters;
+    advancesStore.riskLevelFilters;
+    payrollStore.syncFromApi('advances').then(() => {
+      viewState = 'success';
+    }).catch(() => {
+      viewState = 'error';
     });
   });
 
-  // Group by status (derived for initial state)
-  const pendingAdvances = $derived(filteredAdvances.filter(a => a.status === 'pending'));
-  const approvedAdvances = $derived(filteredAdvances.filter(a => a.status === 'approved'));
-  const otherAdvances = $derived(filteredAdvances.filter(a => ['rejected', 'completed'].includes(a.status)));
+  // ── Sheets 
+  let showNewRequestForm = $state(false);
+  let editTarget = $state<Advance | null>(null);
+  let selectedAdvance = $state<Advance | null>(null);
+  let showDetailSheet = $state(false);
 
-  // Local state for DnD (synced with derived values)
-  let pendingItems = $state<Advance[]>([]);
-  let approvedItems = $state<Advance[]>([]);
-  let otherItems = $state<Advance[]>([]);
+  function handleOpenDetail(advance: Advance) {
+    if (advance.status === 'DRAFT') {
+      // Modifier le brouillon dans le sheet de demande
+      editTarget = advance;
+      showNewRequestForm = true;
+      return;
+    }
+    selectedAdvance = advance;
+    showDetailSheet = true;
+  }
 
-  // Sync local state with derived values
-  $effect(() => {
-    pendingItems = [...pendingAdvances];
-  });
-  $effect(() => {
-    approvedItems = [...approvedAdvances];
-  });
-  $effect(() => {
-    otherItems = [...otherAdvances];
-  });
+  /** Ouvrir le sheet de détail quel que soit le statut (depuis le menu kebab) */
+  function handleViewDetail(advance: Advance) {
+    selectedAdvance = advance;
+    showDetailSheet = true;
+  }
 
-  const flipDurationMs = 200;
+  function openNewRequest() {
+    editTarget = null;
+    showNewRequestForm = true;
+  }
 
-  // Stats
-  const totalPendingAmount = $derived(
-    payrollStore.advances
-      .filter(a => a.status === 'pending')
-      .reduce((sum, a) => sum + a.amount, 0)
-  );
+  // ── Actions (approuver / rejeter / soumettre) 
+  let showApproveSheet = $state(false);
+  let approveTarget = $state<Advance | null>(null);
 
-  const activeFiltersCount = $derived(
-    (showOnlyHighRisk ? 1 : 0) + (searchTerm ? 1 : 0)
-  );
+  /** Ouvrir le sheet d'approbation avec la config de déduction */
+  function handleApprove(advance: Advance) {
+    approveTarget = advance;
+    showApproveSheet = true;
+  }
 
+  /** Rejeter — motif obligatoire via notification.confirm */
+  function handleReject(advance: Advance) {
+    notification.confirm({
+      title: "Rejeter la demande",
+      message: `Voulez-vous rejeter la demande d'avance de <strong>${advance.employee_name}</strong> (${advance.amount.toLocaleString('fr-FR')} $) ?<br><br>Le motif est obligatoire et sera conservé dans l'historique.`,
+      type: 'danger',
+      yesText: 'Rejeter',
+      noText: 'Annuler',
+      inputLabel: 'Motif du rejet',
+      inputValue: '',
+      onYes: async (reason?: string) => {
+        if (!reason?.trim()) {
+          notification.toast.error("Le motif du rejet est obligatoire");
+          return;
+        }
+        try {
+          await payrollStore.rejectAdvance(advance.id, reason.trim());
+          notification.toast.info('Demande d\'avance rejetée');
+          await payrollStore.syncFromApi('advances');
+        } catch {
+          notification.toast.error('Erreur lors du rejet');
+        }
+      }
+    });
+  }
+
+  /** Soumettre un brouillon DRAFT → PENDING */
+  function handleSubmit(advance: Advance) {
+    notification.confirm({
+      title: "Soumettre la demande ?",
+      message: `Soumettre la demande d'avance de <strong>${advance.employee_name}</strong> (${advance.amount.toLocaleString('fr-FR')} $) pour approbation ?`,
+      type: 'info',
+      yesText: 'Soumettre',
+      noText: 'Annuler',
+      onYes: async () => {
+        try {
+          await payrollStore.submitAdvance(advance.id);
+          notification.toast.success('Demande soumise pour approbation');
+          await payrollStore.syncFromApi('advances');
+        } catch {
+          notification.toast.error('Erreur lors de la soumission');
+        }
+      }
+    });
+  }
+
+  /** Refetch après approbation depuis le sheet */
+  async function handleApproveSheet() {
+    await payrollStore.syncFromApi('advances');
+  }
+
+  async function handleActivate(id: string) {
+    try {
+      payrollStore.activateAdvance(id);
+      notification.toast.success('Avance activée — déductible en paie');
+    } catch {
+      notification.toast.error('Erreur lors de l\'activation');
+    }
+  }
+
+  // ── Filtres (menu + chips) 
+  
   function resetFilters() {
-    searchTerm = '';
-    showOnlyHighRisk = false;
-    archivedLimit = ARCHIVED_LIMIT;
+    advancesStore.setSearchQuery('');
+    advancesStore.resetFilters();
   }
 
   function getActiveFilters() {
     const filters: Record<string, string[]> = {};
-    if (showOnlyHighRisk) {
-      filters.risk = ['high'];
+    if (riskLevelFilters.length > 0) {
+      filters.risk = [...riskLevelFilters];
+    }
+    if (statusFilters.length > 0) {
+      filters.status = statusFilters.map(s => ADVANCE_STATUS_LABELS[s]);
+    }
+    if (searchTerm) {
+      filters.search = [searchTerm];
     }
     return filters;
   }
 
   function handleRemoveFilter(key: string) {
     if (key === 'risk') {
-      showOnlyHighRisk = false;
+      advancesStore.resetFilters();
+    } else if (key === 'status') {
+      advancesStore.resetStatusFilters();
+    } else if (key === 'search') {
+      advancesStore.setSearchQuery('');
     }
   }
 
-  function handleDndConsider(columnId: 'pending' | 'approved' | 'archived', e: CustomEvent<DndEvent<Advance>>) {
-    const { items: newItems } = e.detail;
-    if (columnId === 'pending') pendingItems = newItems;
-    else if (columnId === 'approved') approvedItems = newItems;
-    else otherItems = newItems;
-  }
-
-  function handleDndFinalize(
-    columnId: 'pending' | 'approved' | 'archived',
-    targetStatus: AdvanceStatus,
-    e: CustomEvent<DndEvent<Advance>>
-  ) {
-    const { items: newItems, info } = e.detail;
-    
-    // Update local state
-    if (columnId === 'pending') pendingItems = newItems;
-    else if (columnId === 'approved') approvedItems = newItems;
-    else otherItems = newItems;
-    
-    // Only process actual drops (not reorders within same column)
-    if (info.trigger === TRIGGERS.DROPPED_INTO_ZONE) {
-      handleAdvanceDrop(info.id, targetStatus);
-    }
-  }
-
-  async function handleAdvanceDrop(advanceId: string, newStatus: AdvanceStatus) {
-    const advance = payrollStore.advances.find(a => a.id === advanceId);
-    if (!advance || advance.status === newStatus) return;
-
-    const statusLabels: Record<AdvanceStatus, string> = {
-      pending: 'En attente',
-      approved: 'En remboursement',
-      rejected: 'Rejetée',
-      completed: 'Terminée'
+  // Enregistrer les actions (filtre + bouton) dans la barre de titre
+  $effect(() => {
+    ui.addActions('advances', AdvanceActionsSnippet);
+    return () => {
+      ui.removeActions('advances');
     };
-
-    try {
-      if (newStatus === 'approved') {
-        await payrollStore.approveAdvance(advanceId);
-      } else if (newStatus === 'rejected') {
-        await payrollStore.rejectAdvance(advanceId);
-      } else {
-        // For other status changes, update directly
-        // await payrollStore.updateAdvanceStatus(advanceId, newStatus);
-      }
-      notification.toast.success(`Avance déplacée vers ${statusLabels[newStatus]}`);
-    } catch (error) {
-      notification.toast.error('Erreur lors du déplacement');
-      // Reset local state on error
-      pendingItems = [...pendingAdvances];
-      approvedItems = [...approvedAdvances];
-      otherItems = [...otherAdvances];
-    }
-  }
-
-  function handleApprove(id: string) {
-    notification.confirm({
-      title: 'Approuver la demande',
-      message: 'Voulez-vous approuver cette demande d\'avance ?',
-      type: 'info',
-      yesText: 'Approuver',
-      noText: 'Annuler',
-      onYes: () => {
-        payrollStore.approveAdvance(id);
-        notification.toast.success('Demande approuvée');
-      }
-    });
-  }
-
-  function handleReject(id: string) {
-    notification.confirm({
-      title: 'Rejeter la demande',
-      message: 'Voulez-vous rejeter cette demande d\'avance ?',
-      type: 'danger',
-      yesText: 'Rejeter',
-      noText: 'Annuler',
-      onYes: () => {
-        payrollStore.rejectAdvance(id);
-        notification.toast.info('Demande rejetée');
-      }
-    });
-  }
+  });
 </script>
 
 
@@ -184,222 +203,123 @@
   {@render Header()}
 
   <div class="flex flex-1 flex-col overflow-hidden min-h-0">
-    <FilterChips 
+    <FilterChips
       filters={getActiveFilters()}
       activeFiltersCount={activeFiltersCount}
       getDisplayLabel={(key) => {
-        if (key === 'risk') return 'Risque élevé';
+        if (key === 'risk') {
+          const count = riskLevelFilters.length;
+          return count === 1
+            ? `Risque: ${ADVANCE_RISK_LABELS[riskLevelFilters[0]]}`
+            : `${count} risques`;
+        }
+        if (key === 'status') {
+          const count = statusFilters.length;
+          return count === 1
+            ? `Statut: ${ADVANCE_STATUS_LABELS[statusFilters[0]]}`
+            : `${count} statuts`;
+        }
+        if (key === 'search') return `Recherche: “${searchTerm}”`;
         return key;
       }}
       onRemove={handleRemoveFilter}
       onReset={resetFilters}
-      class="py-1.5"
+      class="py-1.5 px-6 border-b border-slate-50"
     />
 
+    <!-- Overhead loading bar during refetch -->
+    <LoadingBar loading={isRefetching} />
+
     <main class="flex flex-1 flex-col overflow-hidden min-h-0">
-      <div class="flex-1 overflow-y-auto min-h-0 {filteredAdvances.length === 0 ? 'px-4 py-4 pr-8.5' : 'px-4 py-4'}">
-        {#if filteredAdvances.length === 0}
-          <Empty 
-            title="Aucune avance trouvée"
-            description="Aucune demande d'avance ne correspond à vos critères de recherche."
-            icon="banknote"
-            iconSize={28}
-            iconStrokeWidth={1.3}
-          />
-        {:else}
-          <!-- Kanban Board -->
-          <div class="grid grid-cols-3 gap-4 h-full min-h-0">
-            {@render KanbanColumn(
-              'En attente',
-              'clock',
-              'amber',
-              pendingItems,
-              true,
-              undefined,
-              'pending'
-            )}
-            {@render KanbanColumn(
-              'En remboursement',
-              'banknote',
-              'emerald',
-              approvedItems,
-              false,
-              undefined,
-              'approved'
-            )}
-            {@render KanbanColumn(
-              'Archivées',
-              'archive',
-              'slate',
-              otherItems,
-              false,
-              archivedLimit,
-              'archived'
-            )}
-          </div>
-        {/if}
-      </div>
+      <AdvanceTable
+        advances={filteredAdvances}
+        totalCount={filteredAdvances.length}
+        hasActiveFilters={activeFiltersCount > 0}
+        isLoading={viewState === 'loading'}
+        isError={viewState === 'error' || viewState === 'offline'}
+        isOffline={viewState === 'offline'}
+        onRetry={retry}
+        onResetFilters={resetFilters}
+        onNew={openNewRequest}
+        onClick={handleOpenDetail}
+        onApprove={handleApprove}
+        onReject={handleReject}
+        onActivate={handleActivate}
+        onEdit={handleOpenDetail}
+        onSubmit={handleSubmit}
+        onViewDetail={handleViewDetail}
+      />
     </main>
   </div>
 </div>
 
 
-{#snippet KanbanColumn(
-  title: string,
-  icon: string,
-  color: 'amber' | 'emerald' | 'slate',
-  items: Advance[],
-  showActions: boolean,
-  limit?: number,
-  columnId?: 'pending' | 'approved' | 'archived'
-)}
-  {@const bgColor = color === 'amber' ? 'bg-amber-50' : color === 'emerald' ? 'bg-emerald-50' : 'bg-slate-100'}
-  {@const borderColor = color === 'amber' ? 'border-amber-100' : color === 'emerald' ? 'border-emerald-100' : 'border-slate-200'}
-  {@const textColor = color === 'amber' ? 'text-amber-700' : color === 'emerald' ? 'text-emerald-700' : 'text-slate-600'}
-  {@const badgeColor = color === 'amber' ? 'text-amber-600 bg-amber-100' : color === 'emerald' ? 'text-emerald-600 bg-emerald-100' : 'text-slate-500 bg-slate-200'}
-  {@const iconColor = color === 'amber' ? 'text-amber-600' : color === 'emerald' ? 'text-emerald-600' : 'text-slate-500'}
-  {@const emptyIconColor = color === 'amber' ? 'text-amber-400' : color === 'emerald' ? 'text-emerald-400' : 'text-slate-400'}
-  {@const emptyText = title === 'En attente' ? 'Aucune demande en attente' : title === 'En remboursement' ? 'Aucun remboursement en cours' : 'Aucune avance archivée'}
-  {@const isArchived = color === 'slate'}
-  {@const hasLimit = limit !== undefined && items.length > limit}
-  {@const displayItems = hasLimit ? items.slice(0, limit) : items}
-  {@const remainingCount = hasLimit ? items.length - limit : 0}
-  {@const targetStatus = columnId === 'pending' ? 'pending' : columnId === 'approved' ? 'approved' : 'completed'}
-
-  <div class="flex flex-col min-h-0">
-    <div class="flex items-center gap-2 px-3 py-2 {bgColor} border {borderColor} rounded-t-lg">
-      <AppIcon name={icon} size={18} class={iconColor} />
-      <span class="text-sm font-semibold {textColor}">{title}</span>
-      <span class="ml-auto text-xs font-medium {badgeColor} px-2 py-0.5 rounded-full">
-        {items.length}
-      </span>
-    </div>
-    <div
-      class="flex-1 overflow-y-auto {isArchived ? 'bg-slate-50/50' : 'bg-slate-50'} border border-t-0 {borderColor} rounded-b-lg p-3 space-y-3 min-h-0 outline-none"
-      use:dndzone={{ items: displayItems, flipDurationMs, type: 'advance', dropTargetStyle: { outline: 'none' } }}
-      onconsider={(e) => handleDndConsider(columnId!, e)}
-      onfinalize={(e) => handleDndFinalize(columnId!, targetStatus, e)}
-    >
-      {#if items.length === 0}
-        <div class="flex flex-col justify-center items-center h-full">
-          <AppIcon name={icon} size={25} strokeWidth={1} class={emptyIconColor} />
-          <div class="text-center pt-1 text-slate-400 text-sm">
-            {emptyText}
-          </div>
-        </div>
-      {:else}
-        {#each displayItems as advance (advance.id)}
-          <div animate:flip={{ duration: flipDurationMs }}>
-            <AdvanceCard {advance} {showActions} onApprove={handleApprove} onReject={handleReject} />
-          </div>
-        {/each}
-        {#if hasLimit}
-          <button
-            onclick={() => archivedLimit += ARCHIVED_LIMIT}
-            class="w-full py-2 px-3 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors flex items-center justify-center gap-1"
-          >
-            <AppIcon name="chevron-down" size={14} />
-            Voir {remainingCount} de plus
-          </button>
-        {/if}
-      {/if}
-    </div>
-  </div>
+<!-- WRAPPER FOR ui.addActions -->
+{#snippet AdvanceActionsSnippet()}
+  <AdvanceActions onAdd={openNewRequest} />
 {/snippet}
 
 
 {#snippet Header()}
-  <div class="flex flex-col gap-4 pb-2.5 border-b border-slate-100 pt-2.5 px-4 pr-8.5">
-    <div class="flex items-center gap-3">
-      <div class="flex-1 ml-0.5">
-        <SearchBar 
-          bind:value={searchTerm} 
-          placeholder="Rechercher une avance..." 
-          class="w-125"
-          inputClass="h-9.5 pl-10 pr-9 rounded-[18px] text-[0.9rem] bg-[#f5f6f7]"
-          iconSize={22}
-          onClear={() => searchTerm = ''}
-        />
-      </div>
-      
-      <div class="flex items-center gap-2">
-        <!-- Stats Summary -->
-        <div class="flex items-center gap-3 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-200">
-          <div class="flex items-center gap-1.5">
-            <AppIcon name="clock" size={14} class="text-amber-500" />
-            <span class="text-[0.8rem] text-slate-600">{payrollStore.pendingAdvances}</span>
-          </div>
-          <div class="w-px h-4 bg-slate-200"></div>
-          <div class="flex items-center gap-1.5">
-            <AppIcon name="alert-circle" size={14} class="text-rose-500" />
-            <span class="text-[0.8rem] text-slate-600">{payrollStore.highRiskAdvances}</span>
-          </div>
-          <div class="w-px h-4 bg-slate-200"></div>
-          <div class="flex items-center gap-1.5">
-            <AppIcon name="banknote" size={14} class="text-emerald-500" />
-            <span class="text-[0.8rem] text-slate-600">
-              {totalPendingAmount.toLocaleString('fr-FR', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })}
-            </span>
-          </div>
-        </div>
-
-        {@render FilterMenu()}
-        
-        <Button 
-          onclick={() => showNewRequestForm = true}
-          class="h-7.5 px-3 bg-primary text-white text-[0.84rem] rounded-lg shadow-fine transition-all cursor-pointer"
-        >
-          <AppIcon name="plus" size={17} />
-          Nouvelle demande
-        </Button>
-      </div>
+  <div class="flex items-center justify-between gap-4 pb-2.5 border-b border-slate-100 pt-2.5 px-4 pr-8">
+    <div class="flex-1 ml-0.5">
+      <SearchBar
+        bind:value={advancesStore.searchQuery}
+        placeholder="Rechercher une avance par employé ou motif..."
+        class="w-125"
+        inputClass="h-9.5 pl-10 pr-9 rounded-[18px] text-[0.9rem] bg-[#f5f6f7]"
+        iconSize={22}
+        onSearch={(q) => advancesStore.setSearchQuery(q)}
+        onClear={() => advancesStore.setSearchQuery('')}
+      />
     </div>
+
+    <!-- Statistiques rapides -->
+    {@render QuickStats()}
   </div>
 {/snippet}
 
 
-{#snippet FilterMenu()}
-  <DropdownMenu.Root>
-    <DropdownMenu.Trigger 
-      class="inline-flex items-center justify-center bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-lg shadow-fine h-7.5 px-3 gap-2 cursor-pointer transition-all"
-    >
-      <AppIcon name="filter" size={16} class={activeFiltersCount > 0 ? "text-blue-500" : "text-slate-400"} />
-      <span class="text-[0.84rem] text-slate-700">Filtrer</span>
-      {#if activeFiltersCount > 0}
-        <div transition:scale={{ duration: 200, start: 0.8 }}>
-          <Badge class="h-4.5 min-w-4.5 p-0 flex items-center justify-center bg-blue-500 text-white font-medium rounded-full text-[0.65rem] border-none">
-            {activeFiltersCount}
-          </Badge>
-        </div>
-      {/if}
-    </DropdownMenu.Trigger>
-
-    <DropdownMenu.Content align="end" class="p-0 rounded-md shadow-fine border-slate-100 bg-white overflow-hidden">
-      <div class="p-2 max-h-80 overflow-y-auto">
-        <!-- Risk Filter -->
-        <DropdownMenu.Label class="text-[0.75rem]! font-bold text-slate-400 uppercase tracking-widest px-2 py-2">
-          Risque
-        </DropdownMenu.Label>
-        <DropdownMenu.CheckboxItem 
-          checked={showOnlyHighRisk}
-          onCheckedChange={(checked) => { showOnlyHighRisk = checked; }}
-          class="rounded-lg py-1.5 px-2 text-[0.85rem]! cursor-pointer pl-7"
-        >
-          Risque élevé uniquement
-        </DropdownMenu.CheckboxItem>
+{#snippet QuickStats()}
+  <div class="flex items-center gap-5 px-4 py-1">
+    <div class="flex items-center gap-2">
+      <AppIcon name="wallet" size={17} class="text-slate-500" />
+      <span class="text-sm font-semibold text-slate-800 tabular-nums">{payrollStore.advances.length}</span>
+      <span class="text-sm text-slate-500">demandes</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <AppIcon name="clock" size={17} class="text-amber-500" />
+      <span class="text-sm font-semibold text-amber-600 tabular-nums">{payrollStore.pendingAdvancesCount}</span>
+      <span class="text-sm text-slate-500">en attente</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <AppIcon name="alert-triangle" size={17} class="text-rose-500" />
+      <span class="text-sm font-semibold text-rose-600 tabular-nums">{payrollStore.highRiskAdvancesCount}</span>
+      <span class="text-sm text-slate-500">haut risque</span>
+    </div>
+    {#if activeFiltersCount > 0}
+      <div class="flex items-center gap-2">
+        <AppIcon name="filter" size={17} class="text-blue-500" />
+        <span class="text-sm font-semibold text-blue-600 tabular-nums">{activeFiltersCount}</span>
+        <span class="text-sm text-slate-500">filtres</span>
       </div>
-
-      {#if activeFiltersCount > 0}
-        <div class="p-2 bg-slate-50/50 border-t border-slate-100">
-          <Button variant="ghost" onclick={resetFilters} class="w-full h-8 text-[0.84rem] bg-white text-red-500 hover:text-red-600 hover:bg-red-50! font-medium">
-            Réinitialiser tout
-          </Button>
-        </div>
-      {/if}
-    </DropdownMenu.Content>
-  </DropdownMenu.Root>
+    {/if}
+  </div>
 {/snippet}
 
 
-<AdvanceRequestSheet bind:open={showNewRequestForm} />
+<AdvanceRequestSheet bind:open={showNewRequestForm} advance={editTarget} />
+
+
+<AdvanceDetailSheet
+  advance={selectedAdvance}
+  bind:open={showDetailSheet}
+/>
+
+
+<AdvanceApproveSheet
+  advance={approveTarget}
+  bind:open={showApproveSheet}
+  onApproved={handleApproveSheet}  
+/>
 

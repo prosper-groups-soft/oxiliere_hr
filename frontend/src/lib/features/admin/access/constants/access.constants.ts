@@ -9,6 +9,7 @@ export const SCOPE_LABELS: Record<string, string> = {
 	'payroll': 'Paie',
 	'banking': 'Banque',
 	'recruitment': 'Recrutement',
+	'performance': 'Performance',
 };
 
 // Groupes système critiques (ne pas supprimer, protégés)

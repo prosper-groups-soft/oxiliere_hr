@@ -6,10 +6,10 @@ import { Package } from '@lucide/svelte';
 type Icon = Component<IconProps, {}>;
 
 
-// Mapping des noms d'icônes vers les modules Lucide
-// Utilise lazy loading pour éviter de charger toutes les icônes au démarrage
+// Mapping des noms d'icÃ´nes vers les modules Lucide
+// Utilise lazy loading pour Ã©viter de charger toutes les icÃ´nes au dÃ©marrage
 export const ICON_MODULES: Record<string, () => Promise<any>> = {
-	// Gestion d'équipe et RH
+	// Gestion d'Ã©quipe et RH
 	users: () => import('@lucide/svelte').then(m => m.Users),
 	'circle-user': () => import('@lucide/svelte').then(m => m.CircleUser),
 	'no-user': () => import('@lucide/svelte').then(m => m.UserRoundX),
@@ -23,7 +23,7 @@ export const ICON_MODULES: Record<string, () => Promise<any>> = {
 	'user-plus': () => import('@lucide/svelte').then(m => m.UserPlus),
 	'user-search': () => import('@lucide/svelte').then(m => m.UserSearch),
 
-	// Feedback & Évaluation
+	// Feedback & Ã‰valuation
 	'thumbs-up': () => import('@lucide/svelte').then(m => m.ThumbsUp),
 	'thumbs-down': () => import('@lucide/svelte').then(m => m.ThumbsDown),
 	'trending-up': () => import('@lucide/svelte').then(m => m.TrendingUp),
@@ -42,6 +42,7 @@ export const ICON_MODULES: Record<string, () => Promise<any>> = {
 	send: () => import('@lucide/svelte').then(m => m.Send),
 	'paper-plane': () => import('@lucide/svelte').then(m => m.Send),
 	inbox: () => import('@lucide/svelte').then(m => m.Inbox),
+	'check-square': () => import('@lucide/svelte').then(m => m.CheckSquare),
 
 	// Documentation
 	docs: () => import('@lucide/svelte').then(m => m.FileText),
@@ -92,7 +93,7 @@ export const ICON_MODULES: Record<string, () => Promise<any>> = {
 	calculator: () => import('@lucide/svelte').then(m => m.Calculator),
 	power: () => import('@lucide/svelte').then(m => m.Power),
 
-	// Base de données
+	// Base de donnÃ©es
 	database: () => import('@lucide/svelte').then(m => m.Database),
 	mysql: () => import('@lucide/svelte').then(m => m.Database),
 	postgresql: () => import('@lucide/svelte').then(m => m.Database),
@@ -106,7 +107,7 @@ export const ICON_MODULES: Record<string, () => Promise<any>> = {
 	wordpress: () => import('@lucide/svelte').then(m => m.Globe),
 	globe: () => import('@lucide/svelte').then(m => m.Globe),
 
-	// Sécurité
+	// SÃ©curitÃ©
 	security: () => import('@lucide/svelte').then(m => m.Lock),
 	auth: () => import('@lucide/svelte').then(m => m.Lock),
 	firewall: () => import('@lucide/svelte').then(m => m.Shield),
@@ -130,6 +131,7 @@ export const ICON_MODULES: Record<string, () => Promise<any>> = {
 	'calendar-minus': () => import('@lucide/svelte').then(m => m.CalendarMinus),
 	'calendar-plus': () => import('@lucide/svelte').then(m => m.CalendarPlus),
 	'calendar-range': () => import('@lucide/svelte').then(m => m.CalendarRange),
+	'calendar-x': () => import('@lucide/svelte').then(m => m.CalendarX),
 	clock: () => import('@lucide/svelte').then(m => m.Clock),
 	'stethoscope': () => import('@lucide/svelte').then(m => m.Stethoscope),
 	'clipboard-list': () => import('@lucide/svelte').then(m => m.ClipboardList),
@@ -151,6 +153,7 @@ export const ICON_MODULES: Record<string, () => Promise<any>> = {
 	'building-2': () => import('@lucide/svelte').then(m => m.Building2),
 	office: () => import('@lucide/svelte').then(m => m.Building2),
 	erp: () => import('@lucide/svelte').then(m => m.Building2),
+	'folder-tree': () => import('@lucide/svelte').then(m => m.FolderTree),
 	location: () => import('@lucide/svelte').then(m => m.MapPin),
 	pin: () => import('@lucide/svelte').then(m => m.MapPin),
 	'map-pin': () => import('@lucide/svelte').then(m => m.MapPin),
@@ -159,13 +162,13 @@ export const ICON_MODULES: Record<string, () => Promise<any>> = {
 	consulting: () => import('@lucide/svelte').then(m => m.Briefcase),
 	services: () => import('@lucide/svelte').then(m => m.Briefcase),
 
-	// Éducation
+	// Ã‰ducation
 	education: () => import('@lucide/svelte').then(m => m.GraduationCap),
 	learning: () => import('@lucide/svelte').then(m => m.GraduationCap),
 	'graduation-cap': () => import('@lucide/svelte').then(m => m.GraduationCap),
 	brain: () => import('@lucide/svelte').then(m => m.Brain),
 
-	// Santé
+	// SantÃ©
 	health: () => import('@lucide/svelte').then(m => m.Heart),
 	medical: () => import('@lucide/svelte').then(m => m.Heart),
 	heart: () => import('@lucide/svelte').then(m => m.Heart),
@@ -176,7 +179,7 @@ export const ICON_MODULES: Record<string, () => Promise<any>> = {
 	moving: () => import('@lucide/svelte').then(m => m.Truck),
 	'ellipsis': () => import('@lucide/svelte').then(m => m.Ellipsis),
 
-	// Développement
+	// DÃ©veloppement
 	dev: () => import('@lucide/svelte').then(m => m.Code),
 	development: () => import('@lucide/svelte').then(m => m.Code),
 	git: () => import('@lucide/svelte').then(m => m.Code),
@@ -192,11 +195,14 @@ export const ICON_MODULES: Record<string, () => Promise<any>> = {
 	// UI Elements
 	grid: () => import('@lucide/svelte').then(m => m.LayoutGrid),
 	'layout-grid': () => import('@lucide/svelte').then(m => m.LayoutGrid),
+	'layout': () => import('@lucide/svelte').then(m => m.Layers2),
 	logout: () => import('@lucide/svelte').then(m => m.LogOut),
 	refresh: () => import('@lucide/svelte').then(m => m.RefreshCcw),
 	'refresh-cw': () => import('@lucide/svelte').then(m => m.RefreshCw),
 	'refresh-ccw': () => import('@lucide/svelte').then(m => m.RefreshCcw),
+	'rotate-ccw': () => import('@lucide/svelte').then(m => m.RotateCcw),
 	rotate: () => import('@lucide/svelte').then(m => m.RefreshCcw),
+	layers: () => import('@lucide/svelte').then(m => m.Layers),
 	grip: () => import('@lucide/svelte').then(m => m.Grip),
 	filter: () => import('@lucide/svelte').then(m => m.Funnel),
 	funnel: () => import('@lucide/svelte').then(m => m.Funnel),
@@ -238,6 +244,8 @@ export const ICON_MODULES: Record<string, () => Promise<any>> = {
 	'eye-off': () => import('@lucide/svelte').then(m => m.EyeOff),
 	check: () => import('@lucide/svelte').then(m => m.Check),
 	'circle-check': () => import('@lucide/svelte').then(m => m.CircleCheck),
+	'check-circle': () => import('@lucide/svelte').then(m => m.CircleCheck),
+	'message-circle': () => import('@lucide/svelte').then(m => m.MessageCircle),
 	info: () => import('@lucide/svelte').then(m => m.Info),
 	alert: () => import('@lucide/svelte').then(m => m.CircleAlert),
 	'alert-octagon': () => import('@lucide/svelte').then(m => m.OctagonAlert),
@@ -247,6 +255,7 @@ export const ICON_MODULES: Record<string, () => Promise<any>> = {
 	'circle-x': () => import('@lucide/svelte').then(m => m.CircleX),
 	'circle-plus': () => import('@lucide/svelte').then(m => m.CirclePlus),
 	'triangle-alert': () => import('@lucide/svelte').then(m => m.TriangleAlert),
+	'alert-triangle': () => import('@lucide/svelte').then(m => m.TriangleAlert),
 	phone: () => import('@lucide/svelte').then(m => m.Phone),
 	'phone-off': () => import('@lucide/svelte').then(m => m.PhoneOff),
 	image: () => import('@lucide/svelte').then(m => m.Image),
@@ -260,6 +269,7 @@ export const ICON_MODULES: Record<string, () => Promise<any>> = {
 	svg: () => import('@lucide/svelte').then(m => m.Image),
 	'circle-pause': () => import('@lucide/svelte').then(m => m.CirclePause),
 	play: () => import('@lucide/svelte').then(m => m.Play),
+	adjust: () => import('@lucide/svelte').then(m => m.SlidersHorizontal),
 	pause: () => import('@lucide/svelte').then(m => m.Pause),
 	edit: () => import('@lucide/svelte').then(m => m.SquarePen),
 	trash: () => import('@lucide/svelte').then(m => m.Trash2),
@@ -274,7 +284,6 @@ export const ICON_MODULES: Record<string, () => Promise<any>> = {
 	'flower-2': () => import('@lucide/svelte').then(m => m.Flower2),
 	star: () => import('@lucide/svelte').then(m => m.Star),
 	history: () => import('@lucide/svelte').then(m => m.GalleryHorizontalEnd),
-	layers: () => import('@lucide/svelte').then(m => m.Layers),
 	target: () => import('@lucide/svelte').then(m => m.Target),
 	project: () => import('@lucide/svelte').then(m => m.Target),
 	task: () => import('@lucide/svelte').then(m => m.Target),
@@ -285,13 +294,14 @@ export const ICON_MODULES: Record<string, () => Promise<any>> = {
 	'layout-template': () => import('@lucide/svelte').then(m => m.LayoutTemplate),
 	crosshair: () => import('@lucide/svelte').then(m => m.Crosshair),
 	scale: () => import('@lucide/svelte').then(m => m.Scale),
+	ruler: () => import('@lucide/svelte').then(m => m.Ruler),
 	save: () => import('@lucide/svelte').then(m => m.Save),
 	kanban: () => import('@lucide/svelte').then(m => m.Kanban),
 	'door-open': () => import('@lucide/svelte').then(m => m.DoorOpen),
 	'file-x': () => import('@lucide/svelte').then(m => m.FileX),
 	hash: () => import('@lucide/svelte').then(m => m.Hash),
 
-	// Multimédia
+	// MultimÃ©dia
 	music: () => import('@lucide/svelte').then(m => m.Music),
 	video: () => import('@lucide/svelte').then(m => m.Video),
 	zoom: () => import('@lucide/svelte').then(m => m.Video),
@@ -312,7 +322,6 @@ export const ICON_MODULES: Record<string, () => Promise<any>> = {
 	quote: () => import('@lucide/svelte').then(m => m.Quote),
 	flag: () => import('@lucide/svelte').then(m => m.Flag),
 	'share-2': () => import('@lucide/svelte').then(m => m.Share2),
-	'rotate-ccw': () => import('@lucide/svelte').then(m => m.RotateCcw),
 	'rotate-cw': () => import('@lucide/svelte').then(m => m.RotateCw),
 	coffee: () => import('@lucide/svelte').then(m => m.Coffee),
 	'list-filter': () => import('@lucide/svelte').then(m => m.ListFilter),
@@ -320,9 +329,10 @@ export const ICON_MODULES: Record<string, () => Promise<any>> = {
 	male: () => import('@lucide/svelte').then(m => m.Mars),
 	female: () => import('@lucide/svelte').then(m => m.Venus),
 	'help-circle': () => import('@lucide/svelte').then(m => m.CircleQuestionMark),
+	'wifi-off': () => import('@lucide/svelte').then(m => m.WifiOff),
 };
 
-// Cache des icônes déjà chargées
+// Cache des icÃ´nes dÃ©jÃ  chargÃ©es
 const iconCache = new Map<string, Icon>();
 
 /**
@@ -385,4 +395,5 @@ export const APPLICATION_ICON_COLORS = {
 	GREEN: ['financial', 'sales', 'marketing'],
 	AMBER: ['public', 'other', 'social']
 };
+
 

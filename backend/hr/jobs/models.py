@@ -1,7 +1,9 @@
 from django.utils.translation import gettext_lazy as _
 from django.db import models
+from django.apps import apps
 from django.utils import timezone
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator, MaxValueValidator
 from auditlog.registry import auditlog
 from django.db.models import Q, UniqueConstraint
 
@@ -123,6 +125,14 @@ class SeniorityLevel(BaseAuditableModel):
         verbose_name=_("Requirements"),
         help_text="List of requirements/prerequisites for this level"
     )
+    # Classe professionnelle RDC (catalogue.md §6 : 7 classes, 1 = Manœuvre, 7 = Cadre supérieur)
+    classe = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(7)],
+        verbose_name=_("Classe professionnelle"),
+        help_text=_("Classe RDC (1-7) de la grille des catégories professionnelles.")
+    )
     is_active = models.BooleanField(
         default=True,
         verbose_name=_("Is Active")
@@ -160,6 +170,14 @@ class PositionSeniority(BaseAuditableModel):
     salary_max = models.PositiveIntegerField(
         verbose_name=_("Maximum Salary for this level")
     )
+    # Échelon dans la grille (1-4) — progression intra-classe (catalogue.md §6)
+    echelon = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(4)],
+        verbose_name=_("Échelon"),
+        help_text=_("Échelon (1-4) de la grille des catégories professionnelles.")
+    )
     rank = models.PositiveSmallIntegerField(
         default=1,
         verbose_name=_("Progression Rank"),
@@ -194,6 +212,19 @@ class PositionSeniority(BaseAuditableModel):
     def clean(self):
         if self.salary_min > self.salary_max:
             raise ValidationError(_("Salary min cannot exceed salary max"))
+
+        # Tension salariale légale 1:10 — le salaire max d'un échelon ne peut pas
+        # dépasser 10× le SMIG mensuel actif (prévention des grilles abusives).
+        # Import différé pour éviter la dépendance circulaire (pattern EmployeeContract.clean()).
+        if self.salary_max and self.salary_max > 0:
+            SMIGConfiguration = apps.get_model('hr_payroll', 'SMIGConfiguration')
+            smig = SMIGConfiguration.objects.filter(is_active=True).first()
+            if smig and smig.monthly_rate:
+                ceiling = smig.monthly_rate * 10
+                if self.salary_max > ceiling:
+                    raise ValidationError(
+                        _(f"Salary max ({self.salary_max} FC) cannot exceed 10× the active monthly SMIG ({ceiling} FC).")
+                    )
 
     def __str__(self):
         return f"{self.position.name} - {self.seniority_level.label} (FC{self.salary_min:,}-{self.salary_max:,})"

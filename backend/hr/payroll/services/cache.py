@@ -273,6 +273,41 @@ class PayrollCacheService:
             logger.info("[Cache] No legal allowance cache keys found to clear")
 
     @staticmethod
+    def clear_legal_allowances_cache():
+        """
+        Clear legal allowances CALCULATION cache (hr:payroll:legal_allowances).
+
+        Distinct de clear_allowance_cache() (cache API d'affichage) :
+        celui-ci purge la clé utilisée par LegalAllowanceService pendant le
+        pipeline de paie (get_legal_allowances). Sans lui, une édition ou
+        réinitialisation n'aurait aucun effet sur les bulletins tant que le
+        cache de 24h n'est pas expiré.
+        """
+        key = generate_cache_key("hr:payroll:legal_allowances")
+        cache.delete(key)
+        logger.info(f"[Cache] Cleared legal allowances calculation cache: {key}")
+
+    @staticmethod
+    def clear_adjustment_types_cache():
+        """
+        Purge le cache d'affichage du catalogue d'éléments de paie
+        (clé cache_api_response `adjustment_types_list`) ainsi que le cache
+        de calcul global des ajustements.
+
+        Sans cette purge, un reset ou un CRUD n'aurait aucun effet visible sur
+        le catalogue tant que le cache de 24h n'est pas expiré.
+        """
+        pattern = "*:adjustment_types_list:*"
+        keys = PayrollCacheService.redis_conn.keys(pattern)
+        if keys:
+            PayrollCacheService.redis_conn.delete(*keys)
+            logger.info(f"[Cache] Cleared {len(keys)} adjustment types cache keys: {keys}")
+        else:
+            logger.info("[Cache] No adjustment types cache keys found to clear")
+
+        cache.delete(generate_cache_key("hr:payroll:adjustments"))
+
+    @staticmethod
     def clear_overtime_cache():
         """Clear overtime rules cache (cache_api_response with overtime_rules prefix)."""
         # Pattern: :1:overtime_rules:shared:/api/payroll/configuration/overtime/

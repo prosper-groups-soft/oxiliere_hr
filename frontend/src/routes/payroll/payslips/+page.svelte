@@ -3,7 +3,8 @@
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
   import DataPagination from "@/components/layout/elements/DataPagination.svelte";
   import { payrollStore } from "@/features/payroll/stores/payroll.svelte";
-  import { PAYROLL_STATUS_LABELS, type Payslip, ORG_UNITS } from "@/features/payroll/types/types";
+  import { PAYROLL_STATUS_LABELS, type Payslip } from "@/features/payroll/types/types";
+  import { orgService } from '@/features/jobs/services/org.service';
   import * as DropdownMenu from "@/components/ui/dropdown-menu";
   import { Badge } from "@/components/ui/badge";
   import { scale } from "svelte/transition";
@@ -22,6 +23,19 @@
     totalNet: number;
   };
 
+  // Unités organisationnelles chargées depuis le backend (/api/organization/units)
+  let orgUnits = $state<string[]>([]);
+  $effect(() => {
+    let cancelled = false;
+    orgService.listOrgUnits(1, 200)
+      .then((res) => {
+        if (cancelled) return;
+        orgUnits = (res.results || []).map(u => u.name).sort((a, b) => a.localeCompare(b));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  });
+
   function formatPeriodLabel(period: string) {
     const date = new Date(`${period}-01`);
 
@@ -39,11 +53,13 @@
     const groups = new Map<string, Payslip[]>();
 
     for (const payslip of payslips) {
-      if (!groups.has(payslip.period)) {
-        groups.set(payslip.period, []);
+      // Extraire la clé de période "YYYY-MM" depuis le début de la période
+      const periodKey = payslip.period.start.substring(0, 7);
+      if (!groups.has(periodKey)) {
+        groups.set(periodKey, []);
       }
 
-      groups.get(payslip.period)?.push(payslip);
+      groups.get(periodKey)?.push(payslip);
     }
 
     return Array.from(groups.entries())
@@ -51,9 +67,9 @@
       .map(([period, items]) => ({
         period,
         label: formatPeriodLabel(period),
-        payslips: [...items].sort((a, b) => a.employeeName.localeCompare(b.employeeName)),
+        payslips: [...items].sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)),
         count: items.length,
-        totalNet: items.reduce((sum, payslip) => sum + payslip.netPay, 0)
+        totalNet: items.reduce((sum, payslip) => sum + payslip.summary.netPay, 0)
     }));
   }
 
@@ -205,7 +221,7 @@
 
     <DropdownMenu.Content align="end" class="w-50 p-0 rounded-md shadow-fine border-slate-100 bg-white overflow-hidden">
       <div class="p-2 max-h-80 overflow-y-auto">
-        {@render FilterSection("Département", ORG_UNITS, "orgUnit")}
+        {@render FilterSection("Département", orgUnits, "orgUnit")}
         <DropdownMenu.Separator class="my-2 bg-slate-50" />
         {@render StatusFilterSection()}
       </div>

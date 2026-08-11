@@ -8,3 +8,4 @@ class PerformanceConfig(AppConfig):
 
     def ready(self):
         import hr.performance.signals
+

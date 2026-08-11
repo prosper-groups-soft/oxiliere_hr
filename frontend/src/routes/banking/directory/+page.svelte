@@ -9,6 +9,7 @@
   import Empty from "@/components/shared/containers/empty/Empty.svelte";
   import AppIcon from '@/components/layout/elements/AppIcon.svelte';
   import AnimateSpin from '@/components/layout/elements/AnimateSpin.svelte';
+  import LoadingBar from '@/components/layout/elements/LoadingBar.svelte';
   import BankInstitutionSheet from "@/features/banking/components/directory/sheets/BankInstitutionSheet.svelte";
   import BankingActions from "@/features/banking/components/directory/BankingActions.svelte";
   import type { BankInstitution } from "@/features/banking/types/types";
@@ -208,11 +209,7 @@
     />
 
     <!-- Overhead loading bar during refetch -->
-    {#if $banksQuery.isFetching || isFiltering}
-      <div class="h-0.5 bg-slate-100 overflow-hidden shrink-0">
-        <div class="h-full bg-primary animate-[loadingSlide_1.2s_ease-in-out_infinite] rounded-full" style="width: 30%"></div>
-      </div>
-    {/if}
+    <LoadingBar loading={$banksQuery.isFetching || isFiltering} class="shrink-0" />
 
     <main class="flex flex-1 flex-col overflow-hidden min-h-0">
       {#if $banksQuery.isPending}
@@ -322,16 +319,5 @@
 />
 
 
-<style>
-  .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-  :global {
-    @keyframes loadingSlide {
-      0% { transform: translateX(-100%); }
-      50% { transform: translateX(200%); }
-      100% { transform: translateX(400%); }
-    }
-  }
-</style>
+
 

@@ -40,9 +40,6 @@ export interface PayrollConfigResponse {
   family_deduction_rate_per_child?: number | string;
   family_deduction_max_children?: number | string;
   housing_allowance_min_percentage?: number | string;
-  family_allowance_min_amount?: number | string;
-  family_allowance_smig_divider?: number | string;
-  overtime_multiplier?: number | string;
   include_leaves_in_payroll?: boolean;
   leave_deduction_divisor?: number | string;
   use_theoretical_days_from_attendance?: boolean;
@@ -211,9 +208,6 @@ export const PayrollGeneralConfigSchema = z.object({
   workHoursPerDay: z.number().min(1).max(24).optional(),
   workDaysPerWeek: z.number().min(1).max(7).optional(),
   housingAllowanceMinPercentage: z.number().min(0).max(1).optional(),
-  familyAllowanceMinAmount: z.number().min(0).optional(),
-  familyAllowanceSmigDivider: z.number().min(1).optional(),
-  overtimeMultiplier: z.number().min(1).optional(),
   leaveDeductionDivisor: z.number().min(1).optional(),
   exchangeRateUsdCdf: z.number().positive().optional(),
   exchangeRateSource: z.enum(['MANUAL', 'API']).optional(),
@@ -238,7 +232,7 @@ const validNumber = () => z.number({
 
 export const TaxConfigValidationSchema = z.object({
   // Payroll/Attendance settings (editable in TaxConfigPanel)
-  // Note: workHoursPerMonth, overtimeMultiplier, familyAllowanceMinAmount are now managed
+  // Note: workHoursPerMonth, housingAllowance are now managed
   // through LegalAllowances and OvertimeRules sections
   workHoursPerWeek: validNumber().min(1, 'Minimum 1 heure').max(168, 'Maximum 168 heures/semaine').optional(),
   leaveDeductionDivisor: validNumber().min(1, 'Le diviseur doit être ≥ 1').max(31, 'Maximum 31 jours').optional(),

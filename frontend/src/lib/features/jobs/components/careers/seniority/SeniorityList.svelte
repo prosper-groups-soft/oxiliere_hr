@@ -108,7 +108,7 @@
     </div>
 
     <!-- Area: Scrollable List -->
-    <div class="flex-1 overflow-auto custom-scrollbar" in:fade={{ duration: 200 }}>
+    <div class="flex-1 overflow-auto custom-scrollbar" style="--scrollbar-size: 5px" in:fade={{ duration: 200 }}>
       {#each levels as level, i (level.id)}
         <SeniorityRow {level} index={i} {onEdit} {onDelete} />
       {/each}
@@ -116,12 +116,4 @@
 
   {/if}
 </div>
-
-
-<style>
-  .custom-scrollbar::-webkit-scrollbar { width: 5px; }
-  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-</style>
 

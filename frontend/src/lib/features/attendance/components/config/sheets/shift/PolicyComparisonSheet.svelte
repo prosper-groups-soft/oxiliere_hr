@@ -15,6 +15,7 @@
     basePolicy?: WorkPolicy;
     overridePolicy?: WorkPolicy;
   }
+  
 
   let { 
     open = $bindable(false),
@@ -68,7 +69,7 @@
       </Sheet.Title>
     </Sheet.Header>
 
-    <div class="flex-1 overflow-y-auto px-6 py-6 space-y-8 custom-scrollbar bg-white">
+    <div class="flex-1 overflow-y-auto px-6 py-6 space-y-8 custom-scrollbar bg-white" style="--scrollbar-size: 6px">
     
       <div class="flex items-center gap-2 px-3 py-1.5 rounded-md bg-amber-50/50 border border-amber-100/50">
         <AppIcon name="zap" size={13} class="text-amber-500" />
@@ -129,18 +130,4 @@
 
   </Sheet.Content>
 </Sheet.Root>
-
-
-<style>
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #e2e8f0;
-    border-radius: 10px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-  }
-</style>
 

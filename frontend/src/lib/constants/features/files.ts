@@ -1,106 +1,109 @@
 export const FILE_TYPES: Record<string, Record<string, string>> = {
 	jpg: {
-		type: 'Image',
+		type:      'Image',
 		extension: 'jpg',
-		icon: 'image'
+		icon:      'image'
 	},
 	jpeg: {
-		type: 'Image',
+		type:      'Image',
 		extension: 'jpg',
-		icon: 'image'
+		icon:      'image'
 	},
 	svg: {
-		type: 'Image',
+		type:      'Image',
 		extension: 'svg',
-		icon: 'image'
+		icon:      'image'
 	},
 	png: {
-		type: 'Image',
+		type:      'Image',
 		extension: 'png',
-		icon: 'image'
+		icon:      'image'
 	},
 	pdf: {
-		type: 'Document PDF',
+		type:      'Document PDF',
 		extension: 'pdf',
-		icon: 'pdf'
+		icon:      'pdf'
 	},
 	doc: {
-		type: 'Document Word',
+		type:      'Document Word',
 		extension: 'doc',
-		icon: 'doc'
+		icon:      'doc'
 	},
 	docx: {
-		type: 'Document Word',
+		type:      'Document Word',
 		extension: 'docx',
-		icon: 'doc'
+		icon:      'doc'
 	},
 	txt: {
-		type: 'Document Text',
+		type:      'Document Text',
 		extension: 'txt',
-		icon: 'file'
+		icon:      'file'
 	},
 	xlsx: {
-		type: 'Document Excel',
+		type:      'Document Excel',
 		extension: 'xlsx',
-		icon: 'excel'
+		icon:      'excel'
 	},
 	xls: {
-		type: 'Document Excel',
+		type:      'Document Excel',
 		extension: 'xls',
-		icon: 'excel'
+		icon:      'excel'
 	},
 	csv: {
-		type: 'Document CSV',
+		type:      'Document CSV',
 		extension: 'csv',
-		icon: 'csv'
+		icon:      'csv'
 	},
 	ppt: {
-		type: 'Document Powerpoint',
+		type:      'Document Powerpoint',
 		extension: 'ppt',
-		icon: 'ppt'
+		icon:      'ppt'
 	},
 	pptx: {
-		type: 'Document Powerpoint',
+		type:      'Document Powerpoint',
 		extension: 'pptx',
-		icon: 'ppt'
+		icon:      'ppt'
 	},
 	zip: {
-		type: 'Fichier Archive',
+		type:      'Fichier Archive',
 		extension: 'zip',
-		icon: 'zip'
+		icon:      'zip'
 	},
 	rar: {
-		type: 'Fichier Archive',
+		type:      'Fichier Archive',
 		extension: 'rar',
-		icon: 'zip'
+		icon:      'zip'
 	},
 	mp3: {
-		type: 'Audio',
+		type:      'Audio',
 		extension: 'mp3',
-		icon: 'music'
+		icon:      'music'
 	},
 	mp4: {
-		type: 'Vidéo',
+		type:      'Vidéo',
 		extension: 'mp4',
-		icon: 'video'
+		icon:      'video'
 	},
 	webm: {
-		type: 'Vidéo',
+		type:      'Vidéo',
 		extension: 'webm',
-		icon: 'video'
+		icon:      'video'
 	},
 	webp: {
-		type: 'Vidéo',
+		type:      'Vidéo',
 		extension: 'webp',
-		icon: 'video'
+		icon:      'video'
 	},
 	unknown: {
-		type: 'Fichier',
+		type:      'Fichier',
 		extension: 'unknown',
-		icon: 'file'
+		icon:      'file'
 	}
 };
 
+
 export const UNITS_SIZE_FILE = ['o', 'Ko', 'Mo', 'Go', 'To'];
 
+
 export const SUPPORTED_FILE_TYPES = ['jpg', 'jpeg', 'png', 'pdf', 'mp3', 'mp4', 'webm', 'webp'];
+

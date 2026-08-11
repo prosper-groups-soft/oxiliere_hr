@@ -180,7 +180,7 @@
 
   <!-- Currency Toggle -->
   <CurrencyToggle
-    currency={taxSettingsStore.config.currency}
+    currency={taxSettingsStore.config.currency === 'CDF' ? 'CDF' : 'USD'}
     onChange={(c) => taxSettingsStore.setCurrency(c)}
     size="sm"
   />

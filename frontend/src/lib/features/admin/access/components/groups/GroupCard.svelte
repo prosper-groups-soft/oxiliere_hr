@@ -171,7 +171,7 @@
     </button>
     
     {#if isMembersExpanded}
-      <div class="space-y-2 max-h-40 overflow-y-auto custom-scrollbar bg-[#fefefe]! rounded-xl" transition:slide={{ duration: 200 }}>
+      <div class="space-y-2 max-h-40 overflow-y-auto custom-scrollbar bg-[#fefefe]! rounded-xl" style="--scrollbar-size: 3px" transition:slide={{ duration: 200 }}>
         {#if isLoadingMembers}
           <div class="flex items-center gap-2 p-2" in:fade={{ duration: 150 }}>
             <div class="h-8 w-8 rounded-full bg-slate-200 animate-pulse"></div>
@@ -208,11 +208,4 @@
     {/if}
   </div>
 </div>
-
-
-<style>
-  .custom-scrollbar::-webkit-scrollbar { width: 3px; }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 3px; }
-  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-</style>
 

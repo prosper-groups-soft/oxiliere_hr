@@ -52,7 +52,6 @@ class Command(BaseCommand):
         # 1. Social Contributions (CNSS, ONEM, INPP)
         social = SocialContributionService.calculate_contributions(
             gross_amount=gross_salary, 
-            base_salary=base_salary_after_absences, 
             company_size=10
         )
         
@@ -91,7 +90,10 @@ class Command(BaseCommand):
             base_salary=base_salary_after_absences
         )
         self.stdout.write(self.style.MIGRATE_HEADING("3. Avantages Légaux:"))
-        self.stdout.write(f"  - Allocations Familiales: {allowances['family_allowance']} FC")
+        # Allocation familiale : prestation CNSS versée directement au travailleur
+        # (8 100 FC / enfant / mois, trimestrielle) — pas une charge de l'employeur.
+        if child_count > 0:
+            self.stdout.write(f"  - Allocations Familiales (CNSS, versées au travailleur): {Decimal('8100') * child_count} FC/mois")
         self.stdout.write(f"  - Indemnité de Transport: {allowances['transport_allowance']} FC")
         self.stdout.write(f"  - Contre-valeur Logement: {allowances['housing_allowance']} FC")
 

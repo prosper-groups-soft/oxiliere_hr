@@ -11,6 +11,7 @@
   import AttendanceRecordRow from "./views/AttendanceRecordRow.svelte";
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
   import AnimateSpin from '@/components/layout/elements/AnimateSpin.svelte';
+  import LoadingBar from '@/components/layout/elements/LoadingBar.svelte';
   import Empty from '@/components/shared/containers/empty/Empty.svelte';
   import FilterChips from '@/components/shared/elements/FilterChips.svelte';
   import { Button } from "@/components/ui/button";
@@ -280,11 +281,7 @@
         {:else}
           <div class="flex-1 flex flex-col min-h-0">
             <!-- Overhead loading bar during refetch -->
-            {#if isFetching}
-              <div class="h-0.5 bg-slate-100 overflow-hidden">
-                <div class="h-full bg-primary animate-[loadingSlide_1.2s_ease-in-out_infinite] rounded-full" style="width: 30%"></div>
-              </div>
-            {/if}
+            <LoadingBar loading={isFetching} />
 
             <div class="sticky top-0 z-10 flex items-center h-10 px-6 bg-white border-b border-slate-100">
               <span class="w-[30%] text-[0.7rem] font-bold uppercase tracking-widest text-slate-400">Employé / Poste</span>
@@ -526,17 +523,5 @@
 {/if}
 
 
-<style>
-  .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
 
-  :global {
-    @keyframes loadingSlide {
-      0% { transform: translateX(-100%); }
-      50% { transform: translateX(200%); }
-      100% { transform: translateX(400%); }
-    }
-  }
-</style>
 

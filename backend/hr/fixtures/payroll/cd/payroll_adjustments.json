@@ -1,45 +1,19 @@
 [
     {
         "model": "hr_payroll.payrolladjustment",
-        "pk": "019c03b55dce7594be251aed3e91e12e",
-        "fields": {
-            "name": "Allocation de transport",
-            "adjustment_type": "BONUS",
-            "calculation_mode": "PERCENTAGE",
-            "amount": null,
-            "percentage": 0.0,
-            "is_mandatory": true,
-            "is_active": true,
-            "created_at": "2026-01-26T00:00:00Z",
-            "updated_at": "2026-01-26T00:00:00Z"
-        }
-    },
-    {
-        "model": "hr_payroll.payrolladjustment",
-        "pk": "019c03b583037fc6b89703726ae053bb",
-        "fields": {
-            "name": "Allocation de logement",
-            "adjustment_type": "BONUS",
-            "calculation_mode": "PERCENTAGE",
-            "amount": null,
-            "percentage": 0.0,
-            "is_mandatory": true,
-            "is_active": true,
-            "created_at": "2026-01-26T00:00:00Z",
-            "updated_at": "2026-01-26T00:00:00Z"
-        }
-    },
-    {
-        "model": "hr_payroll.payrolladjustment",
         "pk": "019c03b5b4bf7ecc9f8f8f16fc4584c5",
         "fields": {
+            "code": "ALLOC_TELE",
             "name": "Allocation télétravail",
             "adjustment_type": "BONUS",
             "calculation_mode": "FIXED",
+            "formula_description": "Forfait de télétravail : montant fixe par mois pour l'employé en télétravail. Montant à paramétrer (ex. 50 000 CDF/mois). Imposable à l'IRPP et soumis à la CNSS.",
             "amount": 0.0,
             "percentage": null,
             "is_mandatory": false,
             "is_active": true,
+            "is_taxable": true,
+            "is_cnss_subject": true,
             "created_at": "2026-01-26T00:00:00Z",
             "updated_at": "2026-01-26T00:00:00Z"
         }
@@ -48,13 +22,17 @@
         "model": "hr_payroll.payrolladjustment",
         "pk": "019c03b5f97c703998d7023c26a9f8e9",
         "fields": {
+            "code": "PRIME_PANIER",
             "name": "Allocation repas",
             "adjustment_type": "BONUS",
             "calculation_mode": "FIXED",
+            "formula_description": "Indemnité repas : montant fixe par jour travaillé (ex. 500 CDF/jour × jours de présence). Imposable à l'IRPP et soumis à la CNSS.",
             "amount": 0.0,
             "percentage": null,
             "is_mandatory": false,
             "is_active": true,
+            "is_taxable": true,
+            "is_cnss_subject": true,
             "created_at": "2026-01-26T00:00:00Z",
             "updated_at": "2026-01-26T00:00:00Z"
         }
@@ -63,13 +41,17 @@
         "model": "hr_payroll.payrolladjustment",
         "pk": "019c03b62d7f746fa381f3c722e2a737",
         "fields": {
+            "code": "SANTE_ENTREPRISE",
             "name": "Assurance santé entreprise",
             "adjustment_type": "BONUS",
             "calculation_mode": "PERCENTAGE",
+            "formula_description": "Participation employeur à la mutuelle santé : pourcentage du salaire de base (ex. 5 du salaire de base). Imposable à l'IRPP et soumis à la CNSS.",
             "amount": null,
             "percentage": 0.0,
             "is_mandatory": false,
             "is_active": true,
+            "is_taxable": true,
+            "is_cnss_subject": true,
             "created_at": "2026-01-26T00:00:00Z",
             "updated_at": "2026-01-26T00:00:00Z"
         }
@@ -78,13 +60,17 @@
         "model": "hr_payroll.payrolladjustment",
         "pk": "019c03b68d0b7da09d381653af14b23f",
         "fields": {
+            "code": "INVALIDITE",
             "name": "Assurance invalidité",
             "adjustment_type": "BONUS",
             "calculation_mode": "PERCENTAGE",
+            "formula_description": "Couverture invalidité : pourcentage du salaire de base (ex. 2 du salaire de base). Imposable à l'IRPP et soumis à la CNSS.",
             "amount": null,
             "percentage": 0.0,
             "is_mandatory": false,
             "is_active": true,
+            "is_taxable": true,
+            "is_cnss_subject": true,
             "created_at": "2026-01-26T00:00:00Z",
             "updated_at": "2026-01-26T00:00:00Z"
         }
@@ -93,13 +79,17 @@
         "model": "hr_payroll.payrolladjustment",
         "pk": "019c03b6bca97d7aad100f191c8da8ac",
         "fields": {
+            "code": "IND_MISSION",
             "name": "Frais de déplacement",
             "adjustment_type": "BONUS",
             "calculation_mode": "FIXED",
+            "formula_description": "Indemnité de déplacement : montant fixe par mois ou par jour (ex. 30 000 CDF/mois). Imposable à l'IRPP et soumis à la CNSS.",
             "amount": 0.0,
             "percentage": null,
             "is_mandatory": false,
             "is_active": true,
+            "is_taxable": true,
+            "is_cnss_subject": true,
             "created_at": "2026-01-26T00:00:00Z",
             "updated_at": "2026-01-26T00:00:00Z"
         }
@@ -108,43 +98,17 @@
         "model": "hr_payroll.payrolladjustment",
         "pk": "019c03b6ec847ab2ab4316646f74c9b3",
         "fields": {
+            "code": "ALLOC_RENTREE",
             "name": "Allocation rentrée scolaire",
             "adjustment_type": "BONUS",
             "calculation_mode": "FIXED",
+            "formula_description": "Prime ponctuelle de rentrée scolaire, versée une fois par période (montant fixe). Imposable à l'IRPP et soumis à la CNSS.",
             "amount": 0.0,
             "percentage": null,
             "is_mandatory": false,
             "is_active": true,
-            "created_at": "2026-01-26T00:00:00Z",
-            "updated_at": "2026-01-26T00:00:00Z"
-        }
-    },
-    {
-        "model": "hr_payroll.payrolladjustment",
-        "pk": "019c03b7163a7a1aa90b5e8938c80699",
-        "fields": {
-            "name": "Allocation garde d'enfants",
-            "adjustment_type": "BONUS",
-            "calculation_mode": "FIXED",
-            "amount": 0.0,
-            "percentage": null,
-            "is_mandatory": false,
-            "is_active": true,
-            "created_at": "2026-01-26T00:00:00Z",
-            "updated_at": "2026-01-26T00:00:00Z"
-        }
-    },
-    {
-        "model": "hr_payroll.payrolladjustment",
-        "pk": "019c03b7652276ecaed6e6fcb744ac38",
-        "fields": {
-            "name": "Aide au logement",
-            "adjustment_type": "BONUS",
-            "calculation_mode": "FIXED",
-            "amount": 0.0,
-            "percentage": null,
-            "is_mandatory": false,
-            "is_active": true,
+            "is_taxable": true,
+            "is_cnss_subject": true,
             "created_at": "2026-01-26T00:00:00Z",
             "updated_at": "2026-01-26T00:00:00Z"
         }
@@ -153,13 +117,17 @@
         "model": "hr_payroll.payrolladjustment",
         "pk": "019c03b7ae707fa78ad669f80069f018",
         "fields": {
+            "code": "GRATIF_13EME",
             "name": "Gratification de fin d'année",
             "adjustment_type": "BONUS",
             "calculation_mode": "PERCENTAGE",
+            "formula_description": "Prime de fin d'année (ex. 13e mois) : pourcentage du salaire de base, versée sur le cycle de décembre. Imposable à l'IRPP et soumis à la CNSS.",
             "amount": null,
             "percentage": 0.0,
             "is_mandatory": false,
             "is_active": true,
+            "is_taxable": true,
+            "is_cnss_subject": true,
             "created_at": "2026-01-26T00:00:00Z",
             "updated_at": "2026-01-26T00:00:00Z"
         }
@@ -168,16 +136,57 @@
         "model": "hr_payroll.payrolladjustment",
         "pk": "019c03b7e02b7746a66151c46a3bd937",
         "fields": {
+            "code": "ANCIENNETE",
             "name": "Prime d'ancienneté",
             "adjustment_type": "BONUS",
             "calculation_mode": "PERCENTAGE",
+            "formula_description": "Prime liée à l'ancienneté : pourcentage du salaire de base qui croît selon les années de service. Imposable à l'IRPP et soumis à la CNSS.",
             "amount": null,
             "percentage": 0.0,
-            "is_mandatory": true,
+            "is_mandatory": false,
             "is_active": true,
+            "is_taxable": true,
+            "is_cnss_subject": true,
+            "created_at": "2026-01-26T00:00:00Z",
+            "updated_at": "2026-01-26T00:00:00Z"
+        }
+    },
+    {
+        "model": "hr_payroll.payrolladjustment",
+        "pk": "019f0803-0769-719e-be03-73e30c14de3f",
+        "fields": {
+            "code": "PRIME_RISQUE",
+            "name": "Prime de risque",
+            "adjustment_type": "BONUS",
+            "calculation_mode": "FIXED",
+            "formula_description": "Prime de risque pour travaux dangereux ou insalubres : montant fixe, à paramétrer par l'entreprise (ex. 5 000 CDF/jour de présence). Imposable à l'IRPP et soumis à la CNSS.",
+            "amount": 0.0,
+            "percentage": null,
+            "is_mandatory": false,
+            "is_active": true,
+            "is_taxable": true,
+            "is_cnss_subject": true,
+            "created_at": "2026-01-26T00:00:00Z",
+            "updated_at": "2026-01-26T00:00:00Z"
+        }
+    },
+    {
+        "model": "hr_payroll.payrolladjustment",
+        "pk": "019f0803-076a-7dae-a578-9c27dfa64f55",
+        "fields": {
+            "code": "PRIME_SALISSURE",
+            "name": "Prime de salissure",
+            "adjustment_type": "BONUS",
+            "calculation_mode": "FIXED",
+            "formula_description": "Prime de salissure pour travaux salissants : montant fixe, à paramétrer par l'entreprise (ex. 3 000 CDF/jour de présence). Imposable à l'IRPP et soumis à la CNSS.",
+            "amount": 0.0,
+            "percentage": null,
+            "is_mandatory": false,
+            "is_active": true,
+            "is_taxable": true,
+            "is_cnss_subject": true,
             "created_at": "2026-01-26T00:00:00Z",
             "updated_at": "2026-01-26T00:00:00Z"
         }
     }
 ]
-

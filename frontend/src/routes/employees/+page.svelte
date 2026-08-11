@@ -18,6 +18,7 @@
   import { EMPLOYEE_STATUS_CONFIG } from "@/features/employees/constants/employeeStatus";
   import { ui } from "@/stores/ui.svelte";
   import { goto } from '$app/navigation';
+  import LoadingBar from "@/components/layout/elements/LoadingBar.svelte";
 
 
   // Charger les données depuis le backend avec tri côté serveur
@@ -134,11 +135,7 @@
     />
 
     <!-- Overhead loading bar during refetch -->
-    {#if $employeesQuery.isFetching}
-      <div class="h-0.5 bg-slate-100 overflow-hidden">
-        <div class="h-full bg-primary animate-[loadingSlide_1.2s_ease-in-out_infinite] rounded-full" style="width: 30%"></div>
-      </div>
-    {/if}
+    <LoadingBar loading={$employeesQuery.isFetching} />
 
     <main class="flex flex-1 flex-col overflow-hidden min-h-0">
       <!-- Loading state -->
@@ -214,29 +211,6 @@
 {/snippet}
 
 
-{#snippet QuickStats()}
-  <div class="flex items-center gap-5 px-4 py-1">
-    <div class="flex items-center gap-2">
-      <AppIcon name="users" size={17} class="text-slate-500" />
-      <span class="text-sm font-semibold text-slate-800 tabular-nums">{employeeStore.totalCount}</span>
-      <span class="text-xs text-slate-400">total</span>
-    </div>
-    <div class="flex items-center gap-2">
-      <AppIcon name="user-check" size={17} class="text-green-500" />
-      <span class="text-sm font-semibold text-green-600 tabular-nums">{employeeStore.employees.filter(e => e.status === 'active').length}</span>
-      <span class="text-xs text-slate-400">actifs</span>
-    </div>
-    {#if employeeStore.activeFiltersCount > 0}
-      <div class="flex items-center gap-2">
-        <AppIcon name="filter" size={17} class="text-blue-500" />
-        <span class="text-sm font-semibold text-blue-600 tabular-nums">{employeeStore.activeFiltersCount}</span>
-        <span class="text-xs text-slate-400">filtres</span>
-      </div>
-    {/if}
-  </div>
-{/snippet}
-
-
 {#snippet Header()}
   <div class="flex flex-col gap-4 pb-2.5 border-b border-slate-100 pt-2.5 px-4 pr-8">
     <div class="flex items-center justify-between">
@@ -258,13 +232,25 @@
 {/snippet}
 
 
-<style>
-  :global {
-    @keyframes loadingSlide {
-      0% { transform: translateX(-100%); }
-      50% { transform: translateX(200%); }
-      100% { transform: translateX(400%); }
-    }
-  }
-</style>
+{#snippet QuickStats()}
+  <div class="flex items-center gap-5 px-4 py-1">
+    <div class="flex items-center gap-2">
+      <AppIcon name="users" size={17} class="text-slate-500" />
+      <span class="text-sm font-semibold text-slate-800 tabular-nums">{employeeStore.totalCount}</span>
+      <span class="text-sm text-slate-400">total</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <AppIcon name="user-check" size={17} class="text-green-500" />
+      <span class="text-sm font-semibold text-green-600 tabular-nums">{employeeStore.employees.filter(e => e.status === 'active').length}</span>
+      <span class="text-sm text-slate-400">actifs</span>
+    </div>
+    {#if employeeStore.activeFiltersCount > 0}
+      <div class="flex items-center gap-2">
+        <AppIcon name="filter" size={17} class="text-blue-500" />
+        <span class="text-sm font-semibold text-blue-600 tabular-nums">{employeeStore.activeFiltersCount}</span>
+        <span class="text-sm text-slate-400">filtres</span>
+      </div>
+    {/if}
+  </div>
+{/snippet}
 

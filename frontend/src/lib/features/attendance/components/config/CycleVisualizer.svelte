@@ -321,7 +321,7 @@
             </Empty>
           </div>
         {:else}
-          <div class="custom-scrollbar flex-1 overflow-auto p-6">
+          <div class="custom-scrollbar flex-1 overflow-auto p-6" style="--scrollbar-size: 6px">
             <div 
               class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
               in:fly={{ y: 20, duration: 400, delay: 100 }}
@@ -395,16 +395,3 @@
   </div>
 {/snippet}
 
-
-<style>
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #e2e8f0;
-    border-radius: 10px;
-  }
-</style>

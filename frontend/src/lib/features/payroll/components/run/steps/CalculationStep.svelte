@@ -11,9 +11,9 @@
   const orgUnitStats = $derived.by(() => {
     const stats: Record<string, { total: number; count: number }> = {};
     payslips.forEach((p: typeof payslips[number]) => {
-      const orgUnit = p.orgUnit || 'Général';
+      const orgUnit = p.employee.orgUnit || 'Général';
       if (!stats[orgUnit]) stats[orgUnit] = { total: 0, count: 0 };
-      stats[orgUnit].total += p.netPay || 0;
+      stats[orgUnit].total += p.summary.netPay || 0;
       stats[orgUnit].count += 1;
     });
     return Object.entries(stats);

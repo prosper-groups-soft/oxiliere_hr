@@ -13,15 +13,13 @@
   import { useUpdateOrgUnitMutation } from "../../../queries/orgQueries";
   import { z } from 'zod';
   import ValidationError from "@/components/ui/validation-error";
-  import { 
-    useAllEmployees, useAssignEmployeeToOrgUnitMutation, 
-    useUnassignEmployeeFromOrgUnitMutation 
-  } from "@/features/employees/queries/employeeQueries";
+  import { useAllEmployees, useAssignEmployeeToOrgUnitMutation, useUnassignEmployeeFromOrgUnitMutation } from "@/features/employees/queries/employeeQueries";
   import ConfirmAction from "@/components/shared/actions/ConfirmAction.svelte";
   import { formatEmployeeName } from "@/utilities/common/employee.utils";
   import { getFriendlyErrorMessage } from "@/constants/errors";
   import type { OrgUnit } from "../../../types/org.types";
 
+  
   let {
     open = $bindable(false),
     orgUnit,
@@ -545,14 +543,5 @@
 </Sheet.Root>
 
 
-<style>
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 4px;
-  }
-  
-  .custom-scrollbar::-webkit-scrollbar-thumb { 
-    background: #e2e8f0; 
-    border-radius: 10px; 
-  }
-</style>
+
 

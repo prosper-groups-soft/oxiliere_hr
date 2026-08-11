@@ -1,10 +1,5 @@
 import APIEndPoint from '@/utilities/http/rest';
-import type { 
-  JobPosition,
-  JobPositionCreate,
-  JobPositionUpdate,
-  SeniorityLevel
-} from '../types/types';
+import type { JobPosition, JobPositionCreate, JobPositionUpdate, SeniorityLevel } from '../types/types';
 
 
 // Type pour la réponse brute du backend (utilise 'label' au lieu de 'name')

@@ -1,127 +1,313 @@
 <script lang="ts">
-  import { page } from '$app/state';
-  import { QueryClient, keepPreviousData, useQuery } from '@tanstack/svelte-query';
-  import { performanceEndpoint } from '@/features/performance/api/performance.endpoints';
-  import type { PerformanceReviewBackendResponse, ReviewStatus } from '@/features/performance/types/types';
-  import { REVIEW_STATUS_LABELS, REVIEW_STATUS_COLORS } from '@/features/performance/constants';
+	import { fade } from 'svelte/transition';
+	import { Button } from '@/components/ui/button';
+	import AppIcon from '@/components/layout/elements/AppIcon.svelte';
+	import DataPagination from '@/components/layout/elements/DataPagination.svelte';
+	import AnimateSpin from '@/components/layout/elements/AnimateSpin.svelte';
+	import LoadingBar from '@/components/layout/elements/LoadingBar.svelte';
+	import Empty from '@/components/shared/containers/empty/Empty.svelte';
+	import SearchBar from '@/components/shared/elements/SearchBar.svelte';
+	import FilterChips from '@/components/shared/elements/FilterChips.svelte';
+	import {
+		useAllReviewsQuery, useCampaignsQuery,
+		syncReviewsStore, useDeleteReviewMutation,
+		useSubmitEmployeeReviewMutation, useSubmitManagerReviewMutation,
+		useAcknowledgeReviewMutation, useDisputeReviewMutation,
+	} from '@/features/performance/queries/performanceQueries';
+	import { notification } from '@/stores/notification.svelte';
+	import { reviewsStore } from '@/features/performance/stores/reviews.svelte';
+	import { REVIEW_STATUS_LABELS } from '@/features/performance/constants';
+	import type { ReviewStatus, PerformanceReview } from '@/features/performance/types/types';
+	import ReviewList from '@/features/performance/components/reviews/views/ReviewList.svelte';
+	import ReviewSheet from '@/features/performance/components/reviews/sheets/ReviewSheet.svelte';
+	import ReviewDetailPanel from '@/features/performance/components/reviews/views/ReviewDetailPanel.svelte';
+	import ReviewsActions from '@/features/performance/components/reviews/actions/ReviewsActions.svelte';
+	import { ui } from '@/stores/ui.svelte';
+	import { get } from 'svelte/store';
+	import { ERROR_MESSAGES, getFriendlyErrorMessage } from "@/constants/errors";
 
-  // Simple view for now — will extract to components later
-  let search = $state('');
-  let statusFilter = $state<ReviewStatus | ''>('');
-  let pageNum = $state(1);
 
-  // Demo employee ID — will come from auth context
-  let employeeId = $state('');
+	// Campaigns for filter label resolution
+	const campaignsQuery = useCampaignsQuery(() => 1);
+	const campaigns = $derived($campaignsQuery.data?.results ?? []);
 
-  const queryClient = new QueryClient();
+	// TanStack Query — toutes les évaluations
+	const reviewsQuery = useAllReviewsQuery(
+		() => reviewsStore.currentPage,
+		() => ({
+			status: reviewsStore.statusFilter || undefined,
+			campaign_id: reviewsStore.campaignFilter || undefined,
+			search: reviewsStore.searchQuery || undefined,
+		})
+	);
 
-  const reviewsQuery = useQuery<{ items: PerformanceReviewBackendResponse[]; count: number }>(() => ({
-    queryKey: ['performance-reviews', employeeId, pageNum, search, statusFilter],
-    queryFn: () => performanceEndpoint.listEmployeeReviews(employeeId, {
-      page: pageNum,
-      search: search || undefined,
-      status: statusFilter || undefined,
-    }),
-    placeholderData: keepPreviousData,
-    enabled: !!employeeId,
-  }));
+	// Mutations
+	const deleteReview = useDeleteReviewMutation();
+	const submitEmployee = useSubmitEmployeeReviewMutation();
+	const submitManager = useSubmitManagerReviewMutation();
+	const acknowledge = useAcknowledgeReviewMutation();
+	const dispute = useDisputeReviewMutation();
+
+	// Synchroniser le store avec les données de la query
+	$effect(() => {
+		syncReviewsStore($reviewsQuery);
+	});
+
+	// Re-fetch quand les filtres changent
+	$effect(() => {
+		reviewsStore.searchQuery;
+		reviewsStore.statusFilter;
+		reviewsStore.campaignFilter;
+		reviewsStore.currentPage;
+		reviewsStore.perPage;
+		get(reviewsQuery).refetch();
+	});
+
+	const reviews = $derived<PerformanceReview[]>($reviewsQuery.data?.results ?? []);
+
+	// TODO: Remplacer par l'utilisateur connecté quand l'auth sera branchée
+	// 'employee' = employé évalué, 'manager' = évaluateur, 'all' = tout le monde
+	const currentMode = $state<'employee' | 'manager' | 'all'>('employee');
+
+	// Labels pour FilterChips
+	function getFilterDisplayLabel(key: string, value: string): string {
+		if (key === 'status') return REVIEW_STATUS_LABELS[value as ReviewStatus] || value;
+		if (key === 'campaign') {
+			const c = campaigns.find(c => c.id === value);
+			return c?.name ?? value;
+		}
+		if (key === 'search') return `Recherche: "${value}"`;
+		return value;
+	}
+
+	// ===== CREATE SHEET =====
+	let createSheetOpen = $state(false);
+	function openCreateSheet() {
+		createSheetOpen = true;
+	}
+
+	// ===== EDIT SHEET (depuis le dropdown d'une ligne) =====
+	let editReview = $state<PerformanceReview | null>(null);
+	let editMode = $state<'employee' | 'manager'>('employee');
+	let editSheetOpen = $state(false);
+
+	function openEditSheet(review: PerformanceReview, mode: 'employee' | 'manager') {
+		editReview = review;
+		editMode = mode;
+		editSheetOpen = true;
+	}
+
+	// ===== DETAIL SLIDE-OVER =====
+	let selectedReviewId = $state<string | null>(null);
+
+	function selectReview(review: PerformanceReview) {
+		selectedReviewId = review.id;
+	}
+
+	function handleDelete(review: PerformanceReview) {
+		const mutation = $deleteReview;
+		notification.confirm({
+			title: 'Supprimer cette évaluation ?',
+			message: "Cette action est irréversible.",
+			type: 'danger',
+			yesText: 'Supprimer',
+			onYes: async () => {
+				await mutation.mutateAsync(review.id);
+			},
+		});
+	}
+
+	// ===== UI ACTIONS =====
+	$effect(() => {
+		ui.addActions('reviews', ReviewsActionsSnippet);
+		return () => {
+			ui.removeActions('reviews');
+		};
+	});
 </script>
 
-<div class="space-y-6 p-6">
-  <!-- Header -->
-  <div class="flex items-center justify-between">
-    <div>
-      <h1 class="text-2xl font-bold text-slate-900">Mes Évaluations</h1>
-      <p class="mt-1 text-sm text-slate-500">
-        Consultez et gérez vos évaluations de performance
-      </p>
-    </div>
-  </div>
 
-  <!-- Filters -->
-  <div class="flex items-center gap-4">
-    <div class="relative flex-1 max-w-md">
-      <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-        <svg class="size-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-        </svg>
-      </div>
-      <input
-        type="text"
-        placeholder="Rechercher..."
-        bind:value={search}
-        class="w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-      />
-    </div>
-    <select
-      bind:value={statusFilter}
-      class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-    >
-      <option value="">Tous les statuts</option>
-      {#each Object.entries(REVIEW_STATUS_LABELS) as [value, label]}
-        <option value={value}>{label}</option>
-      {/each}
-    </select>
-  </div>
+<svelte:head>
+	<title>Oxiliere RH - Évaluations</title>
+</svelte:head>
 
-  <!-- Reviews List -->
-  {#if reviewsQuery.isLoading}
-    <div class="flex justify-center py-12">
-      <div class="size-8 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
-    </div>
-  {:else if reviewsQuery.data?.items.length}
-    <div class="space-y-3">
-      {#each reviewsQuery.data.items as review (review.id)}
-        <div class="rounded-xl border border-slate-200 bg-white p-5 transition-all hover:shadow-md hover:border-slate-300">
-          <div class="flex items-start justify-between">
-            <div class="space-y-1">
-              <div class="text-sm text-slate-500">
-                {review.review_period_label}
-              </div>
-              <div class="text-lg font-semibold text-slate-900">
-                {review.employee_name}
-              </div>
-              {#if review.reviewer_name}
-                <div class="text-sm text-slate-500">
-                  Évaluateur : {review.reviewer_name}
-                </div>
-              {/if}
-            </div>
-            <span
-              class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium {REVIEW_STATUS_COLORS[review.status].bg} {REVIEW_STATUS_COLORS[review.status].text}"
-            >
-              <span class="size-1.5 rounded-full {REVIEW_STATUS_COLORS[review.status].dot}" />
-              {REVIEW_STATUS_LABELS[review.status]}
-            </span>
-          </div>
-          {#if review.overall_rating}
-            <div class="mt-3 flex items-center gap-1">
-              <span class="text-sm text-slate-500">Note globale :</span>
-              <div class="flex items-center gap-0.5">
-                {#each Array(5) as _, i}
-                  <svg
-                    class="size-4 {i < (review.overall_rating ?? 0) ? 'text-amber-400' : 'text-slate-200'}"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                  </svg>
-                {/each}
-              </div>
-            </div>
-          {/if}
-        </div>
-      {/each}
-    </div>
-  {:else}
-    <div class="rounded-xl border-2 border-dashed border-slate-200 py-16 text-center">
-      <svg class="mx-auto size-12 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-      </svg>
-      <h3 class="mt-4 text-sm font-medium text-slate-900">Aucune évaluation</h3>
-      <p class="mt-1 text-sm text-slate-500">
-        Aucune évaluation trouvée pour cet employé.
-      </p>
-    </div>
-  {/if}
+
+<div class="flex h-full flex-col overflow-hidden min-h-0">
+	{@render Header()}
+
+	<div class="flex flex-1 flex-col overflow-hidden min-h-0">
+		<FilterChips
+			filters={reviewsStore.filtersWithSearch}
+			activeFiltersCount={reviewsStore.activeFiltersCount}
+			getDisplayLabel={getFilterDisplayLabel}
+			onRemove={(key, value) => {
+				if (key === 'search') {
+					reviewsStore.setSearchQuery('');
+				} else if (key === 'status') {
+					reviewsStore.setStatusFilter('');
+				} else if (key === 'campaign') {
+					reviewsStore.setCampaignFilter('');
+				}
+			}}
+			onReset={() => reviewsStore.resetFilters()}
+			class="py-1 pb-1.5 px-6 border-b border-slate-50"
+		/>
+
+		<!-- Overhead loading bar during refetch -->
+		<LoadingBar loading={$reviewsQuery.isFetching} />
+
+		<main class="flex flex-1 flex-col overflow-hidden min-h-0">
+			{#if $reviewsQuery.isLoading && reviewsStore.serverTotalCount === 0}
+				<div class="flex justify-center items-center h-full">
+					<AnimateSpin text="Chargement des évaluations" />
+				</div>
+			{:else if $reviewsQuery.error && reviewsStore.serverTotalCount === 0}
+				<div class="flex justify-center items-center h-full">
+					<Empty
+						icon="alert-circle"
+						title="Erreur de Connexion"
+						description={getFriendlyErrorMessage($reviewsQuery.error) || ERROR_MESSAGES.NETWORK.UNKNOWN}
+						iconClass="text-red-400"
+						iconContainerClass="bg-red-50/30"
+						iconSize={28}
+						iconStrokeWidth={1.3}
+					>
+						<Button
+							onclick={() => get(reviewsQuery).refetch()}
+							variant="outline"
+							class="h-7 mt-2 rounded-lg transition-colors"
+						>
+							<AppIcon name="refresh-cw" size={16} />
+							Réessayer
+						</Button>
+					</Empty>
+				</div>
+			{:else}
+				<div class="flex-1 overflow-y-auto min-h-0" transition:fade={{ duration: 200 }}>
+					{#if reviews.length === 0}
+						<Empty
+							icon="file-x"
+							title="Aucune évaluation"
+							description={reviewsStore.activeFiltersCount
+								? "Aucune évaluation ne correspond à vos critères."
+								: "Aucune évaluation n'a encore été créée."}
+						>
+							{#if reviewsStore.activeFiltersCount}
+								<Button variant="ghost" onclick={() => reviewsStore.resetFilters()} class="h-7 bg-slate-50">
+									<AppIcon name="x" size={16} class="text-slate-400" />
+									Réinitialiser les filtres
+								</Button>
+							{:else}
+								<Button onclick={openCreateSheet} class="h-7">
+									<AppIcon name="plus" size={17} />
+									Nouvelle évaluation
+								</Button>
+							{/if}
+						</Empty>
+					{:else}
+						<ReviewList
+							reviews={reviews}
+							mode={currentMode}
+							onSelect={selectReview}
+							selectedId={selectedReviewId}
+							onView={selectReview}
+							onSelfAssess={(r) => openEditSheet(r, 'employee')}
+							onEvaluate={(r) => openEditSheet(r, 'manager')}
+							onSubmitEmployee={(r) => {
+								notification.confirm({
+									title: 'Soumettre à l\'évaluateur ?',
+									message: 'Une fois soumise, vous ne pourrez plus modifier votre auto-évaluation.',
+									type: 'info',
+									yesText: 'Soumettre',
+									onYes: async () => { await $submitEmployee.mutateAsync(r.id); },
+								});
+							}}
+							onSubmitManager={(r) => {
+								notification.confirm({
+									title: 'Soumettre la notation ?',
+									message: 'Une fois soumise, vous ne pourrez plus modifier votre évaluation.',
+									type: 'info',
+									yesText: 'Soumettre',
+									onYes: async () => { await $submitManager.mutateAsync(r.id); },
+								});
+							}}
+							onAcknowledge={(r) => {
+								notification.confirm({
+									title: 'Valider les résultats ?',
+									message: 'En confirmant, vous reconnaissez avoir pris connaissance des résultats de votre évaluation.',
+									type: 'success',
+									yesText: 'Valider',
+									onYes: async () => { await $acknowledge.mutateAsync(r.id); },
+								});
+							}}
+							onDispute={(r) => {
+								notification.confirm({
+									title: 'Contester l\'évaluation ?',
+									message: 'Vous êtes sur le point de contester les résultats. Expliquez les raisons ci-dessous.',
+									type: 'warning',
+									yesText: 'Contester',
+									inputLabel: 'Motif de la contestation',
+									inputValue: '',
+									onYes: (reason?: string) => { if (reason) $dispute.mutateAsync({ reviewId: r.id, reason }); },
+								});
+							}}
+							onDelete={handleDelete}
+						/>
+					{/if}
+				</div>
+			{/if}
+
+			{#if reviewsStore.serverTotalCount > 0}
+				<div class="px-4 bg-slate-50/80 border-t border-[#e9eaea] pr-10">
+					<DataPagination
+						currentCount={reviews.length}
+						totalCount={reviewsStore.serverTotalCount}
+						currentPage={reviewsStore.currentPage}
+						totalPages={reviewsStore.serverTotalPages}
+						perPage={reviewsStore.perPage}
+						onPageChange={(p) => reviewsStore.setPage(p)}
+						onPerPageChange={(s) => reviewsStore.setPerPage(s)}
+						onNext={() => reviewsStore.nextPage()}
+						onPrev={() => reviewsStore.prevPage()}
+						unitLabel="évaluations"
+					/>
+				</div>
+			{/if}
+		</main>
+	</div>
 </div>
+
+
+<!-- ===== DETAIL SLIDE-OVER ===== -->
+<ReviewDetailPanel bind:reviewId={selectedReviewId} />
+
+<!-- ===== CREATE SHEET ===== -->
+<ReviewSheet bind:open={createSheetOpen} />
+
+<!-- ===== EDIT SHEET (depuis la ligne) ===== -->
+{#if editReview}
+	<ReviewSheet bind:open={editSheetOpen} review={editReview} mode={editMode} />
+{/if}
+
+
+<!-- ===== SNIPPETS ===== -->
+
+{#snippet Header()}
+	<div class="flex items-center px-5 py-1.5 border-b border-slate-50">
+		<SearchBar
+			bind:value={reviewsStore.searchQuery}
+			placeholder="Rechercher une évaluation..."
+			class="w-125"
+			inputClass="h-9.5 pl-10 pr-9 rounded-[18px] text-[0.9rem] bg-[#f5f6f7]"
+			iconSize={22}
+			onClear={() => reviewsStore.setSearchQuery('')}
+		/>
+	</div>
+{/snippet}
+
+
+{#snippet ReviewsActionsSnippet()}
+	<ReviewsActions onCreate={openCreateSheet} campaigns={campaigns} />
+{/snippet}
+
+

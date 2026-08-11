@@ -75,7 +75,7 @@
     <CampaignHeader campaign={campaignData} />
   {/if}
   
-  <div class="flex-1 overflow-y-auto custom-scrollbar">
+  <div class="flex-1 overflow-y-auto custom-scrollbar" style="--scrollbar-size: 6px">
     {@render children?.()}
   </div>
 {:else}
@@ -87,18 +87,4 @@
   bind:open={recruitmentStore.profileSheetOpen}
   bind:candidateId={recruitmentStore.profileSheetCandidateId}
 />
-
-
-<style>
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #e2e8f0;
-    border-radius: 10px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-  }
-</style>
 

@@ -15,6 +15,7 @@
     SALARY_BASE_TYPES,
     CURRENCIES,
     CONTRACT_TYPES,
+    WORK_REGIMES,
     type RemunerationType,
     type PaymentPeriod,
     type SalaryBaseType,
@@ -42,7 +43,11 @@
     currency: 'CDF' as Currency,
     hire_date: '',
     end_date: '',
-    is_active: true
+    is_active: true,
+    // Métamodèle : salaire net négocié en USD, régime de travail, clauses
+    negotiated_salary_usd: null as number | null,
+    work_regime: 'TEMPS_PLEIN' as string,
+    contractual_clauses: ''
   });
 
   // Validation state
@@ -75,6 +80,11 @@
       formData.end_date = contract?.end_date ? contract.end_date.split('T')[0] : (employee.termination_date ? employee.termination_date.split('T')[0] : '');
       
       formData.is_active = contract?.is_active ?? true;
+
+      // Métamodèle (Règle 5) — salaire négocié USD, régime de travail, clauses
+      formData.negotiated_salary_usd = contract?.negotiated_salary_usd ?? null;
+      formData.work_regime = contract?.work_regime ?? 'TEMPS_PLEIN';
+      formData.contractual_clauses = contract?.contractual_clauses ?? '';
     }
   });
 
@@ -94,8 +104,6 @@
       isValid = true;
     }
   });
-
-
 
   // TanStack Queries
   const positionsQuery = usePositionsQuery();
@@ -312,13 +320,13 @@
           </Select.Trigger>
 
           {#if $positionsQuery.isSuccess && positionOptions.length > 0}
-          <Select.Content class="max-h-60 z-100">
+            <Select.Content class="max-h-60 z-100">
               {#each positionOptions as opt}
                 <Select.SelectItem value={opt.value} label={opt.label}>
                   <div class="flex flex-col">
                     <span class="text-[0.86rem]">{opt.label}</span>
                     <span class="text-[0.86rem] text-slate-400 flex items-center gap-1">
-                      <AppIcon name={getOrgUnitIcon(opt.org_unit_type)} size={14} />
+                      <AppIcon name={getOrgUnitIcon(opt.org_unit_type)} size={15} />
                       {opt.org_unit_name}
                     </span>
                   </div>
@@ -331,7 +339,7 @@
 
         <!-- Affichage unité org (lecture seule) -->
         {#if selectedPosition}
-          <div class="flex items-center gap-2 text-[0.8rem] text-slate-500 mt-1">
+          <div class="flex items-center gap-2 text-[0.86rem] text-slate-500 mt-1">
             <AppIcon name={getOrgUnitIcon(selectedPosition.org_unit?.type || '')} size={15} />
             Unité: {selectedPosition.org_unit?.name}
           </div>
@@ -596,6 +604,82 @@
         formData.end_date,
         (v) => formData.end_date = v
       )}
+    </div>
+  </div>
+
+  <!-- Section Métamodèle (Règle 5) -->
+  <div class="space-y-4">
+    <h4 class="text-[0.9rem] font-bold text-slate-900 border-b border-slate-100 pb-2">
+      Métamodèle contractuel (RDC)
+    </h4>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- Salaire net négocié en USD -->
+      <div class="space-y-1.5">
+        <Label for="negotiated_salary_usd" class="text-[0.83rem] text-slate-900 font-medium">
+          Salaire net négocié (USD) *
+        </Label>
+        <div class="relative">
+          <Input
+            id="negotiated_salary_usd"
+            type="number"
+            min="0"
+            placeholder="Ex: 2500"
+            value={formData.negotiated_salary_usd ?? ''}
+            oninput={(e) => {
+              const v = e.currentTarget.value;
+              formData.negotiated_salary_usd = v === '' ? null : parseFloat(v);
+            }}
+            class="h-10 bg-white border-slate-200 focus:ring-1 focus:ring-primary focus:border-primary rounded-md shadow-fine pr-12"
+          />
+          <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-xs">$</span>
+        </div>
+        <p class="text-[0.77rem] text-slate-500">
+          Salaire net mensuel négocié à l'embauche, exprimé en USD (référence métamodèle).
+        </p>
+      </div>
+
+      <!-- Régime de travail -->
+      <div class="space-y-1.5">
+        <Label for="work_regime" class="text-[0.83rem] text-slate-900 font-medium">
+          Régime de travail *
+        </Label>
+        <Select.Root
+          type="single"
+          bind:value={formData.work_regime}
+        >
+          <Select.Trigger id="work_regime" class="h-10 bg-white border-slate-200 rounded-md w-full shadow-fine font-normal text-sm cursor-pointer">
+            {WORK_REGIMES.find((t: any) => t.value === formData.work_regime)?.label ?? "Sélectionner..."}
+          </Select.Trigger>
+          <Select.Content class="z-100">
+            {#each WORK_REGIMES as regime}
+              <Select.SelectItem value={regime.value} label={regime.label}>
+                {regime.label}
+              </Select.SelectItem>
+            {/each}
+          </Select.Content>
+        </Select.Root>
+        <p class="text-[0.77rem] text-slate-500">
+          Temps plein, partiel (50/60/80 %) ou expatrié (rémunération en devises).
+        </p>
+      </div>
+    </div>
+
+    <!-- Clauses particulières -->
+    <div class="space-y-1.5">
+      <Label for="contractual_clauses" class="text-[0.83rem] text-slate-900 font-medium">
+        Clauses particulières
+      </Label>
+      <textarea
+        id="contractual_clauses"
+        rows="4"
+        placeholder="Clause de non-concurrence, période d'essai, avantages spécifiques, obligations de confidentialité…"
+        value={formData.contractual_clauses}
+        oninput={(e) => (formData.contractual_clauses = e.currentTarget.value)}
+        class="w-full h-10 min-h-[96px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-fine focus:ring-1 focus:ring-primary focus:border-primary outline-none resize-y"
+      ></textarea>
+      <p class="text-[0.77rem] text-slate-500">
+        Conditions particulières négociées au contrat (facultatif).
+      </p>
     </div>
   </div>
 

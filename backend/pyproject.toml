@@ -64,8 +64,32 @@ reportUnknownMemberType = false
 reportUnknownParameterType = false
 reportUnknownVariableType = false
 reportUnknownArgumentType = false
+reportOptionalMemberAccess = false
 
 [dependency-groups]
 dev = [
     "basedpyright>=1.39.6",
 ]
+
+[tool.pyright]
+include = ["hr", "ox_hr", "core"]
+exclude = [
+    "**/node_modules", 
+    "**/.*", 
+    "**/__pycache__", 
+    "**/__pyrefly_virtual__/**",
+    ".venv", 
+    "venv", 
+    "**/migrations", 
+]
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+reportMissingTypeStubs = false
+reportImplicitRelativeImport = false
+reportMissingParameterType = false
+reportMissingTypeArgument = false
+reportUnknownMemberType = false
+reportUnknownParameterType = false
+reportUnknownVariableType = false
+reportUnknownArgumentType = false
+reportOptionalMemberAccess = false

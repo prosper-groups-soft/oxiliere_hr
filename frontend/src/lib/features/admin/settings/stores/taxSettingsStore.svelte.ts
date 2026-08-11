@@ -56,9 +56,6 @@ function createEmptyTaxConfig(): TaxConfig {
 		workDaysPerWeek: 5,
 		workHoursPerWeek: 45,
 		housingAllowanceMinPercentage: 0.25, // 25%
-		familyAllowanceMinAmount: 300,
-		familyAllowanceSmigDivider: 27,
-		overtimeMultiplier: 1.5,
 		leaveDeductionDivisor: 26,
 		exchangeRateUsdCdf: 2850,
 		exchangeRateSource: 'MANUAL',
@@ -373,9 +370,6 @@ export class TaxSettingsStore {
 		this.config.workHoursPerDay = toNum(config.work_hours_per_day) || 8;
 		this.config.workDaysPerWeek = toNum(config.work_days_per_week) || 5;
 		this.config.housingAllowanceMinPercentage = toNum(config.housing_allowance_min_percentage) / 100;
-		this.config.familyAllowanceMinAmount = toNum(config.family_allowance_min_amount);
-		this.config.familyAllowanceSmigDivider = toNum(config.family_allowance_smig_divider);
-		this.config.overtimeMultiplier = toNum(config.overtime_multiplier);
 		this.config.leaveDeductionDivisor = toNum(config.leave_deduction_divisor);
 		const exchangeRate = toNum(config.exchange_rate_usd_cdf) || 2850;
 		this.config.exchangeRateUsdCdf = exchangeRate;

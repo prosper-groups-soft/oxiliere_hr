@@ -5,11 +5,6 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   plugins: [tailwindcss(), sveltekit()],
-  optimizeDeps: {
-    noDiscovery: true,
-    include: [],
-    exclude: ['@lucide/svelte'],
-  },
   ssr: {
     noExternal: [
       '@lucide/svelte', 

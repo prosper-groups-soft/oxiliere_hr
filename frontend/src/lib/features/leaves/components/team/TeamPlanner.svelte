@@ -12,6 +12,7 @@
   import { Button } from '@/components/ui/button';
   import { MONTHS } from '@/constants/locale';
   import { cn } from '@/utilities/common/css';
+  import LoadingBar from '@/components/layout/elements/LoadingBar.svelte';
 
 
   // --- Month state ---
@@ -339,11 +340,7 @@
   {@render Header()}
 
   <!-- Overhead loading bar during refetch -->
-  {#if $teamQuery.isFetching}
-    <div class="h-0.5 bg-slate-100 overflow-hidden shrink-0">
-      <div class="h-full bg-primary animate-[loadingSlide_1.2s_ease-in-out_infinite] rounded-full" style="width: 30%"></div>
-    </div>
-  {/if}
+  <LoadingBar loading={$teamQuery.isFetching} />
 
   <!-- Gantt Grid -->
   <Tooltip.Provider delayDuration={400}>
@@ -368,16 +365,5 @@
 </div>
 
 
-<style>
-  .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
-  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-  :global {
-    @keyframes loadingSlide {
-      0% { transform: translateX(-100%); }
-      50% { transform: translateX(200%); }
-      100% { transform: translateX(400%); }
-    }
-  }
-</style>
+
 

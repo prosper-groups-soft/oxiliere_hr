@@ -474,6 +474,10 @@ export class OnboardingStore {
 	 * Loads archived drafts from localStorage
 	 */
 	private loadArchivedDrafts() {
+		if (typeof localStorage === 'undefined') {
+			this.archivedDrafts = [];
+			return;
+		}
 		try {
 			const archive = localStorage.getItem(this.ARCHIVE_KEY);
 			const drafts = archive ? JSON.parse(archive) : [];

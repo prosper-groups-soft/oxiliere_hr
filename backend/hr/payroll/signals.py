@@ -5,7 +5,7 @@ from hr.payroll.models import (
     PayrollConfiguration,
     EmployeeContract,
     PayrollAdjustment,
-    EmployeeAdjustment,
+    ContractAdjustment,
     PayrollRun,
     EmployeePayslip,
     SalaryAdvance,
@@ -19,6 +19,7 @@ from hr.payroll.models import (
     TaxBracket
 )
 from hr.payroll.services.cache import PayrollCacheService
+from hr.signals import employee_changed
 
 
 @receiver([post_save, post_delete], sender=PayrollConfiguration)
@@ -36,6 +37,9 @@ def invalidate_payroll_config_cache(sender, instance, **kwargs):
 def invalidate_contract_cache(sender, instance, **kwargs):
     """Invalidate contract-related caches."""
     PayrollCacheService.clear_contract_cache(instance)
+    # Signal de domaine : le module employees écoute pour purger son propre
+    # cache (détail employé) sans couplage directionnel payroll → employees.
+    employee_changed.send(sender=sender, employee_id=instance.employee_id)
 
 
 @receiver([post_save, post_delete], sender=PayrollAdjustment)
@@ -44,10 +48,20 @@ def invalidate_adjustment_cache(sender, instance, **kwargs):
     PayrollCacheService.clear_adjustment_cache()
 
 
-@receiver([post_save, post_delete], sender=EmployeeAdjustment)
-def invalidate_employee_adjustment_cache(sender, instance, **kwargs):
-    """Invalidate specific employee adjustment cache."""
-    PayrollCacheService.clear_employee_cache(instance.employee_id)
+@receiver([post_save, post_delete], sender=ContractAdjustment)
+def invalidate_contract_adjustment_cache(sender, instance, **kwargs):
+    """Invalidate contract and employee adjustment caches.
+
+    ContractAdjustment porte un employee dénormalisé (requêtes par employé) :
+    l'invalidation couvre le cache employé (bulletin) et le cache contrat
+    (liste des éléments de paie du contrat).
+    """
+    employee_id = getattr(instance, 'employee_id', None)
+    if employee_id:
+        PayrollCacheService.clear_employee_cache(employee_id)
+    contract_id = getattr(instance, 'contract_id', None)
+    if contract_id:
+        PayrollCacheService.clear_contract_cache(instance.contract)
 
 
 @receiver([post_save, post_delete], sender=PayrollRun)

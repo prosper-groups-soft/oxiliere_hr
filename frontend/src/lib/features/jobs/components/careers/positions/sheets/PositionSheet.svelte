@@ -218,15 +218,6 @@
     }));
   }
   
-  function updateSeniorityLevel(index: number, field: string, value: any) {
-    formSeniorityLevels = formSeniorityLevels.map((level, i) => {
-      if (i === index) {
-        return { ...level, [field]: value };
-      }
-      return level;
-    });
-  }
-  
   function moveSeniorityLevel(index: number, direction: 'up' | 'down') {
     if (
       (direction === 'up' && index === 0) || 
@@ -379,7 +370,7 @@
         </div>
         <!-- Currency Toggle -->
         <CurrencyToggle
-          currency={taxSettingsStore.config.currency}
+          currency={taxSettingsStore.config.currency === 'CDF' ? 'CDF' : 'USD'}
           onChange={(c) => taxSettingsStore.setCurrency(c)}
           size="sm"
         />
@@ -871,9 +862,5 @@
 </Sheet.Root>
 
 
-<style>
-  .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-</style>
+
 

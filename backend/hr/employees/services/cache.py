@@ -1,3 +1,4 @@
+import logging
 from django.core.cache         import cache
 from hr.services.cache_helpers import (
     generate_cache_key, 
@@ -6,6 +7,10 @@ from hr.services.cache_helpers import (
     invalidate_cache_pattern
 )
 from hr.employees.models import Employee
+from cacheops import invalidate_obj
+
+
+logger = logging.getLogger(__name__)
 
 
 class EmployeeCacheService:
@@ -127,4 +132,19 @@ class EmployeeCacheService:
         # API Cache
         invalidate_cache_pattern(f"employee_detail:shared:/api/employees/{employee_id}")
         EmployeeCacheService.clear_api_cache_prefix("employee_list")
+
+        # cacheops (ORM cache) - indispensable ici : même si la clé API du détail
+        # est purgée, cacheops servi l'objet Employee (et son prefetch contracts)
+        # avec des données périmées pendant 24h. Utiliser cacheops.post invalidate-fn.
+        try:
+            emp_obj = Employee.objects.filter(id=employee_id).defer('*').first()
+            if emp_obj:
+                invalidate_obj(emp_obj)
+                # Inc invalide aussi cacheops des contrats liés (salaire/plafond)
+                from hr.payroll.models import EmployeeContract as _ContractModel
+                for contract in _ContractModel.objects.filter(employee_id=employee_id).defer('*').only('id'):
+                    invalidate_obj(contract)
+        except Exception:
+            logger = logging.getLogger(__name__)
+            logger.exception("cacheops invalidation failed in clear_employee_cache")
 

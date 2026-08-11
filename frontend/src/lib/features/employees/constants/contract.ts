@@ -43,10 +43,25 @@ export const CONTRACT_TYPES = [
 ] as const;
 
 
+/** Régimes de travail — alignés sur l'enum backend WorkRegime (enums.py L44-54) */
+export const WORK_REGIMES = [
+  { value: 'FULL_TIME', label: 'Temps plein' },
+  { value: 'PART_TIME', label: 'Temps partiel' },
+  { value: 'REDUCED_TIME', label: 'Temps réduit' },
+  { value: 'INTERMITTENT', label: 'Travail intermittent' },
+  { value: 'SEASONAL', label: 'Travail saisonnier' },
+  { value: 'SHIFT', label: 'Travail posté' },
+  { value: 'NIGHT', label: 'Travail de nuit' },
+  { value: 'HOME', label: 'Travail à domicile' },
+  { value: 'REMOTE', label: 'Télétravail' }
+] as const;
+
+
 // Types pour TypeScript
 export type RemunerationType = typeof REMUNERATION_TYPES[number]['value'];
 export type PaymentPeriod = typeof PAYMENT_PERIODS[number]['value'];
 export type SalaryBaseType = typeof SALARY_BASE_TYPES[number]['value'];
 export type Currency = typeof CURRENCIES[number]['value'];
 export type ContractType = typeof CONTRACT_TYPES[number]['value'];
+export type WorkRegime = typeof WORK_REGIMES[number]['value'];
 
