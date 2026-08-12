@@ -9,6 +9,7 @@
   import { Button } from "@/components/ui/button";
   import SeniorityRow from "./views/SeniorityRow.svelte";
   import { getFriendlyErrorMessage } from '@/constants/errors';
+  
 
   let {
     onEdit,

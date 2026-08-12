@@ -57,6 +57,22 @@ export interface SeniorityLevelDefinition {
 }
 
 
+/**
+ * Classe/échelon de la grille des catégories professionnelles RDC.
+ * Réponse de GET /api/jobs/professional-categories (7 classes × 4 échelons).
+ */
+export interface ProfessionalCategory {
+	id: string;
+	classe: number;
+	echelon: number;
+	label: string;
+	application: string;
+	is_active: boolean;
+	created_at?: string;
+	updated_at?: string;
+}
+
+
 export interface Department {
 	id: string;
 	name: string;

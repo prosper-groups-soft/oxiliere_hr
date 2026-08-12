@@ -27,7 +27,6 @@ from hr.payroll.models import (
     OvertimeRule,
     TaxBracket,
     LegalAllowance,
-    ProfessionalCategory,
 )
 
 from hr.payroll.schemas import (
@@ -60,10 +59,6 @@ from hr.payroll.schemas import (
     LegalAllowanceOut,
     LegalAllowanceUpdateIn,
     LegalAllowanceListFilterIn,
-    # Professional Categories
-    ProfessionalCategoryOut,
-    ProfessionalCategoryCreateIn,
-    ProfessionalCategoryUpdateIn,
 )
 
 from hr.payroll.services import (
@@ -466,65 +461,6 @@ class PayrollConfigurationController(ControllerBase):
             return {"status": "success", "reset_count": count}
         except Exception as e:
             logger.error("[Allowances] Error resetting allowances", extra={"error": str(e)})
-            return self.create_response({"detail": str(e)}, status_code=500)
-
-    # ===== PROFESSIONAL CATEGORIES (S8) =====
-
-    @http_get('/professional-categories', response=List[ProfessionalCategoryOut], permissions=[ScopePermission('payroll:r')])
-    def list_professional_categories(self):
-        """
-        Grille des catégories professionnelles (7 classes × 4 échelons).
-        Retourne la grille légale ordonnée par classe puis échelon.
-        """
-        logger.debug("[Categories] Listing professional categories")
-        return list(ProfessionalCategory.objects.filter(is_active=True).order_by('classe', 'echelon'))
-
-    @http_post('/professional-categories', response={201: ProfessionalCategoryOut}, permissions=[ScopePermission('payroll:w')])
-    def create_professional_category(self, data: ProfessionalCategoryCreateIn):
-        """
-        Ajoute une classe/échelon à la grille (usage avancé — la grille légale est fournie par fixture).
-        """
-        actor = getattr(self.context.request, 'user', None)
-        try:
-            category = ProfessionalCategory.objects.create(**data.model_dump())
-            # Purge du cache de configuration (la grille est servie en cache)
-            PayrollCacheService.clear_config_cache()
-            logger.info("[Categories] Professional category created", extra={"category_id": category.id})
-            return 201, category
-        except Exception as e:
-            logger.error("[Categories] Error creating category", extra={"error": str(e)})
-            return self.create_response({"detail": str(e)}, status_code=400)
-
-    @http_patch('/professional-categories/{category_id}', response=ProfessionalCategoryOut, permissions=[ScopePermission('payroll:u')])
-    def update_professional_category(self, category_id: UUID, data: ProfessionalCategoryUpdateIn):
-        """
-        Modifie une classe/échelon (libellé, application, actif).
-        """
-        actor = getattr(self.context.request, 'user', None)
-        try:
-            category = self.config_service.update_professional_category(
-                category_id=category_id,
-                data=data.model_dump(exclude_unset=True),
-                actor=actor,
-            )
-            return category
-        except ProfessionalCategory.DoesNotExist:
-            return self.create_response({"detail": "Professional category not found"}, status_code=404)
-        except ValidationError as e:
-            return self.create_response({"detail": str(e)}, status_code=400)
-
-    @http_post('/professional-categories/reset/', response={200: dict}, permissions=[ScopePermission('payroll:a')])
-    def reset_professional_categories(self):
-        """
-        Réinitialise la grille des catégories professionnelles depuis la fixture
-        (professional_categories.json — 7 classes × 4 échelons).
-        """
-        logger.info("[Categories] Resetting professional categories from fixture")
-        try:
-            count = self.init_service.reset_professional_categories()
-            return {"status": "success", "reset_count": count}
-        except Exception as e:
-            logger.error("[Categories] Error resetting categories", extra={"error": str(e)})
             return self.create_response({"detail": str(e)}, status_code=500)
 
     @http_get('/exchange-rate/', response={200: dict}, permissions=[ScopePermission('payroll:r')])

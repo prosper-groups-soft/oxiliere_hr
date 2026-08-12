@@ -4,13 +4,11 @@
   import { ui } from '@/stores/ui.svelte';
   import { payrollStore } from '@/features/payroll/stores/payroll.svelte';
   import { payrollSettingsStore } from '@/features/payroll/stores/configuration/payrollSettingsStore.svelte';
-  import { payrollConfigStore } from '@/features/payroll/stores/configuration/payrollConfigStore.svelte';
 
   import GeneralSettings from '@/features/payroll/components/settings/tabs/GeneralSettings.svelte';
   import LegalSettings from '@/features/payroll/components/settings/tabs/LegalSettings.svelte';
   import FiscalSettings from '@/features/payroll/components/settings/tabs/FiscalSettings.svelte';
   import CatalogSettings from '@/features/payroll/components/settings/tabs/CatalogSettings.svelte';
-  import ProfessionalCategoryGrid from '@/features/payroll/components/settings/tabs/ProfessionalCategoryGrid.svelte';
   import SettingsTabs from '@/features/payroll/components/settings/SettingsTabs.svelte';
   import SettingsFooter from '@/features/payroll/components/settings/SettingsFooter.svelte';
 
@@ -88,14 +86,6 @@
             onUpdate={(id, data) => payrollSettingsStore.updateAdjustment(id, data)}
             onDelete={(id) => payrollSettingsStore.deleteAdjustment(id)}
             onReset={() => payrollSettingsStore.resetAdjustments()}
-          />
-
-        {:else if payrollSettingsStore.activeTab === 'classes'}
-          <ProfessionalCategoryGrid
-            categories={payrollConfigStore.professionalCategories}
-            isLoading={false}
-            onToggle={(cat, isActive) => payrollSettingsStore.toggleCategory(cat.id, isActive)}
-            onReset={() => payrollSettingsStore.resetCategories()}
           />
         {/if}
 

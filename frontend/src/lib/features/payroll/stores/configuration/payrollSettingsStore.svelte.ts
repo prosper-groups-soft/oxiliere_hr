@@ -20,7 +20,7 @@ export type SettingsViewState = 'loading' | 'success' | 'error' | 'offline';
  */
 class PayrollSettingsStore {
   /** Onglet actif */
-  activeTab = $state<'general' | 'legal' | 'fiscal' | 'catalog' | 'classes'>('general');
+  activeTab = $state<'general' | 'legal' | 'fiscal' | 'catalog'>('general');
   activeTabIndex = $state(0);
 
   /** État de chargement de la configuration */
@@ -41,7 +41,6 @@ class PayrollSettingsStore {
     { id: 'legal' as const, label: 'Paramètres légaux', icon: 'scale' },
     { id: 'fiscal' as const, label: 'Barème fiscal', icon: 'receipt' },
     { id: 'catalog' as const, label: 'Éléments de paie', icon: 'book-open' },
-    { id: 'classes' as const, label: 'Classes & Échelons', icon: 'layers' },
   ];
 
   /** SMIG actif (le plus récent marqué actif) */
@@ -207,30 +206,6 @@ class PayrollSettingsStore {
       notification.toast.success('Catalogue d\'éléments de paie réinitialisé');
     } catch (e: any) {
       const msg = e?.message ?? "Impossible de réinitialiser le catalogue.";
-      this.saveError = msg;
-      notification.toast.error(msg);
-    }
-  }
-
-  /** Bascule l'état actif d'une classe/échelon (S8) */
-  async toggleCategory(categoryId: string, isActive: boolean): Promise<void> {
-    try {
-      await payrollConfigStore.saveProfessionalCategory(categoryId, { is_active: isActive });
-      notification.toast.success(isActive ? 'Classe activée' : 'Classe désactivée');
-    } catch (e: any) {
-      const msg = e?.message ?? "Impossible de mettre à jour la classe.";
-      this.saveError = msg;
-      notification.toast.error(msg);
-    }
-  }
-
-  /** Réinitialise la grille des classes/échelons depuis les fixtures légales (S8) */
-  async resetCategories(): Promise<void> {
-    try {
-      await payrollConfigStore.resetProfessionalCategories();
-      notification.toast.success('Grille des classes et échelons réinitialisée');
-    } catch (e: any) {
-      const msg = e?.message ?? "Impossible de réinitialiser la grille.";
       this.saveError = msg;
       notification.toast.error(msg);
     }

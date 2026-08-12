@@ -7,18 +7,42 @@
   import * as Tabs from '@/components/ui/tabs';
 
 
-  const TABS = [
+  const BASE_TABS = [
     { id: 'executions', label: 'Exécutions', icon: 'play-circle', path: '/payroll' },
     { id: 'payslips', label: 'Bulletins', icon: 'file-text', path: '/payroll/payslips' },
     { id: 'advances', label: 'Avances', icon: 'banknote', path: '/payroll/advances' },
     { id: 'settings', label: 'Configuration', icon: 'settings', path: '/payroll/payroll-settings' },
   ];
 
+  const currentRunTab = $derived.by(() => {
+    const run = payrollStore.currentRun;
+    const isRunActive = run && !['paid', 'closed', 'canceled', 'archived'].includes(run.status);
+    // Garder l'onglet actif si un run existe OU si on est dans le flux de création/exécution
+    const isPayrollFlux = page.url.pathname.startsWith('/payroll/new-run') || page.url.pathname.startsWith('/payroll/run');
+    if (!isRunActive && !isPayrollFlux) return null;
+
+    return {
+      id: 'currentRun',
+      label: run ? `Paie ${run.period}` : 'Paie en cours...',
+      icon: 'play-circle',
+      path: '/payroll/run',
+    };
+  });
+
+  const TABS = $derived.by(() => {
+    const tab = currentRunTab;
+    return tab ? [...BASE_TABS, tab] : [...BASE_TABS];
+  });
+
   // Trier par longueur de chemin (le plus long d'abord) pour 
   // éviter que '/payroll' ne matche tous les '/payroll/*'
-  const SORTED_TABS = $derived([...TABS].sort((a, b) => b.path.length - a.path.length));
+  const SORTED_TABS = $derived.by(() => [...TABS].sort((a, b) => b.path.length - a.path.length));
 
   const activeTabId = $derived.by(() => {
+    // Si on est dans le flux de création/exécution, forcer l'onglet courant comme actif
+    if (page.url.pathname.startsWith('/payroll/new-run') || page.url.pathname.startsWith('/payroll/run')) {
+      return 'currentRun';
+    }
     const tab = SORTED_TABS.find(t => page.url.pathname.startsWith(t.path));
     return tab?.id || 'executions';
   });
@@ -32,7 +56,8 @@
     executions: null,
     payslips: null,
     advances: null,
-    settings: null
+    settings: null,
+    currentRun: null,
   });
   let indicatorStyle = $state('');
 

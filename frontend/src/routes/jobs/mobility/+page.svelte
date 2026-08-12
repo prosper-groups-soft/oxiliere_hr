@@ -14,11 +14,7 @@
   import VacancySheet from "@/features/jobs/components/mobility/vacancies/sheets/VacancySheet.svelte";
   import { ui } from "@/stores/ui.svelte";
   import type { Transition, Vacancy } from "@/features/jobs/types/types";
-  import {
-    useTransitionsQuery,
-    useDeleteTransitionMutation,
-    transitionQueryKeys
-  } from "@/features/jobs/queries/transitionQueries";
+  import { useTransitionsQuery, useDeleteTransitionMutation, transitionQueryKeys } from "@/features/jobs/queries/transitionQueries";
   import {
     useVacanciesQuery, useDeleteVacancyMutation,
     vacancyQueryKeys, syncVacancies

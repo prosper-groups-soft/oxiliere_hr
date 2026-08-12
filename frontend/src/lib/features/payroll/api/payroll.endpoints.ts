@@ -85,11 +85,5 @@ export const PayrollApi = {
 
   /** Contract adjustments (S10) — même route que pay-elements (rétro-compat) */
   contractAdjustments: new APIEndPoint('/api/payroll/contracts/:contractId/pay-elements', '/api/payroll/contracts/:contractId/pay-elements/:id'),
-
-  /** Professional categories grid (S8) — /api/payroll/configuration/professional-categories */
-  professionalCategories: new APIEndPoint('/api/payroll/configuration/professional-categories', '/api/payroll/configuration/professional-categories/:id'),
-
-  /** Reset professional categories from fixture — POST /api/payroll/configuration/professional-categories/reset/ */
-  professionalCategoriesReset: new APIEndPoint('/api/payroll/configuration/professional-categories/reset/', '/api/payroll/configuration/professional-categories/reset/'),
 } as const;
 

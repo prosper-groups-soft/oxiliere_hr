@@ -370,24 +370,6 @@ export interface ContractPayElementInput {
 }
 
 
-/* ─── S8 — Catégories professionnelles (grille 7×4) ─── */
-
-/**
- * Classe/échelon de la grille des catégories professionnelles RDC (S8).
- * Réponse de GET /payroll/configuration/professional-categories.
- */
-export interface ProfessionalCategory {
-	id: string;
-	classe: number;
-	echelon: number;
-	label: string;
-	application: string;
-	is_active: boolean;
-	created_at?: string;
-	updated_at?: string;
-}
-
-
 /* ─── Tax bracket ─── */
 
 /** A progressive tax bracket with lower/upper bounds and marginal rate */

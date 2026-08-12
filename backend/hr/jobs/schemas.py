@@ -51,6 +51,33 @@ class SeniorityLevelOut(Schema):
     label: str
     requirements: List[str]
     classe: Optional[int] = Field(default=None, ge=1, le=7)
+    professional_category_id: Optional[UUID] = None
+    is_active: bool = True
+
+
+class ProfessionalCategoryOut(Schema):
+    """Output schema for a professional category (grille légale 7x4)."""
+    id: UUID
+    classe: int
+    echelon: int
+    label: str
+    application: str = ''
+    is_active: bool = True
+
+
+class ProfessionalCategoryUpdateIn(Schema):
+    """Partial update schema for a professional category."""
+    label: Optional[str] = None
+    application: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class ProfessionalCategoryCreateIn(Schema):
+    """Create schema for a professional category."""
+    classe: Annotated[int, Field(ge=1, le=7)]
+    echelon: Annotated[int, Field(ge=1, le=4)]
+    label: str
+    application: str = ''
     is_active: bool = True
 
 
@@ -59,7 +86,7 @@ class SeniorityLevelUpdateIn(Schema):
     label: Optional[str] = None
     rank: Optional[int] = None
     requirements: Optional[List[str]] = None
-    classe: Optional[Annotated[int, Field(ge=1, le=7)]] = None
+    professional_category_id: Optional[UUID] = None
     is_active: Optional[bool] = None
 
 
@@ -69,7 +96,7 @@ class SeniorityLevelCreateIn(Schema):
     label: str  # Required: display name
     rank: int   # Required: hierarchy order
     requirements: List[str] = []
-    classe: Optional[Annotated[int, Field(ge=1, le=7)]] = None
+    professional_category_id: Optional[UUID] = None
     is_active: bool = True
     
 
@@ -81,6 +108,7 @@ class PositionSeniorityOut(Schema):
     salary_min: int
     salary_max: int
     echelon: Optional[Annotated[int, Field(ge=1, le=4)]] = None
+    professional_category_id: Optional[UUID] = None
     rank: int
     next_level_id: Optional[UUID] = None
     is_active: bool = True

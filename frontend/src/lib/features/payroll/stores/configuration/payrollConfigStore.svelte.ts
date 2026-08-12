@@ -1,7 +1,7 @@
 import type {
 	PayrollConfiguration, PayrollConfigurationUpdate, SMIGConfiguration,
 	TaxBracketConfig, PayrollAdjustmentConfig, OvertimeRule,
-	LegalAllowanceConfig, SocialContributionRate, ProfessionalCategory
+	LegalAllowanceConfig, SocialContributionRate
 } from '../../types/types';
 import type { ExchangeRateResponse } from '@/features/payroll/queries/payroll';
 import { payrollConfigApiStore } from './payrollConfig.api.svelte';
@@ -24,7 +24,6 @@ export class PayrollConfigStore {
 	overtimeRules = $state<OvertimeRule[]>([]);
 	legalAllowances = $state<LegalAllowanceConfig[]>([]);
 	socialContributions = $state<SocialContributionRate[]>([]);
-	professionalCategories = $state<ProfessionalCategory[]>([]);
 	isSavingConfiguration = $state(false);
 
 	activeSMIG = $derived(
@@ -33,7 +32,7 @@ export class PayrollConfigStore {
 
 	/** Charge la configuration globale + SMIG + barème fiscal + catalogue + taux de change. */
 	async syncConfiguration() {
-		const [cfg, smig, brackets, adj, overtime, allowances, exchangeRate, contributions, categories] = await Promise.allSettled([
+		const [cfg, smig, brackets, adj, overtime, allowances, exchangeRate, contributions] = await Promise.allSettled([
 			payrollConfigApiStore.fetchConfiguration(),
 			payrollConfigApiStore.fetchSMIG(),
 			payrollConfigApiStore.fetchTaxBrackets(),
@@ -42,7 +41,6 @@ export class PayrollConfigStore {
 			payrollConfigApiStore.fetchLegalAllowances(),
 			payrollConfigApiStore.fetchExchangeRate(),
 			payrollConfigApiStore.fetchSocialContributions(),
-			payrollConfigApiStore.fetchProfessionalCategories(),
 		]);
 
 		if (cfg.status === 'fulfilled' && cfg.value) this.configuration = cfg.value;
@@ -53,9 +51,8 @@ export class PayrollConfigStore {
 		if (allowances.status === 'fulfilled' && allowances.value) this.legalAllowances = allowances.value;
 		if (exchangeRate.status === 'fulfilled' && exchangeRate.value) this.exchangeRateInfo = exchangeRate.value;
 		if (contributions.status === 'fulfilled' && contributions.value) this.socialContributions = contributions.value;
-		if (categories.status === 'fulfilled' && categories.value) this.professionalCategories = categories.value;
 
-		const allFailed = [cfg, smig, brackets, adj, overtime, allowances, exchangeRate, contributions, categories].every(r => r.status === 'rejected');
+		const allFailed = [cfg, smig, brackets, adj, overtime, allowances, exchangeRate, contributions].every(r => r.status === 'rejected');
 		if (allFailed) throw new Error('Configuration indisponible');
 	}
 
@@ -147,21 +144,6 @@ export class PayrollConfigStore {
 	async deleteAdjustment(adjustmentId: string) {
 		await payrollConfigApiStore.deleteAdjustment(adjustmentId);
 		this.adjustments = this.adjustments.filter(a => a.id !== adjustmentId);
-	}
-
-	/** Recharge la grille des catégories professionnelles depuis les fixtures légales. */
-	async resetProfessionalCategories() {
-		await payrollConfigApiStore.resetProfessionalCategories();
-		await this.syncConfiguration();
-	}
-
-	/** Met à jour une classe/échelon (libellé, application, statut). */
-	async saveProfessionalCategory(categoryId: string, data: Partial<ProfessionalCategory>) {
-		const updated = await payrollConfigApiStore.updateProfessionalCategory(categoryId, data);
-		if (updated) {
-			this.professionalCategories = this.professionalCategories.map(c => (c.id === updated.id ? updated : c));
-		}
-		return updated;
 	}
 }
 

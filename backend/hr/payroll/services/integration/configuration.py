@@ -13,7 +13,6 @@ from hr.payroll.models import (
     OvertimeRule,
     TaxBracket,
     LegalAllowance,
-    ProfessionalCategory,
 )
 from hr.payroll.services.cache import PayrollCacheService
 
@@ -405,27 +404,4 @@ class ConfigurationService:
         
         logger.info("[Allowances] Allowance updated and cache cleared", extra={"allowance_id": allowance_id})
         return allowance
-
-    # ===== PROFESSIONAL CATEGORIES (S8) =====
-
-    @classmethod
-    @transaction.atomic
-    def update_professional_category(cls, category_id: UUID, data: Dict[str, Any], actor=None) -> ProfessionalCategory:
-        """ Updates a professional category (classe/échelon) of the legal grid. """
-        logger.debug("[Categories] Updating professional category", extra={"category_id": category_id})
-
-        category = ProfessionalCategory.objects.get(id=category_id)
-
-        # Update fields
-        for key, value in data.items():
-            if hasattr(category, key) and value is not None:
-                setattr(category, key, value)
-
-        category.save()
-
-        # Clear config cache (grille utilisée par l'onboarding/contrat)
-        PayrollCacheService.clear_config_cache()
-
-        logger.info("[Categories] Professional category updated", extra={"category_id": category_id})
-        return category
 

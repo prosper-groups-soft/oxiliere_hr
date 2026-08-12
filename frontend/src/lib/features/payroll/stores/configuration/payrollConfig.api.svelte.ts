@@ -22,13 +22,11 @@ import {
 	updateLegalAllowance as apiUpdateLegalAllowance,
 	resetLegalAllowances as apiResetLegalAllowances,
 	resetPayrollAdjustments as apiResetPayrollAdjustments,
-	updateProfessionalCategory as apiUpdateProfessionalCategory,
-	resetProfessionalCategories as apiResetProfessionalCategories,
 } from '@/features/payroll/queries/payroll';
-import type { ProfessionalCategory } from '../../types/types';
 
 
 export type AsyncState = 'idle' | 'loading' | 'success' | 'empty' | 'error' | 'offline';
+
 
 interface PayrollConfigApiState {
 	configState: AsyncState;
@@ -167,21 +165,6 @@ function createPayrollConfigApiStore() {
 
 		async resetAdjustments(): Promise<{ status: string; reset_count: number } | null> {
 			return withState(() => apiResetPayrollAdjustments());
-		},
-
-		async fetchProfessionalCategories(): Promise<ProfessionalCategory[] | null> {
-			return withState(async () => {
-				const mod = await import('@/features/payroll/queries/payroll');
-				return mod.fetchProfessionalCategories();
-			});
-		},
-
-		async updateProfessionalCategory(categoryId: string, data: Partial<ProfessionalCategory>): Promise<ProfessionalCategory | null> {
-			return withState(() => apiUpdateProfessionalCategory(categoryId, data));
-		},
-
-		async resetProfessionalCategories(): Promise<{ status: string; reset_count: number } | null> {
-			return withState(() => apiResetProfessionalCategories());
 		},
 
 		resetErrors() {

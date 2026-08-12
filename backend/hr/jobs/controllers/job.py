@@ -26,9 +26,12 @@ from hr.jobs.schemas import (
     PositionSeniorityUpdateIn,
     SeniorityLevelOut,
     SeniorityLevelUpdateIn,
-    SeniorityLevelCreateIn
+    SeniorityLevelCreateIn,
+    ProfessionalCategoryOut,
+    ProfessionalCategoryUpdateIn,
+    ProfessionalCategoryCreateIn
 )
-from hr.jobs.models import JobFamily, Position, PositionSeniority, SeniorityLevel
+from hr.jobs.models import JobFamily, Position, PositionSeniority, SeniorityLevel, ProfessionalCategory
 from django.shortcuts import get_object_or_404
 
 # Services
@@ -367,4 +370,33 @@ class JobController(ControllerBase):
         """ Returns the career progression structure for a position. """
         get_object_or_404(Position, id=position_id)
         return self.job_service.get_position_career_progression(position_id)
+
+    # ===== PROFESSIONAL CATEGORIES (grille légale 7x4) =====
+
+    @http_get('/professional-categories', response=List[ProfessionalCategoryOut], permissions=[ScopePermission('jobs:r')])
+    def list_professional_categories(self):
+        """ Grille des catégories professionnelles (7 classes x 4 échelons). """
+        return list(ProfessionalCategory.objects.all().order_by('classe', 'echelon'))
+
+    @http_post('/professional-categories', response={201: ProfessionalCategoryOut}, permissions=[ScopePermission('jobs:w')])
+    def create_professional_category(self, data: ProfessionalCategoryCreateIn):
+        """ Ajoute une classe/échelon à la grille. """
+        category = ProfessionalCategory.objects.create(**data.model_dump())
+        return 201, category
+
+    @http_patch('/professional-categories/{category_id}', response=ProfessionalCategoryOut, permissions=[ScopePermission('jobs:u')])
+    def update_professional_category(self, category_id: UUID, data: ProfessionalCategoryUpdateIn):
+        """ Modifie une classe/échelon (libellé, application, actif). """
+        category = get_object_or_404(ProfessionalCategory, id=category_id)
+        for field, value in data.model_dump(exclude_unset=True).items():
+            setattr(category, field, value)
+        category.save()
+        return category
+
+    @http_post('/professional-categories/reset', response={200: dict}, permissions=[ScopePermission('jobs:a')])
+    def reset_professional_categories(self):
+        """ Recharge la grille légale depuis la fixture (7 classes x 4 échelons). """
+        from hr.jobs.services.init import init_professional_categories
+        count = init_professional_categories()
+        return {"status": "success", "reset_count": count}
 

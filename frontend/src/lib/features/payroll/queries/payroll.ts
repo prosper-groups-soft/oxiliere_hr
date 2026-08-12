@@ -1,4 +1,4 @@
-import type { PayrollRun, PayrollRunApiOut, PayrollRunDetailApiOut, PayrollRunSummaryApiOut, Payslip, Advance, AdvanceCreatePayload, AdvanceUpdatePayload, PayrollFilters, PayrollConfiguration, PayrollConfigurationUpdate, SMIGConfiguration, TaxBracketConfig, PayrollAdjustmentConfig, OvertimeRule, LegalAllowanceConfig, SocialContributionRate, ContractPayElementItem, ContractPayElementSummary, ProfessionalCategory } from '@/features/payroll/types/types';
+import type { PayrollRun, PayrollRunApiOut, PayrollRunDetailApiOut, PayrollRunSummaryApiOut, Payslip, Advance, AdvanceCreatePayload, AdvanceUpdatePayload, PayrollFilters, PayrollConfiguration, PayrollConfigurationUpdate, SMIGConfiguration, TaxBracketConfig, PayrollAdjustmentConfig, OvertimeRule, LegalAllowanceConfig, SocialContributionRate, ContractPayElementItem, ContractPayElementSummary } from '@/features/payroll/types/types';
 import { PayrollApi } from '@/features/payroll/api/payroll.endpoints';
 import { getStaleTime } from '@/api/queries/utils';
 
@@ -136,13 +136,6 @@ export const payrollQueryOptions = {
     queryKey: [...payrollQueryOptions.all(), 'contracts', contractId, 'pay-elements'],
     queryFn: () => fetchContractPayElements(contractId),
     staleTime: getStaleTime(5),
-  }),
-
-  /* ── Professional categories (S8) ── */
-  professionalCategories: () => ({
-    queryKey: [...payrollQueryOptions.all(), 'configuration', 'professional-categories'],
-    queryFn: fetchProfessionalCategories,
-    staleTime: getStaleTime(15),
   }),
 };
 
@@ -300,25 +293,6 @@ export async function deleteContractPayElement(
   elementId: string
 ): Promise<{ message: string }> {
   return PayrollApi.contractPayElements.destroy(contractId, elementId) as unknown as { message: string };
-}
-
-/** Fetch professional categories grid (S8 — GET /payroll/configuration/professional-categories) */
-export async function fetchProfessionalCategories(): Promise<ProfessionalCategory[]> {
-  const res = await PayrollApi.professionalCategories.list();
-  return Array.isArray(res) ? res : (res?.results ?? []);
-}
-
-/** Update a professional category (S8 — PATCH /payroll/configuration/professional-categories/:id) */
-export async function updateProfessionalCategory(
-  categoryId: string,
-  data: Partial<ProfessionalCategory>
-): Promise<ProfessionalCategory> {
-  return PayrollApi.professionalCategories.partial_update(categoryId, data) as unknown as ProfessionalCategory;
-}
-
-/** Reset professional categories from fixture (POST /payroll/configuration/professional-categories/reset/) */
-export async function resetProfessionalCategories(): Promise<{ status: string; reset_count: number }> {
-  return PayrollApi.professionalCategoriesReset.create();
 }
 
 /*

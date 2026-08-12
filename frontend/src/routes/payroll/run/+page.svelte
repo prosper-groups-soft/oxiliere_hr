@@ -15,6 +15,7 @@
   import StepHeader from "@/features/payroll/components/run/shared/StepHeader.svelte";
   import { goto } from "$app/navigation";
 
+
   const hasCurrentRun = $derived(payrollStore.currentRun !== null);
   const currentStatus = $derived(payrollStore.currentRun?.status ?? 'draft');
 
@@ -40,8 +41,7 @@
       payrollStore.goToStep('preparation');
       notification.toast.success('Nouvelle paie créée');
       await payrollStore.fetchRunList();
-      // Règle 8 (docs S2) : redirection vers l'écran de détail après création
-      await goto(`/payroll/run/${run.id}`);
+      await goto('/payroll/run');
     } finally {
       isCreating = false;
     }
@@ -194,18 +194,16 @@
     
   {:else}
     <div class="flex flex-1 items-center justify-center">
-      <Empty
-        title="Démarrer une nouvelle paie"
-        description="Créez une nouvelle période de paie pour commencer le processus de calcul et de paiement."
-        icon="file-text"
-        iconSize={28}
-        iconStrokeWidth={1.3}
-      >
-      <Button variant="default" size="sm" onclick={handleNewPayroll} disabled={isCreating} class="shadow-fine bg-primary text-white text-[0.83rem] hover:text-white rounded-lg">
-        <AppIcon name="play-circle" size={17} />
-        {isCreating ? 'Création…' : 'Commencer la paie'}
-      </Button>
-      </Empty>
+      <!-- Reusing the new-run form logic here -->
+      <div class="w-full max-w-2xl px-6">
+        <h2 class="text-xl font-bold text-slate-800 mb-6">Démarrer une nouvelle paie</h2>
+        <!-- Form code from new-run/+page.svelte goes here -->
+        <p class="text-slate-500 mb-6">Veuillez configurer la période pour commencer.</p>
+        <Button variant="default" size="sm" onclick={handleNewPayroll} disabled={isCreating} class="shadow-fine bg-primary text-white text-[0.83rem] hover:text-white rounded-lg">
+          <AppIcon name="play-circle" size={17} />
+          {isCreating ? 'Création…' : 'Commencer la paie'}
+        </Button>
+      </div>
     </div>
   {/if}
 </div>

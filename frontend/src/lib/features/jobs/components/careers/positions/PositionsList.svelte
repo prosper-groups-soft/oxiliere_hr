@@ -133,6 +133,8 @@
       </Empty>
     </div>
 
+    
+
   <!-- État: Données disponibles -->
   {:else if !isLoading && !isError}
     <div class="flex-1 overflow-auto custom-scrollbar flex flex-col" style="--scrollbar-size: 5px" transition:fade={{ duration: 200 }}>

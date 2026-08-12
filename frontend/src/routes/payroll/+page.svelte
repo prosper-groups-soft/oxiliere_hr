@@ -3,18 +3,17 @@
   import { goto } from '$app/navigation';
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
   import DataPagination from "@/components/layout/elements/DataPagination.svelte";
-  import ExecutionTable from '$lib/features/payroll/components/run/ExecutionTable.svelte';
-  import PayrollActions from '$lib/features/payroll/components/run/PayrollActions.svelte';
-  import { payrollStore } from '$lib/features/payroll/stores/payroll.svelte';
-  import { RUN_LIST_STATUS_LABELS } from '$lib/features/payroll/types/types';
+  import ExecutionTable from '@/features/payroll/components/run/ExecutionTable.svelte';
+  import PayrollActions from '@/features/payroll/components/run/PayrollActions.svelte';
+  import { payrollStore } from '@/features/payroll/stores/payroll.svelte';
+  import { RUN_LIST_STATUS_LABELS } from '@/features/payroll/types/types';
   import SearchBar from "@/components/shared/elements/SearchBar.svelte";
   import FilterChips from "@/components/shared/elements/FilterChips.svelte";
   import Empty from "@/components/shared/containers/empty/Empty.svelte";
+  import { Button } from '@/components/ui/button';
   import AnimateSpin from '@/components/layout/elements/AnimateSpin.svelte';
-  import { ui } from '$lib/stores/ui.svelte';
+  import { ui } from '@/stores/ui.svelte';
 
-
-  import EmptyState from '@/components/shared/containers/empty/EmptyState.svelte';
 
   let viewState: 'loading' | 'success' | 'empty' | 'error' | 'offline' = $state('loading');
 
@@ -144,17 +143,36 @@
     <main class="flex flex-1 flex-col overflow-hidden min-h-0">
       {#if viewState === 'loading'}
         <div class="flex-1 min-h-0 flex items-center justify-center">
-          <AnimateSpin text="Chargement" />
+          <AnimateSpin text="Chargement des exécutions de paie en cours..." />
         </div>
       {:else if viewState === 'error' || viewState === 'offline'}
-        <EmptyState
-          variant={viewState === 'offline' ? 'offline' : 'error'}
+        <Empty
+          icon={viewState === 'offline' ? 'wifi-off' : 'alert-triangle'}
+          title={viewState === 'offline' ? 'Hors connexion' : 'Une erreur est survenue'}
+          description={viewState === 'offline'
+            ? 'Impossible de charger les exécutions de paie. Vérifiez votre connexion et réessayez.'
+            : 'Une erreur est survenue lors du chargement des exécutions de paie.'}
+          iconContainerClass={viewState === 'offline' ? 'bg-amber-50' : 'bg-rose-50'}
           class="h-full"
-          onRetry={() => { viewState = 'loading'; payrollStore.syncFromApi('runList').finally(() => viewState = 'success'); }}
+          iconSize={32}
+          iconStrokeWidth={1.5}
         />
 
       {:else if viewState === 'empty' && payrollStore.filteredRunList.length === 0}
-        <EmptyState variant="empty" class="h-full" />
+        <Empty
+          icon="inbox"
+          title="Aucune donnée"
+          description="Aucune exécution de paie ne correspond à vos critères."
+          iconContainerClass="bg-slate-50"
+          class="h-full"
+          iconSize={30}
+          iconStrokeWidth={1.5}
+        >
+          <Button variant="default" size="sm" onclick={() => goto('/payroll/new-run')} class="shadow-fine bg-primary text-white text-[0.84rem] hover:text-white rounded-lg inline-flex items-center gap-2">
+            <AppIcon name="play" size={16} />
+            Commencer une nouvelle paie
+          </Button>
+        </Empty>
 
       {:else}
         <div class="flex-1 overflow-y-auto min-h-0" transition:fade={{ duration: 200 }}>

@@ -3,6 +3,7 @@
   import { cubicOut } from "svelte/easing";
   import SeniorityList from "@/features/jobs/components/careers/seniority/SeniorityList.svelte";
   import PositionsList from "@/features/jobs/components/careers/positions/PositionsList.svelte";
+  import ProfessionalCategoryGrid from "@/features/jobs/components/careers/grid/ProfessionalCategoryGrid.svelte";
   import CareersHeader from "@/features/jobs/components/careers/layout/CareersHeader.svelte";
   import PositionsActions from "@/features/jobs/components/careers/layout/actions/PositionsActions.svelte";
   import SeniorityActions from "@/features/jobs/components/careers/layout/actions/SeniorityActions.svelte";
@@ -26,7 +27,8 @@
     useJobFamiliesQuery,
     useCreateJobFamilyMutation,
     useUpdateJobFamilyMutation,
-    useDeleteJobFamilyMutation
+    useDeleteJobFamilyMutation,
+    useProfessionalCategoriesQuery
   } from "@/features/jobs/queries/jobQueries";
   import { useOrgUnitsQuery } from "@/features/jobs/queries/orgQueries";
   import type { 
@@ -34,8 +36,9 @@
     SeniorityLevelDefinition 
   } from "@/features/jobs/types/types";
 
+  
   // UI state
-  let activeTab = $state<'positions' | 'seniority'>('positions');
+  let activeTab = $state<'positions' | 'seniority' | 'grid'>('positions');
   let showPositionSheet = $state(false);
   let showSenioritySheet = $state(false);
   let editingPosition = $state<JobPosition | null>(null);
@@ -73,6 +76,9 @@
   const updateSeniorityMutation = useUpdateSeniorityLevelMutation();
   const deleteSeniorityMutation = useDeleteSeniorityLevelMutation();
   const resetSeniorityMutation = useResetSeniorityLevelsMutation();
+
+  // --- TanStack Query: Professional categories grid ---
+  const professionalCategoriesQuery = useProfessionalCategoriesQuery();
 
   // --- TanStack Query: Positions ---
   const positionsQuery = usePositionsQuery();
@@ -121,7 +127,7 @@
   // Persistence
   $effect(() => {
     const stored = localStorage.getItem('oxiliere_careers_active_tab');
-    if (stored === 'positions' || stored === 'seniority') {
+    if (stored === 'positions' || stored === 'seniority' || stored === 'grid') {
       activeTab = stored;
     }
   });
@@ -137,9 +143,12 @@
     if (activeTab === 'positions') {
       ui.addActions('career-positions', PositionsActionsSnippet);
       ui.removeActions('career-seniority');
-    } else {
+    } else if (activeTab === 'seniority') {
       ui.addActions('career-seniority', SeniorityActionsSnippet);
       ui.removeActions('career-positions');
+    } else {
+      ui.removeActions('career-positions');
+      ui.removeActions('career-seniority');
     }
     return () => {
       ui.removeActions('career-positions');
@@ -289,7 +298,7 @@
             error={$positionsQuery.error}
             searchQuery={positionsStore.searchQuery}
           />
-        {:else}
+        {:else if activeTab === 'seniority'}
           <SeniorityList
             onEdit={openSeniorityEdit}
             onDelete={openSeniorityDelete}
@@ -300,6 +309,11 @@
             isError={$seniorityQuery.isError}
             error={$seniorityQuery.error}
             searchQuery={senioritySearchQuery}
+          />
+        {:else}
+          <ProfessionalCategoryGrid
+            categories={$professionalCategoriesQuery.data ?? []}
+            isLoading={$professionalCategoriesQuery.isLoading}
           />
         {/if}
       </div>

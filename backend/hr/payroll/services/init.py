@@ -12,7 +12,6 @@ from hr.payroll.models import (
     SMIGConfiguration,
     SocialContributionRate,
     PayrollConfiguration,
-    ProfessionalCategory,
 )
 
 
@@ -31,7 +30,6 @@ class PayrollInitService:
             'payroll_adjustments.json'       : PayrollAdjustment,
             'smig_defaults.json'             : SMIGConfiguration,
             'social_contributions.json'      : SocialContributionRate,
-            'professional_categories.json'   : ProfessionalCategory,
         }
         
         summary = {}
@@ -111,13 +109,5 @@ class PayrollInitService:
         if count > 0:
             PayrollCacheService.clear_adjustment_types_cache()
             logger.info(f"Payroll adjustments reset: {count} items reloaded from fixture.")
-        return count
-
-    def reset_professional_categories(self) -> int:
-        """Recharge la grille des catégories professionnelles (7 classes x 4 échelons) depuis la fixture."""
-        count = self._load_fixture_to_model('professional_categories.json', ProfessionalCategory)
-        if count > 0:
-            PayrollCacheService.clear_config_cache()
-            logger.info(f"Professional categories reset: {count} entries reloaded from fixture.")
         return count
 

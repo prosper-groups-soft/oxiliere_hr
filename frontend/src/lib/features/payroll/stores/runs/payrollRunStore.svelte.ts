@@ -269,7 +269,30 @@ export class PayrollRunStore {
 			return null;
 		}
 
-		// Rafraîchit la liste (le run créé apparaît) puis charge le détail
+		// Initialisation immédiate du store avec les données de création
+		// Cela permet à l'onglet "Cycle en cours" d'apparaître tout de suite
+		this.currentRun = {
+			id: created.id,
+			cycleId: created.id,
+			period: periodLabelFromDates(created.start_date, created.end_date),
+			type: 'monthly',
+			status: backendToPayrollStatus(created.status),
+			currency: 'USD',
+			exchangeRate: Number(created.exchange_rate_applied ?? 1),
+			periodStart: created.start_date,
+			periodEnd: created.end_date,
+			fiscalVersion: 'fv-1',
+			totalGross: 0,
+			totalNet: 0,
+			totalContributions: 0,
+			totalTaxes: 0,
+			totalAllocations: 0,
+			employeeCount: 0,
+			totalEmployeeCount: 0,
+			createdAt: created.created_at
+		};
+
+		// Rafraîchit la liste puis charge le détail complet pour compléter les infos
 		await this.fetchRunList();
 		await this.fetchRunDetail(created.id);
 		return this.currentRun;

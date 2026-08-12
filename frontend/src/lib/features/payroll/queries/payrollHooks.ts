@@ -1,6 +1,5 @@
 /**
- * payrollHooks.ts — Hooks TanStack Query pour les éléments de paie du contrat (S10)
- * et les catégories professionnelles (S8).
+ * payrollHooks.ts — Hooks TanStack Query pour les éléments de paie du contrat (S10).
  *
  * Suit le pattern du codebase (createQuery / createMutation + useQueryClient)
  * utilisé par leaves/performance/recruitment.
@@ -8,8 +7,8 @@
 import { createQuery, createMutation, useQueryClient } from '@tanstack/svelte-query';
 import { notification } from '@/stores/notification.svelte';
 import { getFriendlyErrorMessage } from '@/constants/errors';
-import { fetchContractPayElements, createContractPayElement, patchContractPayElement, deleteContractPayElement, fetchProfessionalCategories } from './payroll';
-import type { ContractPayElementInput, ContractPayElementItem, ContractPayElementSummary, ProfessionalCategory, PayrollAdjustmentConfig } from '../types/types';
+import { fetchContractPayElements, createContractPayElement, patchContractPayElement, deleteContractPayElement } from './payroll';
+import type { ContractPayElementInput, ContractPayElementItem, ContractPayElementSummary, PayrollAdjustmentConfig } from '../types/types';
 import { payrollQueryOptions } from './payroll';
 
 
@@ -103,18 +102,6 @@ export function useDeleteContractPayElementMutation() {
     onError: (error) => {
       notification.toast.error(getFriendlyErrorMessage(error));
     },
-  });
-}
-
-/** Query de la grille des catégories professionnelles (S8) */
-export function useProfessionalCategoriesQuery() {
-  return createQuery<ProfessionalCategory[]>({
-    get queryKey() {
-      return payrollQueryOptions.professionalCategories().queryKey;
-    },
-    queryFn: () => fetchProfessionalCategories(),
-    staleTime: 1000 * 60 * 15,
-    gcTime: 1000 * 60 * 30,
   });
 }
 

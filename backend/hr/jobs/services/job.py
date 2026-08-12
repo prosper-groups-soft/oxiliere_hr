@@ -162,6 +162,16 @@ class JobService:
             requirements=data.get('requirements', []),
             is_active=data.get('is_active', True)
         )
+
+        # Lier la classe de la grille (si fournie)
+        category_id = data.get('professional_category_id')
+        if category_id:
+            from hr.jobs.models import ProfessionalCategory
+            try:
+                level_def.professional_category = ProfessionalCategory.objects.get(id=category_id)
+                level_def.save(update_fields=['professional_category'])
+            except ProfessionalCategory.DoesNotExist:
+                raise ValueError(f"Professional category '{category_id}' does not exist")
         
         logger.info(f"Created new seniority level: {level_def.level} (id={level_def.id})")
         
@@ -232,6 +242,15 @@ class JobService:
             defn.requirements = data['requirements']
         if 'is_active' in data and data['is_active'] is not None:
             defn.is_active = data['is_active']
+        if 'professional_category_id' in data:
+            from hr.jobs.models import ProfessionalCategory
+            if data['professional_category_id'] is None:
+                defn.professional_category = None
+            else:
+                try:
+                    defn.professional_category = ProfessionalCategory.objects.get(id=data['professional_category_id'])
+                except ProfessionalCategory.DoesNotExist:
+                    raise ValueError(f"Professional category '{data['professional_category_id']}' does not exist")
         
         defn.save()
         

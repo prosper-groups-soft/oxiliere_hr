@@ -1092,32 +1092,6 @@ class LegalAllowanceListFilterIn(FilterSchema):
     calculation_method: Annotated[str | None, FilterLookup("calculation_method")] = None
 
 
-class ProfessionalCategoryOut(Schema):
-    """Output schema for a professional category (grille légale 7x4, S8)."""
-    id: UUID
-    classe: int
-    echelon: int
-    label: str
-    application: str = ''
-    is_active: bool = True
-
-
-class ProfessionalCategoryUpdateIn(Schema):
-    """Partial update schema for a professional category (S8)."""
-    label: Optional[str] = None
-    application: Optional[str] = None
-    is_active: Optional[bool] = None
-
-
-class ProfessionalCategoryCreateIn(Schema):
-    """Create schema for a professional category (S8)."""
-    classe: Annotated[int, Field(ge=1, le=7)]
-    echelon: Annotated[int, Field(ge=1, le=4)]
-    label: str
-    application: str = ''
-    is_active: bool = True
-
-
 class SalaryAdvanceDetailOut(ModelSchema):
     """Detailed salary advance output with configuration and repayment info."""
     remaining_balance: Decimal = Decimal('0.00')

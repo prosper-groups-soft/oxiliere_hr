@@ -3,7 +3,8 @@ import type {
   JobPosition, 
   JobPositionCreate, 
   JobPositionUpdate,
-  SeniorityLevelDefinition 
+  SeniorityLevelDefinition,
+  ProfessionalCategory 
 } from '../types/types';
 import { notification } from '@/stores/notification.svelte';
 import { getFriendlyErrorMessage } from '@/constants/errors';
@@ -149,22 +150,6 @@ export const jobService = {
   },
 
   /**
-   * Map frontend position data to backend format
-   */
-  mapToBackend(data: Partial<JobPosition>): JobPositionUpdate {
-    return {
-      name: data.name,
-      level: data.level,
-      org_unit_id: data.org_unit?.id || null,
-      description: data.description,
-      salary_min: data.salary_min,
-      salary_max: data.salary_max,
-      requirements: data.requirements,
-      skills: data.skills
-    };
-  },
-
-  /**
    * Met à jour une position
    */
   async updatePosition(id: string, data: JobPositionUpdate): Promise<JobPosition> {
@@ -293,6 +278,45 @@ export const jobService = {
         ...level,
         name: level.label
       }));
+    } catch (error: any) {
+      const message = getFriendlyErrorMessage(error);
+      notification.toast.error(message);
+      throw error;
+    }
+  },
+
+  /**
+   * Grille des catégories professionnelles (7 classes × 4 échelons)
+   */
+  async getProfessionalCategories(): Promise<ProfessionalCategory[]> {
+    try {
+      return await jobEndpoint.listProfessionalCategories();
+    } catch (error: any) {
+      const message = getFriendlyErrorMessage(error);
+      notification.toast.error(message);
+      throw error;
+    }
+  },
+
+  /**
+   * Modifie une classe/échelon de la grille
+   */
+  async updateProfessionalCategory(id: string, data: Partial<ProfessionalCategory>): Promise<ProfessionalCategory> {
+    try {
+      return await jobEndpoint.updateProfessionalCategory(id, data);
+    } catch (error: any) {
+      const message = getFriendlyErrorMessage(error);
+      notification.toast.error(message);
+      throw error;
+    }
+  },
+
+  /**
+   * Réinitialise la grille depuis la fixture légale
+   */
+  async resetProfessionalCategories(): Promise<{ status: string; reset_count: number }> {
+    try {
+      return await jobEndpoint.resetProfessionalCategories();
     } catch (error: any) {
       const message = getFriendlyErrorMessage(error);
       notification.toast.error(message);

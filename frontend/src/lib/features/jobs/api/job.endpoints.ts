@@ -1,5 +1,5 @@
 import APIEndPoint from '@/utilities/http/rest';
-import type { JobPosition, JobPositionCreate, JobPositionUpdate, SeniorityLevel } from '../types/types';
+import type { JobPosition, JobPositionCreate, JobPositionUpdate, SeniorityLevel, ProfessionalCategory } from '../types/types';
 
 
 // Type pour la réponse brute du backend (utilise 'label' au lieu de 'name')
@@ -186,6 +186,40 @@ export const jobEndpoint = {
     const endpoint = new APIEndPoint(
       '/api/jobs/seniority-levels/reset',
       '/api/jobs/seniority-levels/reset'
+    );
+    return await endpoint.create({});
+  },
+
+  /**
+   * GET /api/jobs/professional-categories
+   * Grille des catégories professionnelles (7 classes × 4 échelons)
+   */
+  async listProfessionalCategories(): Promise<ProfessionalCategory[]> {
+    const endpoint = new APIEndPoint('/api/jobs/professional-categories', '/api/jobs/professional-categories');
+    const response = await endpoint.list();
+    return Array.isArray(response) ? response : (response.results || []);
+  },
+
+  /**
+   * PATCH /api/jobs/professional-categories/{id}
+   * Modifie une classe/échelon (libellé, application, actif)
+   */
+  async updateProfessionalCategory(id: string, data: Partial<ProfessionalCategory>): Promise<ProfessionalCategory> {
+    const endpoint = new APIEndPoint(
+      `/api/jobs/professional-categories/${id}`,
+      `/api/jobs/professional-categories/${id}`
+    );
+    return await endpoint.partial_update(data);
+  },
+
+  /**
+   * POST /api/jobs/professional-categories/reset
+   * Réinitialise la grille depuis la fixture légale
+   */
+  async resetProfessionalCategories(): Promise<{ status: string; reset_count: number }> {
+    const endpoint = new APIEndPoint(
+      '/api/jobs/professional-categories/reset',
+      '/api/jobs/professional-categories/reset'
     );
     return await endpoint.create({});
   }

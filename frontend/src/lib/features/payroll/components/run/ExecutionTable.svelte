@@ -90,7 +90,7 @@
         <Button
           variant="default"
           size="sm"
-          onclick={() => goto('/payroll/new-run')}
+          onclick={() => goto('/payroll/run')}
           class="shadow-fine bg-primary text-white text-[0.83rem] hover:text-white rounded-lg"
         >
           <AppIcon name="play-circle" size={17} />

@@ -1242,63 +1242,6 @@ class TaxBracket(BaseAuditableModel):
         return f"{self.label}: {self.rate_percentage}%"
 
 
-class ProfessionalCategory(BaseAuditableModel):
-    """
-    Grille des catégories professionnelles (catalogue.md §6).
-
-    7 classes x 4 échelons définies par le Décret n° 25/22 :
-    - Classe 1 : Manœuvre ordinaire → Classe 7 : Cadre supérieur
-    - Principe de tension salariale 1:10 : le salaire max de la grille
-      (Classe 7, Échelon 4) = SMIG mensuel x 10.
-
-    C'est le paramétrage légal de référence (S8). Les champs
-    `classe`/`echelon` du module jobs y sont liés sémantiquement
-    (libellés de la grille) — pas de FK pour rester découplé.
-    """
-    classe = models.PositiveSmallIntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(7)],
-        verbose_name=_("Classe"),
-        help_text=_("Classe professionnelle RDC (1-7).")
-    )
-    echelon = models.PositiveSmallIntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(4)],
-        verbose_name=_("Échelon"),
-        help_text=_("Échelon dans la classe (1-4).")
-    )
-    label = models.CharField(
-        max_length=120,
-        verbose_name=_("Libellé"),
-        help_text=_("Libellé de la classe (ex. Manœuvre ordinaire, Cadre moyen).")
-    )
-    application = models.TextField(
-        blank=True,
-        default='',
-        verbose_name=_("Application"),
-        help_text=_("Profil de personnel concerné (ex. Personnel non qualifié).")
-    )
-    is_active = models.BooleanField(
-        default=True,
-        verbose_name=_("Active"),
-        help_text=_("La classe/échelon est applicable pour les nouveaux contrats.")
-    )
-
-    class Meta:
-        db_table = "pyrl_professional_category"
-        verbose_name = _("Catégorie professionnelle")
-        verbose_name_plural = _("Catégories professionnelles")
-        ordering = ['classe', 'echelon']
-        constraints = [
-            models.UniqueConstraint(
-                fields=['classe', 'echelon'],
-                condition=models.Q(deleted__isnull=True),
-                name='unique_professional_category_class_echelon'
-            )
-        ]
-
-    def __str__(self):
-        return f"Classe {self.classe} — Échelon {self.echelon} ({self.label})"
-
-
 # --- Audit log registration ---
 auditlog.register(PayrollConfiguration)
 auditlog.register(EmployeeContract)
@@ -1317,5 +1260,4 @@ auditlog.register(LegalAllowance)
 auditlog.register(WorkedDaysRecord)
 auditlog.register(TaxBracket)
 auditlog.register(EmployerCharge)
-auditlog.register(ProfessionalCategory)
 

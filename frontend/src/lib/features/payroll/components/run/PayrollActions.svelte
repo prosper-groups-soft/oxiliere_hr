@@ -1,11 +1,12 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
   import { Button } from "@/components/ui/button";
   import * as DropdownMenu from "@/components/ui/dropdown-menu";
   import { payrollStore } from '@/features/payroll/stores/payroll.svelte';
   import { RUN_LIST_STATUS_LABELS } from '@/features/payroll/types/types';
-
   import { orgService } from '@/features/jobs/services/org.service';
+  
 
   // Unités organisationnelles chargées depuis le backend (/api/organization/units)
   let orgUnits = $state<string[]>([]);
@@ -318,7 +319,7 @@
 
   <div class="w-px h-5 bg-slate-200 mx-1"></div>
 
-  <!-- Export CSV Button -->
+  <!-- Export Button -->
   {#if onExport}
     <Button
       variant="ghost"
@@ -327,19 +328,19 @@
       class="h-7 px-2.5 text-[0.84rem] text-slate-600 hover:text-slate-900 hover:bg-slate-100"
     >
       <AppIcon name="download" size={15} class="mr-1.5" />
-      CSV
+      Exporter
     </Button>
   {/if}
 
   <!-- New Cycle Button -->
   <Button
-    onclick={onAdd}
+    onclick={() => goto('/payroll/new-run')}
     variant="default"
     size="sm"
     class="h-7 px-3 text-[0.84rem] text-white shadow-fine rounded-lg transition-all"
   >
     <AppIcon name="plus" size={15} />
-    Nouveau cycle
+    Nouvelle paie
   </Button>
 </div>
 

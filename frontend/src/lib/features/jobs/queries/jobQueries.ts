@@ -8,7 +8,8 @@ import { jobsStore } from '../stores/jobs.svelte';
 import type { 
   JobPositionCreate, 
   JobPositionUpdate,
-  SeniorityLevelDefinition
+  SeniorityLevelDefinition,
+  ProfessionalCategory
 } from '../types/types';
 import { notification } from '@/stores/notification.svelte';
 import { getFriendlyErrorMessage } from '@/constants/errors';
@@ -21,6 +22,7 @@ export const jobQueryKeys = {
   positions: () => [...jobQueryKeys.all, 'positions'] as const,
   seniorityLevels: () => [...jobQueryKeys.all, 'seniority-levels'] as const,
   careerPath: (familyId: string) => [...jobQueryKeys.all, 'career-path', familyId] as const,
+  professionalCategories: () => [...jobQueryKeys.all, 'professional-categories'] as const,
 };
 
 
@@ -301,3 +303,17 @@ export function useDeleteJobFamilyMutation() {
     },
   });
 }
+
+
+/**
+ * Query pour récupérer la grille des catégories professionnelles
+ */
+export function useProfessionalCategoriesQuery() {
+  return createQuery({
+    queryKey: jobQueryKeys.professionalCategories(),
+    queryFn: () => jobService.getProfessionalCategories(),
+    staleTime: 1000 * 60 * 60, // 1h
+    gcTime: 1000 * 60 * 60 * 24,
+  });
+}
+
