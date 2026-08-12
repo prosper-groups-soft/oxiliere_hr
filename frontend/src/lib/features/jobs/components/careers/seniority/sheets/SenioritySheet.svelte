@@ -36,6 +36,8 @@
   let formRank = $state(1);
   let formRequirements = $state<string[]>([]);
   let newRequirement = $state('');
+  // Classe professionnelle RDC (1-7) — grille des catégories (catalogue §6)
+  let formClasse = $state<number | null>(null);
   
   // Validation errors
   let validationErrors = $state<Record<string, string>>({});
@@ -67,11 +69,13 @@
         formName = level.name;
         formRank = level.rank;
         formRequirements = [...level.requirements];
+        formClasse = level.classe ?? null;
       } else {
         formLevel = 'TRAINEE';
         formName = SENIORITY_LABELS['TRAINEE'];
         formRank = (jobsStore.seniorityLevels.length + 1);
         formRequirements = [];
+        formClasse = null;
       }
       newRequirement = '';
       // Reset validation errors when opening
@@ -105,7 +109,8 @@
     const result = seniorityLevelSchema.safeParse({
       level: formLevel,
       rank: Number(formRank),
-      requirements: formRequirements
+      requirements: formRequirements,
+      classe: formClasse
     });
     
     if (!result.success) {
@@ -145,7 +150,8 @@
       level: formLevel,
       name: SENIORITY_LABELS[formLevel],
       rank: Number(formRank),
-      requirements: formRequirements
+      requirements: formRequirements,
+      classe: formClasse
     };
 
     try {
@@ -258,6 +264,32 @@
             />
           </div>
           <ValidationError errors={validationErrors} field="rank" />
+
+          <div class="space-y-2">
+            <Label for="snr-classe" class="text-slate-900 font-bold">Classe professionnelle (RDC)</Label>
+            <p class="text-[0.82rem] text-slate-400">Grille des catégories professionnelles — optionnel.</p>
+            <Select.Root
+              type="single"
+              value={formClasse != null ? String(formClasse) : ''}
+              onValueChange={(v) => (formClasse = v ? Number(v) : null)}
+            >
+              <Select.Trigger class="h-9 bg-white border-slate-200 shadow-fine w-full cursor-pointer">
+                {formClasse != null ? `Classe ${formClasse}` : 'Non défini'}
+              </Select.Trigger>
+              <Select.Content class="bg-white z-300">
+                <Select.Item value="">
+                  <span class="text-[0.876rem] text-slate-400">Non défini</span>
+                </Select.Item>
+                {#each [1, 2, 3, 4, 5, 6, 7] as c}
+                  <Select.Item value={String(c)}>
+                    <span class="flex items-center gap-2">
+                      <span class="font-medium text-[0.876rem]">Classe {c}</span>
+                    </span>
+                  </Select.Item>
+                {/each}
+              </Select.Content>
+            </Select.Root>
+          </div>
 
           <!-- Info Box -->
           <div class="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100/50" in:slide={{ duration: 300 }}>

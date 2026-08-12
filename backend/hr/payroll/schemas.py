@@ -9,7 +9,7 @@ from ninja    import (
     FilterSchema, 
     FilterLookup
 )
-from pydantic import Field
+from pydantic import Field, ConfigDict, AliasChoices
 from .models import (
     PayrollConfiguration,
     EmployeeContract,
@@ -92,7 +92,6 @@ class EmployeeContractCreateIn(ModelSchema):
         fields = [
             "employee",
             "remuneration_type",
-            "payment_period",
             "contract_type",
             "base_salary",
             "salary_base_type",
@@ -100,8 +99,6 @@ class EmployeeContractCreateIn(ModelSchema):
             "currency",
             "start_date",
             "end_date",
-            "negotiated_salary_usd",
-            "work_regime",
             "contractual_clauses",
         ]
 
@@ -111,7 +108,6 @@ class EmployeeContractOut(Schema):
     id: UUID
     employee: EmployeeOut
     remuneration_type: str
-    payment_period: str | None = None
     contract_type: str
     base_salary: Decimal | None = None
     salary_base_type: str
@@ -120,8 +116,6 @@ class EmployeeContractOut(Schema):
     start_date: date
     end_date: date | None = None
     is_active: bool = True
-    negotiated_salary_usd: Decimal | None = None
-    work_regime: str = 'FULL_TIME'
     contractual_clauses: str = ''
     created_at: datetime
     updated_at: datetime
@@ -133,7 +127,6 @@ class EmployeeContractUpdateIn(ModelSchema):
         model = EmployeeContract
         fields = [
             "remuneration_type",
-            "payment_period",
             "contract_type",
             "base_salary",
             "salary_base_type",
@@ -142,8 +135,6 @@ class EmployeeContractUpdateIn(ModelSchema):
             "start_date",
             "end_date",
             "is_active",
-            "negotiated_salary_usd",
-            "work_regime",
             "contractual_clauses",
         ]
         fields_optional = "__all__"
@@ -207,24 +198,27 @@ class PayrollAdjustmentUpdateIn(ModelSchema):
         fields_optional = "__all__"
 
 
-class ContractAdjustmentCreateIn(ModelSchema):
+class ContractAdjustmentCreateIn(Schema):
     """Input schema for assigning a catalog element (PayrollAdjustment) to a contract.
 
     Le champ `contract` est requis (UUID) — `employee` est dérivé du contrat
     par le service (dénormalisation). `custom_percentage` permet de négocier
     un taux propre au contrat (S10).
+
+    Compatible avec les deux formes de payload :
+      - `adjustment`      (forme S10, utilisée par le frontend)
+      - `adjustment_id`   (forme ModelSchema django-ninja)
+    `contract` / `contract_id` sont optionnels car imposés par l'URL de la route.
     """
-    class Meta:
-        model = ContractAdjustment
-        fields = [
-            "contract",
-            "adjustment",
-            "start_date",
-            "end_date",
-            "custom_amount",
-            "custom_percentage",
-            "is_active",
-        ]
+    model_config = ConfigDict(populate_by_name=True)
+
+    contract: UUID | None = Field(default=None, validation_alias=AliasChoices("contract", "contract_id"))
+    adjustment: UUID = Field(validation_alias=AliasChoices("adjustment", "adjustment_id"))
+    start_date: date
+    end_date: date | None = None
+    custom_amount: Decimal | None = None
+    custom_percentage: Decimal | None = None
+    is_active: bool = True
 
 
 class ContractAdjustmentOut(Schema):

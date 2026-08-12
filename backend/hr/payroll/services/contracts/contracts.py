@@ -99,8 +99,8 @@ class EmployeeContractService:
             hourly_rate=data.get('hourly_rate'),
             currency=data.get('currency', 'CDF'),
             contract_type=data.get('contract_type', 'CDI'),
-            payment_period=data.get('payment_period', 'MONTHLY'),
             salary_base_type=data.get('salary_base_type', 'GROSS'),
+            contractual_clauses=data.get('contractual_clauses', ''),
             created_by=actor,
         )
 
@@ -124,7 +124,6 @@ class EmployeeContractService:
         Allows updating:
         - Salary/rate (amount)
         - Remuneration type
-        - Payment period
         - Contract dates
         - Currency
         """
@@ -160,8 +159,6 @@ class EmployeeContractService:
             contract.end_date = data['end_date']
         if 'remuneration_type' in data:
             contract.remuneration_type = data['remuneration_type']
-        if 'payment_period' in data:
-            contract.payment_period = data['payment_period']
         if 'salary_base_type' in data:
             contract.salary_base_type = data['salary_base_type']
         if 'currency' in data:
@@ -170,6 +167,10 @@ class EmployeeContractService:
             contract.contract_type = data['contract_type']
         if 'is_active' in data:
             contract.is_active = bool(data['is_active'])
+
+        # Métamodèle (Règle 5) — clauses particulières
+        if 'contractual_clauses' in data:
+            contract.contractual_clauses = data['contractual_clauses']
 
         contract.updated_by = actor
         contract.save()

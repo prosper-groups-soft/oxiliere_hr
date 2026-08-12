@@ -3,8 +3,8 @@
   import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
   import type { EmployeeFullProfile } from '@/features/employees/types/types';
   import { cn } from '@/utilities/common/css';
-  import { CONTRACT_TYPES, REMUNERATION_TYPES, PAYMENT_PERIODS, SALARY_BASE_TYPES, WORK_REGIMES } from '@/features/employees/constants/contract';
-  import ContractPayElementList from './ContractPayElementList.svelte';
+  import { CONTRACT_TYPES, REMUNERATION_TYPES, SALARY_BASE_TYPES } from '@/features/employees/constants/contract';
+  import ContractPayElementList from '@/features/employees/components/shared/ContractPayElementList.svelte';
   import { useContractPayElementsQuery, useCreateContractPayElementMutation, usePatchContractPayElementMutation, useDeleteContractPayElementMutation, usePayrollAdjustmentsQuery } from '@/features/payroll/queries/payrollHooks';
   import type { ContractPayElementInput } from '@/features/payroll/types/types';
 
@@ -41,16 +41,10 @@
     await $patchMutation.mutateAsync({ contractId, elementId: el.id, data: { is_active: active } });
   }
 
-  async function handleDelete(el: any) {
+  async function handleDelete(el: any, _index?: number) {
     if (!contractId) return;
     await $deleteMutation.mutateAsync({ contractId, elementId: el.id });
   }
-
-  const workRegimeLabel = $derived(() => {
-    const regime = contract?.work_regime;
-    if (!regime) return '-';
-    return WORK_REGIMES.find((r) => r.value === regime)?.label ?? regime;
-  });
 
   const formattedSalary = $derived(() => {
     if (!contract) return '-';
@@ -79,7 +73,6 @@
 
   const contractTypeLabels: Record<string, string> = Object.fromEntries(CONTRACT_TYPES.map(t => [t.value, t.label]));
   const remunerationTypeLabels: Record<string, string> = Object.fromEntries(REMUNERATION_TYPES.map(t => [t.value, t.label]));
-  const paymentPeriodLabels: Record<string, string> = Object.fromEntries(PAYMENT_PERIODS.map(t => [t.value, t.label]));
   const salaryBaseTypeLabels: Record<string, string> = Object.fromEntries(SALARY_BASE_TYPES.map(t => [t.value, t.label]));
 </script>
 
@@ -166,12 +159,6 @@
           </p>
         </div>
         <div>
-          <div class="text-sm font-medium text-slate-500">Période de paiement</div>
-          <p class="text-sm text-slate-900 mt-1">
-            {contract ? paymentPeriodLabels[contract.payment_period] || contract.payment_period : '-'}
-          </p>
-        </div>
-        <div>
           <div class="text-sm font-medium text-slate-500">Base de calcul</div>
           <p class="text-sm text-slate-900 mt-1">
             {contract ? salaryBaseTypeLabels[contract.salary_base_type] || contract.salary_base_type : '-'}
@@ -182,18 +169,6 @@
           <p class="text-sm text-slate-900 -1">
             {contract?.currency || '-'}
           </p>
-        </div>
-        <div>
-          <div class="text-sm font-medium text-slate-500">Salaire net négocié (USD)</div>
-          <p class="text-sm text-slate-900 mt-1">
-            {contract?.negotiated_salary_usd != null
-              ? `${Number(contract.negotiated_salary_usd).toLocaleString('fr-FR')} $`
-              : '-'}
-          </p>
-        </div>
-        <div>
-          <div class="text-sm font-medium text-slate-500">Régime de travail</div>
-          <p class="text-sm text-slate-900 mt-1">{workRegimeLabel()}</p>
         </div>
       </div>
 
@@ -228,7 +203,7 @@
     </CardContent>
   </Card>
 
-  <!-- Éléments de paie du contrat (S10) -->
+  <!-- Éléments de paie du contrat -->
   <ContractPayElementList
     {contractId}
     elements={payElements}

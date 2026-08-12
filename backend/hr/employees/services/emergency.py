@@ -20,11 +20,23 @@ class EmployeeEmergencyService:
     ) -> EmergencyContact:
         """ Adds a contact with auto-calculated priority (next available). """
         
-        # Calculate next priority automatically
-        max_priority = employee.emergency_contacts.aggregate(
-            max_p=models.Max('priority')
-        )['max_p'] or 0
-        priority = max_priority + 1
+        # Verrouille la ligne employé pour sérialiser les ajouts concurrents.
+        # Sans ce verrou, deux contacts envoyés en parallèle (ex: Promise.all côté
+        # front) calculent tous deux max_priority+1 et violent la contrainte unique.
+        employee = Employee.objects.select_for_update().get(pk=employee.pk)
+        
+        # Priorité demandée par le client si elle est libre, sinon next available
+        requested_priority = data.get('priority')
+        existing_priorities = set(
+            employee.emergency_contacts.values_list('priority', flat=True)
+        )
+        if requested_priority is not None and requested_priority not in existing_priorities:
+            priority = requested_priority
+        else:
+            max_priority = employee.emergency_contacts.aggregate(
+                max_p=models.Max('priority')
+            )['max_p'] or 0
+            priority = max_priority + 1
         
         contact = EmergencyContact.objects.create(
             employee=employee,
@@ -34,6 +46,7 @@ class EmployeeEmergencyService:
             phone=data.get('phone'),
             relation=data.get('relation'),
             priority=priority,
+            is_primary=data.get('is_primary', False),
             created_by=actor
         )
 

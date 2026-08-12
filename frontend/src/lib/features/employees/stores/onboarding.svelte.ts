@@ -2,11 +2,11 @@ import type {
 	Employee,
 	EmergencyContact,
 	Child,
-	EmployeeEducation,
 	OnboardingSubmitData,
 	OnboardingDocumentItem,
 	OnboardingResult,
-	OnboardingEducationItem
+	OnboardingEducationItem,
+	ContractPayElementItem
 } from '../types/types';
 
 import { onboardingService } from '../services/onboarding.service';
@@ -72,13 +72,16 @@ export interface OnboardingData {
 		contract_type: 'CDI' | 'CDD' | 'INTERNSHIP' | 'PROBATION' | 'FREELANCE' | '';
 		salary: number;
 		hire_date: string;
-		remuneration_type: 'FIXED' | 'HOURLY' | 'GROSS_UP';
-		payment_period: 'MONTHLY' | 'BIWEEKLY' | 'WEEKLY';
+		remuneration_type: 'FIXED' | 'HOURLY';
 		salary_base_type: 'GROSS' | 'NET';
 		currency: 'CDF' | 'USD' | 'EUR';
 		end_date: string;
 		is_active: boolean;
 		initial_status: 'ACTIVE' | 'PROBATION' | 'PENDING';
+		// Métamodèle (Règle 5)
+		contractual_clauses: string;
+		// S10 — éléments de paie sélectionnés pendant l'onboarding
+		contract_adjustments: ContractPayElementItem[];
 	};
 	documents: DocumentItem[];
 	family: {
@@ -128,12 +131,13 @@ export class OnboardingStore {
 			salary: 0,
 			hire_date: '',
 			remuneration_type: 'FIXED',
-			payment_period: 'MONTHLY',
 			salary_base_type: 'NET',
 			currency: 'CDF',
 			end_date: '',
 			is_active: true,
-			initial_status: 'PENDING'
+			initial_status: 'PENDING',
+			contractual_clauses: '',
+			contract_adjustments: []
 		},
 		documents: [],
 		family: {
@@ -262,11 +266,12 @@ export class OnboardingStore {
 				salary: this.data.contract.salary,
 				hire_date: this.data.contract.hire_date,
 				remuneration_type: this.data.contract.remuneration_type,
-				payment_period: this.data.contract.payment_period,
 				salary_base_type: this.data.contract.salary_base_type,
 				currency: this.data.contract.currency,
 				end_date: this.data.contract.end_date || undefined,
-				is_active: this.data.contract.is_active
+				is_active: this.data.contract.is_active,
+				contractual_clauses: this.data.contract.contractual_clauses,
+				contract_adjustments: this.data.contract.contract_adjustments
 			},
 			documents: this.data.documents,
 			family: {
@@ -789,12 +794,13 @@ export class OnboardingStore {
 		this.data.contract.salary = 0;
 		this.data.contract.hire_date = '';
 		this.data.contract.remuneration_type = 'FIXED';
-		this.data.contract.payment_period = 'MONTHLY';
 		this.data.contract.salary_base_type = 'NET';
 		this.data.contract.currency = 'CDF';
 		this.data.contract.end_date = '';
 		this.data.contract.is_active = true;
 		this.data.contract.initial_status = 'PENDING';
+		this.data.contract.contractual_clauses = '';
+		this.data.contract.contract_adjustments = [];
 
 		this.data.documents = [];
 		this.data.family.emergencyContacts = [];

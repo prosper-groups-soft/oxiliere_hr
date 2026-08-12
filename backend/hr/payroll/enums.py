@@ -32,7 +32,8 @@ class RemunerationType(TextChoices):
     """Calculation method for employee compensation."""
     FIXED = "FIXED", _('Salaire Fixe')
     HOURLY = "HOURLY", _('Taux Horaire')
-    GROSS_UP = "GROSS_UP", _('Brutage (Net à Brut)')
+    # GROSS_UP retiré — le brutage (net → brut) est piloté par
+    # `salary_base_type = NET` (orchestrator._step2_calculate_earnings).
 
 
 class SalaryBaseType(TextChoices):

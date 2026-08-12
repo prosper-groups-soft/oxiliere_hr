@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Input } from "@/components/ui/input";
   import { Label } from "@/components/ui/label";
+  import { Button } from "@/components/ui/button";
   import * as Select from "@/components/ui/select";
   import ValidationError from "@/components/ui/validation-error";
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
@@ -11,20 +12,20 @@
   import { contractSchema } from "@/features/employees/schemas/onboarding.schema";
   import {
     REMUNERATION_TYPES,
-    PAYMENT_PERIODS,
-    SALARY_BASE_TYPES,
     CURRENCIES,
     CONTRACT_TYPES,
-    WORK_REGIMES,
     type RemunerationType,
-    type PaymentPeriod,
     type SalaryBaseType,
     type Currency,
     type ContractType
   } from "@/features/employees/constants/contract";
   import { getOrgUnitIcon } from "@/features/jobs/constants/orgUnit.constants";
-  import type { EmployeeFullProfile } from "@/features/employees/types/types";
+  import type { EmployeeFullProfile, ContractPayElementItem } from "@/features/employees/types/types";
+  import type { PayrollAdjustmentConfig } from "@/features/payroll/types/types";
   import { notification } from '@/stores/notification.svelte';
+  import PayElementPickerModal from "@/features/employees/components/shared/PayElementPickerModal.svelte";
+  import SalaryGroup from "@/features/employees/components/shared/SalaryGroup.svelte";
+  import { usePayrollAdjustmentsQuery } from "@/features/payroll/queries/payrollHooks";
 
   
   let { employee, onSave } = $props<{
@@ -38,17 +39,21 @@
     contract_type: 'CDI' as ContractType,
     remuneration_type: 'FIXED' as RemunerationType,
     salary: 0,
-    payment_period: 'MONTHLY' as PaymentPeriod,
     salary_base_type: 'NET' as SalaryBaseType,
     currency: 'CDF' as Currency,
     hire_date: '',
     end_date: '',
     is_active: true,
-    // Métamodèle : salaire net négocié en USD, régime de travail, clauses
-    negotiated_salary_usd: null as number | null,
-    work_regime: 'TEMPS_PLEIN' as string,
-    contractual_clauses: ''
+    // Métamodèle : clauses
+    contractual_clauses: '',
+    // S10 — éléments de paie (draft local)
+    contract_adjustments: [] as ContractPayElementItem[]
   });
+
+  // S10 — catalogue des éléments de paie
+  const adjustmentsQuery = usePayrollAdjustmentsQuery();
+  const catalog = $derived<PayrollAdjustmentConfig[]>($adjustmentsQuery.data ?? []);
+  let pickerOpen = $state(false);
 
   // Validation state
   let validationErrors = $state<Record<string, string>>({});
@@ -70,7 +75,6 @@
         ? parseFloat(String(contract?.hourly_rate || 0)) 
         : parseFloat(String(contract?.base_salary || 0));
         
-      formData.payment_period = (contract?.payment_period as PaymentPeriod) || 'MONTHLY';
       formData.salary_base_type = (contract?.salary_base_type as SalaryBaseType) || 'NET';
       formData.currency = (contract?.currency as Currency) || 'CDF';
       
@@ -81,12 +85,43 @@
       
       formData.is_active = contract?.is_active ?? true;
 
-      // Métamodèle (Règle 5) — salaire négocié USD, régime de travail, clauses
-      formData.negotiated_salary_usd = contract?.negotiated_salary_usd ?? null;
-      formData.work_regime = contract?.work_regime ?? 'TEMPS_PLEIN';
+      // Métamodèle (Règle 5) — clauses
       formData.contractual_clauses = contract?.contractual_clauses ?? '';
+
+      // S10 — éléments de paie existants (draft local)
+      formData.contract_adjustments = [...(employee.contract_adjustments ?? [])];
     }
   });
+
+  // S10 — ajout d'un élément depuis le picker
+  async function handleAddPayElement(payload: any) {
+    const adj = catalog.find((a) => a.id === payload.adjustment);
+    if (!adj) return;
+    const item: ContractPayElementItem = {
+      id: crypto.randomUUID(),
+      catalog_code: adj.code ?? null,
+      label: adj.name,
+      value_type: adj.calculation_mode,
+      amount: adj.amount != null ? Number(adj.amount) : null,
+      custom_amount: payload.custom_amount,
+      custom_percentage: payload.custom_percentage,
+      is_active: payload.is_active ?? true,
+      is_taxable: adj.is_taxable,
+      recurrence: 'monthly',
+      start_period: payload.start_period,
+      end_period: payload.end_period ?? null,
+      // Champ interne pour la soumission
+      adjustment_id: adj.id,
+    } as any;
+    formData.contract_adjustments = [...formData.contract_adjustments, item];
+    pickerOpen = false;
+  }
+
+  function handleRemovePayElement(index: number) {
+    const next = [...formData.contract_adjustments];
+    next.splice(index, 1);
+    formData.contract_adjustments = next;
+  }
 
   // Reactive Validation
   $effect(() => {
@@ -177,44 +212,13 @@
     $positionsQuery.data?.find(p => p.id === formData.position_id)
   );
 
-  // Logique conditionnelle selon le type de rémunération
-  const showSalaryField = $derived(
-    formData.remuneration_type === REMUNERATION_TYPES[0].value
-  );
-  const showHourlyRateField = $derived(
-    formData.remuneration_type === REMUNERATION_TYPES[1].value
-  );
-
   // Calcul de l'équivalent mensuel pour le taux horaire
   const monthlyEquivalent = $derived(() => {
-    if (showHourlyRateField && formData.salary > 0) {
+    if (formData.remuneration_type === 'HOURLY' && formData.salary > 0) {
       const monthly = formData.salary * 160;
       return new Intl.NumberFormat('fr-FR').format(monthly);
     }
     return null;
-  });
-
-  // Obtenir le symbole monétaire selon la devise
-  const currencySymbol = $derived(() => {
-    const currency = formData.currency;
-    if (currency === CURRENCIES[1].value) return '$';
-    if (currency === CURRENCIES[2].value) return '€';
-    return 'FC';
-  });
-
-  // Obtenir le placeholder selon la devise
-  const salaryPlaceholder = $derived(() => {
-    const currency = formData.currency;
-    if (currency === CURRENCIES[1].value) return '2500';
-    if (currency === CURRENCIES[2].value) return '2200';
-    return '2500';
-  });
-
-  const hourlyPlaceholder = $derived(() => {
-    const currency = formData.currency;
-    if (currency === CURRENCIES[1].value) return '15.50';
-    if (currency === CURRENCIES[2].value) return '13.75';
-    return '15.50';
   });
 
   // Obtenir le nom complet de la devise pour les exemples
@@ -270,15 +274,10 @@
         {placeholder}
         {value}
         oninput={(e) => onChange(e.currentTarget.value)}
-        class="h-10 bg-white border-slate-200 focus:ring-1 focus:ring-primary focus:border-primary rounded-md shadow-fine {id === 'salary' || id === 'hourly_rate' ? 'pr-12' : ''}"
+        class="h-10 bg-white border-slate-200 focus:ring-1 focus:ring-primary focus:border-primary rounded-md shadow-fine"
       />
-      {#if id === 'salary' || id === 'hourly_rate'}
-        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-xs">
-          {currencySymbol()}
-        </span>
-      {/if}
+      <ValidationError errors={validationErrors} field={id} />
     </div>
-    <ValidationError errors={validationErrors} field={id} />
   </div>
 {/snippet}
 
@@ -447,133 +446,29 @@
             Salaire mensuel fixe, indépendant des heures travaillées
           {:else if formData.remuneration_type === 'HOURLY'}
             Payé à l'heure selon le temps de travail effectif
-          {:else if formData.remuneration_type === 'GROSS_UP'}
-            Salaire calculé à partir du Net souhaité (Net à Brut)
           {/if}
         </p>
         <ValidationError errors={validationErrors} field="remuneration_type" />
       </div>
 
-      <!-- Salaire ou taux horaire (conditionnel) -->
-      {#if showSalaryField}
-        {@render InputGroup(
-          "salary",
-          "Salaire de base *",
-          salaryPlaceholder(),
-          "number",
-          formData.salary,
-          (v) => formData.salary = parseFloat(v) || 0
-        )}
-      {:else if showHourlyRateField}
-        <div class="space-y-1.5">
-          {@render InputGroup(
-            "hourly_rate",
-            "Taux horaire *",
-            hourlyPlaceholder(),
-            "number",
-            formData.salary,
-            (v) => formData.salary = parseFloat(v) || 0
-          )}
-          <p class="text-[0.77rem] text-slate-500">
-            {#if formData.currency === 'USD'}
-              Ex: 10.25 $/heure × 160h = ~1.640 $/mois
-            {:else if formData.currency === 'EUR'}
-              Ex: 9.50 €/heure × 160h = ~1.520 €/mois
-            {:else}
-              Ex: 15.50 FC/heure × 160h = ~2.480 FC/mois
-            {/if}
-            {#if monthlyEquivalent()}
-              <br>≈ {monthlyEquivalent()} {currencyName()}/mois (estimation 160h)
-            {/if}
+      <!-- Salaire groupé : montant principal + type de salaire + devise -->
+      <div class="md:col-span-3">
+        <SalaryGroup
+          id="salary"
+          salary={formData.salary}
+          salaryBaseType={formData.salary_base_type}
+          currency={formData.currency}
+          remunerationType={formData.remuneration_type}
+          onSalaryChange={(v) => formData.salary = v}
+          onSalaryBaseTypeChange={(v) => formData.salary_base_type = v as SalaryBaseType}
+          onCurrencyChange={(v) => formData.currency = v as Currency}
+        />
+        {#if formData.remuneration_type === 'HOURLY' && monthlyEquivalent()}
+          <p class="text-[0.77rem] text-slate-500 mt-1">
+            ≈ {monthlyEquivalent()} {currencyName()}/mois (estimation 160h)
           </p>
-        </div>
-      {/if}
-
-      <!-- Période de paiement -->
-      <div class="space-y-1.5">
-        <Label class="text-[0.83rem] text-slate-900 font-medium">
-          Période de paiement *
-        </Label>
-        <Select.Root
-          type="single"
-          bind:value={formData.payment_period}
-        >
-          <Select.Trigger class="h-10 bg-white border-slate-200 rounded-md w-full shadow-fine font-normal text-sm cursor-pointer">
-            {PAYMENT_PERIODS.find((t: any) => t.value === formData.payment_period)?.label ?? "Sélectionner..."}
-          </Select.Trigger>
-          <Select.Content class="z-100">
-            {#each PAYMENT_PERIODS as period}
-              <Select.SelectItem value={period.value} label={period.label}>
-                {period.label}
-              </Select.SelectItem>
-            {/each}
-          </Select.Content>
-        </Select.Root>
-        <p class="text-[0.77rem] text-slate-500">
-          {#if formData.payment_period === 'MONTHLY'}
-            Payé une fois par mois (généralement fin de mois)
-          {:else if formData.payment_period === 'BIWEEKLY'}
-            Payé toutes les 2 semaines (Quinzaine)
-          {:else if formData.payment_period === 'WEEKLY'}
-            Payé chaque semaine
-          {:else if formData.payment_period === 'DAILY'}
-            Payé à la fin de chaque journée de travail
-          {:else if formData.payment_period === 'PER_TASK'}
-            Payé à la livraison de la tâche ou forfaitairement
-          {/if}
-        </p>
-        <ValidationError errors={validationErrors} field="payment_period" />
-      </div>
-
-      <!-- Type de salaire -->
-      <div class="space-y-1.5">
-        <Label class="text-[0.83rem] text-slate-900 font-medium">
-          Base de calcul *
-        </Label>
-        <Select.Root
-          type="single"
-          bind:value={formData.salary_base_type}
-        >
-          <Select.Trigger class="h-10 bg-white border-slate-200 rounded-md w-full shadow-fine font-normal text-sm cursor-pointer">
-            {SALARY_BASE_TYPES.find((t: any) => t.value === formData.salary_base_type)?.label ?? "Sélectionner..."}
-          </Select.Trigger>
-          <Select.Content class="z-100">
-            {#each SALARY_BASE_TYPES as type}
-              <Select.SelectItem value={type.value} label={type.label}>
-                {type.label}
-              </Select.SelectItem>
-            {/each}
-          </Select.Content>
-        </Select.Root>
-        <p class="text-[0.77rem] text-slate-500">
-          {#if formData.salary_base_type === 'GROSS'}
-            Salaire avant déduction des impôts et charges sociales (IPR, CNSS)
-          {:else}
-            Salaire après déduction, montant réellement perçu par l'employé
-          {/if}
-        </p>
-      </div>
-
-      <!-- Devise -->
-      <div class="space-y-1.5">
-        <Label class="text-[0.83rem] text-slate-900 font-medium">
-          Devise *
-        </Label>
-        <Select.Root
-          type="single"
-          bind:value={formData.currency}
-        >
-          <Select.Trigger class="h-10 bg-white border-slate-200 rounded-md w-full shadow-fine font-normal text-sm cursor-pointer">
-            {CURRENCIES.find((t: any) => t.value === formData.currency)?.label ?? "Sélectionner..."}
-          </Select.Trigger>
-          <Select.Content class="z-100">
-            {#each CURRENCIES as currency}
-              <Select.SelectItem value={currency.value} label={currency.label}>
-                {currency.label}
-              </Select.SelectItem>
-            {/each}
-          </Select.Content>
-        </Select.Root>
+        {/if}
+        <ValidationError errors={validationErrors} field="salary" />
         <ValidationError errors={validationErrors} field="currency" />
       </div>
     </div>
@@ -609,61 +504,6 @@
 
   <!-- Section Métamodèle (Règle 5) -->
   <div class="space-y-4">
-    <h4 class="text-[0.9rem] font-bold text-slate-900 border-b border-slate-100 pb-2">
-      Métamodèle contractuel (RDC)
-    </h4>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <!-- Salaire net négocié en USD -->
-      <div class="space-y-1.5">
-        <Label for="negotiated_salary_usd" class="text-[0.83rem] text-slate-900 font-medium">
-          Salaire net négocié (USD) *
-        </Label>
-        <div class="relative">
-          <Input
-            id="negotiated_salary_usd"
-            type="number"
-            min="0"
-            placeholder="Ex: 2500"
-            value={formData.negotiated_salary_usd ?? ''}
-            oninput={(e) => {
-              const v = e.currentTarget.value;
-              formData.negotiated_salary_usd = v === '' ? null : parseFloat(v);
-            }}
-            class="h-10 bg-white border-slate-200 focus:ring-1 focus:ring-primary focus:border-primary rounded-md shadow-fine pr-12"
-          />
-          <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-xs">$</span>
-        </div>
-        <p class="text-[0.77rem] text-slate-500">
-          Salaire net mensuel négocié à l'embauche, exprimé en USD (référence métamodèle).
-        </p>
-      </div>
-
-      <!-- Régime de travail -->
-      <div class="space-y-1.5">
-        <Label for="work_regime" class="text-[0.83rem] text-slate-900 font-medium">
-          Régime de travail *
-        </Label>
-        <Select.Root
-          type="single"
-          bind:value={formData.work_regime}
-        >
-          <Select.Trigger id="work_regime" class="h-10 bg-white border-slate-200 rounded-md w-full shadow-fine font-normal text-sm cursor-pointer">
-            {WORK_REGIMES.find((t: any) => t.value === formData.work_regime)?.label ?? "Sélectionner..."}
-          </Select.Trigger>
-          <Select.Content class="z-100">
-            {#each WORK_REGIMES as regime}
-              <Select.SelectItem value={regime.value} label={regime.label}>
-                {regime.label}
-              </Select.SelectItem>
-            {/each}
-          </Select.Content>
-        </Select.Root>
-        <p class="text-[0.77rem] text-slate-500">
-          Temps plein, partiel (50/60/80 %) ou expatrié (rémunération en devises).
-        </p>
-      </div>
-    </div>
-
     <!-- Clauses particulières -->
     <div class="space-y-1.5">
       <Label for="contractual_clauses" class="text-[0.83rem] text-slate-900 font-medium">
@@ -712,5 +552,99 @@
       />
     </div>
   </div>
+
+  <!-- Section Éléments de paie (S10) -->
+  <div class="space-y-4">
+    <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+      <h4 class="text-[0.9rem] font-bold text-slate-900">
+        Éléments de paie
+      </h4>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        class="gap-1.5 h-8 text-[0.78rem] border-slate-200 cursor-pointer"
+        onclick={() => (pickerOpen = true)}
+        disabled={catalog.length === 0}
+      >
+        <AppIcon name="plus" size={15} />
+        Ajouter
+      </Button>
+    </div>
+    <p class="text-[0.77rem] text-slate-500 -mt-2">
+      Primes et indemnités récurrentes appliquées automatiquement au bulletin de paie.
+    </p>
+
+    {#if formData.contract_adjustments.length === 0}
+      <div class="py-6 text-center rounded-lg border border-dashed border-slate-200">
+        <div class="text-slate-400 mx-auto w-fit mb-2">
+          <AppIcon name="box" size={24} />
+        </div>
+        <p class="text-[0.82rem] text-slate-600">
+          Aucun élément de paie sélectionné. Ajoutez-en depuis le catalogue.
+        </p>
+      </div>
+    {:else}
+      <div class="overflow-hidden rounded-lg border border-slate-100">
+        <table class="w-full text-left">
+          <thead class="bg-slate-50">
+            <tr>
+              <th class="px-3.5 py-2 text-[0.65rem] font-bold text-slate-400 uppercase tracking-wider">Libellé</th>
+              <th class="px-3.5 py-2 text-[0.65rem] font-bold text-slate-400 uppercase tracking-wider">Montant / Taux</th>
+              <th class="px-3.5 py-2 text-[0.65rem] font-bold text-slate-400 uppercase tracking-wider">Période</th>
+              <th class="px-3.5 py-2 text-right"></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-50">
+            {#each formData.contract_adjustments as el, i}
+              <tr class="hover:bg-slate-50/50 transition-colors">
+                <td class="px-3.5 py-2">
+                  <div class="flex items-center gap-2">
+                    <span class="text-[0.82rem] font-medium text-slate-700">{el.label}</span>
+                    {#if !el.is_taxable}
+                      <span title="Non imposable">
+                        <AppIcon name="shield-check" size={13} class="text-emerald-500" />
+                      </span>
+                    {/if}
+                  </div>
+                </td>
+                <td class="px-3.5 py-2 text-[0.82rem] text-slate-600">
+                  {el.custom_amount != null
+                    ? `${Number(el.custom_amount).toLocaleString('fr-FR')} CDF`
+                    : el.custom_percentage != null
+                      ? `${el.custom_percentage} %`
+                      : el.amount != null
+                        ? `${Number(el.amount).toLocaleString('fr-FR')} CDF`
+                        : '—'}
+                </td>
+                <td class="px-3.5 py-2 text-[0.72rem] text-slate-400 whitespace-nowrap">
+                  {el.start_period ? String(el.start_period).slice(0, 10) : '—'}
+                  {#if el.end_period} → {String(el.end_period).slice(0, 10)}{/if}
+                </td>
+                <td class="px-3.5 py-2 text-right">
+                  <button
+                    type="button"
+                    title="Retirer"
+                    onclick={() => handleRemovePayElement(i)}
+                    class="text-slate-400 hover:text-red-500 transition-colors cursor-pointer"
+                  >
+                    <AppIcon name="trash-2" size={14} />
+                  </button>
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    {/if}
+  </div>
 </div>
+
+<PayElementPickerModal
+  open={pickerOpen}
+  {catalog}
+  existingCodes={new Set(formData.contract_adjustments.map((e: any) => e.catalog_code ?? e.adjustment_id))}
+  onOpenChange={(v) => (pickerOpen = v)}
+  onConfirm={handleAddPayElement}
+/>
 

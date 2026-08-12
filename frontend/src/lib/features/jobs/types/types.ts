@@ -51,6 +51,8 @@ export interface SeniorityLevelDefinition {
 	name: string;           // Label d'affichage
 	rank: number;
 	requirements: string[];
+	/** Classe professionnelle RDC (1-7) — grille des catégories professionnelles */
+	classe?: number | null;
 	is_active?: boolean;
 }
 
@@ -83,6 +85,8 @@ export interface PositionSeniority {
 	seniority_level: SeniorityLevelDefinition;
 	salary_min: number;
 	salary_max: number;
+	/** Échelon dans la grille (1-4) — progression intra-classe */
+	echelon?: number | null;
 	rank: number;
 	next_level_id?: string | null;
 	is_active: boolean;
@@ -115,6 +119,8 @@ export interface JobPositionCreate {
 		seniority_level: SeniorityLevel;
 		salary_min: number;
 		salary_max: number;
+		/** Échelon (1-4) optionnel */
+		echelon?: number | null;
 		rank: number;
 		next_level_id?: string;
 		is_active?: boolean;
@@ -132,6 +138,8 @@ export type JobPositionUpdate = Partial<{
 		seniority_level: SeniorityLevel;
 		salary_min: number;
 		salary_max: number;
+		/** Échelon (1-4) optionnel */
+		echelon?: number | null;
 		rank: number;
 		next_level_id?: string;
 		is_active?: boolean;

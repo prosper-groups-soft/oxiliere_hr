@@ -34,12 +34,12 @@ class EmployeeCareerService:
         base_salary: Decimal,
         contract_type: str,
         remuneration_type: str,
-        payment_period: str,
         salary_base_type: str,
         start_date: date,
         end_date: Optional[date] = None,
         currency: str = "CDF",
         is_active: bool = True,
+        contractual_clauses: str = "",
     ) -> EmployeeContract:
         """
         Creates a complete employment contract during onboarding.
@@ -55,8 +55,7 @@ class EmployeeCareerService:
             seniority_level_id: UUID of the seniority level
             base_salary: Base salary amount
             contract_type: Type of contract (CDI, CDD, FREELANCE, INTERN)
-            remuneration_type: Type of remuneration (FIXED, HOURLY, GROSS_UP)
-            payment_period: Payment frequency (MONTHLY, BIWEEKLY, WEEKLY)
+            remuneration_type: Type of remuneration (FIXED, HOURLY)
             salary_base_type: Salary base type (GROSS, NET)
             start_date: Contract start date
             end_date: Contract end date (optional, for CDD)
@@ -86,7 +85,6 @@ class EmployeeCareerService:
         contract = EmployeeContract.objects.create(
             employee=employee,
             remuneration_type=remuneration_type,
-            payment_period=payment_period,
             contract_type=contract_type,
             base_salary=base_salary,
             salary_base_type=salary_base_type,
@@ -95,6 +93,7 @@ class EmployeeCareerService:
             start_date=start_date,
             end_date=end_date,
             is_active=is_active,
+            contractual_clauses=contractual_clauses,
         )
         
         logger.info(f"[CareerService] Created EmployeeContract {contract.id} for {employee.matricule}")

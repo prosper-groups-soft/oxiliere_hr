@@ -273,7 +273,16 @@ export async function createContractPayElement(
   contractId: string,
   data: Partial<ContractPayElementItem> & { adjustment: string; start_period: string; end_period?: string | null; custom_amount?: number | null; custom_percentage?: number | null; is_active?: boolean }
 ): Promise<ContractPayElementItem> {
-  return PayrollApi.contractPayElements.create(contractId, data) as unknown as ContractPayElementItem;
+  // IMPORTANT : le backend (ContractAdjustmentCreateIn) attend `start_date`/`end_date`,
+  // pas `start_period`/`end_period` (noms S10 frontend). Mapping obligatoire sinon les
+  // dates sont silencieusement ignorées → NOT NULL constraint failed sur start_date.
+  const { start_period, end_period, ...rest } = data;
+  const payload = {
+    ...rest,
+    start_date: start_period,
+    end_date: end_period ?? null,
+  };
+  return PayrollApi.contractPayElements.create(contractId, payload) as unknown as ContractPayElementItem;
 }
 
 /** Update a contract pay element (S10 — PATCH /payroll/contracts/:id/pay-elements/:elementId) */

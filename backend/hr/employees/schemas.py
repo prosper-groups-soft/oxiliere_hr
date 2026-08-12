@@ -213,11 +213,13 @@ class EmergencyContactCreate(ModelSchema):
             "last_name", 
             "phone", 
             "relation", 
+            "priority",
             "is_primary"
         ]
         fields_optional = [
             "middle_name",
             "last_name",
+            "priority",
             "is_primary"
         ]
 
@@ -375,13 +377,14 @@ class EmployeeOnboardingContractIn(Schema):
     seniority_level_id: UUID
     base_salary: Decimal
     contract_type: str  # CDI, CDD, FREELANCE, INTERN
-    remuneration_type: str = "FIXED"  # FIXED, HOURLY, GROSS_UP
-    payment_period: str = "MONTHLY"  # MONTHLY, BIWEEKLY, WEEKLY
+    remuneration_type: str = "FIXED"  # FIXED, HOURLY
     salary_base_type: str = "NET"  # GROSS, NET
     start_date: date
     end_date: Optional[date] = None
     currency: str = "CDF"
     is_active: bool = True
+    # Métamodèle (Règle 5) — clauses particulières
+    contractual_clauses: str = ""
     
 
 class ContractOut(ModelSchema):
@@ -391,7 +394,6 @@ class ContractOut(ModelSchema):
         fields = [
             "id",
             "remuneration_type",
-            "payment_period",
             "contract_type",
             "base_salary",
             "salary_base_type",
@@ -400,15 +402,37 @@ class ContractOut(ModelSchema):
             "start_date",
             "end_date",
             "is_active",
+            "contractual_clauses",
             "created_at",
             "updated_at",
         ]
 
 
-#  -------- Employee List & Detail -------- 
+# -------- Employee List & Detail --------
+
+class ContractPayElementOut(Schema):
+    """DTO local (employees) — élément de paie S10 du contrat courant.
+
+    Copie structurelle de `payroll.schemas.PayElementOut` pour éviter
+    tout import croisé payroll ↔ employees (couplage bidirectionnel).
+    La sérialisation se fait via le resolver resolve_contract_adjustments.
+    """
+    id: UUID
+    catalog_code: Optional[str] = None
+    label: str
+    value_type: str
+    amount: Optional[Decimal] = None
+    custom_amount: Optional[Decimal] = None
+    custom_percentage: Optional[Decimal] = None
+    is_active: bool
+    is_taxable: bool = True
+    recurrence: str = "monthly"
+    start_period: date
+    end_period: Optional[date] = None
 
 class EmployeeFullProfileOut(ModelSchema):
-    """ Complete HR dossier for detailed view. """    
+    """ Complete HR dossier for detailed view. """  
+
     addresses: List[EmployeeAddressOut]
     children: List[EmployeeChildOut]
     educations: List[EmployeeEducationOut]
@@ -429,6 +453,8 @@ class EmployeeFullProfileOut(ModelSchema):
     org_unit: Optional[str] = None
     org_unit_id: Optional[UUID] = None
     org_unit_type: Optional[str] = None
+    # S10 — éléments de paie du contrat courant (DTO local)
+    contract_adjustments: List[ContractPayElementOut] = PydanticField(default_factory=list)
 
     class Meta:
         model = Employee
@@ -517,6 +543,33 @@ class EmployeeFullProfileOut(ModelSchema):
     @staticmethod
     def resolve_position_history(obj):
         return obj.position_history.all().order_by('-start_date')
+
+    @staticmethod
+    def resolve_contract_adjustments(obj):
+        """S10 — éléments de paie du contrat courant (actif ou suspendu)."""
+        contracts = getattr(obj, 'prefetched_latest_contract', [])
+        if not contracts:
+            return []
+        contract = contracts[0]
+        assignments = contract.pay_elements.select_related('adjustment').order_by('-start_date')
+        elements = []
+        for assignment in assignments:
+            adj = assignment.adjustment
+            elements.append({
+                'id': assignment.id,
+                'catalog_code': adj.code,
+                'label': adj.name,
+                'value_type': adj.calculation_mode,
+                'amount': assignment.custom_amount if assignment.custom_amount is not None else adj.amount,
+                'custom_amount': assignment.custom_amount,
+                'custom_percentage': assignment.custom_percentage,
+                'is_active': assignment.is_active,
+                'is_taxable': adj.is_taxable,
+                'recurrence': 'monthly',
+                'start_period': assignment.start_date,
+                'end_period': assignment.end_date,
+            })
+        return elements
 
 
 class EmployeeOut(ModelSchema):
@@ -696,7 +749,8 @@ class EmployeeFilterIn(BaseFilter):
             return ~Q(Exists(subquery))
 
     def filter_has_active_contract(self, value: Optional[bool]) -> Q:
-        """Filter by presence of an active employment contract.
+        """
+        Filter by presence of an active employment contract.
         Uses EXISTS subquery to avoid duplicate rows from JOIN.
         """
         if value is None:
@@ -761,13 +815,14 @@ class EmployeeContractInfoUpdateIn(Schema):
     remuneration_type: Optional[str] = None
     base_salary: Optional[float] = None
     hourly_rate: Optional[float] = None
-    payment_period: Optional[str] = None
     salary_base_type: Optional[str] = None
     currency: Optional[str] = None
     hire_date: Optional[date] = None
     end_date: Optional[date] = None
     is_active: Optional[bool] = None
     description: Optional[str] = None
+    # Métamodèle (Règle 5)
+    contractual_clauses: Optional[str] = None
 
 
 #  -------- Work site --------

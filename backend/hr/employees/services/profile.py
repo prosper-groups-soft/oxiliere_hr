@@ -339,8 +339,8 @@ class EmployeeProfileService:
         if contract:
             contract_fields = [
                 'contract_type', 'remuneration_type', 'base_salary', 
-                'hourly_rate', 'payment_period', 'salary_base_type', 
-                'currency', 'hire_date', 'end_date', 'is_active'
+                'hourly_rate', 'salary_base_type', 'currency', 
+                'hire_date', 'end_date', 'is_active', 'contractual_clauses'
             ]
             
             contract_update_data = {

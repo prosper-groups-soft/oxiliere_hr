@@ -79,7 +79,7 @@ export const contractSchema = z.object({
         { message: 'Le type de contrat est requis' }
     ),
     remuneration_type: z.enum(
-        ['FIXED', 'HOURLY', 'GROSS_UP'],
+        ['FIXED', 'HOURLY'],
         { message: 'Le type de rémunération est requis' }
     ),
     salary: z
@@ -88,10 +88,6 @@ export const contractSchema = z.object({
         .refine((val: number) => val > 0, {
             message: 'Le salaire est requis'
         }),
-    payment_period: z.enum(
-        ['MONTHLY', 'BIWEEKLY', 'WEEKLY'],
-        { message: 'La période de paiement est requise' }
-    ),
     salary_base_type: z.enum(
         ['GROSS', 'NET'],
         { message: 'La base de calcul est requise' }
@@ -114,7 +110,11 @@ export const contractSchema = z.object({
             return !isNaN(Date.parse(val));
         }, {
             message: 'Date de fin invalide'
-        })
+        }),
+    // Métamodèle (Règle 5)
+    contractual_clauses: z.string().optional(),
+    // S10 — éléments de paie sélectionnés pendant l'onboarding
+    contract_adjustments: z.array(z.any()).optional()
 });
 
 // ============================================

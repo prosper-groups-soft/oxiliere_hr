@@ -4,14 +4,12 @@
   import AppIcon from '@/components/layout/elements/AppIcon.svelte';
   import AnimateSpin from '@/components/layout/elements/AnimateSpin.svelte';
   import { useQueryClient } from '@tanstack/svelte-query';
-  import {
-    useUpdateEmployeeMutation,
-    useUpdateContractMutation,
-    employeeQueryKeys,
-  } from '../../../../queries/employeeQueries';
+  import { useUpdateEmployeeMutation, useUpdateContractMutation, employeeQueryKeys } from '../../../../queries/employeeQueries';
   import { employeeStore } from '@/features/employees/stores/employees.svelte';
   import type { EmployeeFullProfile } from '@/features/employees/types/types';
   import { getEditConfig } from './editConfig';
+  import { useCreateContractPayElementMutation, useDeleteContractPayElementMutation } from '@/features/payroll/queries/payrollHooks';
+  import { payrollQueryOptions } from '@/features/payroll/queries/payroll';
 
   /**
    * EmployeeEditSheet — Sheet d'édition des informations employé (profil/contrat).
@@ -35,8 +33,10 @@
   const queryClient = useQueryClient();
   const updateMutation = useUpdateEmployeeMutation();
   const updateContractMutation = useUpdateContractMutation();
+  const createPayElementMutation = useCreateContractPayElementMutation();
+  const deletePayElementMutation = useDeleteContractPayElementMutation();
 
-  const isPending = $derived($updateMutation.isPending || $updateContractMutation.isPending);
+  const isPending = $derived($updateMutation.isPending || $updateContractMutation.isPending || $createPayElementMutation.isPending || $deletePayElementMutation.isPending);
 
   const currentConfig = $derived(getEditConfig(activeTabId));
 
@@ -51,6 +51,43 @@
           employeeId: employee.id.toString(),
           data,
         });
+
+        // S10 — synchroniser les éléments de paie du contrat
+        const contractId = employee.current_contract?.id;
+        if (contractId && Array.isArray(data.contract_adjustments)) {
+          const existingIds = new Set((employee.contract_adjustments ?? []).map((e: any) => e.id));
+          const submitted = data.contract_adjustments as any[];
+
+          // 1. Créer les nouveaux éléments (ceux qui ont adjustment_id interne)
+          for (const el of submitted) {
+            if (el.adjustment_id) {
+              await $createPayElementMutation.mutateAsync({
+                contractId,
+                data: {
+                  adjustment: el.adjustment_id,
+                  custom_amount: el.custom_amount ?? null,
+                  custom_percentage: el.custom_percentage ?? null,
+                  start_period: el.start_period || data.hire_date || new Date().toISOString().slice(0, 10),
+                  end_period: el.end_period || null,
+                  is_active: el.is_active ?? true,
+                },
+              });
+            }
+          }
+
+          // 2. Supprimer les éléments retirés (présents avant, absents maintenant)
+          const submittedIds = new Set(submitted.map((e: any) => e.id));
+          for (const existing of (employee.contract_adjustments ?? [])) {
+            if (existing.id && !submittedIds.has(existing.id)) {
+              await $deletePayElementMutation.mutateAsync({ contractId, elementId: existing.id });
+            }
+          }
+
+          // Rafraîchir le cache des éléments de paie
+          await queryClient.invalidateQueries({
+            queryKey: payrollQueryOptions.contractPayElements(contractId).queryKey,
+          });
+        }
       } else {
         await $updateMutation.mutateAsync({
           employeeId: employee.id.toString(),
@@ -138,3 +175,4 @@
 
   </Sheet.Content>
 </Sheet.Root>
+

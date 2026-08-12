@@ -3,28 +3,24 @@
   import { Input } from "@/components/ui/input";
   import { Label } from "@/components/ui/label";
   import * as Select from "@/components/ui/select";
-  import { 
-    Card, 
-    CardContent, 
-    CardHeader, 
-    CardTitle, 
-    CardDescription 
-  } from "@/components/ui/card";
+  import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+  import { Textarea } from "@/components/ui/textarea";
 
   import { usePositionsQuery, useSeniorityLevelsQuery } from "../../../queries/onboardingQueries";
   import ValidationError from "@/components/ui/validation-error/ValidationError.svelte";
   import { validateStep } from "../../../schemas/onboarding.schema";
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
-  import {
-    REMUNERATION_TYPES,
-    PAYMENT_PERIODS,
-    SALARY_BASE_TYPES,
-    CURRENCIES,
-    CONTRACT_TYPES
-  } from "../../../constants/contract";
+  import { REMUNERATION_TYPES, CONTRACT_TYPES } from "../../../constants/contract";
   import { EMPLOYEE_STATUS_CONFIG } from "@/features/employees/constants/employeeStatus";
   import { getOrgUnitIcon } from "@/features/jobs/constants/orgUnit.constants";
   import AnimateSpin from "@/components/layout/elements/AnimateSpin.svelte";
+  import SalaryGroup from "../../shared/SalaryGroup.svelte";
+  import ContractPayElementList from '@/features/employees/components/shared/ContractPayElementList.svelte';
+  import { usePayrollAdjustmentsQuery } from "@/features/payroll/queries/payrollHooks";
+  import type { ContractPayElementItem } from "@/features/employees/types/types";
+  import type { PayrollAdjustmentConfig } from "@/features/payroll/types/types";
+  import { formatClassEchelon } from "@/features/jobs/constants/professionalCategory.constants";
+
 
   // Options pour le statut initial
   const initialStatusOptions = $derived([
@@ -49,8 +45,69 @@
     })) ?? []
   );
 
-  let seniorityOptions = $state<Array<{value: string, label: string}>>([]);
+  let seniorityOptions = $state<Array<{value: string, label: string, echelon?: number | null}>>([]);
   let hasSeniorityLevels = $state(false);
+
+  // Métamodèle (Règle 5) — clauses
+  const contractAdjustments = $derived(onboardingStore.data.contract.contract_adjustments);
+
+  // S10 — catalogue des éléments de paie
+  const adjustmentsQuery = usePayrollAdjustmentsQuery();
+  const catalog = $derived<PayrollAdjustmentConfig[]>($adjustmentsQuery.data ?? []);
+
+  // Classe/Échelon dérivés de la sélection Poste + Séniorité
+  const selectedSeniorityInfo = $derived.by(() => {
+    const pos = $positionsQuery.data?.find(p => p.id === onboardingStore.data.contract.position_id);
+    const sl = pos?.seniority_levels?.find((s: any) => s.id === onboardingStore.data.contract.seniority_level_id);
+    if (!sl) return null;
+    const seniorityLevel = sl.seniority_level;
+    return {
+      classe: seniorityLevel?.classe ?? sl.classe ?? null,
+      echelon: sl.echelon ?? null,
+      salary_min: Number(sl.salary_min) || null,
+      salary_max: Number(sl.salary_max) || null
+    };
+  });
+
+  // Validation salaire >= salary_min (avertissement si en dessous)
+  const salaryWarning = $derived.by(() => {
+    if (!selectedSeniorityInfo?.salary_min) return null;
+    const salary = onboardingStore.data.contract.salary;
+    if (salary > 0 && salary < selectedSeniorityInfo.salary_min) {
+      return `Le salaire (${salary.toLocaleString('fr-FR')}) est inférieur au minimum de la grille (${selectedSeniorityInfo.salary_min.toLocaleString('fr-FR')} FC).`;
+    }
+    return null;
+  });
+
+  // Ajout d'un élément depuis le picker
+  async function handleAddPayElement(payload: any) {
+    const adj = catalog.find((a) => a.id === payload.adjustment);
+    if (!adj) return;
+    const item: ContractPayElementItem = {
+      id: crypto.randomUUID(),
+      catalog_code: adj.code ?? null,
+      label: adj.name,
+      value_type: adj.calculation_mode,
+      amount: adj.amount != null ? Number(adj.amount) : null,
+      custom_amount: payload.custom_amount,
+      custom_percentage: payload.custom_percentage,
+      is_active: payload.is_active ?? true,
+      is_taxable: adj.is_taxable,
+      recurrence: 'monthly',
+      start_period: payload.start_period,
+      end_period: payload.end_period ?? null,
+      // Champ interne pour la soumission
+      adjustment_id: adj.id,
+    } as any;
+    onboardingStore.setContractField('contract_adjustments', [...contractAdjustments, item]);
+  }
+
+  function handleRemovePayElement(_el: ContractPayElementItem, index: number): Promise<void> {
+    const next = [...contractAdjustments];
+    next.splice(index, 1);
+    onboardingStore.setContractField('contract_adjustments', next);
+    return Promise.resolve();
+  }
 
   $effect(() => {
     // Essayer d'abord depuis les données de position sélectionnée
@@ -106,51 +163,14 @@
     $positionsQuery.data?.find(p => p.id === onboardingStore.data.contract.position_id)
   );
 
-  // Logique conditionnelle selon le type de rémunération
-  const showSalaryField = $derived(
-    onboardingStore.data.contract.remuneration_type === 'FIXED'
-  );
-  const showHourlyRateField = $derived(
-    onboardingStore.data.contract.remuneration_type === 'HOURLY'
-  );
-
   // Calcul de l'équivalent mensuel pour le taux horaire
   const monthlyEquivalent = $derived(() => {
-    if (showHourlyRateField && onboardingStore.data.contract.salary > 0) {
+    if (onboardingStore.data.contract.remuneration_type === 'HOURLY' && onboardingStore.data.contract.salary > 0) {
       // Estimation basée sur 160 heures/mois (standard)
       const monthly = onboardingStore.data.contract.salary * 160;
       return new Intl.NumberFormat('fr-FR').format(monthly);
     }
     return null;
-  });
-
-  // Obtenir le symbole monétaire selon la devise
-  const currencySymbol = $derived(() => {
-    switch (onboardingStore.data.contract.currency) {
-      case 'USD': return '$';
-      case 'EUR': return '€';
-      case 'CDF': 
-      default: return 'FC';
-    }
-  });
-
-  // Obtenir le placeholder selon la devise
-  const salaryPlaceholder = $derived(() => {
-    switch (onboardingStore.data.contract.currency) {
-      case 'USD': return '2500';
-      case 'EUR': return '2200';
-      case 'CDF': 
-      default: return '2500';
-    }
-  });
-
-  const hourlyPlaceholder = $derived(() => {
-    switch (onboardingStore.data.contract.currency) {
-      case 'USD': return '15.50';
-      case 'EUR': return '13.75';
-      case 'CDF': 
-      default: return '15.50';
-    }
   });
 
   // Obtenir le nom complet de la devise pour les exemples
@@ -184,7 +204,6 @@
         else if (error.includes('salaire')) errors.salary = error;
         else if (error.includes('début') || error.includes('date')) errors.hire_date = error;
         else if (error.includes('rémunération')) errors.remuneration_type = error;
-        else if (error.includes('période')) errors.payment_period = error;
         else if (error.includes('devise')) errors.currency = error;
       });
       validationErrors = errors;
@@ -212,15 +231,10 @@
         {placeholder}
         {value}
         oninput={(e) => onChange(e.currentTarget.value)}
-        class="h-9 bg-white border-slate-200 focus:ring-1 focus:ring-primary focus:border-primary rounded-md shadow-fine {id === 'salary' || id === 'hourly_rate' ? 'pr-12' : ''}"
+        class="h-9 bg-white border-slate-200 focus:ring-1 focus:ring-primary focus:border-primary rounded-md shadow-fine"
       />
-      {#if id === 'salary' || id === 'hourly_rate'}
-        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-xs">
-          {currencySymbol()}
-        </span>
-      {/if}
+      <ValidationError errors={validationErrors} field={id} />
     </div>
-    <ValidationError errors={validationErrors} field={id} />
   </div>
 {/snippet}
 
@@ -234,9 +248,13 @@
       Configurez le poste, le niveau de séniorité et les conditions contractuelles.
     </CardDescription>
   </CardHeader>
-  <CardContent class="px-0 py-0 space-y-5">
-    <!-- Section Poste et Seniorité -->
-    <div class="space-y-4">
+  <CardContent class="px-0 py-0 space-y-6">
+
+    <!-- Section 1 : Poste et Organisation -->
+    <div class="space-y-3">
+      <h4 class="text-[0.9rem] font-bold text-slate-900 border-b border-slate-100 pb-2">
+        Poste et Organisation
+      </h4>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
         <!-- Poste (détermine l'unité org) -->
         <div class="space-y-1.5">
@@ -286,7 +304,7 @@
 
           <!-- Affichage unité org (lecture seule) -->
           {#if selectedPosition}
-            <div class="flex items-center gap-2 text-[0.8rem] text-slate-500 mt-1">
+            <div class="flex items-center gap-2 text-[0.82rem] text-slate-500 mt-1">
               <AppIcon name={getOrgUnitIcon(selectedPosition.org_unit?.type || '')} size={15} />
               Unité: {selectedPosition.org_unit?.name}
             </div>
@@ -337,238 +355,200 @@
             {/if}
           </Select.Root>
           <ValidationError errors={validationErrors} field="seniority_level_id" />
+
+          <!-- Classe/Échelon dérivés + avertissement salaire -->
+          {#if selectedSeniorityInfo}
+            <div class="flex flex-wrap items-center gap-2 mt-1.5">
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-[0.82rem] font-semibold border border-indigo-100">
+                <AppIcon name="layers" size={13} />
+                {formatClassEchelon(selectedSeniorityInfo.classe, selectedSeniorityInfo.echelon)}
+              </span>
+              {#if selectedSeniorityInfo.salary_min != null}
+                <span class="text-[0.82rem] text-slate-500">
+                  Fourchette : {Number(selectedSeniorityInfo.salary_min).toLocaleString('fr-FR')} - {Number(selectedSeniorityInfo.salary_max).toLocaleString('fr-FR')} FC
+                </span>
+              {/if}
+            </div>
+            {#if salaryWarning}
+              <p class="flex items-center gap-1.5 mt-1 text-[0.82rem] text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5">
+                <AppIcon name="alert-triangle" size={15} />
+                {salaryWarning}
+              </p>
+            {/if}
+          {/if}
         </div>
       </div>
     </div>
 
-    <!-- Section Type et Salaire -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-5">
-      <!-- Type de contrat -->
-      <div class="space-y-1.5">
-        <Label class="text-[0.83rem] text-slate-900 font-medium">
-          Type de contrat *
-        </Label>
-        <Select.Root
-          type="single"
-          bind:value={onboardingStore.data.contract.contract_type}
-        >
-          <Select.Trigger class="h-10 bg-white border-slate-200 rounded-md w-full shadow-fine font-normal text-sm cursor-pointer">
-            {CONTRACT_TYPES.find((t: any) => t.value === onboardingStore.data.contract.contract_type)?.label ?? "Sélectionner..."}
-          </Select.Trigger>
-          <Select.Content>
-            {#each CONTRACT_TYPES as type}
-              <Select.SelectItem value={type.value} label={type.label}>
-                {type.label}
-              </Select.SelectItem>
-            {/each}
-          </Select.Content>
-        </Select.Root>
-      </div>
-
-      <!-- Type de rémunération -->
-      <div class="space-y-1.5">
-        <Label class="text-[0.83rem] text-slate-900 font-medium">
-          Type de rémunération *
-        </Label>
-        <Select.Root
-          type="single"
-          bind:value={onboardingStore.data.contract.remuneration_type}
-        >
-          <Select.Trigger class="h-10 bg-white border-slate-200 rounded-md w-full shadow-fine font-normal text-sm cursor-pointer">
-            {REMUNERATION_TYPES.find((t: any) => t.value === onboardingStore.data.contract.remuneration_type)?.label ?? "Sélectionner..."}
-          </Select.Trigger>
-          <Select.Content>
-            {#each REMUNERATION_TYPES as type}
-              <Select.SelectItem value={type.value} label={type.label}>
-                {type.label}
-              </Select.SelectItem>
-            {/each}
-          </Select.Content>
-        </Select.Root>
-        <p class="text-[0.77rem] text-slate-500">
-          {#if onboardingStore.data.contract.remuneration_type === 'FIXED'}
-            Salaire mensuel fixe, indépendant des heures travaillées
-          {:else if onboardingStore.data.contract.remuneration_type === 'HOURLY'}
-            Payé à l'heure selon le temps de travail effectif
-          {:else if onboardingStore.data.contract.remuneration_type === 'GROSS_UP'}
-            Salaire calculé à partir du Net souhaité (Net à Brut)
-          {/if}
-        </p>
-        <ValidationError errors={validationErrors} field="remuneration_type" />
-      </div>
-
-      <!-- Salaire ou taux horaire (conditionnel) -->
-      {#if showSalaryField}
-        {@render InputGroup(
-          "salary",
-          "Salaire de base *",
-          salaryPlaceholder(),
-          "number",
-          onboardingStore.data.contract.salary,
-          (v) => onboardingStore.setContractField('salary', parseFloat(v) || 0)
-        )}
-      {:else if showHourlyRateField}
+    <!-- Section 2 : Contrat et Rémunération -->
+    <div class="space-y-3">
+      <h4 class="text-[0.9rem] font-bold text-slate-900 border-b border-slate-100 pb-2">
+        Contrat et Rémunération
+      </h4>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-5">
+        <!-- Type de contrat -->
         <div class="space-y-1.5">
-          {@render InputGroup(
-            "hourly_rate",
-            "Taux horaire *",
-            hourlyPlaceholder(),
-            "number",
-            onboardingStore.data.contract.salary,
-            (v) => onboardingStore.setContractField('salary', parseFloat(v) || 0)
-          )}
-          <p class="text-[0.77rem] text-slate-500">
-            {#if onboardingStore.data.contract.currency === 'USD'}
-              Ex: 10.25 $/heure × 160h = ~1.640 $/mois
-            {:else if onboardingStore.data.contract.currency === 'EUR'}
-              Ex: 9.50 €/heure × 160h = ~1.520 €/mois
-            {:else}
-              Ex: 15.50 FC/heure × 160h = ~2.480 FC/mois
+          <Label class="text-[0.83rem] text-slate-900 font-medium">
+            Type de contrat *
+          </Label>
+          <Select.Root
+            type="single"
+            bind:value={onboardingStore.data.contract.contract_type}
+          >
+            <Select.Trigger class="h-10 bg-white border-slate-200 rounded-md w-full shadow-fine font-normal text-sm cursor-pointer">
+              {CONTRACT_TYPES.find((t: any) => t.value === onboardingStore.data.contract.contract_type)?.label ?? "Sélectionner..."}
+            </Select.Trigger>
+            <Select.Content>
+              {#each CONTRACT_TYPES as type}
+                <Select.SelectItem value={type.value} label={type.label}>
+                  {type.label}
+                </Select.SelectItem>
+              {/each}
+            </Select.Content>
+          </Select.Root>
+        </div>
+
+        <!-- Type de rémunération -->
+        <div class="space-y-1.5">
+          <Label class="text-[0.83rem] text-slate-900 font-medium">
+            Type de rémunération *
+          </Label>
+          <Select.Root
+            type="single"
+            bind:value={onboardingStore.data.contract.remuneration_type}
+          >
+            <Select.Trigger class="h-10 bg-white border-slate-200 rounded-md w-full shadow-fine font-normal text-sm cursor-pointer">
+              {REMUNERATION_TYPES.find((t: any) => t.value === onboardingStore.data.contract.remuneration_type)?.label ?? "Sélectionner..."}
+            </Select.Trigger>
+            <Select.Content>
+              {#each REMUNERATION_TYPES as type}
+                <Select.SelectItem value={type.value} label={type.label}>
+                  {type.label}
+                </Select.SelectItem>
+              {/each}
+            </Select.Content>
+          </Select.Root>
+          <p class="text-[0.82rem] text-slate-500">
+            {#if onboardingStore.data.contract.remuneration_type === 'FIXED'}
+              Salaire mensuel fixe, indépendant des heures travaillées
+            {:else if onboardingStore.data.contract.remuneration_type === 'HOURLY'}
+              Payé à l'heure selon le temps de travail effectif
             {/if}
-            {#if monthlyEquivalent()}
-              <br>≈ {monthlyEquivalent()} {currencyName()}/mois (estimation 160h)
+          </p>
+          <ValidationError errors={validationErrors} field="remuneration_type" />
+        </div>
+
+        <!-- Statut initial -->
+        <div class="space-y-1.5">
+          <Label class="text-[0.83rem] text-slate-900 font-medium">
+            Statut initial *
+          </Label>
+          <Select.Root
+            type="single"
+            bind:value={onboardingStore.data.contract.initial_status}
+          >
+            <Select.Trigger class="h-10 bg-white border-slate-200 rounded-md w-full shadow-fine font-normal text-sm cursor-pointer">
+              {initialStatusOptions.find((o) => o.value === onboardingStore.data.contract.initial_status)?.label ?? "Sélectionner..."}
+            </Select.Trigger>
+            <Select.Content>
+              {#each initialStatusOptions as status}
+                <Select.SelectItem value={status.value} label={status.label}>
+                  {status.label}
+                </Select.SelectItem>
+              {/each}
+            </Select.Content>
+          </Select.Root>
+          <p class="text-[0.82rem] text-slate-500">
+            {#if onboardingStore.data.contract.initial_status === 'PROBATION'}
+              Période d'essai pour évaluer les compétences de l'employé
+            {:else}
+              L'employé commence directement en statut actif
             {/if}
           </p>
         </div>
-      {/if}
-
-      <!-- Période de paiement -->
-      <div class="space-y-1.5">
-        <Label class="text-[0.83rem] text-slate-900 font-medium">
-          Période de paiement *
-        </Label>
-        <Select.Root
-          type="single"
-          bind:value={onboardingStore.data.contract.payment_period}
-        >
-          <Select.Trigger class="h-10 bg-white border-slate-200 rounded-md w-full shadow-fine font-normal text-sm cursor-pointer">
-            {PAYMENT_PERIODS.find((t: any) => t.value === onboardingStore.data.contract.payment_period)?.label ?? "Sélectionner..."}
-          </Select.Trigger>
-          <Select.Content>
-            {#each PAYMENT_PERIODS as period}
-              <Select.SelectItem value={period.value} label={period.label}>
-                {period.label}
-              </Select.SelectItem>
-            {/each}
-          </Select.Content>
-        </Select.Root>
-        <p class="text-[0.77rem] text-slate-500">
-          {#if onboardingStore.data.contract.payment_period === 'MONTHLY'}
-            Payé une fois par mois (généralement fin de mois)
-          {:else if onboardingStore.data.contract.payment_period === 'BIWEEKLY'}
-            Payé toutes les 2 semaines (Quinzaine)
-          {:else if onboardingStore.data.contract.payment_period === 'WEEKLY'}
-            Payé chaque semaine
-          {:else if onboardingStore.data.contract.payment_period === 'DAILY'}
-            Payé à la fin de chaque journée de travail
-          {:else if onboardingStore.data.contract.payment_period === 'PER_TASK'}
-            Payé à la livraison de la tâche ou forfaitairement
-          {/if}
-        </p>
-        <ValidationError errors={validationErrors} field="payment_period" />
       </div>
 
-      <!-- Type de salaire -->
+      <!-- Salaire groupé : montant principal + type de salaire + devise (pleine largeur) -->
       <div class="space-y-1.5">
-        <Label class="text-[0.83rem] text-slate-900 font-medium">
-          Base de calcul *
-        </Label>
-        <Select.Root
-          type="single"
-          bind:value={onboardingStore.data.contract.salary_base_type}
-        >
-          <Select.Trigger class="h-10 bg-white border-slate-200 rounded-md w-full shadow-fine font-normal text-sm cursor-pointer">
-            {SALARY_BASE_TYPES.find((t: any) => t.value === onboardingStore.data.contract.salary_base_type)?.label ?? "Sélectionner..."}
-          </Select.Trigger>
-          <Select.Content>
-            {#each SALARY_BASE_TYPES as type}
-              <Select.SelectItem value={type.value} label={type.label}>
-                {type.label}
-              </Select.SelectItem>
-            {/each}
-          </Select.Content>
-        </Select.Root>
-        <p class="text-[0.77rem] text-slate-500">
-          {#if onboardingStore.data.contract.salary_base_type === 'GROSS'}
-            Salaire avant déduction des impôts et charges sociales (IPR, CNSS)
-          {:else}
-            Salaire après déduction, montant réellement perçu par l'employé
-          {/if}
-        </p>
-      </div>
-
-      <!-- Devise -->
-      <div class="space-y-1.5">
-        <Label class="text-[0.83rem] text-slate-900 font-medium">
-          Devise *
-        </Label>
-        <Select.Root
-          type="single"
-          bind:value={onboardingStore.data.contract.currency}
-        >
-          <Select.Trigger class="h-10 bg-white border-slate-200 rounded-md w-full shadow-fine font-normal text-sm cursor-pointer">
-            {CURRENCIES.find((t: any) => t.value === onboardingStore.data.contract.currency)?.label ?? "Sélectionner..."}
-          </Select.Trigger>
-          <Select.Content>
-            {#each CURRENCIES as currency}
-              <Select.SelectItem value={currency.value} label={currency.label}>
-                {currency.label}
-              </Select.SelectItem>
-            {/each}
-          </Select.Content>
-        </Select.Root>
+        <SalaryGroup
+          id="salary"
+          salary={onboardingStore.data.contract.salary}
+          salaryBaseType={onboardingStore.data.contract.salary_base_type}
+          currency={onboardingStore.data.contract.currency}
+          remunerationType={onboardingStore.data.contract.remuneration_type}
+          onSalaryChange={(v) => onboardingStore.setContractField('salary', v)}
+          onSalaryBaseTypeChange={(v) => onboardingStore.setContractField('salary_base_type', v as 'GROSS' | 'NET')}
+          onCurrencyChange={(v) => onboardingStore.setContractField('currency', v as 'CDF' | 'USD' | 'EUR')}
+        />
+        {#if onboardingStore.data.contract.remuneration_type === 'HOURLY' && monthlyEquivalent()}
+          <p class="text-[0.82rem] text-slate-500 mt-1">
+            ≈ {monthlyEquivalent()} {currencyName()}/mois (estimation 160h)
+          </p>
+        {/if}
+        <ValidationError errors={validationErrors} field="salary" />
         <ValidationError errors={validationErrors} field="currency" />
       </div>
+    </div>
 
-      <!-- Date de début -->
-      {@render InputGroup(
-        "hire_date",
-        "Date de début *",
-        "",
-        "date",
-        onboardingStore.data.contract.hire_date,
-        (v) => onboardingStore.setContractField('hire_date', v)
-      )}
+    <!-- Section 3 : Période du contrat -->
+    <div class="space-y-3">
+      <h4 class="text-[0.9rem] font-bold text-slate-900 border-b border-slate-100 pb-2">
+        Période du contrat
+      </h4>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+        <!-- Date de début -->
+        {@render InputGroup(
+          "hire_date",
+          "Date de début *",
+          "",
+          "date",
+          onboardingStore.data.contract.hire_date,
+          (v) => onboardingStore.setContractField('hire_date', v)
+        )}
 
-      <!-- Date de fin (optionnel) -->
-      {@render InputGroup(
-        "end_date",
-        "Date de fin",
-        "",
-        "date",
-        onboardingStore.data.contract.end_date,
-        (v) => onboardingStore.setContractField('end_date', v),
-      )}
+        <!-- Date de fin (optionnel) -->
+        {@render InputGroup(
+          "end_date",
+          "Date de fin",
+          "",
+          "date",
+          onboardingStore.data.contract.end_date,
+          (v) => onboardingStore.setContractField('end_date', v),
+        )}
+      </div>
+    </div>
 
-      <!-- Statut initial -->
+    <!-- Section 4 : Clauses particulières -->
+    <div class="space-y-3">
+      <h4 class="text-[0.9rem] font-bold text-slate-900 border-b border-slate-100 pb-2">
+        Clauses particulières
+      </h4>
       <div class="space-y-1.5">
-        <Label class="text-[0.83rem] text-slate-900 font-medium">
-          Statut initial *
+        <Label for="onb-clauses" class="text-[0.83rem] text-slate-900 font-medium">
+          Conditions négociées
         </Label>
-        <Select.Root
-          type="single"
-          bind:value={onboardingStore.data.contract.initial_status}
-        >
-          <Select.Trigger class="h-10 bg-white border-slate-200 rounded-md w-full shadow-fine font-normal text-sm cursor-pointer">
-            {initialStatusOptions.find((o) => o.value === onboardingStore.data.contract.initial_status)?.label ?? "Sélectionner..."}
-          </Select.Trigger>
-          <Select.Content>
-            {#each initialStatusOptions as status}
-              <Select.SelectItem value={status.value} label={status.label}>
-                {status.label}
-              </Select.SelectItem>
-            {/each}
-          </Select.Content>
-        </Select.Root>
-        <p class="text-[0.77rem] text-slate-500">
-          {#if onboardingStore.data.contract.initial_status === 'PROBATION'}
-            Période d'essai pour évaluer les compétences de l'employé
-          {:else}
-            L'employé commence directement en statut actif
-          {/if}
+        <Textarea
+          id="onb-clauses"
+          rows={3}
+          placeholder="Clause de non-concurrence, période d'essai, avantages spécifiques…"
+          bind:value={onboardingStore.data.contract.contractual_clauses}
+          class="min-h-[80px] bg-white border-slate-200 shadow-fine resize-y"
+        />
+        <p class="text-[0.82rem] text-slate-500">
+          Conditions particulières négociées au contrat (facultatif).
         </p>
       </div>
     </div>
+
+    <!-- Section 5 : Éléments de paie -->
+    <ContractPayElementList
+      {catalog}
+      elements={contractAdjustments}
+      variant="section"
+      showToggle={false}
+      onAdd={handleAddPayElement}
+      onDelete={handleRemovePayElement}
+    />
   </CardContent>
 </Card>
 

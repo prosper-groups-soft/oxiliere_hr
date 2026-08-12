@@ -69,18 +69,35 @@ export const onboardingService = {
 				base_salary: data.contract.salary,
 				contract_type: data.contract.contract_type,
 				remuneration_type: data.contract.remuneration_type || "FIXED",
-				payment_period: data.contract.payment_period || "MONTHLY",
 				salary_base_type: data.contract.salary_base_type || "GROSS",
 				start_date: data.contract.hire_date,
 				end_date: data.contract.end_date || null,
 				currency: data.contract.currency || "CDF",
-				is_active: true
+				is_active: true,
+				contractual_clauses: data.contract.contractual_clauses || ''
 			};
-			await onboardingEndpoint.createContract(employeeId, contractData);
+			const contract = await onboardingEndpoint.createContract(employeeId, contractData);
 
 			// ÉTAPE 2: Opérations indépendantes en parallèle
 			console.log('[OnboardingService] Phase 2b: Starting parallel operations...');
 			const parallelPromises: Promise<any>[] = [];
+
+			// S10 — créer les éléments de paie sélectionnés pendant l'onboarding
+			if (data.contract.contract_adjustments && data.contract.contract_adjustments.length > 0) {
+				const payElementPromises = data.contract.contract_adjustments
+					.filter((el: any) => el.adjustment_id || el.adjustment)
+					.map((el: any) =>
+						onboardingEndpoint.createContractPayElement(contract.id, {
+							adjustment: el.adjustment_id || el.adjustment,
+							custom_amount: el.custom_amount ?? null,
+							custom_percentage: el.custom_percentage ?? null,
+							start_period: el.start_period || data.contract.hire_date,
+							end_period: el.end_period || null,
+							is_active: el.is_active ?? true
+						})
+					);
+				parallelPromises.push(Promise.all(payElementPromises));
+			}
 
 			// Photo de profil
 			if (data.identity.profile_photo) {

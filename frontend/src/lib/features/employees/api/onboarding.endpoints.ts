@@ -1,11 +1,5 @@
 import APIEndPoint from '@/utilities/http/rest';
-import type {
-	Employee,
-	EmployeeCreate,
-	EmployeeContractCreate,
-	EmergencyContact,
-	Child
-} from '../types/types';
+import type { Employee, EmployeeCreate, EmployeeContractCreate, EmergencyContact, Child } from '../types/types';
 
 
 /**
@@ -38,6 +32,36 @@ export const onboardingEndpoint = {
 			`/api/employees/${employeeId}/contracts`
 		);
 		return await endpoint.create(data);
+	},
+
+	/**
+	 * POST /api/payroll/contracts/{contractId}/pay-elements
+	 * Associe un élément du catalogue au contrat créé (S10 — onboarding)
+	 */
+	async createContractPayElement(
+		contractId: string,
+		data: {
+			adjustment: string;
+			custom_amount: number | null;
+			custom_percentage: number | null;
+			start_period: string;
+			end_period: string | null;
+			is_active: boolean;
+		}
+	): Promise<any> {
+		// Mapping obligatoire : le backend (ContractAdjustmentCreateIn) attend
+		// `start_date`/`end_date`, pas `start_period`/`end_period` (noms S10 frontend).
+		const { start_period, end_period, ...rest } = data;
+		const payload = {
+			...rest,
+			start_date: start_period,
+			end_date: end_period ?? null,
+		};
+		const endpoint = new APIEndPoint(
+			`/api/payroll/contracts/${contractId}/pay-elements`,
+			`/api/payroll/contracts/${contractId}/pay-elements`
+		);
+		return await endpoint.create(payload);
 	},
 
 	/**

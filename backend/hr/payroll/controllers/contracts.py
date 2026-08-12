@@ -69,7 +69,7 @@ class EmployeeContractController(ControllerBase):
         Supports filtering by:
         - Employee
         - Active status
-        - Remuneration type (FIXED, HOURLY, GROSS_UP)
+        - Remuneration type (FIXED, HOURLY)
         - Contract type (CDI, CDD, FREELANCE, INTERN)
         - Date range
         """

@@ -7,7 +7,7 @@ from hr.employees.models import (
     StatusHistory,
 )
 from hr.jobs.models import EmployeePositionHistory
-from hr.payroll.models import EmployeeContract
+from hr.payroll.models import EmployeeContract, ContractAdjustment
 
 
 def enrich_employee_data(employee: 'Employee') -> dict:
@@ -105,10 +105,15 @@ class EmployeeQueryService:
             to_attr='prefetched_current_position'
         )
         
-        # Prefetch latest contract (active or suspended)
+        # Prefetch latest contract (active or suspended) + ses éléments de paie (S10)
         current_contract_prefetch = Prefetch(
             'contracts',
-            queryset=EmployeeContract.objects.order_by('-is_active', '-start_date'),
+            queryset=EmployeeContract.objects.order_by('-is_active', '-start_date').prefetch_related(
+                Prefetch(
+                    'pay_elements',
+                    queryset=ContractAdjustment.objects.select_related('adjustment').order_by('-start_date'),
+                )
+            ),
             to_attr='prefetched_latest_contract'
         )
 

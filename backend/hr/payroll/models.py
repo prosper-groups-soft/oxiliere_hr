@@ -16,7 +16,6 @@ from hr.utils.gen   import generate_payroll_run_code
 from .enums import (
     PaymentMethod,
     ContractType,
-    PaymentPeriod,
     RemunerationType,
     AdjustmentType,
     CalculationMode,
@@ -140,14 +139,6 @@ class EmployeeContract(BaseAuditableModel):
         verbose_name=_("Remuneration Type"),
         help_text=_("Basis for compensation (e.g., Hourly or Fixed).")
     )
-    payment_period = models.CharField(
-        max_length=10, 
-        choices=PaymentPeriod.choices, 
-        default=PaymentPeriod.MONTHLY,
-        null=True, 
-        blank=True,
-        verbose_name=_("Payment Period")
-    )
     contract_type = models.CharField(
         max_length=20, 
         choices=ContractType.choices,
@@ -194,16 +185,6 @@ class EmployeeContract(BaseAuditableModel):
         default=True,
         verbose_name=_("Active"),
         help_text=_("Whether this contract is currently active. Suspended/terminated contracts set this to False.")
-    )
-    # --- Payroll metamodel (metamodel.md L124-135) ---
-    # Net salary negotiated in USD at hiring — converted at the period exchange rate.
-    negotiated_salary_usd = models.DecimalField(
-        max_digits=12,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        verbose_name=_("Salaire négocié (USD)"),
-        help_text=_("Salaire net négocié en USD à l'embauche — montant que l'employé connaît comme « son salaire ». Converti en CDF au taux de la période. Cohérence Règle 5 du métamodèle.")
     )
     # Work regime (catalogue.md §7.2)
     work_regime = models.CharField(

@@ -561,7 +561,7 @@ class PayrollRunService:
     @classmethod
     def get_run_contract_breakdown(cls, run_id: UUID) -> Dict[str, Any]:
         """
-        Get a breakdown of payslips within a run by contract demographics (remuneration type, payment period).
+        Get a breakdown of payslips within a run by remuneration type.
         """
         logger.debug("[PayrollRun] Getting run contract breakdown", extra={"run_id": run_id})
 
@@ -572,7 +572,6 @@ class PayrollRunService:
         breakdown = {
             "total_payslips": payslips.count(),
             "by_remuneration_type": {},
-            "by_payment_period": {},
         }
 
         # Breakdown by remuneration type (e.g., NET, GROSS)
@@ -583,16 +582,6 @@ class PayrollRunService:
         )
         breakdown["by_remuneration_type"] = {
             item['contract__remuneration_type']: item['count'] for item in by_remuneration
-        }
-
-        # Breakdown by payment period (e.g., MONTHLY, BIWEEKLY)
-        by_period = payslips.values(
-            'contract__payment_period'
-        ).annotate(
-            count=Count('id')
-        )
-        breakdown["by_payment_period"] = {
-            item['contract__payment_period']: item['count'] for item in by_period
         }
 
         return breakdown

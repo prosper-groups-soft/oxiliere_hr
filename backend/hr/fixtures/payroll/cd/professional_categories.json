@@ -1,14 +1,14 @@
 [
     {
-        "model": "hr_payroll.professionalcategory",
-        "pk": "019c04a1000000000000000000000001",
-        "fields": {
-            "classe": 1,
-            "echelon": 1,
-            "label": "Manœuvre ordinaire",
-            "application": "Personnel non qualifié",
-            "is_active": true
-        }
+      "model": "hr_payroll.professionalcategory",
+      "pk": "019c04a1000000000000000000000001",
+      "fields": {
+        "classe": 1,
+        "echelon": 1,
+        "label": "Manœuvre ordinaire",
+        "application": "Personnel non qualifié",
+        "is_active": true
+      }
     },
     {
         "model": "hr_payroll.professionalcategory",

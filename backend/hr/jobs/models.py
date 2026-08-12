@@ -99,6 +99,62 @@ class Position(BaseAuditableModel):
         return self.name
 
 
+class ProfessionalCategory(BaseAuditableModel):
+    """
+    Grille des catégories professionnelles (catalogue.md §6).
+
+    7 classes x 4 échelons définies par le Décret n° 25/22 :
+    - Classe 1 : Manœuvre ordinaire → Classe 7 : Cadre supérieur
+    - Principe de tension salariale 1:10 : le salaire max de la grille
+      (Classe 7, Échelon 4) = SMIG mensuel x 10.
+
+    Source de vérité des classes/échelons — `SeniorityLevel` et
+    `PositionSeniority` y référencent via FK (migration depuis hr_payroll).
+    """
+    classe = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(7)],
+        verbose_name=_("Classe"),
+        help_text=_("Classe professionnelle RDC (1-7).")
+    )
+    echelon = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(4)],
+        verbose_name=_("Échelon"),
+        help_text=_("Échelon dans la classe (1-4).")
+    )
+    label = models.CharField(
+        max_length=120,
+        verbose_name=_("Libellé"),
+        help_text=_("Libellé de la classe (ex. Manœuvre ordinaire, Cadre moyen).")
+    )
+    application = models.TextField(
+        blank=True,
+        default='',
+        verbose_name=_("Application"),
+        help_text=_("Profil de personnel concerné (ex. Personnel non qualifié).")
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name=_("Active"),
+        help_text=_("La classe/échelon est applicable pour les nouveaux contrats.")
+    )
+
+    class Meta:
+        db_table = "jobs_professional_category"
+        verbose_name = _("Catégorie professionnelle")
+        verbose_name_plural = _("Catégories professionnelles")
+        ordering = ['classe', 'echelon']
+        constraints = [
+            UniqueConstraint(
+                fields=['classe', 'echelon'],
+                condition=Q(deleted__isnull=True),
+                name='unique_jobs_professional_category_class_echelon'
+            )
+        ]
+
+    def __str__(self):
+        return f"Classe {self.classe} — Échelon {self.echelon} ({self.label})"
+
+
 class SeniorityLevel(BaseAuditableModel):
     """ 
     Dynamic definition of seniority levels with requirements.
@@ -126,11 +182,14 @@ class SeniorityLevel(BaseAuditableModel):
         help_text="List of requirements/prerequisites for this level"
     )
     # Classe professionnelle RDC (catalogue.md §6 : 7 classes, 1 = Manœuvre, 7 = Cadre supérieur)
-    classe = models.PositiveSmallIntegerField(
+    # FK vers la grille des catégories professionnelles (ligne échelon=1 = classe de base).
+    professional_category = models.ForeignKey(
+        ProfessionalCategory,
+        on_delete=models.PROTECT,
         null=True,
         blank=True,
-        validators=[MinValueValidator(1), MaxValueValidator(7)],
-        verbose_name=_("Classe professionnelle"),
+        related_name="seniority_levels",
+        verbose_name=_("Catégorie professionnelle"),
         help_text=_("Classe RDC (1-7) de la grille des catégories professionnelles.")
     )
     is_active = models.BooleanField(
@@ -143,6 +202,11 @@ class SeniorityLevel(BaseAuditableModel):
         ordering = ["rank"]
         verbose_name = _("Seniority Level Definition")
         verbose_name_plural = _("Seniority Level Definitions")
+
+    @property
+    def classe(self) -> int | None:
+        """ Classe (1-7) dérivée de la grille — rétro-compat API. """
+        return self.professional_category.classe if self.professional_category else None
 
     def __str__(self):
         return f"{self.label} ({self.level})"
@@ -177,6 +241,16 @@ class PositionSeniority(BaseAuditableModel):
         validators=[MinValueValidator(1), MaxValueValidator(4)],
         verbose_name=_("Échelon"),
         help_text=_("Échelon (1-4) de la grille des catégories professionnelles.")
+    )
+    # Ligne exacte (classe, échelon) de la grille des catégories professionnelles
+    professional_category = models.ForeignKey(
+        ProfessionalCategory,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="position_seniorities",
+        verbose_name=_("Catégorie professionnelle"),
+        help_text=_("Ligne (classe, échelon) de la grille des catégories professionnelles.")
     )
     rank = models.PositiveSmallIntegerField(
         default=1,
@@ -589,4 +663,5 @@ auditlog.register(EmployeePositionHistory)
 auditlog.register(EmployeeTransition)
 auditlog.register(Training)
 auditlog.register(Vacancy)
+auditlog.register(ProfessionalCategory)
 

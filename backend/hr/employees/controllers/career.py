@@ -59,12 +59,12 @@ class EmployeeCareerController(ControllerBase):
                 base_salary=data.base_salary,
                 contract_type=data.contract_type,
                 remuneration_type=data.remuneration_type,
-                payment_period=data.payment_period,
                 salary_base_type=data.salary_base_type,
                 start_date=data.start_date,
                 end_date=data.end_date,
                 currency=data.currency,
                 is_active=data.is_active,
+                contractual_clauses=data.contractual_clauses,
             )
             
             logger.info(

@@ -6,10 +6,10 @@ import { Package } from '@lucide/svelte';
 type Icon = Component<IconProps, {}>;
 
 
-// Mapping des noms d'icÃ´nes vers les modules Lucide
-// Utilise lazy loading pour Ã©viter de charger toutes les icÃ´nes au dÃ©marrage
+// Mapping des noms d'icônes vers les modules Lucide
+// Utilise lazy loading pour éviter de charger toutes les icônes au démarrage
 export const ICON_MODULES: Record<string, () => Promise<any>> = {
-	// Gestion d'Ã©quipe et RH
+	// Gestion d'équipe et RH
 	users: () => import('@lucide/svelte').then(m => m.Users),
 	'circle-user': () => import('@lucide/svelte').then(m => m.CircleUser),
 	'no-user': () => import('@lucide/svelte').then(m => m.UserRoundX),
@@ -23,7 +23,7 @@ export const ICON_MODULES: Record<string, () => Promise<any>> = {
 	'user-plus': () => import('@lucide/svelte').then(m => m.UserPlus),
 	'user-search': () => import('@lucide/svelte').then(m => m.UserSearch),
 
-	// Feedback & Ã‰valuation
+	// Feedback & Evaluation
 	'thumbs-up': () => import('@lucide/svelte').then(m => m.ThumbsUp),
 	'thumbs-down': () => import('@lucide/svelte').then(m => m.ThumbsDown),
 	'trending-up': () => import('@lucide/svelte').then(m => m.TrendingUp),
@@ -93,7 +93,7 @@ export const ICON_MODULES: Record<string, () => Promise<any>> = {
 	calculator: () => import('@lucide/svelte').then(m => m.Calculator),
 	power: () => import('@lucide/svelte').then(m => m.Power),
 
-	// Base de donnÃ©es
+	// Base de données
 	database: () => import('@lucide/svelte').then(m => m.Database),
 	mysql: () => import('@lucide/svelte').then(m => m.Database),
 	postgresql: () => import('@lucide/svelte').then(m => m.Database),
@@ -107,7 +107,7 @@ export const ICON_MODULES: Record<string, () => Promise<any>> = {
 	wordpress: () => import('@lucide/svelte').then(m => m.Globe),
 	globe: () => import('@lucide/svelte').then(m => m.Globe),
 
-	// SÃ©curitÃ©
+	// Sécurité
 	security: () => import('@lucide/svelte').then(m => m.Lock),
 	auth: () => import('@lucide/svelte').then(m => m.Lock),
 	firewall: () => import('@lucide/svelte').then(m => m.Shield),
@@ -162,13 +162,13 @@ export const ICON_MODULES: Record<string, () => Promise<any>> = {
 	consulting: () => import('@lucide/svelte').then(m => m.Briefcase),
 	services: () => import('@lucide/svelte').then(m => m.Briefcase),
 
-	// Ã‰ducation
+	// Education
 	education: () => import('@lucide/svelte').then(m => m.GraduationCap),
 	learning: () => import('@lucide/svelte').then(m => m.GraduationCap),
 	'graduation-cap': () => import('@lucide/svelte').then(m => m.GraduationCap),
 	brain: () => import('@lucide/svelte').then(m => m.Brain),
 
-	// SantÃ©
+	// Santé
 	health: () => import('@lucide/svelte').then(m => m.Heart),
 	medical: () => import('@lucide/svelte').then(m => m.Heart),
 	heart: () => import('@lucide/svelte').then(m => m.Heart),
@@ -179,7 +179,7 @@ export const ICON_MODULES: Record<string, () => Promise<any>> = {
 	moving: () => import('@lucide/svelte').then(m => m.Truck),
 	'ellipsis': () => import('@lucide/svelte').then(m => m.Ellipsis),
 
-	// DÃ©veloppement
+	// Développement
 	dev: () => import('@lucide/svelte').then(m => m.Code),
 	development: () => import('@lucide/svelte').then(m => m.Code),
 	git: () => import('@lucide/svelte').then(m => m.Code),
@@ -281,6 +281,8 @@ export const ICON_MODULES: Record<string, () => Promise<any>> = {
 	expand: () => import('@lucide/svelte').then(m => m.Expand),
 	sort: () => import('@lucide/svelte').then(m => m.ArrowDownUp),
 	print: () => import('@lucide/svelte').then(m => m.Printer),
+	'list-plus': () => import('@lucide/svelte').then(m => m.ListPlus),
+	box: () => import('@lucide/svelte').then(m => m.Box),
 	'flower-2': () => import('@lucide/svelte').then(m => m.Flower2),
 	star: () => import('@lucide/svelte').then(m => m.Star),
 	history: () => import('@lucide/svelte').then(m => m.GalleryHorizontalEnd),
@@ -332,7 +334,7 @@ export const ICON_MODULES: Record<string, () => Promise<any>> = {
 	'wifi-off': () => import('@lucide/svelte').then(m => m.WifiOff),
 };
 
-// Cache des icÃ´nes dÃ©jÃ  chargÃ©es
+// Cache des icônes déjà chargées
 const iconCache = new Map<string, Icon>();
 
 /**

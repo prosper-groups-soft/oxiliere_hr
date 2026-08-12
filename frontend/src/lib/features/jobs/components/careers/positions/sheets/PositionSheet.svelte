@@ -48,6 +48,7 @@
     seniority_level: SeniorityLevel;
     salary_min: number;
     salary_max: number;
+    echelon: number | null;
     rank: number;
     is_active: boolean;
   }[]>([]);
@@ -140,6 +141,7 @@
           seniority_level: sl.seniority_level.level,
           salary_min: sl.salary_min,
           salary_max: sl.salary_max,
+          echelon: sl.echelon ?? null,
           rank: sl.rank,
           is_active: sl.is_active
         }));
@@ -167,6 +169,7 @@
     seniority_level: 'TRAINEE' as SeniorityLevel,
     salary_min: 0,
     salary_max: 0,
+    echelon: null as number | null,
     rank: 1
   });
 
@@ -178,6 +181,7 @@
       seniority_level: 'TRAINEE' as SeniorityLevel,
       salary_min: 0,
       salary_max: 0,
+      echelon: null,
       rank: maxRank + 1
     };
   }
@@ -278,6 +282,7 @@
         seniority_level: level.seniority_level,
         salary_min: level.salary_min,
         salary_max: level.salary_max,
+        echelon: level.echelon,
         rank: level.rank,
         is_active: level.is_active
       })),
@@ -670,6 +675,25 @@
                   </div>
 
                   <div class="space-y-2">
+                    <Label class="text-[0.85rem] font-medium">Échelon (1-4)</Label>
+                    <Select
+                      type="single"
+                      value={newLevelForm.echelon != null ? String(newLevelForm.echelon) : ''}
+                      onValueChange={(v) => (newLevelForm.echelon = v ? Number(v) : null)}
+                    >
+                      <SelectTrigger class="h-8! w-full bg-white border-slate-200 cursor-pointer text-[0.85rem]">
+                        {newLevelForm.echelon != null ? `Éch. ${newLevelForm.echelon}` : '—'}
+                      </SelectTrigger>
+                      <SelectContent class="z-9999">
+                        <SelectItem value="" class="text-[0.85rem] text-slate-400">—</SelectItem>
+                        {#each [1, 2, 3, 4] as e}
+                          <SelectItem value={String(e)} class="text-[0.85rem]">Éch. {e}</SelectItem>
+                        {/each}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div class="space-y-2">
                     <Label class="text-[0.85rem] font-medium">Fourchette salariale ({currencySymbol})</Label>
                     <div class="grid grid-cols-2 gap-2">
                       <Input type="number" onkeydown={preventNonNumeric} bind:value={newLevelForm.salary_min} placeholder="Min" class="h-8 text-[0.85rem] {validationErrors.new_level_salary ? 'border-red-500' : ''}" />
@@ -717,7 +741,10 @@
                     </span>
                     <span class="text-[0.77rem] text-slate-400">
                       {level.seniority_level}
-                    </span>
+                      {#if level.echelon != null}
+                        <span class="ml-1.5 text-[0.82rem] font-medium text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">Éch. {level.echelon}</span>
+                      {/if}
+                    </span>:
                   </div>
 
                   <div class="flex items-center gap-2 text-[0.85rem] font-medium text-slate-700">

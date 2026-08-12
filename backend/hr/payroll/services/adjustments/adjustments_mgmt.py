@@ -162,7 +162,7 @@ class AdjustmentManagementService:
             raise ValidationError("Adjustment type is required")
 
         try:
-            PayrollAdjustment.objects.get(id=adjustment_id)
+            adjustment_obj = PayrollAdjustment.objects.get(id=adjustment_id)
         except PayrollAdjustment.DoesNotExist:
             raise ValidationError("Adjustment type not found")
 
@@ -179,6 +179,7 @@ class AdjustmentManagementService:
         create_data.pop('contract', None)
         create_data['contract'] = contract
         create_data['employee'] = contract.employee
+        create_data['adjustment'] = adjustment_obj
 
         # Create contract adjustment
         adjustment = ContractAdjustment.objects.create(**create_data)

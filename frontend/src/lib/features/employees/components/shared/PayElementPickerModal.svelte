@@ -11,7 +11,23 @@
   import type { PayrollAdjustmentConfig } from '@/features/payroll/types/types';
   import type { ContractPayElementInput } from '@/features/payroll/types/types';
   import AnimateSpin from '@/components/layout/elements/AnimateSpin.svelte';
-  
+  import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
+
+  /** Couleurs des badges par type d'ajustement */
+  const TYPE_STYLES: Record<string, { label: string; class: string }> = {
+    BONUS: { label: 'Bonus', class: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
+    CONTRIBUTION: { label: 'Retenue', class: 'bg-rose-50 text-rose-700 border-rose-100' },
+  };
+
+  const getTypeStyle = (type: string) =>
+    TYPE_STYLES[type] ?? { label: type, class: 'bg-slate-50 text-slate-600 border-slate-100' };
+
+  /** Couleurs par mode de calcul */
+  const MODE_STYLES: Record<string, string> = {
+    FIXED: 'bg-slate-100 text-slate-600',
+    PERCENTAGE: 'bg-indigo-50 text-indigo-600',
+  };
 
   let {
     open,
@@ -78,15 +94,33 @@
     return 'Défaut : —';
   });
 
+  /** Valeur par défaut d'un item de la liste (avant sélection) */
+  function formatItemDefault(item: PayrollAdjustmentConfig): string {
+    if (item.calculation_mode === 'FIXED' && item.amount != null) {
+      return `${Number(item.amount).toLocaleString('fr-FR')} CDF`;
+    }
+    if (item.calculation_mode === 'PERCENTAGE' && item.percentage != null) {
+      return `${Number(item.percentage)} %`;
+    }
+    return '';
+  }
+
+  /** Libellé court du mode de calcul */
+  function formatModeLabel(mode: string): string {
+    if (mode === 'FIXED') return 'Montant';
+    if (mode === 'PERCENTAGE') return 'Taux';
+    return 'Défaut';
+  }
+
   function validate(): boolean {
     const errors: Record<string, string> = {};
     if (!selectedId) errors.adjustment = 'Sélectionnez un élément du catalogue';
     if (!startPeriod) errors.start_period = 'Date de début requise';
 
-    if (isFixed && customAmount.trim() !== '' && Number.isNaN(Number(customAmount))) {
+    if (isFixed && String(customAmount ?? '').trim() !== '' && Number.isNaN(Number(customAmount))) {
       errors.custom_amount = 'Montant invalide';
     }
-    if (isPercentage && customPercentage.trim() !== '' && Number.isNaN(Number(customPercentage))) {
+    if (isPercentage && String(customPercentage ?? '').trim() !== '' && Number.isNaN(Number(customPercentage))) {
       errors.custom_percentage = 'Taux invalide';
     }
     if (endPeriod && startPeriod && endPeriod < startPeriod) {
@@ -102,8 +136,8 @@
     try {
       await onConfirm({
         adjustment: selected.id,
-        custom_amount: isFixed && customAmount.trim() !== '' ? Number(customAmount) : null,
-        custom_percentage: isPercentage && customPercentage.trim() !== '' ? Number(customPercentage) : null,
+        custom_amount: isFixed && String(customAmount ?? '').trim() !== '' ? Number(customAmount) : null,
+        custom_percentage: isPercentage && String(customPercentage ?? '').trim() !== '' ? Number(customPercentage) : null,
         start_period: startPeriod,
         end_period: endPeriod || null,
         is_active: isActive,
@@ -130,7 +164,7 @@
       </DialogDescription>
     </DialogHeader>
 
-    <div class="space-y-4">
+    <div class="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
       <!-- Recherche -->
       <div class="relative">
         <AppIcon
@@ -142,54 +176,96 @@
           id="pay-element-search"
           placeholder="Rechercher par code ou libellé…"
           bind:value={search}
-          class="pl-9 h-10 bg-white border-slate-200"
+          class="pl-9 h-10 bg-white border-slate-200 rounded-full"
         />
       </div>
 
       <!-- Liste du catalogue -->
-      <div class="max-h-56 overflow-y-auto rounded-lg border border-slate-100 divide-y divide-slate-50">
-        {#if available.length === 0}
-          <div class="py-8 text-center text-[0.82rem] text-slate-400">
+      {#if available.length === 0}
+        <div class="py-8 text-center text-[0.82rem] text-slate-400 flex flex-col items-center justify-center gap-2">
+          <AppIcon name="circle-x" size={17} class="text-slate-400" />
+          <span class="text-center text-[0.82rem]">
             Aucun élément disponible — tous les éléments du catalogue sont déjà assignés.
-          </div>
-        {:else}
-          {#each available as item}
-            <button
-              type="button"
-              onclick={() => (selectedId = item.id)}
-              class={cn(
-                "w-full text-left px-3.5 py-2.5 flex items-center justify-between gap-3 transition-colors cursor-pointer",
-                selectedId === item.id ? "bg-primary/5" : "hover:bg-slate-50"
-              )}
-            >
-              <div class="flex items-center gap-3 min-w-0">
-                <div class={cn(
-                  "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border",
-                  selectedId === item.id
-                    ? "bg-primary/10 text-primary border-primary/20"
-                    : "bg-slate-50 text-slate-400 border-slate-100"
-                )}>
-                  <AppIcon name="award" size={15} />
-                </div>
-                <div class="min-w-0">
-                  <div class="text-[0.86rem] font-medium text-slate-800 truncate">{item.name}</div>
-                  <div class="text-[0.82rem] text-slate-400">{item.code ?? '—'}</div>
-                </div>
-              </div>
-              {#if item.is_mandatory}
-                <Badge variant="secondary" class="shrink-0 text-[0.82rem]">Légal</Badge>
-              {/if}
-            </button>
-          {/each}
-        {/if}
-      </div>
+          </span>
+        </div>
+      {:else}
+        <div class="max-h-64 overflow-y-auto rounded-xl border border-slate-100">
+          <Table>
+            <TableHeader class="bg-slate-50">
+              <TableRow>
+                <TableHead class="text-[0.7rem] font-bold uppercase tracking-widest text-slate-500">Libellé</TableHead>
+                <TableHead class="text-[0.7rem] font-bold uppercase tracking-widest text-slate-500">Catégorie</TableHead>
+                <TableHead class="text-[0.7rem] font-bold uppercase tracking-widest text-slate-500">Calcul</TableHead>
+                <TableHead class="text-[0.7rem] font-bold uppercase tracking-widest text-slate-500">Traitement</TableHead>
+                <TableHead class="text-[0.7rem] font-bold uppercase tracking-widest text-slate-500 text-center">Légal</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {#each available as item (item.id)}
+                <TableRow
+                  class={cn(
+                    "transition-colors cursor-pointer",
+                    selectedId === item.id ? "bg-primary/5" : "hover:bg-slate-50/50"
+                  )}
+                  onclick={() => (selectedId = item.id)}
+                >
+                  <TableCell class="py-2.5 min-w-0 whitespace-normal">
+                      <p class="text-[0.84rem] font-medium text-slate-700 wrap-break-word">{item.name}</p>
+
+                  </TableCell>
+
+                  <TableCell class="py-2.5">
+                    {@const style = getTypeStyle(item.adjustment_type)}
+                    <Badge variant="outline" class={cn('border-0 text-[0.7rem] font-bold uppercase tracking-wider px-2.5 py-1 shadow-none rounded-full whitespace-nowrap flex items-center gap-1.5 transition-colors', style.class)}>
+                      <AppIcon name={item.adjustment_type === 'BONUS' ? 'award' : 'circle-x'} size={13} />
+                      {style.label}
+                    </Badge>
+                  </TableCell>
+
+                  <TableCell class="py-2.5">
+                    <span class={cn('text-[0.72rem] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md', MODE_STYLES[item.calculation_mode] ?? 'bg-slate-50 text-slate-500')}>
+                      {formatItemDefault(item) || formatModeLabel(item.calculation_mode)}
+                    </span>
+                  </TableCell>
+
+                  <TableCell class="py-2.5 whitespace-normal">
+                    <div class="flex flex-wrap gap-1.5">
+                      <Badge variant="outline" class={cn('border-0 text-[0.66rem] font-bold uppercase tracking-wider px-2.5 py-1 shadow-none rounded-full whitespace-nowrap flex items-center gap-1.5 transition-colors', item.is_taxable ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700')}>
+                        <AppIcon name={item.is_taxable ? 'receipt' : 'shield-check'} size={12} />
+                        {item.is_taxable ? 'IRPP' : 'IRPP exclu'}
+                      </Badge>
+                      <Badge variant="outline" class={cn('border-0 text-[0.66rem] font-bold uppercase tracking-wider px-2.5 py-1 shadow-none rounded-full whitespace-nowrap flex items-center gap-1.5 transition-colors', item.is_cnss_subject ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-500')}>
+                        <AppIcon name={item.is_cnss_subject ? 'shield' : 'circle-x'} size={12} />
+                        {item.is_cnss_subject ? 'CNSS' : 'CNSS exclu'}
+                      </Badge>
+                    </div>
+                  </TableCell>
+
+                  <TableCell class="py-2.5 text-center">
+                    {#if item.is_mandatory}
+                      <Badge variant="secondary" class="text-[0.66rem]">Légal</Badge>
+                    {:else}
+                      <span class="text-[0.72rem] text-slate-300">—</span>
+                    {/if}
+                  </TableCell>
+                </TableRow>
+              {/each}
+            </TableBody>
+          </Table>
+        </div>
+      {/if}
 
       <!-- Configuration du montant -->
       {#if selected}
         <div class="rounded-lg border border-slate-100 bg-slate-50/50 p-3.5 space-y-3">
           <div class="flex items-center justify-between">
             <div>
-              <div class="text-[0.86rem] font-semibold text-slate-800">{selected.name}</div>
+              <div class="flex items-center gap-2">
+                <span class="text-[0.86rem] font-semibold text-slate-800">{selected.name}</span>
+                <Badge variant="outline" class="text-[0.68rem] text-slate-500">
+                  {formatModeLabel(selected.calculation_mode)}
+                </Badge>
+              </div>
               <div class="text-[0.82rem] text-slate-400">{formattedDefault()}</div>
             </div>
             {#if selected.is_taxable}
@@ -215,16 +291,17 @@
               </div>
             {:else if isPercentage}
               <div class="space-y-1">
-                <Label for="pe-custom-percentage" class="text-[0.82rem] text-slate-500">Taux (%)</Label>
+                <Label for="pe-custom-percentage" class="text-[0.82rem] text-slate-500">Taux (% du salaire brut)</Label>
                 <Input
                   id="pe-custom-percentage"
                   type="number"
                   min="0"
                   max="100"
-                  placeholder="Laisser vide = défaut"
+                  placeholder="Ex. 10 = 10 % du brut"
                   bind:value={customPercentage}
                   class="h-9 bg-white border-slate-200"
                 />
+                <p class="text-[0.72rem] text-slate-400">Calculé sur le salaire brut mensuel.</p>
                 {#if fieldErrors.custom_percentage}
                   <p class="text-[0.82rem] text-red-500">{fieldErrors.custom_percentage}</p>
                 {/if}

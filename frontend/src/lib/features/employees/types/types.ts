@@ -32,7 +32,6 @@ export interface Employee {
 	current_status?: EmployeeStatusHistory | null;
 }
 
-
 export interface EmployeeFilters {
 	orgUnit?: string[];
 	status?: string[];
@@ -44,7 +43,6 @@ export interface EmployeeFilters {
 	has_scheme?: boolean;
 	has_active_contract?: boolean;
 }
-
 
 export interface EmployeeAddress {
 	id: string;
@@ -59,7 +57,6 @@ export interface EmployeeAddress {
 	move_in_date?: string;
 	move_out_date?: string | null;
 }
-
 
 export interface EmployeeChild {
 	id: string;
@@ -81,7 +78,6 @@ export interface EmployeeEducation {
 	location?: string;
 }
 
-
 export interface EmployeeEmergencyContact {
 	id: string;
 	first_name: string;
@@ -93,7 +89,6 @@ export interface EmployeeEmergencyContact {
 	is_primary?: boolean;
 }
 
-
 export interface EmployeeDocument {
 	id: string;
 	document_type: string;
@@ -104,7 +99,6 @@ export interface EmployeeDocument {
 	is_verified?: boolean;
 }
 
-
 export interface EmployeeStatusHistory {
 	id: string;
 	status: string;
@@ -113,7 +107,6 @@ export interface EmployeeStatusHistory {
 	reason?: string;
 	created_at?: string;
 }
-
 
 export interface EmployeePositionHistory {
 	id: string;
@@ -126,7 +119,6 @@ export interface EmployeePositionHistory {
 	description?: string;
 	created_at?: string;
 }
-
 
 export interface EmployeeTransition {
 	id: string;
@@ -142,11 +134,9 @@ export interface EmployeeTransition {
 	created_at?: string;
 }
 
-
 export interface EmployeeContract {
 	id: string;
 	remuneration_type: string;
-	payment_period: string;
 	contract_type: string;
 	base_salary?: number;
 	salary_base_type: string;
@@ -155,10 +145,6 @@ export interface EmployeeContract {
 	start_date: string;
 	end_date?: string | null;
 	is_active: boolean;
-	/** Salaire net négocié en USD à l'embauche (métamodèle Règle 5) */
-	negotiated_salary_usd?: number | null;
-	/** Régime de travail : TEMPS_PLEIN | TEMPS_PARTIEL_50/60/80 | EXPATRIE */
-	work_regime?: string;
 	/** Clauses particulières du contrat */
 	contractual_clauses?: string;
 	/** Éléments de paie assignés à ce contrat (S10) */
@@ -182,7 +168,6 @@ export interface ContractPayElementItem {
 	start_period: string;
 	end_period: string | null;
 }
-
 
 export interface EmployeeFullProfile {
 	id: string;
@@ -233,7 +218,6 @@ export interface EmployeeFullProfile {
 	} | null;
 }
 
-
 export interface EmployeeCreate {
 	first_name: string;
 	middle_name?: string;
@@ -252,7 +236,6 @@ export interface EmployeeCreate {
 	initial_status?: 'ACTIVE' | 'PROBATION' | 'PENDING';
 }
 
-
 export interface EmployeeUpdate {
 	first_name?: string;
 	middle_name?: string;
@@ -267,7 +250,6 @@ export interface EmployeeUpdate {
 	work_site?: string;
 	address?: OnboardingAddressData;
 }
-
 
 export interface TimelineEvent {
 	id: number | string;
@@ -288,7 +270,6 @@ export interface TimelineEvent {
 	};
 }
 
-
 export interface Document {
 	id: number | string;
 	name: string;
@@ -299,7 +280,6 @@ export interface Document {
 	url: string | null;
 }
 
-
 export interface EmergencyContact {
 	id: number | string;
 	name: string;
@@ -308,7 +288,6 @@ export interface EmergencyContact {
 	primary: boolean;
 	priority?: number;
 }
-
 
 export interface Child {
 	id: number | string;
@@ -338,7 +317,6 @@ export interface OnboardingIdentityData {
 	address?: OnboardingAddressData;
 }
 
-
 export interface OnboardingAddressData {
 	number?: string;
 	street?: string;
@@ -348,12 +326,10 @@ export interface OnboardingAddressData {
 	country_code?: string;
 }
 
-
 export interface OnboardingAccountData {
 	create_account: boolean;
 	group_slug?: string;
 }
-
 
 export interface OnboardingContractData {
 	position_id: string;
@@ -361,15 +337,17 @@ export interface OnboardingContractData {
 	contract_type: 'CDI' | 'CDD' | 'INTERNSHIP' | 'PROBATION' | 'FREELANCE';
 	salary: number;
 	hire_date: string;
-	remuneration_type: 'FIXED' | 'HOURLY' | 'GROSS_UP';
-	payment_period: 'MONTHLY' | 'BIWEEKLY' | 'WEEKLY';
+	remuneration_type: 'FIXED' | 'HOURLY';
 	salary_base_type: 'GROSS' | 'NET';
 	currency: 'CDF' | 'USD' | 'EUR';
 	end_date?: string;
 	is_active?: boolean;
 	initial_status?: 'ACTIVE' | 'PROBATION' | 'PENDING';
+	// Métamodèle (Règle 5)
+	contractual_clauses?: string;
+	// S10 — éléments de paie sélectionnés pendant l'onboarding
+	contract_adjustments?: ContractPayElementItem[];
 }
-
 
 export interface OnboardingDocumentItem {
 	id: string;
@@ -380,12 +358,10 @@ export interface OnboardingDocumentItem {
 	expiry_date?: string;
 }
 
-
 export interface OnboardingFamilyData {
 	emergency_contacts: EmergencyContact[];
 	children: Child[];
 }
-
 
 export interface OnboardingEducationItem {
 	degree: string;
@@ -400,7 +376,6 @@ export interface OnboardingEducationData {
 	educations: OnboardingEducationItem[];
 }
 
-
 export interface OnboardingSubmitData {
 	identity: OnboardingIdentityData;
 	account?: OnboardingAccountData;
@@ -410,27 +385,20 @@ export interface OnboardingSubmitData {
 	education: OnboardingEducationData;
 }
 
-
 export interface EmployeeContractCreate {
 	position_id: string;
 	seniority_level_id: string;
 	contract_type: string;
 	base_salary: number;
 	remuneration_type: string;
-	payment_period: string;
 	salary_base_type: string;
 	start_date: string;
 	end_date?: string | null;
 	currency: string;
 	is_active: boolean;
-	/** Salaire net négocié en USD (métamodèle) */
-	negotiated_salary_usd?: number | null;
-	/** Régime de travail */
-	work_regime?: string;
 	/** Clauses particulières */
 	contractual_clauses?: string;
 }
-
 
 export interface OnboardingResult {
 	success: boolean;
