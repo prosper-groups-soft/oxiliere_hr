@@ -18,11 +18,14 @@
     isReviewing?: boolean;
     isApproving?: boolean;
     isPaying?: boolean;
+    canSubmitKickoff?: boolean;
     onNew?: () => void;
     onCalculate?: () => void;
     onReview?: () => void;
     onApprove?: () => void;
     onPay?: () => void;
+    onCancelKickoff?: () => void;
+    onSubmitKickoff?: () => void;
     onNextStep?: () => void;
   }
 
@@ -37,11 +40,14 @@
     isReviewing = false,
     isApproving = false,
     isPaying = false,
+    canSubmitKickoff = false,
     onNew,
     onCalculate,
     onReview,
     onApprove,
     onPay,
+    onCancelKickoff,
+    onSubmitKickoff,
     onNextStep
   }: Props = $props();
 
@@ -73,7 +79,7 @@
 </script>
 
 
-{#snippet actionButton(label: string, icon: string, onclick: (() => void) | undefined, className: string = "bg-primary", disabled: boolean = false)}
+{#snippet ActionButton(label: string, icon: string, onclick: (() => void) | undefined, className: string = "bg-primary", disabled: boolean = false)}
   <Button {onclick} disabled={disabled} class={cn("text-white h-7.5 px-4 text-[0.85rem]", className)} variant="default">
     <AppIcon name={icon} size={18} />
     {label}
@@ -81,68 +87,86 @@
 {/snippet}
 
 
-<div class="flex items-start gap-4 pb-2 border-b border-slate-100 pt-0">
-  <div class={cn("w-11 h-11 rounded-xl flex items-center justify-center shrink-0", currentStepColors.bg)}>
-    <AppIcon name={icon} size={24} strokeWidth={1.1} />
-  </div>
-  
-  <div class="flex-1 min-w-0">
-    <div class="flex items-center justify-between gap-2 mb-1">
-      <div class="flex flex-col items-start gap-1">
-        <h1 class="text-[0.95rem] font-bold text-slate-900 tracking-tight">{title}</h1>
-        
-        {#if hasCurrentRun}
-          <div class={cn("inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[0.72rem] font-semibold leading-none", config.bg, config.color)}>
-            <span class={cn(
-              "h-1.5 w-1.5 rounded-full",
-              status === 'loading' || status === 'calculated' ? "animate-pulse " + config.color.replace('text-', 'bg-') : config.color.replace('text-', 'bg-')
-            )}></span>
-            {config.label}
-          </div>
-        {/if}
-      </div>
+<header class="flex items-center justify-between pb-2 border-b border-slate-100 pt-0">
+  <div class="flex items-center gap-3">
+    <div class={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0", currentStepColors.bg)}>
+      <AppIcon name={icon} size={22} strokeWidth={1.2} />
+    </div>
 
-      <div class="flex items-center gap-2">
-        {#if !hasCurrentRun && currentStep !== 'kickoff'}
-          {@render actionButton(isCreating ? "Création…" : "Nouvelle paie", "plus", onNew, "bg-primary", isCreating)}
-        
-        {:else if currentStep === 'preparation' && status === 'draft'}
-          {@render actionButton(isCalculating ? "Calcul en cours…" : "Calculer la paie", "calculator", () => {
-            onCalculate?.();
-            onNextStep?.();
-          }, "bg-primary", isCalculating)}
-        
-        {:else if currentStep === 'calculation' && status === 'calculated'}
-          {@render actionButton(isReviewing ? "Révision…" : "Réviser", "eye", () => {
-            onReview?.();
-            onNextStep?.();
-          }, "bg-amber-500 hover:bg-amber-600", isReviewing)}
-        
-        {:else if currentStep === 'review' && status === 'reviewed'}
-          {@render actionButton(isApproving ? "Approbation…" : "Approuver", "circle-check", () => {
-            onApprove?.();
-            onNextStep?.();
-          }, "bg-emerald-600 hover:bg-emerald-700", isApproving)}
-        
-        {:else if currentStep === 'approval' && status === 'approved'}
-          {@render actionButton(isPaying ? "Paiement…" : "Finaliser le paiement", "banknote", () => {
-            onPay?.();
-            onNextStep?.();
-          }, "bg-purple-600 hover:bg-purple-700", isPaying)}
-        
-        {:else if status === 'paid'}
-          <Button variant="outline" size="sm" class="h-7.5 text-[0.85rem] px-4 border-slate-200 text-slate-600 font-medium shadow-fine">
-            <AppIcon name="download" size={16} />
-            Télécharger les rapports
-          </Button>
-        {:else if currentStep !== 'kickoff'}
-          <div class="flex items-center gap-2 px-3 py-1 bg-slate-50 border border-slate-100 rounded-lg">
-            <AppIcon name="check" size={14} class="text-emerald-500" />
-            <span class="text-[0.82rem] text-slate-500 font-medium">Action terminée</span>
-          </div>
-        {/if}
-      </div>
+    <div class="flex flex-col gap-0.5">
+      <h1 class="text-[0.95rem] font-bold text-slate-900 tracking-tight">{title}</h1>
+      
+      {#if hasCurrentRun}
+        <div class={cn("inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[0.72rem] font-semibold leading-none w-fit", config.bg, config.color)}>
+          <span class={cn(
+            "h-1.5 w-1.5 rounded-full",
+            status === 'loading' || status === 'calculated' ? "animate-pulse " + config.color.replace('text-', 'bg-') : config.color.replace('text-', 'bg-')
+          )}></span>
+          {config.label}
+        </div>
+      {/if}
     </div>
   </div>
-</div>
 
+  <div class="flex items-center gap-2">
+    {#if currentStep === 'kickoff'}
+      {#if onCancelKickoff}
+        <Button 
+          type="button"
+          variant="outline" 
+          size="sm" 
+          onclick={onCancelKickoff} 
+          class="h-7 text-[0.85rem] px-3.5 border-slate-200 text-slate-600 font-medium shadow-fine"
+        >
+          <AppIcon name="x" size={16} class="text-slate-500" />
+          Annuler
+        </Button>
+      {/if}
+      {@render ActionButton(
+        isCreating ? "Traitement…" : (hasCurrentRun ? "Mettre à jour" : "Lancer l'exécution"),
+        "play",
+        onSubmitKickoff,
+        "bg-primary",
+        !canSubmitKickoff || isCreating
+      )}
+
+    {:else if !hasCurrentRun}
+      {@render ActionButton(isCreating ? "Création…" : "Nouvelle paie", "plus", onNew, "bg-primary", isCreating)}
+    
+    {:else if currentStep === 'preparation' && status === 'draft'}
+      {@render ActionButton(isCalculating ? "Calcul en cours…" : "Calculer la paie", "calculator", () => {
+        onCalculate?.();
+        onNextStep?.();
+      }, "bg-primary", isCalculating)}
+    
+    {:else if currentStep === 'calculation' && status === 'calculated'}
+      {@render ActionButton(isReviewing ? "Révision…" : "Réviser", "eye", () => {
+        onReview?.();
+        onNextStep?.();
+      }, "bg-amber-500 hover:bg-amber-600", isReviewing)}
+    
+    {:else if currentStep === 'review' && status === 'reviewed'}
+      {@render ActionButton(isApproving ? "Approbation…" : "Approuver", "circle-check", () => {
+        onApprove?.();
+        onNextStep?.();
+      }, "bg-emerald-600 hover:bg-emerald-700", isApproving)}
+    
+    {:else if currentStep === 'approval' && status === 'approved'}
+      {@render ActionButton(isPaying ? "Paiement…" : "Finaliser le paiement", "banknote", () => {
+        onPay?.();
+        onNextStep?.();
+      }, "bg-purple-600 hover:bg-purple-700", isPaying)}
+    
+    {:else if status === 'paid'}
+      <Button variant="outline" size="sm" class="h-7.5 text-[0.85rem] px-4 border-slate-200 text-slate-600 font-medium shadow-fine">
+        <AppIcon name="download" size={16} />
+        Télécharger les rapports
+      </Button>
+    {:else}
+      <div class="flex items-center gap-2 px-3 py-1 bg-slate-50 border border-slate-100 rounded-lg">
+        <AppIcon name="check" size={14} class="text-emerald-500" />
+        <span class="text-[0.82rem] text-slate-500 font-medium">Action terminée</span>
+      </div>
+    {/if}
+  </div>
+</header>

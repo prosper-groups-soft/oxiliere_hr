@@ -139,7 +139,7 @@
       onCheckedChange={(checked) => onIncludeAllChange(!!checked)}
       class="cursor-pointer"
     />
-    <div>
+    <div class="flex flex-col gap-2">
       <span class="text-[0.86rem] font-semibold text-slate-700">Tous les employés actifs</span>
       <p class="text-[0.85rem] text-slate-500 mt-0.5">
         Inclut automatiquement tous les contrats actifs sur la période.
@@ -253,9 +253,9 @@
     <div class="rounded-xl border border-slate-200 overflow-hidden bg-white shadow-fine">
       <!-- Corps scrollable — l'en-tête sticky est DANS le scroll pour que les
            colonnes restent alignées avec la scrollbar (pattern standard). -->
-      <div class="max-h-[380px] overflow-y-auto">
+      <div class="max-95 overflow-y-auto">
         <!-- En-tête des colonnes (sticky au scroll) -->
-        <div class="sticky top-0 z-10 flex items-center px-4 py-2.5 bg-slate-50 border-b border-slate-100 font-semibold text-slate-400 uppercase tracking-wider">
+        <div class="sticky top-0 z-10 flex items-center px-4 py-2 bg-slate-50 border-b border-slate-100 font-semibold text-slate-400 uppercase tracking-wider">
           <div class="w-[38%] text-[0.85rem] flex items-center gap-3">
             <span class="w-4 shrink-0"></span>
             <span class="w-9 shrink-0"></span>

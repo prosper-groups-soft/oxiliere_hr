@@ -56,10 +56,7 @@ export const LEAVE_DEDUCTION_MODES = [
 ] as const;
 
 /** Libellés RDC des règles d'heures supplémentaires (OvertimeRuleType backend) */
-export const OVERTIME_RULE_LABELS: Record<
-  string,
-  { label: string; short: string }
-> = {
+export const OVERTIME_RULE_LABELS: Record<string, { label: string; short: string }> = {
   FIRST_TIER: {
     label: '6 premières heures (au-delà de 45h/semaine)',
     short: '130 %',

@@ -15,27 +15,42 @@
   
   let { children } = $props();
 
+  // --- Regex patterns d'analyse de route ---
+  /** Découpage robuste de l'URL (ignore les slashes multiples, superflus et trailing) */
+  const PATH_SEGMENTS_REGEX = /[^/]+/g;
+  /** Format UUID standard (v4/v7) */
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  /** Identifiants numériques purs (ex: /employees/42) */
+  const NUMERIC_ID_REGEX = /^\d+$/;
+
   // --- Sidebar management ---
   const setExpanded = (val: boolean) => settings.update('sidebarExpanded', val);
 
   /**
+   * Formatage texte propre depuis un slug (ex: "payroll-settings" -> "Payroll Settings")
+   */
+  function formatSlugLabel(slug: string): string {
+    return slug
+      .replace(/[-_]+/g, ' ')
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+
+  /**
    * getLabel : Résout le nom à afficher dans le Breadcrumb et le Titre
    */
-  function getLabel(segment: string) {
-    // 1. Labels statiques
+  function getLabel(segment: string): string {
+    // 1. Dictionnaire de labels statiques
     if (PAGE_LABELS[segment]) return PAGE_LABELS[segment];
     
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(segment);
-
-    if (isUuid) {
+    // 2. Détection des identifiants (UUID ou numérique)
+    if (UUID_REGEX.test(segment) || NUMERIC_ID_REGEX.test(segment)) {
         // A. Vérifier dans la liste globale (si déjà chargée)
         const empFromList = employeeStore.getById(segment);
         if (empFromList) return empFromList.name;
 
-        // B. NOUVEAU : Vérifier si c'est l'employé actuellement chargé dans 'current'
-        // On compare l'ID du segment avec l'ID de l'employé dans le store
+        // B. Vérifier si c'est l'employé actuellement chargé dans 'current'
         if (employeeStore.current && String(employeeStore.current.id) === segment) {
-            return buildFullName(employeeStore.current);
+            return buildFullName(employeeStore.current) || "Employé";
         }
 
         // C. Vérifier si c'est une campagne de recrutement
@@ -46,13 +61,12 @@
         return "Chargement...";
     }
 
-    // 2. Recherche Candidat
+    // 3. Recherche Candidat
     const candidate = recruitmentStore.candidates.find(c => c.id === segment);
     if (candidate) return `${candidate.firstName} ${candidate.lastName}`;
     
-
-    // 4. Fallback formattage texte
-    return segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' ');
+    // 4. Fallback : Titrage propre via Regex
+    return formatSlugLabel(segment);
   }
 
   /**
@@ -60,7 +74,7 @@
    * Se recalcule automatiquement dès que 'page.url.pathname' OU 'employeeStore.current' change.
    */
   const navigationData = $derived.by(() => {
-    const segments = page.url.pathname.split('/').filter(Boolean);
+    const segments = page.url.pathname.match(PATH_SEGMENTS_REGEX) || [];
     let path = '';
 
     const items = segments.map((segment) => {

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { goto } from "$app/navigation";
   import { payrollStore } from "@/features/payroll/stores/payroll.svelte";
   import { notification } from "@/stores/notification.svelte";
   import PayrollStepper from "@/features/payroll/components/run/PayrollStepper.svelte";
@@ -23,6 +24,9 @@
   let isReviewing = $state(false);
   let isApproving = $state(false);
   let isPaying = $state(false);
+
+  let kickoffSubmit = $state<(() => void) | undefined>(undefined);
+  let canSubmitKickoff = $state(false);
 
   function formatAmount(amount: number): string {
     return (amount ?? 0).toLocaleString('fr-FR', { style: 'currency', currency: 'USD' });
@@ -162,6 +166,9 @@
         {isReviewing}
         {isApproving}
         {isPaying}
+        {canSubmitKickoff}
+        onCancelKickoff={() => { payrollStore.cancelNewRun(); goto('/payroll'); }}
+        onSubmitKickoff={() => kickoffSubmit?.()}
         onNew={handleCalculate}
         onCalculate={handleCalculate}
         onReview={handleReview}
@@ -170,9 +177,14 @@
         onNextStep={() => payrollStore.goToNextStep()}
       />
 
-      {#if isKickoff}
+      {#if isKickoff} 
         <div in:fade={{ duration: 200 }}>
-          <KickoffStep onCreated={() => payrollStore.goToStep('preparation')} />
+          <KickoffStep 
+            bind:submitForm={kickoffSubmit}
+            bind:canSubmit={canSubmitKickoff}
+            bind:isCreating
+            onCreated={() => payrollStore.goToStep('preparation')} 
+          />
         </div>
       {:else if payrollStore.currentStep === 'preparation'}
         <div in:fade={{ duration: 200 }}>

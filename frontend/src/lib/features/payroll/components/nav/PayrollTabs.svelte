@@ -14,14 +14,34 @@
     { id: 'settings', label: 'Configuration', icon: 'settings', path: '/payroll/payroll-settings' },
   ];
 
+  /** Abréviation 3 lettres du mois en français pour un label compact d'onglet. */
+  function shortPeriodLabel(period: string | undefined): string {
+    if (!period) return '';
+    // period est souvent "2026-08-28 - 2026-10-11" ou "Août 2026 - Octobre 2026"
+    const parts = period.split(' - ');
+    const fmt = (s: string) => {
+      const d = new Date(s.trim());
+      if (isNaN(d.getTime())) return s.trim().slice(0, 3);
+      return d.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '');
+    };
+    const start = fmt(parts[0]);
+    if (parts.length < 2) return start.charAt(0).toUpperCase() + start.slice(1);
+    const end = fmt(parts[1]);
+    if (start === end) return start.charAt(0).toUpperCase() + start.slice(1);
+    return `${start.charAt(0).toUpperCase() + start.slice(1)}–${end.charAt(0).toUpperCase() + end.slice(1)}`;
+  }
+
   const currentRunTab = $derived.by(() => {
     // Onglet visible si run backend actif OU démarrage client (KickoffStep).
     if (!payrollStore.hasCurrentRunTab) return null;
 
     const run = payrollStore.currentRun;
+    const label = payrollStore.hasActiveRun && run
+      ? `Paie ${shortPeriodLabel(run.period)}`
+      : 'Nouvelle paie';
     return {
       id: 'currentRun',
-      label: payrollStore.hasActiveRun && run ? `Paie ${run.period}` : 'Nouvelle paie',
+      label,
       icon: 'play-circle',
       path: '/payroll/run',
     };

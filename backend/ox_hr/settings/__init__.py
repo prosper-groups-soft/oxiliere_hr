@@ -13,7 +13,6 @@ from .apps        import *
 from .auth        import *
 from .databases   import *
 from .caches      import *
-from .nats        import *
 from .permissions import *
 from .locale      import *
 from .email       import *

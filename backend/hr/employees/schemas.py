@@ -587,6 +587,10 @@ class EmployeeOut(ModelSchema):
     status: Optional[str] = None
     avatar_url: Optional[str] = None
     current_status: Optional[StatusHistoryOut] = None
+    # Contrat courant + éléments de paie S10 — chargés en un seul appel via le
+    # prefetch `prefetched_latest_contract` (get_base_queryset), sans N+1.
+    current_contract: Optional[ContractOut] = None
+    contract_adjustments: List[ContractPayElementOut] = PydanticField(default_factory=list)
 
     class Meta:
         model = Employee
@@ -638,6 +642,40 @@ class EmployeeOut(ModelSchema):
     def resolve_contract_type(obj):
         contracts = getattr(obj, 'prefetched_latest_contract', [])
         return contracts[0].contract_type if contracts else None
+
+    @staticmethod
+    def resolve_current_contract(obj):
+        contracts = getattr(obj, 'prefetched_latest_contract', [])
+        if contracts and len(contracts) > 0:
+            return contracts[0]
+        return None
+
+    @staticmethod
+    def resolve_contract_adjustments(obj):
+        """S10 — éléments de paie du contrat courant (actif ou suspendu)."""
+        contracts = getattr(obj, 'prefetched_latest_contract', [])
+        if not contracts:
+            return []
+        contract = contracts[0]
+        assignments = contract.pay_elements.select_related('adjustment').order_by('-start_date')
+        elements = []
+        for assignment in assignments:
+            adj = assignment.adjustment
+            elements.append({
+                'id': assignment.id,
+                'catalog_code': adj.code,
+                'label': adj.name,
+                'value_type': adj.calculation_mode,
+                'amount': assignment.custom_amount if assignment.custom_amount is not None else adj.amount,
+                'custom_amount': assignment.custom_amount,
+                'custom_percentage': assignment.custom_percentage,
+                'is_active': assignment.is_active,
+                'is_taxable': adj.is_taxable,
+                'recurrence': 'monthly',
+                'start_period': assignment.start_date,
+                'end_period': assignment.end_date,
+            })
+        return elements
 
     @staticmethod
     def resolve_work_site(obj):

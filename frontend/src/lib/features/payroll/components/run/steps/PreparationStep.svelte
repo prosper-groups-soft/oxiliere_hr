@@ -1,221 +1,287 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { payrollStore } from "@/features/payroll/stores/payroll.svelte";
+  import { payrollRunStore } from "@/features/payroll/stores/runs/payrollRunStore.svelte";
+  import { employeesService } from "@/features/employees/services/employees.service";
+  import { orgService } from "@/features/jobs/services/org.service";
+  import type { Employee } from "@/features/employees/types/types";
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
   import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
   import { Separator } from "@/components/ui/separator";
   import { slide, fade } from "svelte/transition";
+  import AnimateSpin from "@/components/layout/elements/AnimateSpin.svelte";
+  import { cn } from "@/utilities/common/css";
+  import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+  import { getInitials } from "@/utilities/common/string";
+  import { getAvatarPalette } from "@/utilities/common/func";
+  import { getMediaUrl } from "@/utilities/common/media";
+  import { getOrgUnitColor } from "@/features/payroll/constants/orgUnitColors.constants";
   
-  let showEmployeeList = $state(false);
-  let showExcluded = $state(false);
+  
+  // Liste visible (onglet actif). Mutuellement exclusive : un seul panneau à la
+  // fois, re-cliquer sur l'onglet actif replie tout.
+  type ActiveList = 'employees' | 'excluded' | null;
+  let activeList = $state<ActiveList>(null);
+  let isLoading = $state(true);
+  let allEmployees = $state<Employee[]>([]);
+  let orgUnits = $state<Array<{ id: string; name: string; type: string }>>([]);
 
-  const activeEmployees = $derived(payrollStore.payslips);
-  const excludedEmployees = $derived(payrollStore.excludedEmployees);
-  
-  // Statistiques du store
-  const stats = $derived({
-    activeCount: payrollStore.activeEmployeesCount,
-    excludedCount: payrollStore.excludedEmployeesCount,
-    totalSalary: payrollStore.totalBaseSalary,
-    averageSalary: payrollStore.averageSalary,
-    variables: payrollStore.variablesDetected,
-    completionRate: payrollStore.completionRate,
-    completeProfiles: payrollStore.completeProfilesCount,
-    orgUnits: payrollStore.orgUnitDistribution
+  const run = $derived(payrollRunStore.currentRun);
+  const selection = $derived(run?.selection);
+
+  // Charger les unités organisationnelles depuis le backend (source de vérité)
+  $effect(() => {
+    let cancelled = false;
+    orgService.listOrgUnits(1, 200)
+      .then((res) => {
+        if (cancelled) return;
+        orgUnits = (res.results || [])
+          .map(u => ({ id: u.id, name: u.name, type: u.type }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error('Failed to load org units in PreparationStep', err);
+      });
+    return () => { cancelled = true; };
   });
 
-  const orgUnitColors: Record<string, { bg: string; text: string; dot: string }> = {
-    'IT': { bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-500' },
-    'RH': { bg: 'bg-rose-100', text: 'text-rose-700', dot: 'bg-rose-500' },
-    'Finance': { bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-500' },
-    'Admin': { bg: 'bg-amber-100', text: 'text-amber-700', dot: 'bg-amber-500' }
-  };
+  function initialsFromName(name: string): string {
+    return name.split(' ').map(n => n[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+  }
 
-  const getOrgUnitColor = (orgUnit: string) => 
-    orgUnitColors[orgUnit] || { bg: 'bg-slate-100', text: 'text-slate-600', dot: 'bg-slate-400' };
+  /** Bascule l'onglet passé : si déjà actif on replie, sinon on l'affiche. */
+  function toggleList(list: Exclude<ActiveList, null>) {
+    activeList = activeList === list ? null : list;
+  }
+
+  onMount(async () => {
+    try {
+      isLoading = true;
+      allEmployees = await employeesService.getAllForSelect();
+    } catch (err) {
+      console.error('Failed to load employees in PreparationStep', err);
+    } finally {
+      isLoading = false;
+    }
+  });
+
+  // Employés actifs et retenus pour le run
+  const activeEmployees = $derived.by(() => {
+    const list = allEmployees.filter(e => e.status === 'active' || e.is_active);
+    if (selection?.scope === 'employees' && Array.isArray(selection.employee_ids) && selection.employee_ids.length > 0) {
+      const set = new Set(selection.employee_ids.map(String));
+      return list.filter(e => set.has(String(e.id)));
+    }
+    return list;
+  });
+
+  // Employés exclus (suspendus, inactifs ou hors sélection)
+  const excludedEmployees = $derived.by(() => {
+    const toExcluded = (e: Employee, reason: string) => ({ emp: e, reason });
+    const inactive = allEmployees
+      .filter(e => !(e.status === 'active' || e.is_active))
+      .map(e => toExcluded(e, e.status === 'suspended' ? 'Contrat suspendu' : 'Employé inactif'));
+    if (selection?.scope === 'employees' && Array.isArray(selection.employee_ids)) {
+      const set = new Set(selection.employee_ids.map(String));
+      const unselectedActive = allEmployees
+        .filter(e => (e.status === 'active' || e.is_active) && !set.has(String(e.id)))
+        .map(e => toExcluded(e, 'Non sélectionné pour cette paie'));
+      return [...inactive, ...unselectedActive];
+    }
+    return inactive;
+  });
+
+  // Répartition par unité organisationnelle (résolue depuis le backend)
+  const orgUnitDistribution = $derived.by(() => {
+    const dist: Record<string, number> = {};
+    const nameById = new Map<string, string>();
+    for (const unit of orgUnits) {
+      nameById.set(String(unit.id), unit.name);
+    }
+    for (const emp of activeEmployees) {
+      const unit = (emp.orgUnitId != null && nameById.get(String(emp.orgUnitId))) || emp.orgUnit || 'Général';
+      dist[unit] = (dist[unit] || 0) + 1;
+    }
+    return dist;
+  });
 
   // La période est figée une fois le run créé (saisie uniquement au kickoff).
   const periodLabel = $derived(
-    payrollStore.currentRun?.period
-      ?? new Date(payrollStore.currentPeriod + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+    run?.period
+      || (run?.periodStart && run?.periodEnd ? `${run.periodStart} - ${run.periodEnd}` : '')
+      || (payrollStore.currentPeriod ? new Date(payrollStore.currentPeriod + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }) : 'Période en cours')
   );
 </script>
 
 
-{#snippet EmployeeRow(emp: any, index: number)}
-  <div class="flex items-center justify-between border-b border-slate-50 pb-2 last:border-0" in:fade={{ delay: index * 30 }}>
+{#snippet EmployeeAvatar(emp: Employee, sizeClass: string)}
+  {@const palette = getAvatarPalette(emp.name || '')}
+  {@const photo = emp.profile_photo || emp.avatarUrl || null}
+  <Avatar class="{sizeClass} rounded-full border border-slate-200">
+    {#if photo}
+      <AvatarImage src={getMediaUrl(photo)} alt={emp.name} class="object-cover" />
+    {/if}
+    <AvatarFallback class={cn('font-bold text-[0.72rem]', palette.bg, palette.text)}>
+      {getInitials(emp.last_name ?? '', emp.middle_name ?? '', emp.first_name ?? '') || initialsFromName(emp.name)}
+    </AvatarFallback>
+  </Avatar>
+{/snippet}
+
+
+{#snippet EmployeeRow(emp: Employee, index: number)}
+  <div class="flex items-center justify-between border-b border-slate-100 pb-2.5 last:border-0" in:fade={{ delay: index * 20 }}>
     <div class="flex items-center gap-3">
-      <div class="w-7 h-7 rounded bg-slate-50 flex items-center justify-center text-[0.82rem] font-semibold text-slate-400 border border-slate-100">
-        {index + 1}
+      <div class="relative shrink-0">
+        {@render EmployeeAvatar(emp, 'h-9 w-9')}
       </div>
       <div class="flex flex-col">
-        <span class="text-sm text-slate-700 font-medium">{emp.employee.fullName}</span>
-        <span class="text-[0.75rem] text-slate-400">{emp.employee.orgUnit}</span>
-      </div>
+      <span class="text-[0.86rem] text-slate-800 font-medium">{emp.name}</span>
+      <span class="text-[0.86rem] text-slate-500">{emp.jobTitle || emp.positionId ? 'Poste défini' : 'Poste non spécifié'}</span>
     </div>
+  </div>
     <div class="flex items-center gap-3">
-       <div class="flex items-center gap-1 text-[0.7rem] font-medium {emp.contract.baseSalary > 0 || index < 5 ? 'text-emerald-600' : 'text-amber-600'}">
-          <AppIcon name={emp.contract.baseSalary > 0 || index < 5 ? 'circle-check' : 'circle-alert'} size={14} />
-          {emp.contract.baseSalary > 0 || index < 5 ? 'Profil complet' : 'RIB manquant'}
-       </div>
-       <span class="text-[0.75rem] text-slate-500 bg-slate-100 px-2 py-0.5 rounded font-medium">CDI</span>
+       <span class="text-[0.86rem] text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full font-medium">{emp.contractType || '—'}</span>
     </div>
   </div>
 {/snippet}
 
 
-{#snippet OrgUnitBadge(orgUnit: string)}
+{#snippet OrgUnitBadge(orgUnit: string, count: number)}
   {@const colors = getOrgUnitColor(orgUnit)}
-  <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[0.72rem] font-medium {colors.bg} {colors.text}">
-    <span class="h-1.5 w-1.5 rounded-full {colors.dot}"></span>
-    {orgUnit}
+  <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[0.86rem] font-medium {colors.bg} {colors.text}">
+    <span class="h-2 w-2 rounded-full {colors.dot}"></span>
+    {orgUnit} ({count})
   </span>
 {/snippet}
 
 
-<div class="mt-2 space-y-3">
-  
-  <Card class="border shadow-none">
-    <CardHeader class="pb-0">
-      <CardTitle class="text-sm font-bold flex items-center gap-2">
-        <AppIcon name="calendar" size={18} strokeWidth={1.3} class="text-slate-500" />
-        Période de paie
-      </CardTitle>
-    </CardHeader>
-    <CardContent>
-      <div class="grid grid-cols-2 gap-8">
-        <div>
-          <div class="text-sm font-medium text-slate-500 mb-1.5">Mois d'exécution</div>
-          <p class="text-sm text-slate-900 font-semibold">{periodLabel}</p>
-        </div>
-        <div>
-          <div class="text-sm font-medium text-slate-500 mb-1.5">Cycle de paie</div>
-          <p class="text-sm text-slate-900 font-medium capitalize">
-            Mensuel — {periodLabel}
-          </p>
-        </div>
-      </div>
-    </CardContent>
-  </Card>
-
-  <Card class="border shadow-none">
-    <CardHeader class="pb-0">
-      <div class="flex items-center justify-between">
-        <CardTitle class="text-sm font-bold flex items-center gap-2">
-          <AppIcon name="users" size={18} strokeWidth={1.3} class="text-slate-500" />
-          Analyse des bénéficiaires
+<div class="mt-2 space-y-4">
+  {#if isLoading}
+    <div class="flex items-center justify-center p-12 bg-white rounded-xl border border-slate-100">
+      <AnimateSpin text="Chargement des données du personnel" class="text-primary" />
+    </div>
+  {:else}
+    <Card class="border shadow-none">
+      <CardHeader class="pb-2">
+        <CardTitle class="text-[0.9rem] font-bold flex items-center gap-2 text-slate-800">
+          <AppIcon name="calendar" size={18} strokeWidth={1.3} class="text-slate-500" />
+          Période de paie
         </CardTitle>
-        <div class="flex items-center gap-4">
-          <button 
-            onclick={() => showExcluded = !showExcluded}
-            class="text-[0.8rem] font-semibold {showExcluded ? 'text-rose-600' : 'text-slate-500'} hover:opacity-80 hover:underline transition-all cursor-pointer"
-          >
-            {stats.excludedCount} exclus ce mois
-          </button>
-          <button 
-            onclick={() => showEmployeeList = !showEmployeeList}
-            class="text-[0.8rem] font-bold text-primary hover:opacity-80 flex items-center gap-1.5 transition-all hover:underline cursor-pointer"
-          >
-            <AppIcon name={showEmployeeList ? 'eye-off' : 'eye'} size={16} strokeWidth={1.7} />
-            {showEmployeeList ? 'Masquer la liste' : 'Afficher les noms'}
-          </button>
-        </div>
-      </div>
-    </CardHeader>
-
-    <CardContent class="space-y-6">
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
-        <div>
-          <div class="text-sm font-medium text-slate-500 flex items-center gap-1.5">
-            Effectif à payer
-            {#if stats.excludedCount > 0}
-              <span class="text-[0.65rem] bg-blue-50 text-blue-600 px-1 rounded border border-blue-100">+{stats.excludedCount}</span>
-            {/if}
-          </div>
-          <p class="text-sm text-slate-900 font-bold">{stats.activeCount} contrats actifs</p>
-        </div>
-
-        <div>
-          <div class="text-sm font-medium text-slate-500">Masse salariale (Base)</div>
-          <div class="flex items-baseline gap-1.5">
-            <p class="text-sm text-slate-900 font-bold">${stats.totalSalary.toLocaleString()}</p>
-            <span class="text-[0.8rem] text-slate-400 font-medium">Moy: ${stats.averageSalary.toLocaleString()}</span>
+      </CardHeader>
+      <CardContent>
+        <div class="flex items-center gap-6">
+          <div>
+            <div class="text-[0.86rem] font-medium text-slate-500 mb-1">
+                Période d'exécution
+            </div>
+            <p class="text-[0.86rem] text-slate-900 font-semibold">{periodLabel}</p>
           </div>
         </div>
+      </CardContent>
+    </Card>
 
-        <div>
-          <div class="text-sm font-medium text-slate-500">Variables détectés</div>
-          <div class="flex items-center gap-1.5">
-            <p class="text-sm text-slate-900 font-bold">{stats.variables.primes} primes</p>
-            <span class="h-1 w-1 rounded-full bg-slate-300"></span>
-            <p class="text-sm text-slate-900 font-bold">{stats.variables.avances} avances</p>
-          </div>
-        </div>
-
-        <div>
-          <div class="text-sm font-medium text-slate-500">Dossiers complets</div>
+    <Card class="border shadow-none">
+      <CardHeader class="pb-2">
+        <div class="flex items-center justify-between">
+          <CardTitle class="text-[0.9rem] font-bold flex items-center gap-2 text-slate-800">
+            <AppIcon name="users" size={18} strokeWidth={1.3} class="text-slate-500" />
+            Analyse des bénéficiaires
+          </CardTitle>
           <div class="flex items-center gap-2">
-            <div class="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden max-w-[60px]">
-              <div class="h-full bg-emerald-500" style="width: {stats.completionRate}%"></div>
-            </div>
-            <p class="text-sm text-emerald-600 font-bold">{stats.completionRate}%</p>
+            {#if excludedEmployees.length > 0}
+              <button 
+                onclick={() => toggleList('excluded')}
+                class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium transition-colors cursor-pointer {activeList === 'excluded'
+                  ? 'border-rose-200 bg-rose-50 text-rose-600'
+                  : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-rose-600'}"
+              >
+                <AppIcon name="user-minus" size={13} strokeWidth={1.8} />
+                {excludedEmployees.length} exclus ce mois
+              </button>
+            {/if}
+            <button 
+              onclick={() => toggleList('employees')}
+              class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium transition-colors cursor-pointer {activeList === 'employees'
+                ? 'border-primary/25 bg-primary/5 text-primary'
+                : 'border-slate-200 bg-white text-slate-600 hover:bg-primary/5 hover:text-primary hover:border-primary/25'}"
+            >
+              <AppIcon name={activeList === 'employees' ? 'eye-off' : 'eye'} size={14} strokeWidth={1.7} />
+              {activeList === 'employees' ? 'Masquer les employés' : 'Afficher les employés'}
+            </button>
           </div>
         </div>
-      </div>
+      </CardHeader>
 
-      <div class="pt-2">
-        <div class="text-sm font-medium text-slate-500 mb-2.5 flex items-center gap-2">
-          Répartition par départements
-          <Separator class="flex-1 opacity-50" />
-        </div>
-        <div class="flex flex-wrap gap-1.5">
-          {#each Object.entries(stats.orgUnits) as [orgUnit, count]}
-            {@render OrgUnitBadge(orgUnit)}
-          {/each}
-        </div>
-      </div>
-
-      {#if showExcluded}
-        <div transition:slide class="p-3 bg-rose-50/50 border border-rose-100 rounded-lg space-y-2">
-          <div class="text-[0.75rem] font-bold text-rose-700 flex items-center gap-2">
-            <AppIcon name="user-minus" size={16} /> 
-            Collaborateurs non-éligibles pour {periodLabel}
+      <CardContent class="space-y-6">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <div>
+            <div class="text-[0.86rem] font-medium text-slate-500">Effectif à payer</div>
+            <p class="text-[0.86rem] text-slate-900 font-bold mt-1">
+              {activeEmployees.length} employé{activeEmployees.length > 1 ? 's' : ''}
+            </p>
           </div>
-          {#each excludedEmployees as ex}
-            <div class="flex items-center justify-between text-[0.82rem]">
-              <span class="text-slate-700 font-medium text-[0.82rem]">{ex.employeeName} ({ex.orgUnit})</span>
-              <span class="text-rose-600 text-[0.82rem]">{ex.reason}</span>
-            </div>
-          {/each}
-        </div>
-      {/if}
 
-      {#if showEmployeeList}
-        <div transition:slide={{ duration: 300 }} class="overflow-hidden">
-          <div class="pt-4 border-t border-slate-100">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-3">
-              {#each activeEmployees.length > 0 ? activeEmployees : Array(6) as emp, i}
-                {@render EmployeeRow(emp.employee?.fullName ? emp : { employee: { fullName: `Employé #00${i+1}`, orgUnit: 'Unité organisationnelle' } }, i)}
+          <div>
+            <div class="text-[0.86rem] font-medium text-slate-500">Mode de sélection</div>
+            <p class="text-[0.86rem] text-slate-900 font-semibold mt-1">
+              {selection?.scope === 'employees' ? 'Sélection individuelle' : 'Tous les employés actifs'}
+            </p>
+          </div>
+
+          <div>
+            <div class="text-[0.86rem] font-medium text-slate-500">Exclus de ce cycle</div>
+            <p class="text-[0.86rem] text-slate-900 font-semibold mt-1">
+              {excludedEmployees.length} employé{excludedEmployees.length > 1 ? 's' : ''}
+            </p>
+          </div>
+        </div>
+
+        {#if Object.keys(orgUnitDistribution).length > 0}
+          <div class="pt-2">
+            <div class="text-[0.86rem] font-medium text-slate-500 mb-2.5 flex items-center gap-2">
+              Répartition par départements
+              <Separator class="flex-1 opacity-50" />
+            </div>
+            <div class="flex flex-wrap gap-2">
+              {#each Object.entries(orgUnitDistribution) as [orgUnit, count]}
+                {@render OrgUnitBadge(orgUnit, count)}
               {/each}
             </div>
           </div>
-        </div>
-      {/if}
-      
-      <Separator />
+        {/if}
 
-      <div class="flex items-start gap-3 p-3 bg-slate-50/50 rounded-lg border border-slate-100">
-        <AppIcon name="shield-info" size={18} class="text-blue-500 mt-0.5" />
-        <div class="space-y-1">
-          <p class="text-[0.82rem] text-slate-700 font-semibold">
-            Vérification de conformité terminée
-          </p>
-          <p class="text-[0.82rem] text-slate-600 leading-relaxed">
-            Le système a identifié <span class="text-emerald-600 font-medium text-[0.82rem]">{stats.completeProfiles} profils prêts</span> pour le calcul ({stats.completionRate}%). 
-            {stats.excludedCount > 0 && `Les ${stats.excludedCount} suspensions et fins de contrat sont automatiquement exclues pour garantir la précision légale.`}
-          </p>
-        </div>
-      </div>
-    </CardContent>
-  </Card>
+        {#if activeList === 'excluded' && excludedEmployees.length > 0}
+          <div transition:slide class="p-3.5 bg-rose-50/50 border border-rose-100 rounded-lg space-y-2">
+            <div class="text-[0.86rem] font-bold text-rose-700 flex items-center gap-2">
+              <AppIcon name="user-minus" size={16} /> 
+              Collaborateurs non-inclus pour {periodLabel}
+            </div>
+            {#each excludedEmployees as ex}
+              <div class="flex items-center justify-between text-[0.86rem]">
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="shrink-0">
+                      {@render EmployeeAvatar(ex.emp, 'h-9 w-9')}
+                    </div>
+                    <div class="flex flex-col min-w-0">
+                        <span class="text-slate-700 font-medium text-[0.86rem] truncate">{ex.emp.name}</span>
+                        <span class="text-[0.72rem] text-slate-400 truncate">{ex.emp.jobTitle || 'Poste non spécifié'}</span>
+                    </div>
+                  </div>
+                <span class="text-rose-600 font-medium text-[0.86rem]">{ex.reason}</span>
+              </div>
+            {/each}
+          </div>
+        {/if}
+
+        {#if activeList === 'employees'}
+          <div transition:slide={{ duration: 300 }} class="pt-4 border-t border-slate-100">
+            {#each activeEmployees as emp, i}
+              {@render EmployeeRow(emp, i)}
+            {/each}
+          </div>
+        {/if}
+      </CardContent>
+    </Card>
+  {/if}
 </div>
-

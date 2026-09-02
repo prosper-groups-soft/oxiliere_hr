@@ -279,7 +279,7 @@
 
 {#snippet ReviewTable()}
   <CardContent class="p-0">
-    <div class="overflow-x-auto min-h-[300px]">
+    <div class="overflow-x-auto min-h-75">
       <div class="divide-y divide-slate-100">
         {#each filteredPayslips() as payslip (payslip.id || payslip.employee.fullName)}
           <ReviewEmployeeRow {payslip} onClick={openPayslipDetail} />

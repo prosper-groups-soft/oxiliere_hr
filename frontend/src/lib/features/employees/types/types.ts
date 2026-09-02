@@ -1,3 +1,16 @@
+
+export interface EmployeeContractSalaryInfo {
+	id: string | number;
+	contract_type?: string;
+	remuneration_type?: string;
+	base_salary?: number;
+	salary_base_type?: string; // 'GROSS' | 'NET'
+	hourly_rate?: number | null;
+	currency?: string;
+	start_date?: string;
+	end_date?: string | null;
+}
+
 export interface Employee {
 	id: string | number;
 	name: string;
@@ -15,6 +28,10 @@ export interface Employee {
 	avatarUrl: string;
 	role: string;
 	birthDate?: string;
+	// Contrat courant (source unique, enrichie côté backend — pas de cascade)
+	currentContract?: EmployeeContractSalaryInfo | null;
+	// Éléments de paie S10 assignés au contrat courant
+	contractPayElements?: ContractPayElementItem[];
 	// Champs bruts API (snake_case)
 	first_name?: string;
 	last_name?: string;

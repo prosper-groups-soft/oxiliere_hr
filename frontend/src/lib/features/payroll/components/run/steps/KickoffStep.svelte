@@ -1,14 +1,11 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { payrollStore } from "@/features/payroll/stores/payroll.svelte";
   import { payrollRunStore } from "@/features/payroll/stores/runs/payrollRunStore.svelte";
   import { updatePayrollRun, type PayrollRunUpdatePayload } from "@/features/payroll/queries/payroll";
   import { notification } from "@/stores/notification.svelte";
   import { orgService } from "@/features/jobs/services/org.service";
   import { employeesService } from "@/features/employees/services/employees.service";
-  import Button from "@/components/ui/button/button.svelte";
-  import AppIcon from "@/components/layout/elements/AppIcon.svelte";
-  import AnimateSpin from "@/components/layout/elements/AnimateSpin.svelte";
-  import { goto } from "$app/navigation";
 
   import PeriodSection from "../kickoff/PeriodSection.svelte";
   import ExchangeRateSection from "../kickoff/ExchangeRateSection.svelte";
@@ -18,21 +15,46 @@
 
   interface Props {
     onCreated?: () => void;
+    submitForm?: (() => void) | undefined;
+    canSubmit?: boolean;
+    isCreating?: boolean;
   }
 
-  let { onCreated }: Props = $props();
+  let { 
+    onCreated,
+    submitForm = $bindable(undefined),
+    canSubmit = $bindable(false),
+    isCreating = $bindable(false)
+  }: Props = $props();
+
+  $effect(() => {
+    submitForm = handleSubmit;
+  });
+
+  $effect(() => {
+    canSubmit = !!(isValid && rateReady && !isCreating);
+  });
+
+  const run = payrollRunStore.currentRun;
+  const initialSelection = run?.selection;
 
   // ─── Période ───
-  let periodStart = $state('');
-  let periodEnd = $state('');
+  let periodStart = $state(run?.periodStart ?? (run as any)?.start_date ?? '');
+  let periodEnd = $state(run?.periodEnd ?? (run as any)?.end_date ?? '');
 
   // ─── Taux de change ───
-  let rateSource: 'auto' | 'manual' = $state<'auto' | 'manual'>('auto');
-  let manualRate = $state(2850);
+  let rateSource: 'auto' | 'manual' = $state<'auto' | 'manual'>(
+    run?.exchangeRate ? 'manual' : 'auto'
+  );
+  let manualRate = $state(run?.exchangeRate ?? 2850);
 
   // ─── Sélection employés ───
-  let includeAllEmployees = $state(true);
-  let selectedEmployeeIds: string[] = $state([]);
+  let includeAllEmployees = $state(
+    initialSelection ? initialSelection.scope !== 'employees' : true
+  );
+  let selectedEmployeeIds: string[] = $state(
+    initialSelection?.scope === 'employees' ? [...(initialSelection.employee_ids ?? [])] : []
+  );
   let orgUnits = $state<Array<{ id: string; name: string; type: string }>>([]);
   let selectedOrgUnitIds: string[] = $state([]);
   let isLoadingOrgUnits = $state(true);
@@ -40,13 +62,10 @@
   let isLoadingEmployees = $state(false);
   let employeeSearch = $state('');
 
-  let isCreating = $state(false);
   /** Vrai si on édite un run déjà créé (DRAFT) — on patche au lieu de créer. */
   let isEditingExisting = $derived(
     !!payrollRunStore.currentRun && payrollRunStore.currentRun.status === 'draft'
   );
-  /** Verrou d'hydratation : on ne réinitialise PAS les champs après un edit utilisateur. */
-  let hydrated = $state(false);
 
   // Taux de change résolu envoyé au backend : auto (BCC) si disponible, sinon manuel
   const resolvedRate = $derived.by(() => {
@@ -122,23 +141,18 @@
   });
 
   // ─── Hydratation depuis le backend (source de vérité) ───
-  // On fetch le run directement à l'API au mount plutôt que de lire
-  // `payrollRunStore.currentRun` : ce dernier est un cache qui peut être
-  // obsolète après un PATCH ou une navigation. Une seule fois au mount
-  // (gardé par `hydrated`) et en mode édition uniquement.
-  $effect(() => {
-    if (hydrated) return;
+  // Une seule fois au mount (onMount) pour éviter les boucles d'effets réactifs.
+  onMount(() => {
     if (!payrollRunStore.currentRun) return; // Pas de run → mode création.
     const runId = payrollRunStore.currentRun.id;
 
-    let cancelled = false;
     payrollStore.refreshPayrollRun(runId)
       .then((fresh) => {
-        if (cancelled || !fresh) return;
+        if (!fresh) return;
 
         // Période — on accepte `periodStart`/`periodEnd` ou fallback sur start/end_date
-        periodStart = (fresh as any).periodStart ?? (fresh as any).start_date ?? '';
-        periodEnd   = (fresh as any).periodEnd   ?? (fresh as any).end_date   ?? '';
+        periodStart = (fresh as any).periodStart ?? (fresh as any).start_date ?? periodStart;
+        periodEnd   = (fresh as any).periodEnd   ?? (fresh as any).end_date   ?? periodEnd;
 
         // Taux de change
         const exRate = (fresh as any).exchangeRate ?? (fresh as any).exchange_rate_applied;
@@ -161,20 +175,10 @@
             selectedOrgUnitIds = [];
           }
         }
-
-        // On ré-alimente aussi le store pour que les autres composants
-        // qui dépendent de `currentRun` voient la donnée fraîche.
-        payrollStore.setCurrentRun(fresh);
-        hydrated = true;
       })
       .catch((err: any) => {
-        if (cancelled) return;
         notification.toast.error(err?.message ?? 'Échec du chargement de l\'exécution');
-        // On ne bloque pas l'UI : on laisse les valeurs par défaut (mode création).
-        hydrated = true;
       });
-
-    return () => { cancelled = true; };
   });
 
   // ─── Interactions sélection ───
@@ -264,6 +268,7 @@
         params_snapshot: { selection },
       };
       await updatePayrollRun(run.id, patch);
+      await payrollStore.refreshPayrollRun(run.id);
       notification.toast.success('Sélection mise à jour');
       onCreated?.();
     } catch (err: any) {
@@ -314,38 +319,16 @@
 
 
 {#snippet Footer()}
-  <!-- ─── Actions ─── -->
-  <div class="flex items-center justify-between gap-2.5 pt-1">
-    <div class="text-[0.85rem] text-slate-500">
-      {#if includeAllEmployees}
-        Tous les employés actifs seront inclus
-      {:else if selectedOrgUnitIds.length > 0 && selectedEmployeeIds.length === 0}
-        {selectedOrgUnitIds.length} unité{selectedOrgUnitIds.length > 1 ? 's' : ''} sélectionnée{selectedOrgUnitIds.length > 1 ? 's' : ''}
-      {:else if selectedEmployeeIds.length > 0}
-        {selectedEmployeeIds.length} employé{selectedEmployeeIds.length > 1 ? 's' : ''} sélectionné{selectedEmployeeIds.length > 1 ? 's' : ''}
-      {:else}
-        Aucun employé sélectionné
-      {/if}
-    </div>
-    <div class="flex items-center gap-2.5">
-      <Button type="button" variant="outline" size="sm" onclick={() => { payrollStore.cancelNewRun(); goto('/payroll'); }}
-        class="h-9 px-5 text-[0.875rem] text-slate-500 shadow-fine"
-      >
-        <AppIcon name="x" size={16} class="text-slate-500" />
-        Annuler
-      </Button>
-      <Button type="submit" variant="default" size="sm"
-        disabled={!isValid || isCreating || !rateReady}
-        class="h-9 px-5 text-[0.875rem] rounded-md"
-      >
-        {#if isCreating}
-          <AnimateSpin text="" class="size-3 border-white" />
-        {:else}
-          <AppIcon name="play" size={16} />
-        {/if}
-        Lancer l'exécution
-      </Button>
-    </div>
+  <div class="flex items-center justify-between gap-2.5 pt-1 text-[0.86rem] text-slate-500">
+    {#if includeAllEmployees}
+      Tous les employés actifs seront inclus
+    {:else if selectedOrgUnitIds.length > 0 && selectedEmployeeIds.length === 0}
+      {selectedOrgUnitIds.length} unité{selectedOrgUnitIds.length > 1 ? 's' : ''} sélectionnée{selectedOrgUnitIds.length > 1 ? 's' : ''}
+    {:else if selectedEmployeeIds.length > 0}
+      {selectedEmployeeIds.length} employé{selectedEmployeeIds.length > 1 ? 's' : ''} sélectionné{selectedEmployeeIds.length > 1 ? 's' : ''}
+    {:else}
+      Aucun employé sélectionné
+    {/if}
   </div>
 {/snippet}
 

@@ -50,6 +50,19 @@ function normalizeEmployee(employee: any): Employee {
     hire_date: employee.hire_date,
     termination_date: employee.termination_date,
     current_status: employee.current_status,
+    // Contrat courant enrichi (option 1 — même appel que la liste, pas de cascade)
+    currentContract: employee.current_contract ? {
+      id: employee.current_contract.id,
+      contract_type: employee.current_contract.contract_type,
+      remuneration_type: employee.current_contract.remuneration_type,
+      base_salary: employee.current_contract.base_salary,
+      salary_base_type: employee.current_contract.salary_base_type,
+      hourly_rate: employee.current_contract.hourly_rate,
+      currency: employee.current_contract.currency,
+      start_date: employee.current_contract.start_date,
+      end_date: employee.current_contract.end_date ?? null,
+    } : null,
+    contractPayElements: Array.isArray(employee.contract_adjustments) ? employee.contract_adjustments : [],
   };
 }
 

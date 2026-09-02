@@ -87,6 +87,7 @@ class PayrollRunService:
             "start_date": run.start_date,
             "end_date": run.end_date,
             "exchange_rate": run.exchange_rate_applied,
+            "params_snapshot": run.params_snapshot or {},
             "created_at": run.created_at,
             "updated_at": run.updated_at,
             "stats": {
@@ -201,6 +202,16 @@ class PayrollRunService:
             raise ValidationError(f"Cannot update run with status {run.status}")
 
         # Update scalar fields
+        new_start = data.get('start_date', run.start_date)
+        new_end = data.get('end_date', run.end_date)
+        if 'start_date' in data or 'end_date' in data:
+            if new_start and new_end and str(new_start) >= str(new_end):
+                raise ValidationError("start_date must be before end_date")
+            if 'start_date' in data:
+                run.start_date = data['start_date']
+            if 'end_date' in data:
+                run.end_date = data['end_date']
+
         if 'exchange_rate_applied' in data:
             run.exchange_rate_applied = data['exchange_rate_applied']
 

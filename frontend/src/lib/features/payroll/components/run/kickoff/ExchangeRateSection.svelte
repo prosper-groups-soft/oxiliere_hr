@@ -98,7 +98,7 @@
             step="0.01"
             value={manualRate}
             oninput={(e) => onManualRateChange(Number((e.currentTarget as HTMLInputElement).value))}
-            class="h-9 bg-white border-slate-200 focus:ring-1 focus:ring-primary focus:border-primary rounded-md shadow-fine pr-14 text-right text-base font-semibold"
+            class="h-9 bg-white border-slate-200 focus:ring-1 focus:ring-primary focus:border-primary rounded-md shadow-fine pr-20 text-right text-base font-semibold"
           />
           <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">
             CDF/USD

@@ -67,7 +67,6 @@ oxiliere_hr/
 - [PostgreSQL](https://postgresql.org) — Primary database
 - [Redis](https://redis.io) — Caching (CacheOps) & Celery broker
 - [Celery](https://docs.celeryq.dev) — Async task queue
-- [NATS](https://nats.io) — Event-driven messaging
 - [django-money](https://github.com/django-money/django-money) — Multi-currency support
 - [django-safedelete](https://github.com/mbourqui/django-safedelete) — Soft delete
 - [django-auditlog](https://github.com/jazzband/django-auditlog) — Audit trail

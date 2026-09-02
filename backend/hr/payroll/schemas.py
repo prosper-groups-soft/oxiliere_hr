@@ -342,6 +342,7 @@ class PayrollRunDetailOut(Schema):
     start_date: date
     end_date: date
     exchange_rate: Decimal | None = None
+    params_snapshot: Dict[str, Any] = {}
     created_at: datetime
     updated_at: datetime
     stats: Dict[str, int]
@@ -352,12 +353,14 @@ class PayrollRunUpdateIn(ModelSchema):
     """Schema for updating a payroll run (DRAFT only).
 
     Le client envoie uniquement les champs modifiés (exclude_unset côté
-    service). On accepte `params_snapshot` pour permettre l'édition de
-    la sélection employés (`selection.scope / org_unit_ids / employee_ids`).
+    service). On accepte `start_date`, `end_date`, `params_snapshot` pour
+    permettre l'édition du Kickoff.
     """
     class Meta:
         model = PayrollRun
         fields = [
+            "start_date",
+            "end_date",
             "status",
             "exchange_rate_applied",
             "params_snapshot",

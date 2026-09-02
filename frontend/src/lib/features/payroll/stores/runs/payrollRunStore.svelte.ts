@@ -120,6 +120,9 @@ export class PayrollRunStore {
 				// Run actif restauré → plus besoin du flag "starting".
 				this.isStartingNewRun = false;
 				this.persistStartingNewRun(false);
+				if (this.currentStep === 'kickoff') {
+					this.currentStep = PayrollRunStore.stepForStatus(this.currentRun.status);
+				}
 			}
 		} catch {
 			// Run introuvable (supprimé côté serveur) : on nettoie tout, y compris
@@ -403,16 +406,6 @@ export class PayrollRunStore {
 				this.isStartingNewRun = false;
 				this.persistStartingNewRun(false);
 			}
-			// Ré-affiche le step correspondant au statut du run. Un run restauré
-			// (clic onglet / F5) doit ouvrir le step de son statut courant, pas
-			// le kickoff. Un run actif n'a jamais kickoff pour step légitime :
-			// si l'utilisateur y est encore, c'est qu'on vient de restaurer.
-			// On ne touche PAS à la position s'il navigue déjà (préserve le
-			// refresh de fin d'étape : pas de saut automatique vers l'avant).
-			if (this.currentStep === 'kickoff') {
-				this.currentStep = PayrollRunStore.stepForStatus(this.currentRun.status);
-			}
-
 			// Charge les bulletins de paie du run pour alimenter les steps
 			// (preparation, calculation, review...). Import dynamique pour
 			// éviter le cycle ESM : payslipsStore importe déjà payrollRunStore.
@@ -485,6 +478,8 @@ export class PayrollRunStore {
 			periodStart: created.start_date,
 			periodEnd: created.end_date,
 			fiscalVersion: 'fv-1',
+			paramsSnapshot: created.params_snapshot,
+			selection: (created.params_snapshot?.['selection'] as PayrollRunSelection | undefined) ?? selection,
 			totalGross: 0,
 			totalNet: 0,
 			totalContributions: 0,
