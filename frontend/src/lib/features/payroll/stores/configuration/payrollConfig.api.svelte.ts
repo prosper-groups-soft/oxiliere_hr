@@ -124,10 +124,10 @@ function createPayrollConfigApiStore() {
 			});
 		},
 
-		async fetchExchangeRate(): Promise<ExchangeRateResponse | null> {
+		async fetchExchangeRate(refresh = false): Promise<ExchangeRateResponse | null> {
 			return withState(async () => {
 				const mod = await import('@/features/payroll/queries/payroll');
-				return mod.payrollQueryOptions.exchangeRate().queryFn();
+				return mod.fetchExchangeRate(refresh);
 			});
 		},
 

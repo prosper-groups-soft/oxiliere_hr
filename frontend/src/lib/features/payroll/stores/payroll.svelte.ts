@@ -15,6 +15,7 @@
  */
 
 import type { Advance, AdvanceCreatePayload } from '../types/types';
+import type { PayrollRunSelection } from '../types/types';
 
 import { advancesStore }       from './advances/advancesStore.svelte';
 import { payrollConfigStore }  from './configuration/payrollConfigStore.svelte';
@@ -52,7 +53,7 @@ class PayrollStoreFacade {
 
 	syncConfiguration()            { return payrollConfigStore.syncConfiguration(); }
 	saveConfiguration(data: any)   { return payrollConfigStore.saveConfiguration(data); }
-	refreshExchangeRate()          { return payrollConfigStore.refreshExchangeRate(); }
+	refreshExchangeRate(forceSync?: boolean)          { return payrollConfigStore.refreshExchangeRate(forceSync); }
 	saveOvertimeRule(id: string, data: any)     { return payrollConfigStore.saveOvertimeRule(id, data); }
 	saveLegalAllowance(id: string, data: any)   { return payrollConfigStore.saveLegalAllowance(id, data); }
 	resetLegalAllowances()         { return payrollConfigStore.resetLegalAllowances(); }
@@ -69,6 +70,9 @@ class PayrollStoreFacade {
 	get availablePeriods()         { return payrollRunStore.availablePeriods; }
 	get payrollRuns()              { return payrollRunStore.payrollRuns; }
 	get currentRun()               { return payrollRunStore.currentRun; }
+	get hasActiveRun()             { return payrollRunStore.hasActiveRun; }
+	get hasCurrentRunTab()         { return payrollRunStore.hasCurrentRunTab; }
+	get isStartingNewRun()         { return payrollRunStore.isStartingNewRun; }
 	get runList()                  { return payrollRunStore.runList; }
 	get cycleFilters()             { return payrollRunStore.cycleFilters; }
 	get cycleListPage()            { return payrollRunStore.cycleListPage; }
@@ -97,13 +101,24 @@ class PayrollStoreFacade {
 	setSort(by: any)               { payrollRunStore.setSort(by); }
 	fetchRunList()                 { return payrollRunStore.fetchRunList(); }
 	fetchRunDetail(id: string)     { return payrollRunStore.fetchRunDetail(id); }
+	/**
+	 * Alias sémantique de fetchRunDetail. Renvoie le `PayrollRun` frais
+	 * (ou `null` si 404). Utilisé par KickoffStep pour hydrater ses
+	 * champs depuis la source de vérité backend au mount.
+	 */
+	refreshPayrollRun(id: string)  { return payrollRunStore.fetchRunDetail(id); }
+	/**
+	 * Remplace le `currentRun` du store par la valeur passée. Utile après
+	 * un PATCH / fetch pour propager la donnée fraîche sans re-GET.
+	 */
+	setCurrentRun(run: any)        { payrollRunStore.currentRun = run; }
 
 	async createPayrollRun(period: string) {
 		return payrollRunStore.createPayrollRun(period);
 	}
 
-	async createPayrollRunFromDates(startDate: string, endDate: string, exchangeRate?: number | null) {
-		return payrollRunStore.createPayrollRunFromDates(startDate, endDate, exchangeRate);
+	async createPayrollRunFromDates(startDate: string, endDate: string, exchangeRate?: number | null, selection?: PayrollRunSelection) {
+		return payrollRunStore.createPayrollRunFromDates(startDate, endDate, exchangeRate ?? null, selection ?? { scope: 'all' });
 	}
 
 	async calculatePayroll() {
@@ -113,6 +128,11 @@ class PayrollStoreFacade {
 	async reviewPayroll()  { return payrollRunStore.reviewPayroll(); }
 	async approvePayroll() { return payrollRunStore.approvePayroll(); }
 
+	/**
+	 * Déclenche le traitement du paiement (étape S7 du wizard) sur le
+	 * `currentRun`. Délègue au `payrollRunStore`. Idempotent côté backend :
+	 * un run déjà PROCESSED ne peut être re-traité.
+	 */
 	async processPayment() {
 		return payrollRunStore.processPayment();
 	}
@@ -122,6 +142,10 @@ class PayrollStoreFacade {
 	goToStep(step: any)     { payrollRunStore.goToStep(step); }
 	goToNextStep()          { payrollRunStore.nextStep(); }
 	resetSteps()            { payrollRunStore.resetSteps(); }
+
+	beginNewRun()           { payrollRunStore.beginNewRun(); }
+	cancelNewRun()          { payrollRunStore.cancelNewRun(); }
+	syncActiveRunFromList() { return payrollRunStore.syncActiveRunFromList(); }
 
 	// ─── payslipsStore ────────────────────────────────────────────────────────
 

@@ -2,7 +2,7 @@
 export type Currency = 'USD' | 'CDF';
 
 /** Steps in the payroll processing workflow */
-export type PayrollStep = 'preparation' | 'calculation' | 'review' | 'approval' | 'payment';
+export type PayrollStep = 'kickoff' | 'preparation' | 'calculation' | 'review' | 'approval' | 'payment';
 
 /** Status of a payroll run throughout its lifecycle */
 export type PayrollStatus = 'draft' | 'calculated' | 'reviewed' | 'approved' | 'paid' | 'closed' | 'archived';
@@ -495,6 +495,11 @@ export interface PayrollRun {
 	periodEnd: string;
 	/** Tax version applied to this run (reference to TaxVersion.id) */
 	fiscalVersion: string;
+	/** Snapshot brut des paramètres persistés par le backend (inclut la sélection
+	 *  employés sous params_snapshot.selection). Utilisé pour réhydrater les steps. */
+	paramsSnapshot?: Record<string, unknown>;
+	/** Sélection employés extraite (raccourci vers paramsSnapshot.selection). */
+	selection?: PayrollRunSelection;
 	/** Sum of all gross pay amounts */
 	totalGross: number;
 	/** Sum of all net pay amounts */
@@ -546,6 +551,17 @@ export interface RunListItem {
 
 /* ─── Payroll run (API) ─── */
 
+/** Sélection des employés couverts par le run (envoyée à la création, persistée
+ *  dans params_snapshot côté backend, puis appliquée au calcul des bulletins). */
+export interface PayrollRunSelection {
+	/** 'all' = tous les employés actifs ; 'org_units' = départements ; 'employees' = liste explicite */
+	scope: 'all' | 'org_units' | 'employees';
+	/** IDs des unités organisationnelles (si scope === 'org_units') */
+	org_unit_ids?: string[];
+	/** IDs des employés (si scope === 'employees') */
+	employee_ids?: string[];
+}
+
 /** Raw payroll run as returned by the backend list/create endpoints (PayrollRunOut). */
 export interface PayrollRunApiOut {
 	id: string;
@@ -561,6 +577,8 @@ export interface PayrollRunApiOut {
 	employee_count: number;
 	closed_at: string | null;
 	period_label: string | null;
+	/** Snapshot brut des paramètres (inclut selection, exchange_rate, etc.). */
+	params_snapshot?: Record<string, unknown>;
 }
 
 /** Shape returned by GET /runs/{id} (service dict, not PayrollRunOut). */
@@ -585,6 +603,9 @@ export interface PayrollRunDetailApiOut {
 		total_tax_deductions: number;
 		employer_liability: number;
 	};
+	/** Snapshot des paramètres persistés (utilisé par le wizard pour
+	 *  pré-remplir les champs du KickoffStep lors d'une édition). */
+	params_snapshot?: Record<string, unknown>;
 }
 
 /** Shape returned by GET /runs/{id}/summary (PayrollRunSummaryOut). */
@@ -1048,11 +1069,12 @@ export const ADVANCE_RISK_LABELS: Record<AdvanceRiskLevel, string> = {
 };
 
 /** Ordered workflow steps for payroll processing */
-export const PAYROLL_STEPS: PayrollStep[] = ['preparation', 'calculation', 'review', 'approval', 'payment'];
+export const PAYROLL_STEPS: PayrollStep[] = ['kickoff', 'preparation', 'calculation', 'review', 'approval', 'payment'];
 
 
 /** Human-readable labels for each payroll processing step */
 export const PAYROLL_STEP_LABELS: Record<PayrollStep, string> = {
+	kickoff:     'Création',
 	preparation: 'Préparation',
 	calculation: 'Calcul',
 	review:      'Révision',
@@ -1062,7 +1084,8 @@ export const PAYROLL_STEP_LABELS: Record<PayrollStep, string> = {
 
 /** Short descriptions for each payroll step shown in the step wizard */
 export const PAYROLL_STEP_DESCRIPTIONS: Record<PayrollStep, string> = {
-	preparation: 'Sélectionnez la période et les employés à inclure dans cette paie',
+	kickoff:     'Définissez la période, le taux de change et les employés à inclure',
+	preparation: 'Analysez les bénéficiaires retenus et les anomalies détectées',
 	calculation: 'Visualisez les calculs et formules appliquées à chaque employé',
 	review:      'Contrôlez et modifiez les fiches de paie avant validation',
 	approval:    'Confirmez les montants et approuvez la paie',

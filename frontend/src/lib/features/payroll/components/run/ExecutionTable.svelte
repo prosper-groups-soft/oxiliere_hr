@@ -1,15 +1,14 @@
 <script lang="ts">
   import { cn } from "@/utilities/common/css";
-  import { goto } from "$app/navigation";
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
   import { Badge } from "@/components/ui/badge";
   import { Button } from "@/components/ui/button";
   import type { RunListItem } from "../../types/types";
-  import {
-    RUN_LIST_STATUS_LABELS,
-    RUN_LIST_STATUS_COLORS,
-  } from "../../types/types";
+  import { RUN_LIST_STATUS_LABELS, RUN_LIST_STATUS_COLORS } from "../../types/types";
+  import { goToActiveOrNewPayroll } from "@/features/payroll/utils/goToActiveOrNewPayroll";
+  import { goto } from "$app/navigation";
 
+  
   let {
     runs = [],
     activeFiltersCount = 0,
@@ -90,7 +89,7 @@
         <Button
           variant="default"
           size="sm"
-          onclick={() => goto('/payroll/run')}
+          onclick={() => goToActiveOrNewPayroll()}
           class="shadow-fine bg-primary text-white text-[0.83rem] hover:text-white rounded-lg"
         >
           <AppIcon name="play-circle" size={17} />

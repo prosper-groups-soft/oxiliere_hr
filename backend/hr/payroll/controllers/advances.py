@@ -19,7 +19,6 @@ from ninja_extra.pagination import (
     PaginatedResponseSchema
 )
 from oxutils.permissions.perms import ScopePermission
-from hr.services.cache_helpers import cache_api_response
 
 from hr.payroll.models import SalaryAdvance, AdvanceDeductionConfiguration
 from hr.payroll.schemas import (

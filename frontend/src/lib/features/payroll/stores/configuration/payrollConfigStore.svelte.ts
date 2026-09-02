@@ -70,10 +70,10 @@ export class PayrollConfigStore {
 		}
 	}
 
-	/** Recharge le taux de change USD → CDF */
-	async refreshExchangeRate() {
+	/** Recharge le taux de change USD → CDF (force une synchro BCC au bouton « Recharger ») */
+	async refreshExchangeRate(forceSync = false) {
 		try {
-			const rate = await payrollConfigApiStore.fetchExchangeRate();
+			const rate = await payrollConfigApiStore.fetchExchangeRate(forceSync);
 			if (rate) {
 				this.exchangeRateInfo = rate;
 				notification.toast.success(

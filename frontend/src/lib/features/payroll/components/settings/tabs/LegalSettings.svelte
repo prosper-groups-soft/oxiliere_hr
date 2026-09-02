@@ -106,13 +106,13 @@
           <Button
             type="button"
             variant="outline"
-            size="sm"
+            size="sm"                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
             class="h-7 px-2 text-[0.78rem] font-medium text-slate-600 hover:text-slate-900 bg-white border border-slate-200 hover:border-slate-300 transition-colors"
             onclick={() => payrollStore.refreshExchangeRate()}
             aria-label="Recharger le taux de change"
             title="Recharger le taux de change"
           >
-            <AppIcon name="refresh-cw" size={12} class="shrink-0" />
+            <AppIcon name="refresh-cw" size={13} class="shrink-0" />
             Recharger
           </Button>
           <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[0.78rem] font-medium whitespace-nowrap {payrollStore.exchangeRateInfo.source === 'bcc'

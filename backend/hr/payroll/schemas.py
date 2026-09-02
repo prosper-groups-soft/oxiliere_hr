@@ -1,5 +1,5 @@
 from decimal  import Decimal
-from typing   import List, Dict, Annotated, Optional
+from typing   import List, Dict, Annotated, Optional, Literal, Any
 from uuid     import UUID
 from datetime import date, datetime
 from django.db.models import Q
@@ -279,7 +279,19 @@ class ContractPayElementListOut(Schema):
 
 # --- PAYROLL RUN SCHEMAS ---
 class PayrollRunCreateIn(ModelSchema):
-    """Input schema for creating a payroll run."""
+    """Input schema for creating a payroll run.
+
+    - ``exchange_rate_applied`` : taux USD→CDF figé pour le run (None si CDF).
+    - ``selection_scope``       : 'all' (tous les employés actifs),
+                                  'org_units' (départements sélectionnés),
+                                  'employees' (liste explicite d'employés).
+    - ``org_unit_ids`` / ``employee_ids`` : IDs selon le scope.
+    """
+    exchange_rate_applied: Decimal | None = None
+    selection_scope: Literal['all', 'org_units', 'employees'] = 'all'
+    org_unit_ids: list[UUID] = []
+    employee_ids: list[UUID] = []
+
     class Meta:
         model = PayrollRun
         fields = [
@@ -294,12 +306,17 @@ class PayrollRunOut(ModelSchema):
     The extra computed fields (total_payslips, gross_total, employee_count,
     closed_at, period_label) are resolved either from queryset annotations
     (list endpoint) or from the run detail dict (detail endpoint).
+
+    `params_snapshot` est exposé pour permettre au frontend d'hydrater
+    les steps avec la sélection employés (scope, org_unit_ids, employee_ids)
+    et l'exchange rate.
     """
     total_payslips: int
     gross_total: Decimal = Decimal('0')
     employee_count: int = 0
     closed_at: datetime | None = None
     period_label: str | None = None
+    params_snapshot: Dict[str, Any] = {}
 
     class Meta:
         model = PayrollRun
@@ -310,41 +327,40 @@ class PayrollRunOut(ModelSchema):
             "end_date",
             "status",
             "exchange_rate_applied",
+            "params_snapshot",
             "created_at",
             "updated_at",
         ]
 
 
-class PayrollRunDetailOut(ModelSchema):
-    """Detailed output schema for payroll run with summary statistics."""
-    total_payslips: int
-    processed_payslips: int
-    pending_payslips: int
-    total_gross_amount: Decimal
-    total_net_amount: Decimal
-    total_deductions: Decimal
-
-    class Meta:
-        model = PayrollRun
-        fields = [
-            "id",
-            "code",
-            "start_date",
-            "end_date",
-            "status",
-            "exchange_rate_applied",
-            "created_at",
-            "updated_at",
-        ]
+class PayrollRunDetailOut(Schema):
+    """Detailed output schema for payroll run (matches get_run_detail() dict)."""
+    id: UUID
+    code: str
+    status: str
+    period: str
+    start_date: date
+    end_date: date
+    exchange_rate: Decimal | None = None
+    created_at: datetime
+    updated_at: datetime
+    stats: Dict[str, int]
+    financials: Dict[str, Decimal]
 
 
 class PayrollRunUpdateIn(ModelSchema):
-    """Schema for updating payroll run status."""
+    """Schema for updating a payroll run (DRAFT only).
+
+    Le client envoie uniquement les champs modifiés (exclude_unset côté
+    service). On accepte `params_snapshot` pour permettre l'édition de
+    la sélection employés (`selection.scope / org_unit_ids / employee_ids`).
+    """
     class Meta:
         model = PayrollRun
         fields = [
             "status",
             "exchange_rate_applied",
+            "params_snapshot",
         ]
         fields_optional = "__all__"
 

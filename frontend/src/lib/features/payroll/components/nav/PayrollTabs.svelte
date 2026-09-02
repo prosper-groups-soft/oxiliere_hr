@@ -15,15 +15,13 @@
   ];
 
   const currentRunTab = $derived.by(() => {
-    const run = payrollStore.currentRun;
-    const isRunActive = run && !['paid', 'closed', 'canceled', 'archived'].includes(run.status);
-    // Garder l'onglet actif si un run existe OU si on est dans le flux de création/exécution
-    const isPayrollFlux = page.url.pathname.startsWith('/payroll/new-run') || page.url.pathname.startsWith('/payroll/run');
-    if (!isRunActive && !isPayrollFlux) return null;
+    // Onglet visible si run backend actif OU démarrage client (KickoffStep).
+    if (!payrollStore.hasCurrentRunTab) return null;
 
+    const run = payrollStore.currentRun;
     return {
       id: 'currentRun',
-      label: run ? `Paie ${run.period}` : 'Paie en cours...',
+      label: payrollStore.hasActiveRun && run ? `Paie ${run.period}` : 'Nouvelle paie',
       icon: 'play-circle',
       path: '/payroll/run',
     };
@@ -39,9 +37,12 @@
   const SORTED_TABS = $derived.by(() => [...TABS].sort((a, b) => b.path.length - a.path.length));
 
   const activeTabId = $derived.by(() => {
-    // Si on est dans le flux de création/exécution, forcer l'onglet courant comme actif
-    if (page.url.pathname.startsWith('/payroll/new-run') || page.url.pathname.startsWith('/payroll/run')) {
-      return 'currentRun';
+    // Sur la page d'exécution : forcer l'onglet courant uniquement s'il existe
+    // (un run finalisé consulté depuis l'historique ne doit pas laisser
+    //  un onglet actif fantôme).
+    if (page.url.pathname.startsWith('/payroll/run')) {
+      if (TABS.some(t => t.id === 'currentRun')) return 'currentRun';
+      return 'executions';
     }
     const tab = SORTED_TABS.find(t => page.url.pathname.startsWith(t.path));
     return tab?.id || 'executions';
@@ -125,3 +126,4 @@
     </div>
   {/if}
 </div>
+

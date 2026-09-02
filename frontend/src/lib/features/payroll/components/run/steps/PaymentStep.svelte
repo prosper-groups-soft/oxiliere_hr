@@ -2,6 +2,7 @@
   import { payrollStore } from "@/features/payroll/stores/payroll.svelte";
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
 
+  
   const currentStatus = $derived(payrollStore.currentRun?.status ?? 'draft');
   
   const formattedDate = $derived(new Date(payrollStore.currentRun?.paidAt ?? '').toLocaleDateString('fr-FR'));

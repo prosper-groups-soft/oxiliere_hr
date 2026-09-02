@@ -216,9 +216,11 @@ async function fetchOvertimeRules(): Promise<OvertimeRule[]> {
   return Array.isArray(res) ? res : (res?.results ?? []);
 }
 
-/** Fetch the active USD → CDF exchange rate (BCC live rate → manual config → default) */
-async function fetchExchangeRate(): Promise<ExchangeRateResponse> {
-  return PayrollApi.exchangeRate.retrieve();
+/** Fetch the active USD → CDF exchange rate (BCC live rate → manual config → default).
+ *  Pass `refresh: true` pour forcer une re-synchronisation BCC côté backend
+ *  (utilisé par le bouton « Recharger » du kickoff). */
+export async function fetchExchangeRate(refresh = false): Promise<ExchangeRateResponse> {
+  return PayrollApi.exchangeRate.retrieve(refresh ? { refresh: true } : undefined);
 }
 
 /** Fetch legal allowances (Logement, Transport) */
@@ -299,16 +301,49 @@ export async function deleteContractPayElement(
    Mutations
 */
 
-/** Create a new payroll run (backend accepts start_date/end_date only) */
+/** Create a new payroll run (dates + taux + sélection des employés) */
 export async function createPayrollRun(data: {
-  start_date: string; end_date: string; exchange_rate_applied?: number | null;
+  start_date: string; end_date: string;
+  exchange_rate_applied?: number | null;
+  selection_scope?: 'all' | 'org_units' | 'employees';
+  org_unit_ids?: string[];
+  employee_ids?: string[];
 }): Promise<PayrollRunApiOut> {
   return PayrollApi.runs.create(data);
 }
 
+/**
+ * Payload PATCH pour un PayrollRun. Le backend accepte en top-level :
+ *  - start_date, end_date (si modifiables tant que le run est en DRAFT)
+ *  - params_snapshot (objet JSON partiel — le service fait un merge
+ *    profond côté params_snapshot.selection pour ne pas écraser le
+ *    snapshot légal SMIG/IRPP).
+ * Le scope de sélection est binaire : `all` (tous les employés actifs)
+ * ou `employees` (liste explicite d'IDs cochés manuellement). Le filtre
+ * par unité organisationnelle dans l'UI est un filtre visuel de la liste
+ * — il ne constitue PAS un scope : un check par unité se traduit par
+ * une sélection d'employés dans `employee_ids`.
+ */
+export type PayrollRunSelectionScope = 'all' | 'employees';
+
+export type PayrollRunUpdatePayload = {
+  start_date?: string;
+  end_date?: string;
+  exchange_rate_applied?: string;
+  params_snapshot?: Record<string, unknown> & {
+    selection?: {
+      scope: PayrollRunSelectionScope;
+      employee_ids?: string[];
+    };
+  };
+};
+
 /** Update a payroll run */
-export async function updatePayrollRun(runId: string, data: Partial<PayrollRun>): Promise<PayrollRun> {
-  return PayrollApi.runs.partial_update(runId, data);
+export async function updatePayrollRun(
+  runId: string,
+  data: PayrollRunUpdatePayload
+): Promise<PayrollRun> {
+  return PayrollApi.runs.partial_update(runId, data as Partial<PayrollRun>);
 }
 
 /** Process payroll (generate payslips) */

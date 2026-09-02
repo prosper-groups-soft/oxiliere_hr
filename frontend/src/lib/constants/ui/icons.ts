@@ -272,6 +272,7 @@ export const ICON_MODULES: Record<string, () => Promise<any>> = {
 	adjust: () => import('@lucide/svelte').then(m => m.SlidersHorizontal),
 	pause: () => import('@lucide/svelte').then(m => m.Pause),
 	edit: () => import('@lucide/svelte').then(m => m.SquarePen),
+	'pen-line': () => import('@lucide/svelte').then(m => m.PenLine),
 	trash: () => import('@lucide/svelte').then(m => m.Trash2),
 	'trash-2': () => import('@lucide/svelte').then(m => m.Trash2),
 	delete: () => import('@lucide/svelte').then(m => m.Trash2),
@@ -302,6 +303,9 @@ export const ICON_MODULES: Record<string, () => Promise<any>> = {
 	'door-open': () => import('@lucide/svelte').then(m => m.DoorOpen),
 	'file-x': () => import('@lucide/svelte').then(m => m.FileX),
 	hash: () => import('@lucide/svelte').then(m => m.Hash),
+	'minus-circle': () => import('@lucide/svelte').then(m => m.CircleMinus),
+	'x-circle': () => import('@lucide/svelte').then(m => m.CircleX),
+	fingerprint: () => import('@lucide/svelte').then(m => m.Fingerprint),
 
 	// MultimÃ©dia
 	music: () => import('@lucide/svelte').then(m => m.Music),

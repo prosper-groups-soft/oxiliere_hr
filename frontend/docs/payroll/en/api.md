@@ -194,7 +194,7 @@ Orchestrates the monthly payroll process: generates payslips, applies calculatio
 List payroll runs with filtering.
 
 **Query params**: `PayrollRunListFilterIn`
-- `status` — `DRAFT`, `PROCESSING`, `COMPLETED`, `CANCELED`
+- `status` — `DRAFT`, `PROCESSING`, `VALIDATED`, `REVIEWED`, `APPROVED`, `PAID`, `CANCELED`
 - `period_start` / `period_end` — Date range
 - `payment_method` — Filter by method
 
@@ -506,14 +506,16 @@ Payroll events can trigger webhooks for external systems (accounting, banking):
 ### Payroll Run Status
 
 ```
-DRAFT → PROCESSING → COMPLETED → PAID
+DRAFT → PROCESSING → VALIDATED → REVIEWED → APPROVED → PAID
   ↑         ↓              ↓
   └── CANCELED        CANCELED
 ```
 
 - **DRAFT**: Run created, no payslips generated
 - **PROCESSING**: Generating payslips (async)
-- **COMPLETED**: All payslips generated, ready for review
+- **VALIDATED**: All payslips generated, ready for review
+- **REVIEWED**: Payslips reviewed by HR
+- **APPROVED**: Payroll approved, ready for payment
 - **PAID**: Payment confirmed, final
 - **CANCELED**: Run abandoned
 

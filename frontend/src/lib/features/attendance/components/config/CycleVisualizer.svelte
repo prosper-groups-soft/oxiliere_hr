@@ -175,8 +175,6 @@
     }
   });
 
-
-
   function handlePageChange(newPage: number) {
     page = newPage;
   }
@@ -361,12 +359,6 @@
 </div>
 
 
-<!-- Sheets of affection -->
-<AssignmentSheet bind:open={showAssignmentSheet} employee={selectedEmployee} />
-<BulkAssignmentSheet bind:open={showBulkAssignmentSheet} />
-<PolicyComparisonSheet bind:open={showComparisonSheet} employee={selectedEmployee} />
-
-
 {#snippet Header()}
   <div class="flex flex-col gap-4 pb-2.5 border-b border-slate-100 pt-2.5 px-4 pr-8.5">
     <div class="flex items-center gap-3">
@@ -394,4 +386,10 @@
     </div>
   </div>
 {/snippet}
+
+
+<!-- Sheets of affection -->
+<AssignmentSheet bind:open={showAssignmentSheet} employee={selectedEmployee} />
+<BulkAssignmentSheet bind:open={showBulkAssignmentSheet} />
+<PolicyComparisonSheet bind:open={showComparisonSheet} employee={selectedEmployee} />
 

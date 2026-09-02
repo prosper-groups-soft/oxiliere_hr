@@ -47,6 +47,7 @@
 
   // Step-based colors for the icon container
   const stepColors: Record<PayrollStep, { bg: string; icon: string }> = {
+    kickoff: { bg: 'bg-slate-100', icon: 'text-slate-600' },
     preparation: { bg: 'bg-slate-100', icon: 'text-slate-600' },
     calculation: { bg: 'bg-blue-100', icon: 'text-blue-600' },
     review: { bg: 'bg-amber-100', icon: 'text-amber-600' },
@@ -102,7 +103,7 @@
       </div>
 
       <div class="flex items-center gap-2">
-        {#if !hasCurrentRun}
+        {#if !hasCurrentRun && currentStep !== 'kickoff'}
           {@render actionButton(isCreating ? "Création…" : "Nouvelle paie", "plus", onNew, "bg-primary", isCreating)}
         
         {:else if currentStep === 'preparation' && status === 'draft'}
@@ -134,7 +135,7 @@
             <AppIcon name="download" size={16} />
             Télécharger les rapports
           </Button>
-        {:else}
+        {:else if currentStep !== 'kickoff'}
           <div class="flex items-center gap-2 px-3 py-1 bg-slate-50 border border-slate-100 rounded-lg">
             <AppIcon name="check" size={14} class="text-emerald-500" />
             <span class="text-[0.82rem] text-slate-500 font-medium">Action terminée</span>

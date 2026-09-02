@@ -464,13 +464,19 @@ class PayrollConfigurationController(ControllerBase):
             return self.create_response({"detail": str(e)}, status_code=500)
 
     @http_get('/exchange-rate/', response={200: dict}, permissions=[ScopePermission('payroll:r')])
-    def get_exchange_rate(self):
+    def get_exchange_rate(self, refresh: bool = Query(False, description='Force une re-synchronisation BCC avant la lecture')):
         """
         Retrieve the active USD → CDF exchange rate.
         Priority: live rate (BCC via oxutils.currency) → manual config → default.
+
+        Avec `?refresh=true`, force une re-synchronisation depuis BCC avant la
+        lecture (utilisé par le bouton « Recharger » de l'UI kickoff).
         """
         try:
-            rate, source = ExchangeRateService.get_exchange_rate_with_source('USD', 'CDF')
+            if refresh:
+                rate, source = ExchangeRateService.get_exchange_rate_with_source_forced('USD', 'CDF')
+            else:
+                rate, source = ExchangeRateService.get_exchange_rate_with_source('USD', 'CDF')
             return {
                 'rate': str(rate),
                 'source': source,

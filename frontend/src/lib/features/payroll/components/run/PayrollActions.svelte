@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
   import { Button } from "@/components/ui/button";
   import * as DropdownMenu from "@/components/ui/dropdown-menu";
   import { payrollStore } from '@/features/payroll/stores/payroll.svelte';
   import { RUN_LIST_STATUS_LABELS } from '@/features/payroll/types/types';
   import { orgService } from '@/features/jobs/services/org.service';
-  
+  import { goToActiveOrNewPayroll } from '@/features/payroll/utils/goToActiveOrNewPayroll';
+
 
   // Unités organisationnelles chargées depuis le backend (/api/organization/units)
   let orgUnits = $state<string[]>([]);
@@ -24,9 +24,7 @@
     return () => { cancelled = true; };
   });
 
-
-  let { onAdd, onExport }: { onAdd?: () => void; onExport?: () => void } = $props();
-
+  let { onExport }: { onExport?: () => void } = $props();
 
   const activeFiltersCount = $derived(payrollStore.activeCycleFiltersCount);
 
@@ -332,9 +330,11 @@
     </Button>
   {/if}
 
-  <!-- New Cycle Button -->
+  <!-- New Cycle Button : si un run est déjà en cours → y rediriger ;
+       sinon → démarrer une nouvelle paie (onglet dynamique) puis naviguer.
+       Le run DRAFT est créé par le composant de lancement -->
   <Button
-    onclick={() => goto('/payroll/new-run')}
+    onclick={() => goToActiveOrNewPayroll()}
     variant="default"
     size="sm"
     class="h-7 px-3 text-[0.84rem] text-white shadow-fine rounded-lg transition-all"

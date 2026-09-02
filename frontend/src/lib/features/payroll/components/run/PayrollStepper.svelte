@@ -4,8 +4,10 @@
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
   import { payrollStore } from "@/features/payroll/stores/payroll.svelte";
   import type { PayrollStep } from "../../types/types";
+  import { PAYROLL_STEPS, PAYROLL_STEP_LABELS, PAYROLL_STEP_DESCRIPTIONS } from "../../types/types";
   import { scale } from "svelte/transition";
 
+  
   interface Props {
     currentStep: PayrollStep;
     onStepClick?: (step: PayrollStep) => void;
@@ -13,13 +15,11 @@
 
   let { currentStep, onStepClick }: Props = $props();
 
-  const steps: { id: PayrollStep; label: string; description: string }[] = [
-    { id: 'preparation', label: 'Préparation', description: 'Sélectionnez la période et lancez le calcul.' },
-    { id: 'calculation', label: 'Calcul', description: 'Les formules sont appliquées automatiquement.' },
-    { id: 'review', label: 'Révision', description: 'Contrôlez chaque fiche de paie.' },
-    { id: 'approval', label: 'Approbation', description: 'Confirmez les montants totaux.' },
-    { id: 'payment', label: 'Paiement', description: 'Traitez le paiement final.' }
-  ];
+  const steps: { id: PayrollStep; label: string; description: string }[] = PAYROLL_STEPS.map(step => ({
+    id: step,
+    label: PAYROLL_STEP_LABELS[step],
+    description: PAYROLL_STEP_DESCRIPTIONS[step]
+  }));
 
   const currentStepIndex = $derived(steps.findIndex(s => s.id === currentStep));
 </script>
@@ -42,6 +42,7 @@
 
 {#snippet stepIndicator(index: number, isCompleted: boolean, isActive: boolean)}
   {@const stepColors = [
+    "bg-slate-500",      // kickoff
     "bg-slate-400",      // preparation (draft)
     "bg-blue-500",       // calculation
     "bg-amber-500",      // review
@@ -71,8 +72,8 @@
     
     {@render navButton('prev', () => payrollStore.prevStep(), !payrollStore.canGoPrev)}
 
-    <div class="relative inline-grid grid-cols-5 bg-slate-100 w-auto overflow-hidden">
-      <div class="absolute top-0.5 bottom-0.5 left-0.5 right-0.5 grid grid-cols-5 pointer-events-none">
+    <div class="relative inline-grid grid-cols-6 bg-slate-100 w-auto overflow-hidden">
+      <div class="absolute top-0.5 bottom-0.5 left-0.5 right-0.5 grid grid-cols-6 pointer-events-none">
         <div
           class="bg-white rounded-md shadow-fine border border-slate-200 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
           style="transform: translateX({currentStepIndex * 100}%)"

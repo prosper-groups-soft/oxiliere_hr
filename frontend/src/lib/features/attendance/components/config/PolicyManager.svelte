@@ -109,6 +109,7 @@
 
 
 <div class="flex h-full flex-col bg-white overflow-hidden">
+  
   <!-- Header avec Search + Ajouter -->
   {@render Header()}
 
@@ -190,10 +191,6 @@
 </div>
 
 
-<PolicySheet bind:open={showForm} bind:policy={editingPolicy} />
-<PolicyDetailsSheet bind:open={showDetails} policy={detailsPolicy} />
-
-
 {#snippet Header()}
   <div class="flex flex-col px-4 pr-8.5 border-b border-slate-100">
     <div class="flex items-center gap-3 py-2">
@@ -231,4 +228,8 @@
     />
   </div>
 {/snippet}
+
+
+<PolicySheet bind:open={showForm} bind:policy={editingPolicy} />
+<PolicyDetailsSheet bind:open={showDetails} policy={detailsPolicy} />
 

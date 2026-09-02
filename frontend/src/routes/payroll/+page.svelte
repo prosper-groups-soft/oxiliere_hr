@@ -1,6 +1,5 @@
 <script lang="ts">
   import { fade } from "svelte/transition";
-  import { goto } from '$app/navigation';
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
   import DataPagination from "@/components/layout/elements/DataPagination.svelte";
   import ExecutionTable from '@/features/payroll/components/run/ExecutionTable.svelte';
@@ -13,6 +12,7 @@
   import { Button } from '@/components/ui/button';
   import AnimateSpin from '@/components/layout/elements/AnimateSpin.svelte';
   import { ui } from '@/stores/ui.svelte';
+  import { goToActiveOrNewPayroll } from '@/features/payroll/utils/goToActiveOrNewPayroll';
 
 
   let viewState: 'loading' | 'success' | 'empty' | 'error' | 'offline' = $state('loading');
@@ -107,13 +107,13 @@
     URL.revokeObjectURL(url);
   }
 
-	// Enregistrer les actions dans le store UI
-	$effect(() => {
-		ui.addActions('payroll-run-list', PayrollActionsSnippet);
-		return () => {
-			ui.removeActions('payroll-run-list');
-		};
-	});
+  // Enregistrer les actions dans le store UI
+  $effect(() => {
+    ui.addActions('payroll-run-list', PayrollActionsSnippet);
+    return () => {
+      ui.removeActions('payroll-run-list');
+    };
+  });
 </script>
 
 
@@ -121,100 +121,82 @@
   <title>Oxiliere HR - Exécutions de paie</title>
 </svelte:head>
 
-
 {#snippet PayrollActionsSnippet()}
-	<PayrollActions onAdd={() => goto('/payroll/new-run')} onExport={handleExportCsv} />
+  <PayrollActions onExport={handleExportCsv} />
 {/snippet}
 
 
 <div class="flex h-full flex-col overflow-hidden min-h-0">
   {@render Header()}
 
-  <div class="flex flex-1 flex-col overflow-hidden min-h-0">
-    <FilterChips
-      filters={filtersWithSearch}
-      activeFiltersCount={activeFiltersWithSearch}
-      getDisplayLabel={getFilterDisplayLabel}
-      onRemove={handleFilterRemove}
-      onReset={handleResetFilters}
-      class="py-1 pb-1.5 px-6 border-b border-slate-50"
-    />
+  <FilterChips
+    filters={filtersWithSearch}
+    activeFiltersCount={activeFiltersWithSearch}
+    getDisplayLabel={getFilterDisplayLabel}
+    onRemove={handleFilterRemove}
+    onReset={handleResetFilters}
+    class="py-1 pb-1.5 px-6 border-b border-slate-50"
+  />
 
-    <main class="flex flex-1 flex-col overflow-hidden min-h-0">
-      {#if viewState === 'loading'}
-        <div class="flex-1 min-h-0 flex items-center justify-center">
-          <AnimateSpin text="Chargement des exécutions de paie en cours..." />
-        </div>
-      {:else if viewState === 'error' || viewState === 'offline'}
-        <Empty
-          icon={viewState === 'offline' ? 'wifi-off' : 'alert-triangle'}
-          title={viewState === 'offline' ? 'Hors connexion' : 'Une erreur est survenue'}
-          description={viewState === 'offline'
-            ? 'Impossible de charger les exécutions de paie. Vérifiez votre connexion et réessayez.'
-            : 'Une erreur est survenue lors du chargement des exécutions de paie.'}
-          iconContainerClass={viewState === 'offline' ? 'bg-amber-50' : 'bg-rose-50'}
-          class="h-full"
-          iconSize={32}
-          iconStrokeWidth={1.5}
+  <main class="flex flex-1 flex-col overflow-hidden min-h-0">
+    {#if viewState === 'loading'}
+      <div class="flex-1 min-h-0 flex items-center justify-center">
+        <AnimateSpin text="Chargement des paies." />
+      </div>
+    {:else if viewState === 'error' || viewState === 'offline'}
+      <Empty
+        icon={viewState === 'offline' ? 'wifi-off' : 'alert-triangle'}
+        title={viewState === 'offline' ? 'Hors connexion' : 'Une erreur est survenue'}
+        description={viewState === 'offline'
+          ? 'Impossible de charger les exécutions de paie. Vérifiez votre connexion et réessayez.'
+          : 'Une erreur est survenue lors du chargement des exécutions de paie.'}
+        iconContainerClass={viewState === 'offline' ? 'bg-amber-50' : 'bg-rose-50'}
+        class="h-full"
+        iconSize={32}
+        iconStrokeWidth={1.5}
+      />
+    {:else if payrollStore.filteredRunList.length > 0}
+      <div class="flex-1 overflow-y-auto min-h-0" transition:fade={{ duration: 200 }}>
+        <ExecutionTable
+          runs={payrollStore.paginatedRunList}
+          activeFiltersCount={activeFiltersWithSearch}
+          onResetFilters={handleResetFilters}
         />
+      </div>
 
-      {:else if viewState === 'empty' && payrollStore.filteredRunList.length === 0}
-        <Empty
-          icon="inbox"
-          title="Aucune donnée"
-          description="Aucune exécution de paie ne correspond à vos critères."
-          iconContainerClass="bg-slate-50"
-          class="h-full"
-          iconSize={30}
-          iconStrokeWidth={1.5}
-        >
-          <Button variant="default" size="sm" onclick={() => goto('/payroll/new-run')} class="shadow-fine bg-primary text-white text-[0.84rem] hover:text-white rounded-lg inline-flex items-center gap-2">
+      <footer class="px-4 bg-slate-50/80 border-t border-[#e9eaea] pr-10">
+        <DataPagination
+          currentCount={payrollStore.paginatedRunList.length}
+          totalCount={payrollStore.runListTotalItems}
+          currentPage={payrollStore.cycleListPage}
+          totalPages={payrollStore.runListTotalPages}
+          perPage={payrollStore.cycleListPerPage}
+          onPageChange={(p) => payrollStore.setCycleListPage(p)}
+          onPerPageChange={(s) => { payrollStore.cycleListPerPage = s; payrollStore.setCycleListPage(1); }}
+          onNext={() => payrollStore.setCycleListPage(payrollStore.cycleListPage + 1)}
+          onPrev={() => payrollStore.setCycleListPage(payrollStore.cycleListPage - 1)}
+          unitLabel="cycles"
+        />
+      </footer>
+    {:else}
+      <Empty
+        icon={viewState === 'empty' ? 'inbox' : 'clipboard-x'}
+        title={viewState === 'empty' ? 'Aucune donnée' : 'Aucun cycle trouvé'}
+        description="Aucune exécution de paie ne correspond à vos critères."
+        iconContainerClass="bg-slate-50"
+        class="h-full"
+        iconSize={30}
+        iconStrokeWidth={1.5}
+      >
+        {#if viewState === 'empty'}
+          <Button variant="default" size="sm" onclick={() => goToActiveOrNewPayroll()} class="shadow-fine bg-primary text-white text-[0.84rem] hover:text-white rounded-lg inline-flex items-center gap-2">
             <AppIcon name="play" size={16} />
             Commencer une nouvelle paie
           </Button>
-        </Empty>
-
-      {:else}
-        <div class="flex-1 overflow-y-auto min-h-0" transition:fade={{ duration: 200 }}>
-          {#if payrollStore.filteredRunList.length > 0}
-            <ExecutionTable
-              runs={payrollStore.paginatedRunList}
-              activeFiltersCount={activeFiltersWithSearch}
-              onResetFilters={handleResetFilters}
-            />
-          {:else}
-            <div class="flex justify-center items-center h-full">
-              <Empty
-                icon="clipboard-x"
-                title="Aucun cycle trouvé"
-                description="Aucune exécution de paie ne correspond à vos critères."
-                iconContainerClass="bg-slate-50/50"
-                iconSize={28}
-                iconStrokeWidth={1.3}
-              />
-            </div>
-          {/if}
-        </div>
-      {/if}
-
-      {#if payrollStore.filteredRunList.length > 0}
-        <div class="px-4 bg-slate-50/80 border-t border-[#e9eaea] pr-10">
-          <DataPagination
-            currentCount={payrollStore.paginatedRunList.length}
-            totalCount={payrollStore.runListTotalItems}
-            currentPage={payrollStore.cycleListPage}
-            totalPages={payrollStore.runListTotalPages}
-            perPage={payrollStore.cycleListPerPage}
-            onPageChange={(p) => payrollStore.setCycleListPage(p)}
-            onPerPageChange={(s) => { payrollStore.cycleListPerPage = s; payrollStore.setCycleListPage(1); }}
-            onNext={() => payrollStore.setCycleListPage(payrollStore.cycleListPage + 1)}
-            onPrev={() => payrollStore.setCycleListPage(payrollStore.cycleListPage - 1)}
-            unitLabel="cycles"
-          />
-        </div>
-      {/if}
-    </main>
-  </div>
+        {/if}
+      </Empty>
+    {/if}
+  </main>
 </div>
 
 
@@ -249,22 +231,20 @@
 
 
 {#snippet Header()}
-  <div class="flex flex-col gap-4 pb-2.5 border-b border-slate-100 pt-2.5 px-4 pr-8">
-    <div class="flex items-center justify-between">
-      <div class="flex-1 ml-0.5">
-        <SearchBar
-          bind:value={payrollStore.cycleFilters.search}
-          placeholder="Rechercher une période..."
-          class="w-125"
-          inputClass="h-9.5 pl-10 pr-9 rounded-[18px] text-[0.9rem] bg-[#f5f6f7]"
-          iconSize={22}
-          onClear={handleClearSearch}
-        />
-      </div>
-
-      <!-- Quick stats -->
-      {@render QuickStats()}
+  <header class="flex items-center justify-between pb-2.5 border-b border-slate-100 pt-2.5 px-4 pr-8">
+    <div class="flex-1 ml-0.5">
+      <SearchBar
+        bind:value={payrollStore.cycleFilters.search}
+        placeholder="Rechercher une période..."
+        class="w-125"
+        inputClass="h-9.5 pl-10 pr-9 rounded-[18px] text-[0.9rem] bg-[#f5f6f7]"
+        iconSize={22}
+        onClear={handleClearSearch}
+      />
     </div>
-  </div>
+
+    <!-- Quick stats -->
+    {@render QuickStats()}
+  </header>
 {/snippet}
 

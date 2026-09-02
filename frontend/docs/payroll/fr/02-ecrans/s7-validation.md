@@ -289,16 +289,17 @@ Barre d'action en bas de l'écran.
 ### Cycle de vie du run
 
 ```
-┌──────────┐     ┌──────────┐     ┌──────────┐     ┌──────────┐
-│  DRAFT   │ →   │  READY   │ →   │PROCESSING│ →   │ COMPLETED│
-│ (créé)   │     │(validé)  │     │(calcul)  │     │ (fait)   │
-└──────────┘     └──────────┘     └──────────┘     └──────────┘
+┌──────────┐     ┌──────────┐     ┌──────────┐     ┌──────────┐     ┌──────────┐
+│  DRAFT   │ →   │PROCESSING│ →   │ VALIDATED│ →   │ REVIEWED │ →   │ APPROVED │ → PAID
+│ (créé)   │     │ (calcul) │     │(calculé) │     │ (révisé) │     │(approuvé)│
+└──────────┘     └──────────┘     └──────────┘     └──────────┘     └──────────┘
 ```
 
-- Le passage de `DRAFT` vers `READY` se fait automatiquement à l'affichage de S7
-- `READY` signifie : "prêt pour exécution", pas de verrouillage
+- `DRAFT` → `PROCESSING` : le calcul est déclenché à l'affichage de S7
 - Le calcul peut être **annulé** si en `PROCESSING` (retour à `DRAFT`)
-- Après `COMPLETED`, tout modification nécessite une correction
+- `VALIDATED` signifie « calcul terminé, prêt pour révision »
+- Après `APPROVED`, le run passe à `PAID` (clôture finale)
+- `CANCELED` est accessible depuis `DRAFT` ou `PROCESSING`
 
 ### Forçage et responsabilité
 

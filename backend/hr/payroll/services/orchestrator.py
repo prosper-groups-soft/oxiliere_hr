@@ -51,7 +51,6 @@ from .calculations.taxes             import TaxCalculationService
 from .calculations.contributions     import SocialContributionService
 from .calculations.legal_allowances  import LegalAllowanceService
 from .calculations.bases             import (
-    CalculationBasis,
     CalculationBasisType,
     CalculationBasisBuilder,
     PayElementRef,
@@ -92,6 +91,26 @@ class PayrollOrchestrator:
         ).filter(
             Q(end_date__isnull=True) | Q(end_date__gte=today)
         )
+
+        # --- Filtrage selon la sélection persistée à la création (params_snapshot) ---
+        # Rétro-compat : run sans snapshot (créé avant cette fonctionnalité)
+        # → tous les contrats actifs sont traités.
+        selection = (payroll_run.params_snapshot or {}).get('selection', {})
+        scope = selection.get('scope', 'all')
+
+        if scope == 'org_units':
+            org_unit_ids = selection.get('org_unit_ids') or []
+            if org_unit_ids:
+                active_contracts = active_contracts.filter(
+                    employee__position_history__org_unit_id__in=org_unit_ids,
+                    employee__position_history__is_current=True,
+                ).distinct()
+        elif scope == 'employees':
+            employee_ids = selection.get('employee_ids') or []
+            if employee_ids:
+                active_contracts = active_contracts.filter(
+                    employee_id__in=employee_ids
+                )
 
         config = PayrollConfiguration.objects.first()
 

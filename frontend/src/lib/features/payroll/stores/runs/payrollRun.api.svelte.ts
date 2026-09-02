@@ -92,6 +92,9 @@ function createPayrollRunApiStore() {
 
 		async createRun(data: {
 			start_date: string; end_date: string; exchange_rate_applied?: number | null;
+			selection_scope?: 'all' | 'org_units' | 'employees';
+			org_unit_ids?: string[];
+			employee_ids?: string[];
 		}): Promise<PayrollRunApiOut | null> {
 			return withState('listState', () => apiCreateRun(data));
 		},
@@ -122,6 +125,12 @@ function createPayrollRunApiStore() {
 
 		resetErrors() {
 			state.update(s => ({ ...s, errors: {} }));
+		},
+
+		/** Récupère le dernier message d'erreur d'un domaine (pour propaguer
+		 *  l'erreur du backend jusqu'au formulaire). */
+		getLastError(domain: 'listState' | 'detailState'): string | null {
+			return get(state).errors[domain] ?? null;
 		},
 	};
 }

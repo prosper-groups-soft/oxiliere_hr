@@ -6,8 +6,8 @@
   import PayrollTable from '$lib/features/payroll/components/run/PayrollTable.svelte';
   import EmptyState from '@/components/shared/containers/empty/EmptyState.svelte';
   import { payrollStore } from '$lib/features/payroll/stores/payroll.svelte';
-  import { PAYROLL_STATUS_LABELS, PAYROLL_STATUS_COLORS } from '$lib/features/payroll/types/types';
   import { ui } from '$lib/stores/ui.svelte';
+
 
   const runId = $derived($page.params.id);
 
@@ -27,6 +27,7 @@
     return () => ui.removeActions('payroll-run-detail');
   });
 </script>
+
 
 {#snippet RunActions()}
   <div class="flex items-center gap-2">
@@ -174,9 +175,6 @@
               </div>
               <h2 class="text-[0.92rem] font-bold text-slate-800">Audit</h2>
             </div>
-            <p class="text-[0.75rem] font-mono font-semibold text-slate-500 break-all bg-slate-50 rounded-lg p-2">
-              a1b2c3d4e5f6...7890
-            </p>
             <p class="text-[0.72rem] text-slate-400 mt-1.5">SHA-256 · Généré le 27/07/2026</p>
           </section>
         </div>

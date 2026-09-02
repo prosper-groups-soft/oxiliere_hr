@@ -15,8 +15,11 @@ from hr.payroll.models import (
     PayslipLine, 
     EmployeeContract
 )
-from .orchestrator    import PayrollOrchestrator
-from hr.payroll.enums import PayrollStatus
+from django.core.cache         import cache
+from hr.services.cache_helpers import CacheKeys
+from .orchestrator             import PayrollOrchestrator
+from hr.payroll.enums          import PayrollStatus
+from hr.payroll.services.cache import PayrollCacheService
 
 
 logger = logging.getLogger(__name__)
@@ -116,7 +119,25 @@ class PayrollRunService:
             logger.warning("[PayrollRun] Invalid date range", extra={"start": start_date, "end": end_date})
             raise ValidationError("start_date must be before end_date")
 
-        # Check for existing runs with overlapping periods
+        # Contrainte : un seul run actif à la fois (quel que soit le chevauchement de période).
+        # Un run est "actif" tant qu'il n'est ni payé ni annulé — la paie en cours
+        # doit rester unique pendant tout son cycle (DRAFT → … → APPROVED).
+        active_statuses = [
+            PayrollStatus.DRAFT,
+            PayrollStatus.PROCESSING,
+            PayrollStatus.VALIDATED,
+            PayrollStatus.REVIEWED,
+            PayrollStatus.APPROVED,
+        ]
+        existing_active = PayrollRun.objects.filter(status__in=active_statuses)
+        if existing_active.exists():
+            logger.warning(
+                "[PayrollRun] Another active run exists",
+                extra={"existing_ids": list(existing_active.values_list('id', flat=True))},
+            )
+            raise ValidationError("Une paie est déjà en cours. Terminez ou annulez-la avant d'en démarrer une nouvelle.")
+
+        # Check for existing runs with overlapping periods (dépasse rarement car un seul run actif max)
         existing = PayrollRun.objects.filter(
             Q(start_date__lte=end_date) & Q(end_date__gte=start_date),
             status__in=[PayrollStatus.DRAFT, PayrollStatus.PROCESSING]
@@ -125,13 +146,28 @@ class PayrollRunService:
             logger.warning("[PayrollRun] Overlapping run exists", extra={"start": start_date, "end": end_date})
             raise ValidationError("A payroll run already exists for this period")
 
+        # Taux de change figé pour le run (None si devise CDF — aucune conversion)
+        exchange_rate = data.get('exchange_rate_applied')
+
+        # Sélection des employés couverts par le run (persistée pour audit)
+        scope = data.get('selection_scope', 'all')
+        org_unit_ids = data.get('org_unit_ids') or []
+        employee_ids = data.get('employee_ids') or []
+
         # Create run
         run = PayrollRun.objects.create(
             start_date=start_date,
             end_date=end_date,
-            exchange_rate_applied=data.get('exchange_rate_applied'),
+            exchange_rate_applied=Decimal(str(exchange_rate)) if exchange_rate else None,
             status=PayrollStatus.DRAFT,
             created_by=actor,
+            params_snapshot={
+                "selection": {
+                    "scope": scope,
+                    "org_unit_ids": [str(uid) for uid in org_unit_ids],
+                    "employee_ids": [str(uid) for uid in employee_ids],
+                },
+            },
         )
 
         logger.info(
@@ -143,8 +179,17 @@ class PayrollRunService:
     @classmethod
     @transaction.atomic
     def update_payroll_run(cls, run_id: UUID, data: Dict[str, Any], actor=None) -> PayrollRun:
-        """ Updates a draft payroll run's configuration. """
-        logger.debug("[PayrollRun] Updating payroll run", extra={"run_id": run_id})
+        """ Updates a draft payroll run's configuration.
+
+        Seuls les champs présents dans `data` (exclude_unset côté controller)
+        sont touchés. Pour `params_snapshot`, on merge la sous-clé `selection`
+        avec l'existant : les autres clés (audit légal SMIG/IRPP/CNSS figées
+        au moment du calcul) sont préservées.
+        """
+        logger.info(
+            "[PayrollRun] PATCH incoming",
+            extra={"run_id": run_id, "data_keys": list(data.keys()), "has_params_snapshot": 'params_snapshot' in data}
+        )
 
         run = PayrollRun.objects.get(id=run_id)
 
@@ -155,14 +200,107 @@ class PayrollRunService:
             )
             raise ValidationError(f"Cannot update run with status {run.status}")
 
-        # Update fields
+        # Update scalar fields
         if 'exchange_rate_applied' in data:
             run.exchange_rate_applied = data['exchange_rate_applied']
+
+        # Merge params_snapshot.selection (PATCH partiel : seul le bloc
+        # `selection` est éditable ; les snapshots légaux restent intacts).
+        if 'params_snapshot' in data and data['params_snapshot'] is not None:
+            incoming = data['params_snapshot']
+            logger.info(
+                "[PayrollRun] PATCH params_snapshot incoming",
+                extra={"run_id": run_id, "incoming": incoming}
+            )
+            if isinstance(incoming, dict) and 'selection' in incoming:
+                existing_snapshot = dict(run.params_snapshot or {})
+                existing_snapshot['selection'] = incoming['selection']
+                run.params_snapshot = existing_snapshot
 
         run.updated_by = actor
         run.save()
 
-        logger.info("[PayrollRun] Run updated", extra={"run_id": run_id})
+        # Invalider TOUT le cache lié à ce run, y compris les caches
+        # `cache_api_response` de NinjaAPI (qui mettent en cache la réponse
+        # HTTP complète de l'endpoint GET /summary/, GET /payslips/, etc.).
+        # Le pattern des clés NinjaAPI ressemble à :
+        #   :1:cache_api_response:GET:api.payroll.runs.<id>.summary:...
+        #   :1:cache_api_response:GET:api.payroll.runs.<id>.:...
+        #   :1:cache_api_response:GET:api.payroll.runs.<id>.:...
+        # On ne peut pas prédire toutes les formes : on SCAN tout le namespace
+        # cache_api_response et on filtre côté Python (cheap, le dataset est petit).
+        try:
+            # 1) Clé directe du run (cache de l'objet PayrollRun)
+            cache.delete(CacheKeys.payroll_run(run_id))
+
+            # 2) Caches contrats/employés des employés de la sélection
+            selected_ids = []
+            if run.params_snapshot and isinstance(run.params_snapshot, dict):
+                sel = run.params_snapshot.get('selection') or {}
+                selected_ids = sel.get('employee_ids') or []
+            for emp_id in selected_ids:
+                PayrollCacheService.clear_employee_cache(emp_id)
+
+            # 3) Purge SCAN-based de TOUTES les clés cache_api_response qui
+            #    mentionnent ce run_id (UUID sous forme str ou avec tirets).
+            #    On scan :1:cache_api_response:* (préfixe Django par défaut)
+            #    puis on filtre en mémoire.
+            run_id_str = str(run_id)
+            run_id_compact = run_id_str.replace('-', '')
+            purged = 0
+
+            # Scan les clés de cache API et purge toute clé contenant l'UUID
+            cursor = 0
+            while True:
+                cursor, batch = PayrollCacheService.redis_conn.scan(
+                    cursor=cursor, match="*:cache_api_response:*", count=500
+                )
+                keys_to_delete = [
+                    k for k in batch
+                    if (run_id_str in k or run_id_compact in k)
+                ]
+                if keys_to_delete:
+                    PayrollCacheService.redis_conn.delete(*keys_to_delete)
+                    purged += len(keys_to_delete)
+                if cursor == 0:
+                    break
+            
+            # 4) Purge par pattern "au cas où" dans le namespace payroll
+            for pattern in (
+                f"*payroll*run*{run_id_str}*",
+                f"*{run_id_str}*",
+                f"*{run_id_compact}*",
+            ):
+                cursor = 0
+                while True:
+                    cursor, batch = PayrollCacheService.redis_conn.scan(
+                        cursor=cursor, match=pattern, count=500
+                    )
+                    # Ne pas supprimer les clés directes du run qu'on a déjà
+                    # purgées (pas grave de re-tenter, c'est idempotent).
+                    if batch:
+                        PayrollCacheService.redis_conn.delete(*batch)
+                        purged += len(batch)
+                    if cursor == 0:
+                        break
+
+            logger.info(
+                "[PayrollRun] Cache purged for run",
+                extra={"run_id": run_id, "employees_purged": len(selected_ids),
+                       "api_response_keys_purged": purged}
+            )
+        except Exception as e:
+            # On ne fait PAS échouer le PATCH si la purge échoue :
+            # au pire l'utilisateur verra l'ancienne valeur jusqu'à expiration TTL.
+            logger.warning(
+                "[PayrollRun] Cache purge failed (non-fatal)",
+                extra={"run_id": run_id, "error": str(e)}
+            )
+
+        logger.info(
+            "[PayrollRun] Run updated",
+            extra={"run_id": run_id, "new_selection": run.params_snapshot.get('selection') if run.params_snapshot else None}
+        )
         return run
 
     @classmethod
@@ -214,6 +352,7 @@ class PayrollRunService:
             "employee_count": getattr(run, '_employee_count', 0) or 0,
             "closed_at": closed_at,
             "period_label": period_label,
+            "params_snapshot": run.params_snapshot or {},
         }
 
     # ===== STATUS TRANSITIONS =====

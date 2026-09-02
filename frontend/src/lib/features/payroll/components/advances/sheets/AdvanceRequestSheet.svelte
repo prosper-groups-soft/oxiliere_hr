@@ -238,18 +238,9 @@
   <Sheet.Content side="right" class="sm:max-w-xl bg-white p-0 flex flex-col h-full overflow-hidden">
     <!-- Header aligned with TransitionSheet -->
     <Sheet.Header class="px-6 py-2.5 border-b bg-slate-50/50">
-      <div class="flex items-center gap-3">
-        <div class="space-y-0.5 min-w-0">
-          <Sheet.Title class="text-[1rem] text-slate-900 truncate font-bold">
-            {isEdit ? "Modifier le brouillon" : "Nouvelle demande d'avance"}
-          </Sheet.Title>
-          {#if isEdit}
-            <p class="text-[0.78rem] text-slate-500">
-              Modifiez le montant ou le motif puis enregistrez ou soumettez.
-            </p>
-          {/if}
-        </div>
-      </div>
+      <Sheet.Title class="text-[1rem] text-slate-900 truncate font-bold">
+        {isEdit ? "Modifier le brouillon" : "Nouvelle demande d'avance"}
+      </Sheet.Title>
     </Sheet.Header>
 
     <div class="flex-1 overflow-y-auto custom-scrollbar">

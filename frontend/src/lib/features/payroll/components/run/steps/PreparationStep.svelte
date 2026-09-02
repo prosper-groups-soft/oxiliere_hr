@@ -3,12 +3,7 @@
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
   import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
   import { Separator } from "@/components/ui/separator";
-  import Input from "@/components/ui/input/input.svelte";
   import { slide, fade } from "svelte/transition";
-  
-  const isLocked = $derived(
-    !!payrollStore.currentRun && payrollStore.currentRun.status !== 'draft'
-  );
   
   let showEmployeeList = $state(false);
   let showExcluded = $state(false);
@@ -38,13 +33,11 @@
   const getOrgUnitColor = (orgUnit: string) => 
     orgUnitColors[orgUnit] || { bg: 'bg-slate-100', text: 'text-slate-600', dot: 'bg-slate-400' };
 
-  function handlePeriodChange(e: Event) {
-    const newVal = (e.target as HTMLInputElement).value;
-    payrollStore.currentPeriod = newVal;
-    if (payrollStore.currentRun) {
-      payrollStore.currentRun.period = newVal;
-    }
-  }
+  // La période est figée une fois le run créé (saisie uniquement au kickoff).
+  const periodLabel = $derived(
+    payrollStore.currentRun?.period
+      ?? new Date(payrollStore.currentPeriod + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+  );
 </script>
 
 
@@ -92,18 +85,12 @@
       <div class="grid grid-cols-2 gap-8">
         <div>
           <div class="text-sm font-medium text-slate-500 mb-1.5">Mois d'exécution</div>
-          <Input
-            type="month"
-            value={payrollStore.currentPeriod}
-            oninput={handlePeriodChange}
-            disabled={isLocked}
-            class="w-full max-w-[200px] h-9 bg-white border-slate-200 focus:ring-1 focus:ring-primary focus:border-primary rounded-md shadow-fine disabled:bg-slate-50 disabled:text-slate-500 transition-all cursor-pointer border"
-          />
+          <p class="text-sm text-slate-900 font-semibold">{periodLabel}</p>
         </div>
         <div>
           <div class="text-sm font-medium text-slate-500 mb-1.5">Cycle de paie</div>
           <p class="text-sm text-slate-900 font-medium capitalize">
-            Mensuel — {new Date(payrollStore.currentPeriod + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+            Mensuel — {periodLabel}
           </p>
         </div>
       </div>
@@ -191,7 +178,7 @@
         <div transition:slide class="p-3 bg-rose-50/50 border border-rose-100 rounded-lg space-y-2">
           <div class="text-[0.75rem] font-bold text-rose-700 flex items-center gap-2">
             <AppIcon name="user-minus" size={16} /> 
-            Collaborateurs non-éligibles pour {new Date(payrollStore.currentPeriod + '-01').toLocaleDateString('fr-FR', { month: 'long' })}
+            Collaborateurs non-éligibles pour {periodLabel}
           </div>
           {#each excludedEmployees as ex}
             <div class="flex items-center justify-between text-[0.82rem]">

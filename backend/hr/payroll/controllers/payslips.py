@@ -1,5 +1,4 @@
 import logging
-from typing   import List
 from uuid     import UUID
 from injector import inject
 
@@ -25,6 +24,7 @@ from hr.payroll.models  import PayrollRun
 from hr.payroll.schemas import (
     PayrollRunCreateIn,
     PayrollRunOut,
+    PayrollRunDetailOut,
     PayrollRunUpdateIn,
     PayrollRunListFilterIn,
     EmployeePayslipOut,
@@ -34,6 +34,7 @@ from hr.payroll.schemas import (
 )
 from hr.payroll.services.orchestrator import PayrollOrchestrator
 from hr.payroll.services.payroll_run  import PayrollRunService
+
 # Cache integration
 from hr.services.cache_helpers import cache_api_response
 
@@ -80,7 +81,7 @@ class PayrollRunController(ControllerBase):
         qs = self.payroll_run_service.list_runs_annotated(filters=filters)
         return [self.payroll_run_service.serialize_run(run) for run in qs]
 
-    @http_get('/{run_id}', response=PayrollRunOut, permissions=[ScopePermission('payroll:r')])
+    @http_get('/{run_id}/', response=PayrollRunDetailOut, permissions=[ScopePermission('payroll:r')])
     @cache_api_response(timeout=60*60*24, key_prefix="payroll_run_detail", user_specific=False)
     def get_payroll_run_detail(self, run_id: UUID):
         """
@@ -105,7 +106,7 @@ class PayrollRunController(ControllerBase):
                 status_code=404,
             )
 
-    @http_get('/{run_id}/payslips', response=PaginatedResponseSchema[EmployeePayslipOut], permissions=[ScopePermission('payroll:r')])
+    @http_get('/{run_id}/payslips/', response=PaginatedResponseSchema[EmployeePayslipOut], permissions=[ScopePermission('payroll:r')])
     @paginate(PageNumberPaginationExtra, page_size=50)
     @cache_api_response(timeout=60*60, key_prefix="payroll_run_payslips", user_specific=False)
     def list_payslips_in_run(self, run_id: UUID):
@@ -126,7 +127,7 @@ class PayrollRunController(ControllerBase):
                 status_code=404,
             )
 
-    @http_get('/{run_id}/summary', response=PayrollRunSummaryOut, permissions=[ScopePermission('payroll:r')])
+    @http_get('/{run_id}/summary/', response=PayrollRunSummaryOut, permissions=[ScopePermission('payroll:r')])
     @cache_api_response(timeout=60*60, key_prefix="payroll_run_summary", user_specific=False)
     def get_payroll_run_summary(self, run_id: UUID):
         """
@@ -152,7 +153,7 @@ class PayrollRunController(ControllerBase):
                 status_code=404,
             )
 
-    @http_get('/payslips/{payslip_id}', response=EmployeePayslipDetailOut, permissions=[ScopePermission('payroll:r')])
+    @http_get('/payslips/{payslip_id}/', response=EmployeePayslipDetailOut, permissions=[ScopePermission('payroll:r')])
     @cache_api_response(timeout=60*60, key_prefix="payslip_detail", user_specific=True)
     def get_payslip_detail(self, payslip_id: UUID):
         """
@@ -192,16 +193,16 @@ class PayrollRunController(ControllerBase):
             )
             logger.info(
                 "[Payroll Run] Payroll run created",
-                extra={"run_id": run.id, "period": f"{run.period_start} to {run.period_end}"},
+                extra={"run_id": run.id, "period": f"{run.start_date} to {run.end_date}"},
             )
             invalidate_cache_prefix('payroll_runs_list')
-            return 201, run
+            return 201, self.payroll_run_service.serialize_run(run)
 
         except ValidationError as e:
             logger.warning("[Payroll Run] Validation error", extra={"error": str(e)})
             return self.create_response({"detail": str(e)}, status_code=400)
 
-    @http_patch('/{run_id}', response=PayrollRunOut, permissions=[ScopePermission('payroll:u')])
+    @http_patch('/{run_id}/', response=PayrollRunOut, permissions=[ScopePermission('payroll:u')])
     def update_payroll_run(self, run_id: UUID, data: PayrollRunUpdateIn):
         """
         Update payroll run parameters (only in DRAFT status).
@@ -217,7 +218,7 @@ class PayrollRunController(ControllerBase):
                 actor=actor,
             )
             logger.info("[Payroll Run] Run updated successfully", extra={"run_id": run_id})
-            return run
+            return self.payroll_run_service.serialize_run(run)
 
         except PayrollRun.DoesNotExist:
             logger.warning("[Payroll Run] Run not found", extra={"run_id": run_id})
@@ -291,7 +292,7 @@ class PayrollRunController(ControllerBase):
             logger.info("[Payroll Run] Run completed", extra={"run_id": run_id})
             invalidate_cache_prefix('payroll_runs_list')
             invalidate_cache_prefix('payroll_run_detail')
-            return run
+            return self.payroll_run_service.serialize_run(run)
 
         except PayrollRun.DoesNotExist:
             logger.warning("[Payroll Run] Run not found", extra={"run_id": run_id})
@@ -321,7 +322,7 @@ class PayrollRunController(ControllerBase):
             logger.info("[Payroll Run] Run reviewed", extra={"run_id": run_id})
             invalidate_cache_prefix('payroll_runs_list')
             invalidate_cache_prefix('payroll_run_detail')
-            return run
+            return self.payroll_run_service.serialize_run(run)
 
         except PayrollRun.DoesNotExist:
             logger.warning("[Payroll Run] Run not found", extra={"run_id": run_id})
@@ -351,7 +352,7 @@ class PayrollRunController(ControllerBase):
             logger.info("[Payroll Run] Run approved", extra={"run_id": run_id})
             invalidate_cache_prefix('payroll_runs_list')
             invalidate_cache_prefix('payroll_run_detail')
-            return run
+            return self.payroll_run_service.serialize_run(run)
 
         except PayrollRun.DoesNotExist:
             logger.warning("[Payroll Run] Run not found", extra={"run_id": run_id})
@@ -382,7 +383,7 @@ class PayrollRunController(ControllerBase):
             logger.info("[Payroll Run] Run cancelled", extra={"run_id": run_id})
             invalidate_cache_prefix('payroll_runs_list')
             invalidate_cache_prefix('payroll_run_detail')
-            return run
+            return self.payroll_run_service.serialize_run(run)
 
         except PayrollRun.DoesNotExist:
             logger.warning("[Payroll Run] Run not found", extra={"run_id": run_id})

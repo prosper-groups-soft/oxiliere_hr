@@ -1,19 +1,18 @@
 <script lang="ts">
   import * as Card from "@/components/ui/card";
   import { Button } from "@/components/ui/button";
-  import { 
-    Users, 
-    Briefcase, 
-    FileText, 
-    TrendingUp 
-  } from "@lucide/svelte";
+  import { Users, Briefcase, FileText, TrendingUp } from "@lucide/svelte";
 </script>
 
 
 <div class="space-y-6 space-x-7">
   <header>
-    <h1 class="text-xl font-bold tracking-tight">Tableau de bord RH</h1>
-    <p class="text-foreground">Bienvenue dans votre centre de gestion d'entreprise.</p>
+    <h1 class="text-xl font-bold tracking-tight">
+      Tableau de bord RH
+    </h1>
+    <p class="text-foreground text-sm">
+      Bienvenue dans votre centre de gestion d'entreprise.
+    </p>
   </header>
 
   <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
