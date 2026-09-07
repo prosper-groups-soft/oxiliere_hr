@@ -25,7 +25,7 @@
 </script>
 
 
-{#snippet navButton(direction: 'prev' | 'next', action: () => void, disabled: boolean)}
+{#snippet NavButton(direction: 'prev' | 'next', action: () => void, disabled: boolean)}
   <button
     onclick={action}
     {disabled}
@@ -40,7 +40,7 @@
 {/snippet}
 
 
-{#snippet stepIndicator(index: number, isCompleted: boolean, isActive: boolean)}
+{#snippet StepIndicator(index: number, isCompleted: boolean, isActive: boolean)}
   {@const stepColors = [
     "bg-slate-500",      // kickoff
     "bg-slate-400",      // preparation (draft)
@@ -70,7 +70,7 @@
 <div class="relative bg-white">
   <div class="relative flex items-center justify-center px-6 py-1">
     
-    {@render navButton('prev', () => payrollStore.prevStep(), !payrollStore.canGoPrev)}
+    {@render NavButton('prev', () => payrollStore.prevStep(), !payrollStore.canGoPrev)}
 
     <div class="relative inline-grid grid-cols-6 bg-slate-100 w-auto overflow-hidden">
       <div class="absolute top-0.5 bottom-0.5 left-0.5 right-0.5 grid grid-cols-6 pointer-events-none">
@@ -97,7 +97,7 @@
                 isAccessible ? "cursor-pointer hover:text-slate-800" : "cursor-not-allowed opacity-60"
               )}
             >
-              {@render stepIndicator(index, isCompleted, isActive)}
+              {@render StepIndicator(index, isCompleted, isActive)}
               
               <span class="text-[0.81rem] whitespace-nowrap">{step.label}</span>
             </button>
@@ -106,7 +106,7 @@
       {/each}
     </div>
 
-    {@render navButton('next', () => payrollStore.nextStep(), !payrollStore.canGoNext)}
+    {@render NavButton('next', () => payrollStore.nextStep(), !payrollStore.canGoNext)}
   </div>
 </div>
 

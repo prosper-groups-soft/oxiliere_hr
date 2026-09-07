@@ -52,13 +52,49 @@ const FRENCH_ERROR_MAP: Record<string, string> = {
 	'Unable to create shift policy': 'Impossible de créer le modèle de travail. Vérifiez les données saisies.',
 };
 
+/**
+ * Extrait le premier message d'une ValidationError Django sérialisée en chaîne.
+ * Ex. "{'__all__': ['Base salary ... .']}" → "Base salary ... ."
+ */
+function unwrapDjangoValidationMessage(raw: string): string | null {
+	const m = raw.match(/\[\s*['"]([^'"]+)['"]/);
+	return m ? m[1] : null;
+}
+
+/** Formate un montant décimal en français (ex. "500000.0" → "500 000"). */
+function formatAmount(value: string): string {
+	const n = Number(value);
+	if (!Number.isFinite(n)) return value;
+	return Math.round(n).toLocaleString('fr-FR');
+}
+
+/**
+ * Traduit un message d'erreur backend en français, en gérant :
+ *  - les ValidationError Django sérialisées en chaîne ({'__all__': [...]}),
+ *  - le cas SMIG (salaire < SMIG mensuel) avec reformulation claire.
+ */
 export function frenchBackendError(message: string): string {
+	const inner = unwrapDjangoValidationMessage(message) ?? message;
+
+	// Cas SMIG : « Base salary (500000.0 FC) cannot be lower than the active
+	// monthly SMIG (559000.00 FC). »
+	const smig = inner.match(
+		/Base salary \(([0-9.]+) ([A-Za-z]+)\) cannot be lower than the active monthly SMIG \(([0-9.]+) ([A-Za-z]+)\)/
+	);
+	if (smig) {
+		return (
+			`Le salaire de base (${formatAmount(smig[1])} ${smig[2]}) est inférieur au ` +
+			`SMIG mensuel en vigueur (${formatAmount(smig[3])} ${smig[4]}). ` +
+			`Saisissez un salaire au moins égal au SMIG.`
+		);
+	}
+
 	for (const [english, french] of Object.entries(FRENCH_ERROR_MAP)) {
-		if (message.includes(english)) {
+		if (inner.includes(english)) {
 			return french;
 		}
 	}
-	return message;
+	return inner;
 }
 
 

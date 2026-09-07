@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing   import Optional, List
+from typing   import Optional, List, Union
 from datetime import date
 from uuid     import UUID
 from decimal  import Decimal
@@ -378,7 +378,7 @@ class EmployeeOnboardingContractIn(Schema):
     base_salary: Decimal
     contract_type: str  # CDI, CDD, FREELANCE, INTERN
     remuneration_type: str = "FIXED"  # FIXED, HOURLY
-    salary_base_type: str = "NET"  # GROSS, NET
+    salary_base_type: str = "NET"  # BASE (avant déductions) ou NET (brutage)
     start_date: date
     end_date: Optional[date] = None
     currency: str = "CDF"
@@ -424,6 +424,8 @@ class ContractPayElementOut(Schema):
     amount: Optional[Decimal] = None
     custom_amount: Optional[Decimal] = None
     custom_percentage: Optional[Decimal] = None
+    # % par défaut du catalogue (appliqué si aucun custom_percentage négocié)
+    catalog_percentage: Optional[Decimal] = None
     is_active: bool
     is_taxable: bool = True
     recurrence: str = "monthly"
@@ -563,6 +565,7 @@ class EmployeeFullProfileOut(ModelSchema):
                 'amount': assignment.custom_amount if assignment.custom_amount is not None else adj.amount,
                 'custom_amount': assignment.custom_amount,
                 'custom_percentage': assignment.custom_percentage,
+                'catalog_percentage': adj.percentage,
                 'is_active': assignment.is_active,
                 'is_taxable': adj.is_taxable,
                 'recurrence': 'monthly',
@@ -576,20 +579,20 @@ class EmployeeOut(ModelSchema):
     """ Enriched employee profile using Ninja resolvers. """
 
     # On définit les champs additionnels
-    job_title: Optional[str] = None
-    org_unit: Optional[str] = None
-    org_unit_id: Optional[str] = None
-    org_unit_type: Optional[str] = None
-    position_id: Optional[str] = None
-    contract_type: Optional[str] = None
-    work_site: Optional[str] = None
-    location: Optional[str] = None
-    status: Optional[str] = None
-    avatar_url: Optional[str] = None
-    current_status: Optional[StatusHistoryOut] = None
+    job_title: Union[str, None] = None
+    org_unit: Union[str, None] = None
+    org_unit_id: Union[str, None] = None
+    org_unit_type: Union[str, None] = None
+    position_id: Union[str, None] = None
+    contract_type: Union[str, None] = None
+    work_site: Union[str, None] = None
+    location: Union[str, None] = None
+    status: Union[str, None] = None
+    avatar_url: Union[str, None] = None
+    current_status: Union[StatusHistoryOut, None] = None
     # Contrat courant + éléments de paie S10 — chargés en un seul appel via le
     # prefetch `prefetched_latest_contract` (get_base_queryset), sans N+1.
-    current_contract: Optional[ContractOut] = None
+    current_contract: Union[ContractOut, None] = None
     contract_adjustments: List[ContractPayElementOut] = PydanticField(default_factory=list)
 
     class Meta:
@@ -652,14 +655,18 @@ class EmployeeOut(ModelSchema):
 
     @staticmethod
     def resolve_contract_adjustments(obj):
-        """S10 — éléments de paie du contrat courant (actif ou suspendu)."""
+        """S10 — éléments de paie du contrat courant (actif ou suspendu).
+
+        Itère sur la relation préchargée `prefetched_latest_contract` (déjà
+        enrichie de `pay_elements` via get_base_queryset) pour éviter tout N+1
+        sur la liste employés.
+        """
         contracts = getattr(obj, 'prefetched_latest_contract', [])
         if not contracts:
             return []
         contract = contracts[0]
-        assignments = contract.pay_elements.select_related('adjustment').order_by('-start_date')
         elements = []
-        for assignment in assignments:
+        for assignment in contract.pay_elements.all():
             adj = assignment.adjustment
             elements.append({
                 'id': assignment.id,
@@ -669,6 +676,7 @@ class EmployeeOut(ModelSchema):
                 'amount': assignment.custom_amount if assignment.custom_amount is not None else adj.amount,
                 'custom_amount': assignment.custom_amount,
                 'custom_percentage': assignment.custom_percentage,
+                'catalog_percentage': adj.percentage,
                 'is_active': assignment.is_active,
                 'is_taxable': adj.is_taxable,
                 'recurrence': 'monthly',

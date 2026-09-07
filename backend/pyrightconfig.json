@@ -14,6 +14,8 @@
     "**/migrations/**"
   ],
   "pythonVersion": "3.12",
+  "venvPath": ".",
+  "venv": ".venv",
   "typeCheckingMode": "basic",
   "reportMissingTypeStubs": false,
   "reportImplicitRelativeImport": false,

@@ -99,7 +99,7 @@ class EmployeeContractService:
             hourly_rate=data.get('hourly_rate'),
             currency=data.get('currency', 'CDF'),
             contract_type=data.get('contract_type', 'CDI'),
-            salary_base_type=data.get('salary_base_type', 'GROSS'),
+            salary_base_type=data.get('salary_base_type', 'BASE'),
             contractual_clauses=data.get('contractual_clauses', ''),
             created_by=actor,
         )

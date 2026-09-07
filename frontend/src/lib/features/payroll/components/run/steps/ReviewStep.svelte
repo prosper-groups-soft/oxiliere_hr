@@ -210,7 +210,7 @@
       {#snippet child({ props })}
         <button 
           {...props} 
-          class="h-7.5 px-4 flex items-center gap-2.5 bg-white border border-slate-200 rounded-lg shadow-fine hover:bg-slate-50 transition-all min-w-[160px] cursor-pointer outline-none"
+          class="h-7.5 px-4 flex items-center gap-2.5 bg-white border border-slate-200 rounded-lg shadow-fine hover:bg-slate-50 transition-all min-w-40 cursor-pointer outline-none"
         >
           <AppIcon name="layers" size={15} class="text-slate-400" />
           <span class="text-[0.84rem] text-slate-700 font-medium truncate flex-1 text-left">
@@ -226,7 +226,7 @@
         </button>
       {/snippet}
     </DropdownMenu.Trigger>
-    <DropdownMenu.Content align="end" class="p-1 rounded-lg shadow-fine bg-white border-slate-100 min-w-[200px]">
+    <DropdownMenu.Content align="end" class="p-1 rounded-lg shadow-fine bg-white border-slate-100 min-w-50">
       <DropdownMenu.Label class="px-2 py-1.5 text-[0.65rem] font-bold text-slate-400 uppercase tracking-widest">Entités</DropdownMenu.Label>
       <DropdownMenu.Separator class="my-1 bg-slate-50" />
       

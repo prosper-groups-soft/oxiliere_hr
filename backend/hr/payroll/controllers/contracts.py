@@ -62,7 +62,7 @@ class EmployeeContractController(ControllerBase):
     @http_get('/', response=PaginatedResponseSchema[EmployeeContractOut], permissions=[ScopePermission('payroll:r')])
     @paginate(PageNumberPaginationExtra, page_size=50)
     @cache_api_response(timeout=60*60, key_prefix="employee_contracts_list", user_specific=False)
-    def list_contracts(self, filters: EmployeeContractListFilterIn = Query(...)):
+    def list_contracts(self, filters: EmployeeContractListFilterIn = Query(...)):  # type: ignore[reportCallIssue]
         """
         List employee contracts with filtering options.
         
@@ -297,6 +297,7 @@ class EmployeeContractController(ControllerBase):
                 'amount': amount,
                 'custom_amount': assignment.custom_amount,
                 'custom_percentage': assignment.custom_percentage,
+                'catalog_percentage': adj.percentage,
                 'is_active': assignment.is_active,
                 'is_taxable': adj.is_taxable,
                 'recurrence': 'monthly',
@@ -346,6 +347,7 @@ class EmployeeContractController(ControllerBase):
                 'amount': assignment.custom_amount if assignment.custom_amount is not None else adj.amount,
                 'custom_amount': assignment.custom_amount,
                 'custom_percentage': assignment.custom_percentage,
+                'catalog_percentage': adj.percentage,
                 'is_active': assignment.is_active,
                 'is_taxable': adj.is_taxable,
                 'recurrence': 'monthly',
@@ -388,6 +390,7 @@ class EmployeeContractController(ControllerBase):
                 'amount': assignment.custom_amount if assignment.custom_amount is not None else adj.amount,
                 'custom_amount': assignment.custom_amount,
                 'custom_percentage': assignment.custom_percentage,
+                'catalog_percentage': adj.percentage,
                 'is_active': assignment.is_active,
                 'is_taxable': adj.is_taxable,
                 'recurrence': 'monthly',

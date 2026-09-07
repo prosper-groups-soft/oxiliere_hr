@@ -120,6 +120,16 @@
           middle_name: e.middle_name || null,
           last_name: e.last_name || '',
           photo: e.profile_photo || e.avatarUrl || null,
+          // Contrat courant + éléments de paie (source unique, chargés avec la liste)
+          contract: e.currentContract ? {
+            base_salary: e.currentContract.base_salary,
+            currency: e.currentContract.currency,
+            remuneration_type: e.currentContract.remuneration_type,
+            salary_base_type: e.currentContract.salary_base_type,
+            start_date: e.currentContract.start_date ?? null,
+            end_date: e.currentContract.end_date ?? null,
+          } : null,
+          pay_elements: e.contractPayElements || [],
         })));
       })
       .catch((err) => {
@@ -306,6 +316,8 @@
     {selectedEmployeeIds}
     {selectedOrgUnitIds}
     {employeeSearch}
+    periodStart={periodStart}
+    periodEnd={periodEnd}
     onIncludeAllChange={handleIncludeAllChange}
     onToggleEmployee={toggleEmployee}
     onToggleOrgUnit={toggleOrgUnit}

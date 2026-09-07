@@ -11,8 +11,8 @@ export const REMUNERATION_TYPES = [
 
 
 export const SALARY_BASE_TYPES = [
-  { value: 'NET', label: 'Net' },
-  { value: 'GROSS', label: 'Brut' }
+  { value: 'BASE', label: 'Salaire de base' },
+  { value: 'NET', label: 'Net (brutage)' }
 ] as const;
 
 

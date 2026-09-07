@@ -33,12 +33,18 @@
     open,
     catalog,
     existingCodes,
+    catalogLoading = false,
+    catalogError = false,
     onOpenChange,
     onConfirm,
   } = $props<{
     open: boolean;
     catalog: PayrollAdjustmentConfig[];
     existingCodes: Set<string>;
+    /** Chargement du catalogue backend en cours */
+    catalogLoading?: boolean;
+    /** Échec du chargement du catalogue backend */
+    catalogError?: boolean;
     onOpenChange: (open: boolean) => void;
     onConfirm: (payload: ContractPayElementInput) => Promise<void>;
   }>();
@@ -92,6 +98,19 @@
     if (isFixed) return `Défaut : ${Number(selected.amount ?? 0).toLocaleString('fr-FR')} CDF`;
     if (isPercentage) return `Défaut : ${Number(selected.percentage ?? 0)} %`;
     return 'Défaut : —';
+  });
+
+  /** Placeholder de l'input : montre la valeur par défaut si elle est définie. */
+  const defaultValuePlaceholder = $derived.by(() => {
+    if (isFixed) {
+      const amount = selected?.amount;
+      return amount != null ? `Vide = ${Number(amount).toLocaleString('fr-FR')} CDF` : 'Aucune valeur par défaut';
+    }
+    if (isPercentage) {
+      const pct = selected?.percentage;
+      return pct != null ? `Vide = ${Number(pct)} %` : 'Aucune valeur par défaut';
+    }
+    return 'Laisser vide = défaut';
   });
 
   /** Valeur par défaut d'un item de la liste (avant sélection) */
@@ -153,7 +172,7 @@
 
 
 <Dialog open={open} onOpenChange={onOpenChange}>
-  <DialogContent class="max-w-lg">
+  <DialogContent class="w-full max-w-[calc(100%-2rem)] sm:max-w-3xl">
     <DialogHeader>
       <DialogTitle class="flex items-center gap-2">
         <AppIcon name="list-plus" size={18} />
@@ -176,16 +195,34 @@
           id="pay-element-search"
           placeholder="Rechercher par code ou libellé…"
           bind:value={search}
-          class="pl-9 h-10 bg-white border-slate-200 rounded-full"
+          class="pl-9 my-2 ml-0.5 h-10 bg-white border-slate-200 rounded-full"
         />
       </div>
 
       <!-- Liste du catalogue -->
-      {#if available.length === 0}
+      {#if catalogLoading}
         <div class="py-8 text-center text-[0.82rem] text-slate-400 flex flex-col items-center justify-center gap-2">
-          <AppIcon name="circle-x" size={17} class="text-slate-400" />
+          <AnimateSpin text="Chargement du catalogue" class="size-4" />
+        </div>
+      {:else if catalogError}
+        <div class="py-8 text-center text-[0.82rem] text-slate-400 flex flex-col items-center justify-center gap-2">
+          <AppIcon name="circle-alert" size={17} class="text-red-400" />
+          <span class="text-center text-[0.82rem] text-slate-500">
+            Impossible de charger le catalogue. Réessayez dans un instant.
+          </span>
+        </div>
+      {:else if catalog.length === 0}
+        <div class="py-8 text-center text-[0.82rem] text-slate-400 flex flex-col items-center justify-center gap-2">
+          <AppIcon name="box" size={20} class="text-slate-400" />
           <span class="text-center text-[0.82rem]">
-            Aucun élément disponible — tous les éléments du catalogue sont déjà assignés.
+            Le catalogue des éléments de paie est vide.
+          </span>
+        </div>
+      {:else if available.length === 0}
+        <div class="py-8 text-center text-[0.82rem] text-slate-400 flex flex-col items-center justify-center gap-2">
+          <AppIcon name="circle-check" size={17} class="text-emerald-400" />
+          <span class="text-center text-[0.82rem]">
+            Tous les éléments du catalogue sont déjà assignés à ce contrat.
           </span>
         </div>
       {:else}
@@ -197,7 +234,7 @@
                 <TableHead class="text-[0.7rem] font-bold uppercase tracking-widest text-slate-500">Catégorie</TableHead>
                 <TableHead class="text-[0.7rem] font-bold uppercase tracking-widest text-slate-500">Calcul</TableHead>
                 <TableHead class="text-[0.7rem] font-bold uppercase tracking-widest text-slate-500">Traitement</TableHead>
-                <TableHead class="text-[0.7rem] font-bold uppercase tracking-widest text-slate-500 text-center">Légal</TableHead>
+                <TableHead class="text-[0.7rem] font-bold uppercase tracking-widest text-slate-500 text-center">Obligatoire</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -243,9 +280,14 @@
 
                   <TableCell class="py-2.5 text-center">
                     {#if item.is_mandatory}
-                      <Badge variant="secondary" class="text-[0.66rem]">Légal</Badge>
+                      <Badge variant="outline" class="text-[0.66rem] font-semibold uppercase tracking-wider px-2.5 py-1 shadow-none rounded-full whitespace-nowrap bg-amber-50 text-amber-700 border-amber-100">
+                        <AppIcon name="shield-check" size={12} />
+                        Obligatoire
+                      </Badge>
                     {:else}
-                      <span class="text-[0.72rem] text-slate-300">—</span>
+                      <Badge variant="outline" class="text-[0.66rem] font-medium uppercase tracking-wider px-2.5 py-1 shadow-none rounded-full whitespace-nowrap bg-slate-50 text-slate-400 border-slate-100">
+                        Optionnel
+                      </Badge>
                     {/if}
                   </TableCell>
                 </TableRow>
@@ -262,14 +304,14 @@
             <div>
               <div class="flex items-center gap-2">
                 <span class="text-[0.86rem] font-semibold text-slate-800">{selected.name}</span>
-                <Badge variant="outline" class="text-[0.68rem] text-slate-500">
+                <Badge variant="outline" class="text-[0.86rem] text-slate-800 rounded-full">
                   {formatModeLabel(selected.calculation_mode)}
                 </Badge>
               </div>
-              <div class="text-[0.82rem] text-slate-400">{formattedDefault()}</div>
+              <div class="text-[0.86rem] text-slate-400">{formattedDefault()}</div>
             </div>
             {#if selected.is_taxable}
-              <Badge variant="outline" class="text-[0.82rem]">Imposable</Badge>
+              <Badge variant="outline" class="text-[0.86rem] rounded-full">Imposable</Badge>
             {/if}
           </div>
 
@@ -281,7 +323,7 @@
                   id="pe-custom-amount"
                   type="number"
                   min="0"
-                  placeholder="Laisser vide = défaut"
+                  placeholder={defaultValuePlaceholder}
                   bind:value={customAmount}
                   class="h-9 bg-white border-slate-200"
                 />
@@ -297,7 +339,7 @@
                   type="number"
                   min="0"
                   max="100"
-                  placeholder="Ex. 10 = 10 % du brut"
+                  placeholder={defaultValuePlaceholder}
                   bind:value={customPercentage}
                   class="h-9 bg-white border-slate-200"
                 />
@@ -350,7 +392,7 @@
       </Button>
       <Button onclick={handleConfirm} disabled={!selected || submitting}>
         {#if submitting}
-          <AnimateSpin class="border-white size-3" />
+            <AnimateSpin class="border-white size-3" text="" />
         {:else}
           <AppIcon name="check" class="text-white" />
         {/if}

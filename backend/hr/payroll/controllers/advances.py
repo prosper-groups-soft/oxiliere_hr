@@ -65,7 +65,7 @@ class SalaryAdvanceController(ControllerBase):
 
     @http_get('/', response=PaginatedResponseSchema[SalaryAdvanceOut], permissions=[ScopePermission('payroll:r')])
     @paginate(PageNumberPaginationExtra, page_size=50)
-    def list_advances(self, filters: AdvanceListFilterIn = Query(...)):
+    def list_advances(self, filters: AdvanceListFilterIn = Query(...)):  # type: ignore[reportCallIssue]
         """
         List salary advances with filtering.
         
@@ -244,7 +244,7 @@ class SalaryAdvanceController(ControllerBase):
             return self.create_response({"detail": str(e)}, status_code=400)
 
     @http_patch('/{advance_id}/reject', response=SalaryAdvanceOut, permissions=[ScopePermission('payroll:a')])
-    def reject_advance(self, advance_id: UUID, data: AdvanceRejectIn = Body(...)):
+    def reject_advance(self, advance_id: UUID, data: AdvanceRejectIn = Body(...)): # type: ignore[reportCallIssue]
         """
         Reject a pending salary advance request.
         

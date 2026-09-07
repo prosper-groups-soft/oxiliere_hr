@@ -20,6 +20,7 @@
   import type { ContractPayElementItem } from "@/features/employees/types/types";
   import type { PayrollAdjustmentConfig } from "@/features/payroll/types/types";
   import { formatClassEchelon } from "@/features/jobs/constants/professionalCategory.constants";
+  import { payrollConfigStore } from "@/features/payroll/stores/configuration/payrollConfigStore.svelte";
 
 
   // Options pour le statut initial
@@ -28,6 +29,13 @@
     { value: 'PROBATION', label: EMPLOYEE_STATUS_CONFIG['PROBATION'].label },
     { value: 'ACTIVE', label: EMPLOYEE_STATUS_CONFIG['ACTIVE'].label }
   ]);
+
+  // Charge la configuration (heures légales/semaine) au montage si pas encore en mémoire.
+  $effect(() => {
+    if (!payrollConfigStore.configuration) {
+      payrollConfigStore.syncConfiguration();
+    }
+  });
 
   // TanStack Queries
   const positionsQuery = usePositionsQuery();
@@ -163,11 +171,18 @@
     $positionsQuery.data?.find(p => p.id === onboardingStore.data.contract.position_id)
   );
 
-  // Calcul de l'équivalent mensuel pour le taux horaire
+  // Calcul de l'équivalent mensuel pour le taux horaire.
+  // Heures mensuelles lues depuis la configuration (work_hours_per_week × 52 / 12),
+  // avec repli sur la valeur légale standard (45 h/sem → 195 h/mois).
+  const workHoursPerWeek = $derived(payrollConfigStore.configuration?.work_hours_per_week ?? 45);
+  const workHoursPerMonth = $derived(
+    payrollConfigStore.configuration?.work_hours_per_month
+      ?? Math.round((payrollConfigStore.configuration?.work_hours_per_week ?? 45) * 52 / 12)
+  );
+
   const monthlyEquivalent = $derived(() => {
     if (onboardingStore.data.contract.remuneration_type === 'HOURLY' && onboardingStore.data.contract.salary > 0) {
-      // Estimation basée sur 160 heures/mois (standard)
-      const monthly = onboardingStore.data.contract.salary * 160;
+      const monthly = onboardingStore.data.contract.salary * workHoursPerMonth;
       return new Intl.NumberFormat('fr-FR').format(monthly);
     }
     return null;
@@ -477,12 +492,15 @@
           currency={onboardingStore.data.contract.currency}
           remunerationType={onboardingStore.data.contract.remuneration_type}
           onSalaryChange={(v) => onboardingStore.setContractField('salary', v)}
-          onSalaryBaseTypeChange={(v) => onboardingStore.setContractField('salary_base_type', v as 'GROSS' | 'NET')}
+          onSalaryBaseTypeChange={(v) => onboardingStore.setContractField('salary_base_type', v as 'BASE' | 'NET')}
           onCurrencyChange={(v) => onboardingStore.setContractField('currency', v as 'CDF' | 'USD' | 'EUR')}
         />
         {#if onboardingStore.data.contract.remuneration_type === 'HOURLY' && monthlyEquivalent()}
           <p class="text-[0.82rem] text-slate-500 mt-1">
-            ≈ {monthlyEquivalent()} {currencyName()}/mois (estimation 160h)
+            ≈ {monthlyEquivalent()} {currencyName()}/mois
+            <span class="text-slate-400" title="Calcul : {workHoursPerWeek} h/semaine × 52 semaines / 12 mois = {workHoursPerMonth} heures/mois">
+              (estimation {workHoursPerWeek} h/sem → {workHoursPerMonth} h/mois)
+            </span>
           </p>
         {/if}
         <ValidationError errors={validationErrors} field="salary" />
@@ -532,7 +550,7 @@
           rows={3}
           placeholder="Clause de non-concurrence, période d'essai, avantages spécifiques…"
           bind:value={onboardingStore.data.contract.contractual_clauses}
-          class="min-h-[80px] bg-white border-slate-200 shadow-fine resize-y"
+          class="min-h-20 bg-white border-slate-200 shadow-fine resize-y"
         />
         <p class="text-[0.82rem] text-slate-500">
           Conditions particulières négociées au contrat (facultatif).

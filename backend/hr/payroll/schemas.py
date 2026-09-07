@@ -260,6 +260,8 @@ class PayElementOut(Schema):
     amount: Decimal | None = None
     custom_amount: Decimal | None = None
     custom_percentage: Decimal | None = None
+    # % par défaut du catalogue (appliqué si aucun custom_percentage négocié)
+    catalog_percentage: Decimal | None = None
     is_active: bool
     is_taxable: bool = True
     recurrence: str = "monthly"

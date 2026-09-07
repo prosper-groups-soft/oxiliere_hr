@@ -37,9 +37,17 @@ class RemunerationType(TextChoices):
 
 
 class SalaryBaseType(TextChoices):
-    """Determines if the base salary is expressed as Gross or Net."""
-    GROSS = "GROSS", _('Salaire Brut')
-    NET = "NET", _('Salaire Net')
+    """Base de référence du salaire : exprimée en net (brutage) ou en base brute.
+
+    Deux modalités de négociation du salaire de référence :
+    - NET  : le montant négocié est le NET à payer → un brutage est appliqué
+      (gross-up) pour retrouver la base de cotisation.
+    - BASE : le montant est une base avant déductions (selon poste/compétences/
+      horaire). Elle sert directement de base de cotisation ; ce n'est PAS le
+      « brut de période » (variable) mais la référence contractuelle.
+    """
+    BASE = "BASE", _('Salaire de base')
+    NET = "NET", _('Salaire Net (brutage)')
 
 
 class WorkRegime(TextChoices):

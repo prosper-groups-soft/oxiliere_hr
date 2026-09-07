@@ -26,6 +26,14 @@ export class PayrollRunStore {
 	currentRun = $state<PayrollRun | null>(null);
 
 	/**
+	 * Summary financier DRC structuré du run courant (GET /runs/:id/summary).
+	 * Contient les vrais totaux backend : gross / net / IPR / CNSS (sal. & emp.)
+	 * / INPP / ONEM / charges patronales / coût total pour l'entreprise.
+	 * Retenu en mémoire pour alimenter les étapes de lecture (calculation, review…).
+	 */
+	currentRunSummary = $state<PayrollRunSummaryApiOut | null>(null);
+
+	/**
 	 * Vrai tant que l'utilisateur a démarré une nouvelle paie (KickoffStep)
 	 * mais que le backend n'a pas encore créé le run DRAFT.
 	 * Permet d'afficher l'onglet dynamique immédiatement.
@@ -87,6 +95,7 @@ export class PayrollRunStore {
 
 	private clearActiveRun() {
 		this.currentRun = null;
+		this.currentRunSummary = null;
 		this.persistActiveRunId(null);
 		this.isStartingNewRun = false;
 		this.persistStartingNewRun(false);
@@ -396,6 +405,7 @@ export class PayrollRunStore {
 			const run = await payrollRunApiStore.fetchRunDetail(runId);
 			if (!run) return null;
 			const summary = await payrollRunApiStore.fetchRunSummary(runId);
+			this.currentRunSummary = summary;
 			this.currentRun = this.detailToPayrollRun(run, summary);
 			// Persiste l'ID du run dès qu'il est chargé (sauf s'il est déjà finalisé
 			// — dans ce cas on retire la clé pour libérer l'onglet).
@@ -517,6 +527,7 @@ export class PayrollRunStore {
 		// on le libère pour afficher le KickoffStep.
 		if (this.currentRun) {
 			this.currentRun = null;
+			this.currentRunSummary = null;
 			this.persistActiveRunId(null);
 		}
 		this.isStartingNewRun = true;

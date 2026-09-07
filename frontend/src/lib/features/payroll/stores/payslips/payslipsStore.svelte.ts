@@ -24,10 +24,10 @@ export class PayslipsStore {
 	filteredPayslips = $derived.by(() => {
 		return this.payslips.filter(p => {
 			const matchesSearch =
-				p.employee.fullName.toLowerCase().includes(this.filters.search.toLowerCase()) ||
-				p.employee.orgUnit.toLowerCase().includes(this.filters.search.toLowerCase());
+				(p.employee?.fullName ?? '').toLowerCase().includes(this.filters.search.toLowerCase()) ||
+				(p.employee?.orgUnit ?? '').toLowerCase().includes(this.filters.search.toLowerCase());
 			const matchesStatus = this.filters.status.length === 0 || this.filters.status.includes(p.status);
-			const matchesOrgUnit = this.filters.orgUnit.length === 0 || this.filters.orgUnit.includes(p.employee.orgUnit);
+			const matchesOrgUnit = this.filters.orgUnit.length === 0 || this.filters.orgUnit.includes(p.employee?.orgUnit ?? '');
 			return matchesSearch && matchesStatus && matchesOrgUnit;
 		});
 	});
@@ -45,17 +45,17 @@ export class PayslipsStore {
 	);
 
 	totalNetPay = $derived(
-		this.payslips.reduce((sum, p) => sum + p.summary.netPay, 0)
+		this.payslips.reduce((sum, p) => sum + (p.summary?.netPay ?? 0), 0)
 	);
 
 	totalGrossPay = $derived(
-		this.payslips.reduce((sum, p) => sum + p.summary.grossSalary, 0)
+		this.payslips.reduce((sum, p) => sum + (p.summary?.grossSalary ?? 0), 0)
 	);
 
 	totalContributions = $derived(
 		this.payslips.reduce((sum, p) =>
-			sum + p.sections.reduce((sectionSum, s) =>
-				sectionSum + s.lines
+			sum + (p.sections ?? []).reduce((sectionSum, s) =>
+				sectionSum + (s.lines ?? [])
 					.filter(l => l.label.includes('CNSS') || l.label.includes('INSS'))
 					.reduce((lineSum, l) => lineSum + (l.amount || 0), 0)
 			, 0)
@@ -64,8 +64,8 @@ export class PayslipsStore {
 
 	totalTax = $derived(
 		this.payslips.reduce((sum, p) =>
-			sum + p.sections.reduce((sectionSum, s) =>
-				sectionSum + s.lines
+			sum + (p.sections ?? []).reduce((sectionSum, s) =>
+				sectionSum + (s.lines ?? [])
 					.filter(l => l.label.includes('IRPP') || l.label.includes('Impôt'))
 					.reduce((lineSum, l) => lineSum + Math.abs(l.amount || 0), 0)
 			, 0)

@@ -159,7 +159,7 @@ Create a new employee contract.
   "employee": "uuid",
   "contract_type": "CDI",
   "remuneration_type": "FIXED",
-  "salary_base_type": "GROSS",
+  "salary_base_type": "BASE",
   "base_salary": 900000.00,
   "currency": "CDF",
   "payment_period": "MONTHLY",

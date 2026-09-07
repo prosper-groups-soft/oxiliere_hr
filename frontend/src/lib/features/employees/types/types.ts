@@ -4,7 +4,7 @@ export interface EmployeeContractSalaryInfo {
 	contract_type?: string;
 	remuneration_type?: string;
 	base_salary?: number;
-	salary_base_type?: string; // 'GROSS' | 'NET'
+	salary_base_type?: string; // 'BASE' | 'NET'
 	hourly_rate?: number | null;
 	currency?: string;
 	start_date?: string;
@@ -179,6 +179,8 @@ export interface ContractPayElementItem {
 	amount: number | null;
 	custom_amount: number | null;
 	custom_percentage: number | null;
+	/** % par défaut du catalogue (appliqué si aucun custom_percentage) */
+	catalog_percentage?: number | null;
 	is_active: boolean;
 	is_taxable: boolean;
 	recurrence: string;
@@ -355,7 +357,7 @@ export interface OnboardingContractData {
 	salary: number;
 	hire_date: string;
 	remuneration_type: 'FIXED' | 'HOURLY';
-	salary_base_type: 'GROSS' | 'NET';
+	salary_base_type: 'BASE' | 'NET';
 	currency: 'CDF' | 'USD' | 'EUR';
 	end_date?: string;
 	is_active?: boolean;

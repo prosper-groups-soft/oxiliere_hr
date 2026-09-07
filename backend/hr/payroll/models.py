@@ -156,9 +156,9 @@ class EmployeeContract(BaseAuditableModel):
     salary_base_type = models.CharField(
         max_length=10,
         choices=SalaryBaseType.choices,
-        default=SalaryBaseType.GROSS,
+        default=SalaryBaseType.BASE,
         verbose_name=_("Salary Base Type"),
-        help_text=_("Indicates if the salary is defined as Gross or Net.")
+        help_text=_("Base de référence : NET (brutage à appliquer) ou BASE (avant déductions).")
     )
     hourly_rate = models.DecimalField(
         max_digits=10,

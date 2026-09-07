@@ -73,7 +73,7 @@ export interface OnboardingData {
 		salary: number;
 		hire_date: string;
 		remuneration_type: 'FIXED' | 'HOURLY';
-		salary_base_type: 'GROSS' | 'NET';
+		salary_base_type: 'BASE' | 'NET';
 		currency: 'CDF' | 'USD' | 'EUR';
 		end_date: string;
 		is_active: boolean;

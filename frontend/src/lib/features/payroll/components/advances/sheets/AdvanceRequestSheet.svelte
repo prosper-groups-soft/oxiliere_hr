@@ -326,7 +326,7 @@
             )}>
               <span class="flex items-center gap-1.5 text-sm">
                 <AppIcon name={exceedsCap ? "alert-circle" : "shield-check"} size={16} class={exceedsCap ? "text-rose-500" : "text-emerald-500"} />
-                Salaire ({currentContract?.salary_base_type === 'GROSS' ? 'brut' : 'net'}) : {effectiveSalary.toLocaleString('fr-FR')} {contractCurrency}
+                Salaire ({currentContract?.salary_base_type === 'BASE' ? 'base' : 'net'}) : {effectiveSalary.toLocaleString('fr-FR')} {contractCurrency}
               </span>
               <span class="font-semibold text-sm">50 % du salaire autorisé : {maxAmount.toLocaleString('fr-FR')} {contractCurrency}</span>
             </div>

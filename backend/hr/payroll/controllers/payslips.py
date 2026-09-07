@@ -66,7 +66,7 @@ class PayrollRunController(ControllerBase):
     @http_get('/', response=PaginatedResponseSchema[PayrollRunOut], permissions=[ScopePermission('payroll:r')])
     @paginate(PageNumberPaginationExtra, page_size=50)
     @cache_api_response(timeout=60*60*24, key_prefix="payroll_runs_list", user_specific=False)
-    def list_payroll_runs(self, filters: PayrollRunListFilterIn = Query(...)):
+    def list_payroll_runs(self, filters: PayrollRunListFilterIn = Query(...)):  # type: ignore[reportCallIssue]
         """
         List payroll runs with filtering and pagination.
         
@@ -260,6 +260,10 @@ class PayrollRunController(ControllerBase):
             invalidate_cache_prefix('payroll_runs_list')
             invalidate_cache_prefix('payroll_run_detail')
             invalidate_cache_prefix('payroll_run_payslips')
+            # Le summary est mis en cache 60 min : un GET pendant l'état DRAFT
+            # (0 bulletin) le figeait à zéro. On l'invalide au calcul pour que le
+            # frontend relise les vrais totaux après génération.
+            invalidate_cache_prefix('payroll_run_summary')
             return 202, status
 
         except PayrollRun.DoesNotExist:

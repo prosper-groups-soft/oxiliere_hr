@@ -37,8 +37,10 @@
     isCalculating = true;
     try {
       const ok = await payrollStore.calculatePayroll();
-      if (ok) notification.toast.success('Calcul de la paie lancé');
+      if (ok) notification.toast.success('Calcul de la paie terminé');
       else notification.toast.error('Échec du calcul de la paie');
+    } catch (e: any) {
+      notification.toast.error(e?.message ?? 'Échec du calcul de la paie');
     } finally {
       isCalculating = false;
     }

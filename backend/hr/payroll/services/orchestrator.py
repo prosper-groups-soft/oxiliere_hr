@@ -21,8 +21,9 @@ from datetime            import date
 import hashlib
 import json
 
-from django.db           import transaction, models
-from django.db.models    import Q
+from django.core.exceptions import ValidationError
+from django.db             import transaction, models
+from django.db.models      import Q
 from django.utils        import timezone
 from hr.employees.models import Employee
 from hr.payroll.models   import (
@@ -58,7 +59,10 @@ from .calculations.bases             import (
 from hr.payroll.services.integration import PayrollIntegrationService
 from hr.payroll.services.calculations.brutage import GrossUpService
 from hr.payroll.services.calculations.prorata import calculate_prorata_ratio
+from hr.payroll.services.contract_eligibility import contract_active_on_period
 from hr.payroll.services.integration.exchange import ExchangeRateService
+
+from hr.payroll.services.cache import PayrollCacheService
 
 
 class PayrollOrchestrator:
@@ -82,14 +86,19 @@ class PayrollOrchestrator:
         Conforme à l'invariant I7 — Unité de période :
         Tous les employés actifs sont payés dans le même run.
         """
-        if payroll_run.status != PayrollStatus.DRAFT:
-            raise ValueError("Seuls les runs en statut DRAFT peuvent être traités.")
+        # Le service (start_payroll_processing) bascule le run en PROCESSING
+        # juste avant de déléguer ici. On accepte donc DRAFT (appel direct) ou
+        # PROCESSING (en cours via le service) ; tout autre état est invalide.
+        if payroll_run.status not in (PayrollStatus.DRAFT, PayrollStatus.PROCESSING):
+            raise ValidationError(
+                "Un run de paie ne peut être traité que depuis l'état DRAFT."
+            )
 
-        today = timezone.localdate()
+        # Éligibilité : contrat dont la validité CHEVAUCHE la période du run
+        # (pas « aujourd'hui »). Cohérent avec le prorata calculé sur la même
+        # période ci-dessous (voir contract_eligibility.py).
         active_contracts = EmployeeContract.objects.filter(
-            start_date__lte=today,
-        ).filter(
-            Q(end_date__isnull=True) | Q(end_date__gte=today)
+            contract_active_on_period(payroll_run.start_date, payroll_run.end_date)
         )
 
         # --- Filtrage selon la sélection persistée à la création (params_snapshot) ---
@@ -848,10 +857,7 @@ class PayrollOrchestrator:
             contract_currency=d['contract_currency'],
             exchange_rate_used=d['conversion_rate'],
             currency=config.currency,
-            payment_method=(
-                contract.employee.preferred_payment_method
-                or config.default_payment_method
-            ),
+            payment_method=config.default_payment_method,
         )
 
         # --- Correction 0.4 : Snapshot + Signature SHA-256 ---
@@ -887,7 +893,6 @@ class PayrollOrchestrator:
         Conforme a semantics.md L481-507.
         Capture UNE FOIS par run.
         """
-        from hr.payroll.services.cache import PayrollCacheService
 
         # Ne pas ecraser un snapshot existant
         if run.params_snapshot and run.params_snapshot.get('date_generation'):
@@ -946,9 +951,9 @@ class PayrollOrchestrator:
     def _sign_payslip(cls, payslip, bases, allowances) -> str:
         """Calcule le hash SHA-256 du bulletin pour integrite."""
         canonical = json.dumps({
-            "payslip_id": payslip.id,
+            "payslip_id": str(payslip.id),
             "run_code": payslip.payroll_run.code,
-            "contract_id": payslip.contract_id,
+            "contract_id": str(payslip.contract_id),
             "gross": str(payslip.gross_amount),
             "taxable": str(payslip.taxable_base),
             "net": str(payslip.net_amount),

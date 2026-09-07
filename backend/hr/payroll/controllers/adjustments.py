@@ -76,7 +76,7 @@ class PayrollAdjustmentsController(ControllerBase):
     @http_get('/types', response=PaginatedResponseSchema[PayrollAdjustmentOut], permissions=[ScopePermission('payroll:r')])
     @paginate(PageNumberPaginationExtra, page_size=50)
     @cache_api_response(timeout=60*60*24, key_prefix="adjustment_types_list", user_specific=False)
-    def list_adjustment_types(self, filters: AdjustmentListFilterIn = Query(...)):
+    def list_adjustment_types(self, filters: AdjustmentListFilterIn = Query(...)):  # type: ignore[reportCallIssue]
         """
         List all adjustment types (bonuses, deductions, special payments).
         
@@ -196,7 +196,7 @@ class PayrollAdjustmentsController(ControllerBase):
 
     @http_get('/contracts/', response=PaginatedResponseSchema[ContractAdjustmentOut], permissions=[ScopePermission('payroll:r')])
     @paginate(PageNumberPaginationExtra, page_size=50)
-    def list_contract_adjustments(self, filters: ContractAdjustmentListFilterIn = Query(...)):
+    def list_contract_adjustments(self, filters: ContractAdjustmentListFilterIn = Query(...)):  # type: ignore[reportCallIssue]
         """
         List contract adjustments (elements de paie du contrat) with filtering.
 

@@ -209,6 +209,8 @@
     elements={payElements}
     {catalog}
     isLoading={$payElementsQuery.isLoading}
+    catalogLoading={$adjustmentsQuery.isLoading}
+    catalogError={$adjustmentsQuery.isError}
     onAdd={handleAdd}
     onToggle={handleToggle}
     onDelete={handleDelete}

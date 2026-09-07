@@ -3,6 +3,7 @@ import type { EmployeeFullProfile } from '@/features/employees/types/types';
 import EmployeeProfileForm from '../info/forms/EmployeeProfileForm.svelte';
 import EmployeeContractForm from '../contract/forms/EmployeeContractForm.svelte';
 
+
 /**
  * Configuration des formulaires d'édition accessibles depuis le header.
  * Chaque onglet du profil peut associer un formulaire (component + métadonnées).
@@ -54,3 +55,4 @@ export interface EditFormProps {
   employee: EmployeeFullProfile;
   onSave: (data: unknown) => void;
 }
+

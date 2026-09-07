@@ -16,6 +16,9 @@
   import { getEmployeeStatusConfig, getEmployeeStatusDotConfig } from "@/features/employees/constants/employeeStatus";
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
   import AnimateSpin from "@/components/layout/elements/AnimateSpin.svelte";
+  import type { ContractPayElementItem } from "@/features/payroll/types/types";
+  import { format, parseISO } from "date-fns";
+  import { fr } from "date-fns/locale";
 
 
   export interface KickOffEmployee {
@@ -32,6 +35,18 @@
     last_name: string;
     /** Photo de profil (chemin API brut) — affichée si présente */
     photo?: string | null;
+    /** Salaire de base contractuel (montant, devise, brut/net…) */
+    contract?: {
+      base_salary?: number | null;
+      currency?: string;
+      remuneration_type?: string;
+      salary_base_type?: string;
+      /** Validité du contrat — source de l'éligibilité sur la période de paie. */
+      start_date?: string | null;
+      end_date?: string | null;
+    } | null;
+    /** Éléments de paie S10 du contrat courant */
+    pay_elements?: ContractPayElementItem[];
   }
 
   interface Props {
@@ -43,6 +58,8 @@
     selectedEmployeeIds: string[];
     selectedOrgUnitIds: string[];
     employeeSearch: string;
+    periodStart: string;
+    periodEnd: string;
     onIncludeAllChange: (checked: boolean) => void;
     onToggleEmployee: (id: string) => void;
     onToggleOrgUnit: (id: string) => void;
@@ -59,6 +76,8 @@
     selectedEmployeeIds,
     selectedOrgUnitIds,
     employeeSearch,
+    periodStart,
+    periodEnd,
     onIncludeAllChange,
     onToggleEmployee,
     onToggleOrgUnit,
@@ -70,12 +89,47 @@
     return name.split(' ').map(n => n[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
   }
 
-  function formatHireDate(value: string): string {
-    if (!value) return '-';
-    const d = new Date(value);
-    if (isNaN(d.getTime())) return '-';
-    return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+  /** Formate une date ISO en français court (ex. « 1 sept. 2026 »). */
+  function fmtDate(value?: string | null): string {
+    if (!value) return '';
+    const d = parseISO(value);
+    if (Number.isNaN(d.getTime())) return '';
+    return format(d, 'd MMM yyyy', { locale: fr });
   }
+
+  /**
+   * Éligibilité d'un employé : son contrat doit CHEVAUCHER la période de paie
+   * [periodStart, periodEnd] — même règle que le moteur backend
+   * (services/contract_eligibility.py).
+   * Tant que la période n'est pas renseignée, on ne bloque rien.
+   */
+  function contractOverlapsPeriod(emp: KickOffEmployee): boolean {
+    const ps = periodStart ? periodStart.slice(0, 10) : '';
+    const pe = periodEnd ? periodEnd.slice(0, 10) : '';
+    if (!ps || !pe) return true;
+    const cs = emp.contract?.start_date ? emp.contract.start_date.slice(0, 10) : null;
+    if (!cs) return false;
+    const ce = emp.contract?.end_date ? emp.contract.end_date.slice(0, 10) : null;
+    return cs <= pe && (ce === null || ce >= ps);
+  }
+
+  /** Raison d'inéligibilité affichée à l'utilisateur. */
+  function ineligibilityReason(emp: KickOffEmployee): string {
+    if (!emp.contract?.start_date) return 'Aucun contrat actif';
+    return 'Contrat hors de la période de paie';
+  }
+
+  /** Libellé de validité du contrat (ex. « du 01 sept. 2026 au 30 sept. 2026 »). */
+  function contractWindow(emp: KickOffEmployee): string {
+    if (!emp.contract?.start_date) return 'Sans contrat';
+    const start = fmtDate(emp.contract.start_date);
+    const end = emp.contract.end_date ? (fmtDate(emp.contract.end_date) || 'CDI') : 'CDI';
+    return `${start} → ${end}`;
+  }
+
+  const eligibleCount = $derived(
+    employees.filter((e) => contractOverlapsPeriod(e)).length
+  );
 
   const filteredEmployees = $derived.by(() => {
     const q = employeeSearch.trim().toLowerCase();
@@ -94,6 +148,41 @@
 
   function safeStatusConfig(status: string | undefined) {
     return getEmployeeStatusConfig(status) ?? FALLBACK_STATUS_CONFIG;
+  }
+
+  /** Formate un montant dans la devise (code ISO), ex. 1 850 000 CDF. */
+  function formatAmount(value?: number | null, currency?: string): string {
+    if (value == null || Number.isNaN(Number(value))) return '—';
+    const formatted = Number(value).toLocaleString('fr-FR', { maximumFractionDigits: 0 });
+    return currency ? `${formatted} ${currency}` : formatted;
+  }
+
+  /** Libellé court du mode de rémunération. */
+  function remunerationLabel(type?: string): string {
+    if (type === 'FIXED') return 'Salaire fixe';
+    if (type === 'HOURLY') return 'Taux horaire';
+    return '';
+  }
+
+  /** Nature du montant de base affiché : BASE = avant déductions, NET = brutage à appliquer. */
+  function salaryKindLabel(base?: string): string {
+    if (base === 'NET') return 'Net (brutage)';
+    return 'Salaire de base';
+  }
+
+  /** Valeur d'un élément de paie.
+   *  - % : appliqué sur le salaire brut (base orchestrateur).
+   *  - sinon montant personnalisé > montant catalogue, avec devise. */
+  function formatPayElementValue(el: ContractPayElementItem, currency?: string): string {
+    if (el.custom_percentage != null) return `${el.custom_percentage} % du brut`;
+    if (el.custom_amount != null) return formatAmount(Number(el.custom_amount), currency);
+    if (el.amount != null) return formatAmount(Number(el.amount), currency);
+    // Élément en % : % par défaut du catalogue (si exposé par le backend).
+    if (el.value_type === 'PERCENTAGE' && el.catalog_percentage != null) {
+      return `${el.catalog_percentage} % du brut (défaut)`;
+    }
+    if (el.value_type === 'PERCENTAGE') return '% du brut (défaut config)';
+    return 'Montant à configurer';
   }
 </script>
 
@@ -142,7 +231,7 @@
     <div class="flex flex-col gap-2">
       <span class="text-[0.86rem] font-semibold text-slate-700">Tous les employés actifs</span>
       <p class="text-[0.85rem] text-slate-500 mt-0.5">
-        Inclut automatiquement tous les contrats actifs sur la période.
+        Inclut les employés actifs dont le contrat couvre la période : {eligibleCount} éligible{eligibleCount > 1 ? 's' : ''}.
       </p>
     </div>
   </Label>
@@ -236,7 +325,7 @@
     {#if includeAllEmployees}
       <div class="flex items-center gap-2 px-3.5 py-2.5 bg-slate-50 rounded-lg border border-slate-100 text-[0.85rem] text-slate-500">
         <AppIcon name="users" size={15} class="text-slate-400 shrink-0" />
-        Tous les employés actifs sont inclus — désélectionnez « Tous » pour choisir individuellement.
+        Tous les employés actifs dont le contrat couvre la période ({eligibleCount}) sont inclus — désélectionnez « Tous » pour choisir individuellement.
       </div>
     {:else}
     <div class="relative">
@@ -256,14 +345,14 @@
       <div class="max-95 overflow-y-auto">
         <!-- En-tête des colonnes (sticky au scroll) -->
         <div class="sticky top-0 z-10 flex items-center px-4 py-2 bg-slate-50 border-b border-slate-100 font-semibold text-slate-400 uppercase tracking-wider">
-          <div class="w-[38%] text-[0.85rem] flex items-center gap-3">
+          <div class="w-[48%] text-[0.85rem] flex items-center gap-3">
             <span class="w-4 shrink-0"></span>
             <span class="w-9 shrink-0"></span>
             Employé
           </div>
-          <div class="w-[17%] text-[0.85rem]">Contrat</div>
-          <div class="w-[25%] text-[0.85rem]">Embauche</div>
-          <div class="w-[20%] text-[0.85rem] flex items-center justify-end pr-2">Statut</div>
+          <div class="w-[12%] text-[0.85rem]">Contrat</div>
+          <div class="w-[24%] text-[0.85rem]">Rémunération</div>
+          <div class="w-[16%] text-[0.85rem] flex items-center justify-end pr-2">Statut</div>
         </div>
 
         {#if isLoadingEmployees}
@@ -288,13 +377,17 @@
   {@const palette = getAvatarPalette(employee.name || '')}
   {@const statusCfg = safeStatusConfig(employee.status)}
   {@const dotCfg = getEmployeeStatusDotConfig(employee.status)}
-  <div class="group/row flex items-center py-2.5 px-4 border-b border-slate-50 last:border-b-0 hover:bg-indigo-50/30 transition-colors">
+  {@const eligible = contractOverlapsPeriod(employee)}
+  {@const reason = ineligibilityReason(employee)}
+  {@const windowLabel = contractWindow(employee)}
+  <div class={cn('group/row flex items-center py-2.5 px-4 border-b border-slate-50 last:border-b-0 transition-colors', eligible ? 'hover:bg-indigo-50/30' : 'opacity-60')}>
     <!-- Checkbox + Avatar + Identité -->
-    <div class="w-[38%] flex items-center gap-3 min-w-0">
+    <div class="w-[48%] flex items-center gap-3 min-w-0">
       <Checkbox
-        checked={selectedEmployeeIds.includes(employee.id)}
+        checked={selectedEmployeeIds.includes(employee.id) && eligible}
+        disabled={!eligible}
         onCheckedChange={() => onToggleEmployee(employee.id)}
-        class="shrink-0 bg-white cursor-pointer"
+        class="shrink-0 bg-white"
       />
       <div class="relative shrink-0">
         <Avatar class="h-9 w-9 rounded-full border border-slate-200">
@@ -314,31 +407,71 @@
         <span class="text-[0.85rem] text-slate-500 truncate">
           {employee.jobTitle || 'Poste non défini'}
         </span>
+        {#if eligible}
+          <span class="text-[0.8rem] text-slate-400 truncate mt-0.5" title="Validité du contrat">
+            {windowLabel}
+          </span>
+        {:else}
+          <span class="text-[0.8rem] text-rose-600 font-medium flex items-center gap-1 mt-0.5">
+            <AppIcon name="circle-alert" size={12} class="shrink-0" /> {reason}
+          </span>
+        {/if}
       </div>
     </div>
 
     <!-- Contrat -->
-    <div class="w-[17%] min-w-0">
+    <div class="w-[12%] min-w-0">
       {#if employee.contractType}
         <Badge variant="outline"
-          class="w-fit bg-blue-50 text-blue-600 border-blue-200 text-[0.85rem] font-medium px-2 py-0.5 rounded-full">
+          class="w-fit bg-blue-50 text-blue-600 border-blue-200 text-[0.86rem] font-medium px-2 py-0.5 rounded-full">
           {employee.contractType}
         </Badge>
       {:else}
-        <span class="text-[0.85rem] text-slate-400">-</span>
+        <span class="text-[0.86rem] text-slate-400">
+            Pas de type de contrat
+        </span>
       {/if}
     </div>
 
-    <!-- Date embauche -->
-    <div class="w-[25%] flex items-center gap-1.5 min-w-0">
-      <AppIcon name="calendar" size={16} class="text-slate-400 shrink-0" />
-      <span class="text-[0.85rem] text-slate-600 truncate">{formatHireDate(employee.joinDate)}</span>
+    <!-- Rémunération : salaire de base + éléments de paie actifs -->
+    <div class="w-[24%] min-w-0 pr-2">
+      {#if employee.contract?.base_salary != null && Number(employee.contract.base_salary) > 0}
+        <div class="text-[0.86rem] font-medium uppercase tracking-wide text-slate-400">
+            {salaryKindLabel(employee.contract.salary_base_type)}
+        </div>
+        <div class="text-[0.86rem] text-slate-800 font-semibold whitespace-nowrap">
+          {formatAmount(Number(employee.contract.base_salary), employee.contract.currency)}
+        </div>
+        <div class="text-[0.86rem] text-slate-400">
+          {remunerationLabel(employee.contract.remuneration_type)}
+        </div>
+      {:else}
+        <span class="text-[0.86rem] text-slate-400">
+            Pas de rémunération
+        </span>
+      {/if}
+
+      {#if (employee.pay_elements ?? []).length > 0}
+        <div class="flex flex-wrap gap-1 mt-1">
+          {#each (employee.pay_elements ?? []) as el}
+            <span
+              class="inline-flex items-center gap-1 text-[0.86rem] text-slate-600 bg-slate-50 border border-slate-100 rounded px-1.5 py-0.5 whitespace-nowrap"
+              title={el.label}
+            >
+              {el.label}
+              <span class="font-semibold text-slate-700 text-[0.86rem]">
+                  {formatPayElementValue(el, employee.contract?.currency)}
+              </span>
+            </span>
+          {/each}
+        </div>
+      {/if}
     </div>
 
     <!-- Statut -->
-    <div class="w-[20%] flex items-center justify-end pr-2">
+    <div class="w-[16%] flex items-center justify-end pr-2">
       <Badge variant="outline"
-        class="{statusCfg.bg} {statusCfg.color} border-0 text-[0.85rem] font-semibold px-2.5 py-1 shadow-none rounded-full whitespace-nowrap flex items-center gap-1.5">
+        class="{statusCfg.bg} {statusCfg.color} border-0 text-[0.86rem] font-semibold px-2.5 py-1 shadow-none rounded-full whitespace-nowrap flex items-center gap-1.5">
         <span class={cn('h-1.5 w-1.5 rounded-full', statusCfg.dot)}></span>
         {statusCfg.label}
       </Badge>

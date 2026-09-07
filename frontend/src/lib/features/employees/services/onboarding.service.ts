@@ -69,7 +69,7 @@ export const onboardingService = {
 				base_salary: data.contract.salary,
 				contract_type: data.contract.contract_type,
 				remuneration_type: data.contract.remuneration_type || "FIXED",
-				salary_base_type: data.contract.salary_base_type || "GROSS",
+				salary_base_type: data.contract.salary_base_type || "BASE",
 				start_date: data.contract.hire_date,
 				end_date: data.contract.end_date || null,
 				currency: data.contract.currency || "CDF",

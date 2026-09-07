@@ -20,12 +20,10 @@
     type ContractType
   } from "@/features/employees/constants/contract";
   import { getOrgUnitIcon } from "@/features/jobs/constants/orgUnit.constants";
-  import type { EmployeeFullProfile, ContractPayElementItem } from "@/features/employees/types/types";
-  import type { PayrollAdjustmentConfig } from "@/features/payroll/types/types";
+  import type { EmployeeFullProfile } from "@/features/employees/types/types";
   import { notification } from '@/stores/notification.svelte';
-  import PayElementPickerModal from "@/features/employees/components/shared/PayElementPickerModal.svelte";
   import SalaryGroup from "@/features/employees/components/shared/SalaryGroup.svelte";
-  import { usePayrollAdjustmentsQuery } from "@/features/payroll/queries/payrollHooks";
+  import { payrollConfigStore } from "@/features/payroll/stores/configuration/payrollConfigStore.svelte";
 
   
   let { employee, onSave } = $props<{
@@ -45,19 +43,19 @@
     end_date: '',
     is_active: true,
     // Métamodèle : clauses
-    contractual_clauses: '',
-    // S10 — éléments de paie (draft local)
-    contract_adjustments: [] as ContractPayElementItem[]
+    contractual_clauses: ''
   });
-
-  // S10 — catalogue des éléments de paie
-  const adjustmentsQuery = usePayrollAdjustmentsQuery();
-  const catalog = $derived<PayrollAdjustmentConfig[]>($adjustmentsQuery.data ?? []);
-  let pickerOpen = $state(false);
 
   // Validation state
   let validationErrors = $state<Record<string, string>>({});
   let isValid = $state(false);
+
+  // Charge la configuration (heures légales/semaine) au montage si elle n'est pas déjà en mémoire.
+  $effect(() => {
+    if (!payrollConfigStore.configuration) {
+      payrollConfigStore.syncConfiguration();
+    }
+  });
 
   // Load initial data
   $effect(() => {
@@ -87,41 +85,8 @@
 
       // Métamodèle (Règle 5) — clauses
       formData.contractual_clauses = contract?.contractual_clauses ?? '';
-
-      // S10 — éléments de paie existants (draft local)
-      formData.contract_adjustments = [...(employee.contract_adjustments ?? [])];
     }
   });
-
-  // S10 — ajout d'un élément depuis le picker
-  async function handleAddPayElement(payload: any) {
-    const adj = catalog.find((a) => a.id === payload.adjustment);
-    if (!adj) return;
-    const item: ContractPayElementItem = {
-      id: crypto.randomUUID(),
-      catalog_code: adj.code ?? null,
-      label: adj.name,
-      value_type: adj.calculation_mode,
-      amount: adj.amount != null ? Number(adj.amount) : null,
-      custom_amount: payload.custom_amount,
-      custom_percentage: payload.custom_percentage,
-      is_active: payload.is_active ?? true,
-      is_taxable: adj.is_taxable,
-      recurrence: 'monthly',
-      start_period: payload.start_period,
-      end_period: payload.end_period ?? null,
-      // Champ interne pour la soumission
-      adjustment_id: adj.id,
-    } as any;
-    formData.contract_adjustments = [...formData.contract_adjustments, item];
-    pickerOpen = false;
-  }
-
-  function handleRemovePayElement(index: number) {
-    const next = [...formData.contract_adjustments];
-    next.splice(index, 1);
-    formData.contract_adjustments = next;
-  }
 
   // Reactive Validation
   $effect(() => {
@@ -212,10 +177,18 @@
     $positionsQuery.data?.find(p => p.id === formData.position_id)
   );
 
-  // Calcul de l'équivalent mensuel pour le taux horaire
+  // Calcul de l'équivalent mensuel pour le taux horaire.
+  // Heures mensuelles lues depuis la configuration (work_hours_per_week × 52 / 12),
+  // avec repli sur la valeur légale standard (45 h/sem → 195 h/mois).
+  const workHoursPerWeek = $derived(payrollConfigStore.configuration?.work_hours_per_week ?? 45);
+  const workHoursPerMonth = $derived(
+    payrollConfigStore.configuration?.work_hours_per_month
+      ?? Math.round((payrollConfigStore.configuration?.work_hours_per_week ?? 45) * 52 / 12)
+  );
+
   const monthlyEquivalent = $derived(() => {
     if (formData.remuneration_type === 'HOURLY' && formData.salary > 0) {
-      const monthly = formData.salary * 160;
+      const monthly = formData.salary * workHoursPerMonth;
       return new Intl.NumberFormat('fr-FR').format(monthly);
     }
     return null;
@@ -398,7 +371,7 @@
     <h4 class="text-[0.9rem] font-bold text-slate-900 border-b border-slate-100 pb-2">
       Type de contrat et Rémunération
     </h4>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <!-- Type de contrat -->
       <div class="space-y-1.5">
         <Label class="text-[0.83rem] text-slate-900 font-medium">
@@ -464,8 +437,11 @@
           onCurrencyChange={(v) => formData.currency = v as Currency}
         />
         {#if formData.remuneration_type === 'HOURLY' && monthlyEquivalent()}
-          <p class="text-[0.77rem] text-slate-500 mt-1">
-            ≈ {monthlyEquivalent()} {currencyName()}/mois (estimation 160h)
+          <p class="text-[0.86rem] text-slate-500 mt-1">
+            ≈ {monthlyEquivalent()} {currencyName()}/mois
+            <span class="text-slate-400 text-[0.86rem]" title="Calcul : {workHoursPerWeek} h/semaine × 52 semaines / 12 mois = {workHoursPerMonth} heures/mois">
+              (Estimation {workHoursPerWeek} h/sem → {workHoursPerMonth} h/mois)
+            </span>
           </p>
         {/if}
         <ValidationError errors={validationErrors} field="salary" />
@@ -515,7 +491,7 @@
         placeholder="Clause de non-concurrence, période d'essai, avantages spécifiques, obligations de confidentialité…"
         value={formData.contractual_clauses}
         oninput={(e) => (formData.contractual_clauses = e.currentTarget.value)}
-        class="w-full h-10 min-h-[96px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-fine focus:ring-1 focus:ring-primary focus:border-primary outline-none resize-y"
+        class="w-full h-10 min-h-24 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-fine focus:ring-1 focus:ring-primary focus:border-primary outline-none resize-y"
       ></textarea>
       <p class="text-[0.77rem] text-slate-500">
         Conditions particulières négociées au contrat (facultatif).
@@ -552,99 +528,5 @@
       />
     </div>
   </div>
-
-  <!-- Section Éléments de paie (S10) -->
-  <div class="space-y-4">
-    <div class="flex items-center justify-between border-b border-slate-100 pb-2">
-      <h4 class="text-[0.9rem] font-bold text-slate-900">
-        Éléments de paie
-      </h4>
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        class="gap-1.5 h-8 text-[0.78rem] border-slate-200 cursor-pointer"
-        onclick={() => (pickerOpen = true)}
-        disabled={catalog.length === 0}
-      >
-        <AppIcon name="plus" size={15} />
-        Ajouter
-      </Button>
-    </div>
-    <p class="text-[0.77rem] text-slate-500 -mt-2">
-      Primes et indemnités récurrentes appliquées automatiquement au bulletin de paie.
-    </p>
-
-    {#if formData.contract_adjustments.length === 0}
-      <div class="py-6 text-center rounded-lg border border-dashed border-slate-200">
-        <div class="text-slate-400 mx-auto w-fit mb-2">
-          <AppIcon name="box" size={24} />
-        </div>
-        <p class="text-[0.82rem] text-slate-600">
-          Aucun élément de paie sélectionné. Ajoutez-en depuis le catalogue.
-        </p>
-      </div>
-    {:else}
-      <div class="overflow-hidden rounded-lg border border-slate-100">
-        <table class="w-full text-left">
-          <thead class="bg-slate-50">
-            <tr>
-              <th class="px-3.5 py-2 text-[0.65rem] font-bold text-slate-400 uppercase tracking-wider">Libellé</th>
-              <th class="px-3.5 py-2 text-[0.65rem] font-bold text-slate-400 uppercase tracking-wider">Montant / Taux</th>
-              <th class="px-3.5 py-2 text-[0.65rem] font-bold text-slate-400 uppercase tracking-wider">Période</th>
-              <th class="px-3.5 py-2 text-right"></th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-50">
-            {#each formData.contract_adjustments as el, i}
-              <tr class="hover:bg-slate-50/50 transition-colors">
-                <td class="px-3.5 py-2">
-                  <div class="flex items-center gap-2">
-                    <span class="text-[0.82rem] font-medium text-slate-700">{el.label}</span>
-                    {#if !el.is_taxable}
-                      <span title="Non imposable">
-                        <AppIcon name="shield-check" size={13} class="text-emerald-500" />
-                      </span>
-                    {/if}
-                  </div>
-                </td>
-                <td class="px-3.5 py-2 text-[0.82rem] text-slate-600">
-                  {el.custom_amount != null
-                    ? `${Number(el.custom_amount).toLocaleString('fr-FR')} CDF`
-                    : el.custom_percentage != null
-                      ? `${el.custom_percentage} %`
-                      : el.amount != null
-                        ? `${Number(el.amount).toLocaleString('fr-FR')} CDF`
-                        : '—'}
-                </td>
-                <td class="px-3.5 py-2 text-[0.72rem] text-slate-400 whitespace-nowrap">
-                  {el.start_period ? String(el.start_period).slice(0, 10) : '—'}
-                  {#if el.end_period} → {String(el.end_period).slice(0, 10)}{/if}
-                </td>
-                <td class="px-3.5 py-2 text-right">
-                  <button
-                    type="button"
-                    title="Retirer"
-                    onclick={() => handleRemovePayElement(i)}
-                    class="text-slate-400 hover:text-red-500 transition-colors cursor-pointer"
-                  >
-                    <AppIcon name="trash-2" size={14} />
-                  </button>
-                </td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
-    {/if}
-  </div>
 </div>
-
-<PayElementPickerModal
-  open={pickerOpen}
-  {catalog}
-  existingCodes={new Set(formData.contract_adjustments.map((e: any) => e.catalog_code ?? e.adjustment_id))}
-  onOpenChange={(v) => (pickerOpen = v)}
-  onConfirm={handleAddPayElement}
-/>
 

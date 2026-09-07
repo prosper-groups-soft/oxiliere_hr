@@ -56,7 +56,7 @@ class EmployeeCareerService:
             base_salary: Base salary amount
             contract_type: Type of contract (CDI, CDD, FREELANCE, INTERN)
             remuneration_type: Type of remuneration (FIXED, HOURLY)
-            salary_base_type: Salary base type (GROSS, NET)
+            salary_base_type: Salary base type (BASE, NET)
             start_date: Contract start date
             end_date: Contract end date (optional, for CDD)
             currency: Currency code (default: CDF)

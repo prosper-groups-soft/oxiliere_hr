@@ -89,7 +89,7 @@ export const contractSchema = z.object({
             message: 'Le salaire est requis'
         }),
     salary_base_type: z.enum(
-        ['GROSS', 'NET'],
+        ['BASE', 'NET'],
         { message: 'La base de calcul est requise' }
     ),
     currency: z.enum(

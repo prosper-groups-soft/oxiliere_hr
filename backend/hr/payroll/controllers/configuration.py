@@ -181,7 +181,7 @@ class PayrollConfigurationController(ControllerBase):
     @http_get('/smig/', response=PaginatedResponseSchema[SMIGConfigurationOut], permissions=[ScopePermission('payroll:r')])
     @paginate(PageNumberPaginationExtra, page_size=50)
     @cache_api_response(timeout=60*60*24, key_prefix="smig_rates_list", user_specific=False)
-    def list_smig_rates(self, filters: SMIGConfigurationListFilterIn = Query(...)):
+    def list_smig_rates(self, filters: SMIGConfigurationListFilterIn = Query(...)):  # type: ignore[reportCallIssue]
         """
         List all SMIG (minimum wage) configurations with history.
         Returns all past and current minimum wage settings.
@@ -237,7 +237,7 @@ class PayrollConfigurationController(ControllerBase):
     @http_get('/contributions/', response=PaginatedResponseSchema[SocialContributionRateOut], permissions=[ScopePermission('payroll:r')])
     @paginate(PageNumberPaginationExtra, page_size=50)
     @cache_api_response(timeout=60*60*24, key_prefix="social_contribution_rates_list", user_specific=False)
-    def list_contribution_rates(self, filters: SocialContributionRateListFilterIn = Query(...)):
+    def list_contribution_rates(self, filters: SocialContributionRateListFilterIn = Query(...)):  # type: ignore[reportCallIssue]
         """
         List all social contribution rates (CNSS, ONEM, INPP, etc.).
         Returns current rates for each contribution type.
@@ -291,7 +291,7 @@ class PayrollConfigurationController(ControllerBase):
 
     @http_get('/overtime/', response=List[OvertimeRuleOut], permissions=[ScopePermission('payroll:r')])
     @cache_api_response(timeout=60*60*24, key_prefix="overtime_rules", user_specific=False)
-    def list_overtime_rules(self, filters: OvertimeRuleListFilterIn = Query(...)):
+    def list_overtime_rules(self, filters: OvertimeRuleListFilterIn = Query(...)):  # type: ignore[reportCallIssue]
         """
         List all overtime rules (multipliers by hour count or holiday status).
         Example: First 2 hours = 130%, subsequent = 160%, holidays = 200%.
@@ -345,7 +345,7 @@ class PayrollConfigurationController(ControllerBase):
 
     @http_get('/tax-brackets/', response=List[TaxBracketOut], permissions=[ScopePermission('payroll:r')])
     @cache_api_response(timeout=60*60*24, key_prefix="tax_brackets", user_specific=False)
-    def list_tax_brackets(self, filters: TaxBracketListFilterIn = Query(...)):
+    def list_tax_brackets(self, filters: TaxBracketListFilterIn = Query(...)):  # type: ignore[reportCallIssue]
         """
         List all tax brackets for progressive IPR calculation.
         Returns brackets for the current fiscal year.
@@ -399,7 +399,7 @@ class PayrollConfigurationController(ControllerBase):
 
     @http_get('/allowances/', response=List[LegalAllowanceOut])
     @cache_api_response(timeout=60*60*24, key_prefix="legal_allowances_list", user_specific=False)
-    def list_allowances(self, filters: LegalAllowanceListFilterIn = Query(...)):
+    def list_allowances(self, filters: LegalAllowanceListFilterIn = Query(...)):  # type: ignore[reportCallIssue]
         """
         List all legal allowances (family, housing, transport, etc.).
         Returns current allowance configurations.
@@ -464,7 +464,7 @@ class PayrollConfigurationController(ControllerBase):
             return self.create_response({"detail": str(e)}, status_code=500)
 
     @http_get('/exchange-rate/', response={200: dict}, permissions=[ScopePermission('payroll:r')])
-    def get_exchange_rate(self, refresh: bool = Query(False, description='Force une re-synchronisation BCC avant la lecture')):
+    def get_exchange_rate(self, refresh: bool = Query(False, description='Force une re-synchronisation BCC avant la lecture')):  # type: ignore[reportCallIssue]
         """
         Retrieve the active USD → CDF exchange rate.
         Priority: live rate (BCC via oxutils.currency) → manual config → default.

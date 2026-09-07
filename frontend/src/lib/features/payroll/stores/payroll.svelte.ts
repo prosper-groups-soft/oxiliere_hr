@@ -70,6 +70,7 @@ class PayrollStoreFacade {
 	get availablePeriods()         { return payrollRunStore.availablePeriods; }
 	get payrollRuns()              { return payrollRunStore.payrollRuns; }
 	get currentRun()               { return payrollRunStore.currentRun; }
+	get currentRunSummary()        { return payrollRunStore.currentRunSummary; }
 	get hasActiveRun()             { return payrollRunStore.hasActiveRun; }
 	get hasCurrentRunTab()         { return payrollRunStore.hasCurrentRunTab; }
 	get isStartingNewRun()         { return payrollRunStore.isStartingNewRun; }
@@ -158,8 +159,8 @@ class PayrollStoreFacade {
 	get totalPages()         { return payslipsStore.totalPages; }
 	get totalCount()         { return payslipsStore.totalCount; }
 	get activeFiltersCount() { return payslipsStore.activeFiltersCount; }
-	get totalNetPay()        { return payslipsStore.totalNetPay; }
-	get totalGrossPay()      { return payslipsStore.totalGrossPay; }
+	get totalNetPay()        { return payrollRunStore.currentRunSummary?.summary ? Number(payrollRunStore.currentRunSummary.summary.total_net_salary) : payslipsStore.totalNetPay; }
+	get totalGrossPay()      { return payrollRunStore.currentRunSummary?.summary ? Number(payrollRunStore.currentRunSummary.summary.total_gross_salary) : payslipsStore.totalGrossPay; }
 	get totalContributions() { return payslipsStore.totalContributions; }
 	get totalTax()            { return payslipsStore.totalTax; }
 	get totalSocialSecurity() { return payslipsStore.totalContributions; }

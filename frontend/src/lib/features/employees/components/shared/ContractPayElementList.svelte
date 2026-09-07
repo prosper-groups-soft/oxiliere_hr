@@ -24,11 +24,17 @@
     onDelete,
     variant = 'card',
     showToggle = true,
+    catalogLoading = false,
+    catalogError = false,
   } = $props<{
     contractId?: string;
     elements: ContractPayElementItem[];
     catalog: PayrollAdjustmentConfig[];
     isLoading?: boolean;
+    /** Chargement du catalogue backend en cours */
+    catalogLoading?: boolean;
+    /** Échec du chargement du catalogue backend */
+    catalogError?: boolean;
     onAdd: (payload: ContractPayElementInput) => Promise<void>;
     onToggle?: (element: ContractPayElementItem, active: boolean) => Promise<void>;
     onDelete: (element: ContractPayElementItem, index: number) => Promise<void>;
@@ -100,7 +106,7 @@
         variant="default"
         class="gap-1.5 h-7.5 text-[0.8rem]"
         onclick={() => (pickerOpen = true)}
-        disabled={!contractId || catalog.length === 0}
+        disabled={!contractId}
       >
         <AppIcon name="plus" size={15} />
         Ajouter
@@ -129,9 +135,9 @@
           <p class="text-[0.82rem] text-slate-600">Aucun élément de paie assigné à ce contrat.</p>
           <button
             type="button"
-            class="mt-2 text-[0.78rem] text-primary font-medium hover:underline cursor-pointer"
+            class="mt-2 text-[0.82rem] text-primary font-medium hover:underline cursor-pointer"
             onclick={() => (pickerOpen = true)}
-            disabled={catalog.length === 0}
+            disabled={!contractId}
           >
             Ajouter un élément depuis le catalogue
           </button>
@@ -288,6 +294,8 @@
   open={pickerOpen}
   {catalog}
   {existingCodes}
+  {catalogLoading}
+  {catalogError}
   onOpenChange={(v) => (pickerOpen = v)}
   onConfirm={onAdd}
 />

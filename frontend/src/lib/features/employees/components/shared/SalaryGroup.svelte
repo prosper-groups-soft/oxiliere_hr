@@ -60,7 +60,7 @@
   </Label>
 
   <div class="flex items-stretch gap-2">
-    <!-- Petit select : Type de salaire (Brut/Net) -->
+    <!-- Petit select : Type de salaire (Base/Net) -->
     <div class="w-28 shrink-0">
       <Select.Root type="single" value={salaryBaseType} onValueChange={(v) => onSalaryBaseTypeChange(v)}>
         <Select.Trigger id={`${id}-base-type`} class="h-9 py-0 bg-white border-slate-200 rounded-md w-full shadow-fine font-normal text-sm cursor-pointer px-2.5">

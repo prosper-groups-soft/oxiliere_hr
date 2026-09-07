@@ -323,6 +323,8 @@ export interface ContractPayElementItem {
 	custom_amount: number | null;
 	/** Taux négocié au contrat (%) */
 	custom_percentage: number | null;
+	/** % par défaut du catalogue (appliqué si aucun custom_percentage) */
+	catalog_percentage?: number | null;
 	/** Actif/inactif (toggle S10) */
 	is_active: boolean;
 	/** Imposable IRPP (affichage 🛡️) */

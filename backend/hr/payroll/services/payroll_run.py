@@ -19,6 +19,7 @@ from django.core.cache         import cache
 from hr.services.cache_helpers import CacheKeys
 from .orchestrator             import PayrollOrchestrator
 from hr.payroll.enums          import PayrollStatus
+from hr.payroll.services.contract_eligibility import contract_active_on_period
 from hr.payroll.services.cache import PayrollCacheService
 
 
@@ -383,12 +384,9 @@ class PayrollRunService:
             )
             raise ValidationError(f"Cannot process run with status {run.status}")
 
-        # Count active contracts
-        today = timezone.localdate()
+        # Nombre de contrats dont la validité chevauche la période du run.
         active_contracts = EmployeeContract.objects.filter(
-            start_date__lte=today,
-        ).filter(
-            Q(end_date__isnull=True) | Q(end_date__gte=today)
+            contract_active_on_period(run.start_date, run.end_date)
         ).count()
 
         if active_contracts == 0:
