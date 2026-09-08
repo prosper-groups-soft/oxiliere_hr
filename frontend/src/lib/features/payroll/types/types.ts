@@ -45,7 +45,10 @@ export function backendToPayrollStatus(status: BackendPayrollRunStatus | string)
 	switch (status) {
 		case 'DRAFT': return 'draft';
 		case 'PROCESSING': return 'calculated';
-		case 'VALIDATED': return 'reviewed';
+		// VALIDATED = résultat du calcul, PAS encore révisé. Le distinguer de
+		// REVIEWED est indispensable : le backend n'autorise l'approbation
+		// qu'après l'étape « Réviser » (VALIDATED → REVIEWED).
+		case 'VALIDATED': return 'calculated';
 		case 'REVIEWED': return 'reviewed';
 		case 'APPROVED': return 'approved';
 		case 'PAID': return 'paid';
@@ -1088,10 +1091,10 @@ export const PAYROLL_STEP_LABELS: Record<PayrollStep, string> = {
 export const PAYROLL_STEP_DESCRIPTIONS: Record<PayrollStep, string> = {
 	kickoff:     'Définissez la période, le taux de change et les employés à inclure',
 	preparation: 'Analysez les bénéficiaires retenus et les anomalies détectées',
-	calculation: 'Visualisez les calculs et formules appliquées à chaque employé',
-	review:      'Contrôlez et modifiez les fiches de paie avant validation',
-	approval:    'Confirmez les montants et approuvez la paie',
-	payment:     'Finalisez le paiement et générez les justificatifs'
+	calculation: 'Visualisez les bulletins calculés, puis passez à la révision',
+	review:      'Contrôlez les bulletins (lecture seule), puis passez à l\'approbation',
+	approval:    'Confirmez les montants, puis passez au paiement',
+	payment:     'Finalisez le paiement (clôture) et récupérez les justificatifs'
 };
 
 

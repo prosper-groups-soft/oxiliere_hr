@@ -3,6 +3,51 @@ import { payslipsApiStore } from './payslips.api.svelte';
 import { payrollRunStore } from '../runs/payrollRunStore.svelte';
 
 
+function num(value: any): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * Normalise une ligne brute de la liste des bulletins du run (EmployeePayslipOut),
+ * qui porte employee_name/org_unit + montants, en un objet exploitable par les
+ * composants (employee + summary). Ne touche pas aux objets déjà enrichis.
+ */
+function normalizePayslipRow(raw: any): Payslip {
+  const hasEmployee = raw.employee && typeof raw.employee === 'object';
+  const hasSummary = raw.summary && typeof raw.summary === 'object';
+  // Photo de profil : transmise par le backend (photo_path) sur la liste des
+  // bulletins, sinon repli sur les éventuels champs embarqués de l'employé.
+  const baseEmployee: any = hasEmployee
+    ? raw.employee
+    : {
+        id: raw.contract ? String(raw.contract) : '',
+        matricule: '',
+        fullName: raw.employee_name || '',
+        orgUnit: raw.org_unit || '',
+        jobTitle: raw.job_title || '',
+      };
+  const avatarUrl = raw.photo_path ?? raw.avatar_url ?? baseEmployee.avatarUrl ?? baseEmployee.photo ?? null;
+  return {
+    ...raw,
+    employee: {
+      ...baseEmployee,
+      avatarUrl,
+    },
+    summary: hasSummary
+      ? raw.summary
+      : {
+          grossSalary: num(raw.gross_amount),
+          totalDeductions: 0,
+          postNetDeductions: 0,
+          netPay: num(raw.net_amount),
+          employerCosts: 0,
+          totalEmployerCost: 0,
+        },
+  } as Payslip;
+}
+
+
 export class PayslipsStore {
 	payslips = $state<Payslip[]>([]);
 	currentPeriod = $state<string>('');
@@ -108,7 +153,7 @@ export class PayslipsStore {
 				if (!this.currentPeriod) this.currentPeriod = payrollRunStore.currentPeriod || this.availablePeriods[0];
 			}
 			const res = await payslipsApiStore.fetchPayslipList(runId ?? '');
-			if (res?.results) this.payslips = res.results as Payslip[];
+			if (res?.results) this.payslips = (res.results as any[]).map(normalizePayslipRow);
 			else this.payslips = [];
 		} catch (err) {
 			this.error = err instanceof Error ? err.message : 'Erreur lors du chargement des fiches de paie';

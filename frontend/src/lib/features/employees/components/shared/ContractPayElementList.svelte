@@ -11,7 +11,6 @@
   import type { ContractPayElementInput } from '@/features/payroll/types/types';
   import PayElementPickerModal from '@/features/employees/components/shared/PayElementPickerModal.svelte';
   import AnimateSpin from '@/components/layout/elements/AnimateSpin.svelte';
-  import { format, isValid, parseISO } from 'date-fns';
 
 
   let {
@@ -60,12 +59,13 @@
     return '—';
   };
 
-  /** Formate une date ISO (YYYY-MM-DD ou datetime) en JJ/MM/AAAA */
+  /** Formate une date ISO (YYYY-MM-DD ou datetime) en JJ/MM/AAAA, sans dépendance. */
   const formatDate = (d?: string | null): string => {
-    if (!d) return '—';
-    const date = parseISO(String(d));
-    if (!isValid(date)) return String(d).slice(0, 10);
-    return format(date, 'dd/MM/yyyy');
+    if (!d) return 'Pas de date';
+    const raw = String(d).slice(0, 10);
+    const date = new Date(raw + 'T00:00:00');
+    if (Number.isNaN(date.getTime())) return raw;
+    return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(date);
   };
 
   async function handleToggle(el: ContractPayElementItem, active: boolean) {

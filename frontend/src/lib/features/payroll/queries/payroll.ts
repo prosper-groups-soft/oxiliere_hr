@@ -174,8 +174,8 @@ async function fetchPayslips(runId: string, _filters?: PayrollFilters): Promise<
 }
 
 /** Fetch single payslip detail */
-async function fetchPayslipDetail(payslipId: string): Promise<Payslip> {
-  return PayrollApi.runPayslips.retrieve(payslipId);
+export async function fetchPayslipDetail(payslipId: string): Promise<Payslip> {
+  return PayrollApi.payslipDetail.retrieve(payslipId);
 }
 
 /** Fetch salary advances (server-side filtering) */

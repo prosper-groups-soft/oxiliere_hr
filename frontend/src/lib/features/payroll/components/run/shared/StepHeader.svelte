@@ -2,10 +2,8 @@
   import { cn } from "@/utilities/common/css";
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
   import { Button } from "@/components/ui/button";
-  import type { 
-    PayrollStatus, 
-    PayrollStep 
-  } from "../../../types/types";
+  import type { PayrollStatus, PayrollStep } from "../../../types/types";
+  
 
   interface Props {
     title: string;
@@ -18,12 +16,14 @@
     isReviewing?: boolean;
     isApproving?: boolean;
     isPaying?: boolean;
+    isClosing?: boolean;
     canSubmitKickoff?: boolean;
     onNew?: () => void;
     onCalculate?: () => void;
     onReview?: () => void;
     onApprove?: () => void;
     onPay?: () => void;
+    onCloseRun?: () => void;
     onCancelKickoff?: () => void;
     onSubmitKickoff?: () => void;
     onNextStep?: () => void;
@@ -40,12 +40,14 @@
     isReviewing = false,
     isApproving = false,
     isPaying = false,
+    isClosing = false,
     canSubmitKickoff = false,
     onNew,
     onCalculate,
     onReview,
     onApprove,
     onPay,
+    onCloseRun,
     onCancelKickoff,
     onSubmitKickoff,
     onNextStep
@@ -134,29 +136,27 @@
       {@render ActionButton(isCreating ? "Création…" : "Nouvelle paie", "plus", onNew, "bg-primary", isCreating)}
     
     {:else if currentStep === 'preparation' && status === 'draft'}
-      {@render ActionButton(isCalculating ? "Calcul en cours…" : "Calculer la paie", "calculator", () => {
+      {@render ActionButton(isCalculating ? "Calcul…" : "Passer au calcul", "calculator", () => {
         onCalculate?.();
-        onNextStep?.();
       }, "bg-primary", isCalculating)}
     
     {:else if currentStep === 'calculation' && status === 'calculated'}
-      {@render ActionButton(isReviewing ? "Révision…" : "Réviser", "eye", () => {
+      {@render ActionButton(isReviewing ? "Passage à la révision…" : "Passer à la révision", "eye", () => {
         onReview?.();
-        onNextStep?.();
       }, "bg-amber-500 hover:bg-amber-600", isReviewing)}
     
     {:else if currentStep === 'review' && status === 'reviewed'}
-      {@render ActionButton(isApproving ? "Approbation…" : "Approuver", "circle-check", () => {
+      {@render ActionButton(isApproving ? "Approbation…" : "Passer à l'approbation", "circle-check", () => {
         onApprove?.();
-        onNextStep?.();
       }, "bg-emerald-600 hover:bg-emerald-700", isApproving)}
     
     {:else if currentStep === 'approval' && status === 'approved'}
-      {@render ActionButton(isPaying ? "Paiement…" : "Finaliser le paiement", "banknote", () => {
+      {@render ActionButton(isPaying ? "Paiement…" : "Passer au paiement", "banknote", () => {
         onPay?.();
-        onNextStep?.();
       }, "bg-purple-600 hover:bg-purple-700", isPaying)}
     
+    {:else if status === 'paid' && onCloseRun}
+      {@render ActionButton(isClosing ? "Clôture…" : "Clôturer l'exécution", 'circle-check', onCloseRun, 'bg-slate-800 hover:bg-slate-900', isClosing)}
     {:else if status === 'paid'}
       <Button variant="outline" size="sm" class="h-7.5 text-[0.85rem] px-4 border-slate-200 text-slate-600 font-medium shadow-fine">
         <AppIcon name="download" size={16} />
@@ -170,3 +170,4 @@
     {/if}
   </div>
 </header>
+

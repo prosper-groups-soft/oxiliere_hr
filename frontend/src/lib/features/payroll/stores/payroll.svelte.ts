@@ -74,6 +74,7 @@ class PayrollStoreFacade {
 	get hasActiveRun()             { return payrollRunStore.hasActiveRun; }
 	get hasCurrentRunTab()         { return payrollRunStore.hasCurrentRunTab; }
 	get isStartingNewRun()         { return payrollRunStore.isStartingNewRun; }
+	get isBootResolved()           { return payrollRunStore.isBootResolved; }
 	get runList()                  { return payrollRunStore.runList; }
 	get cycleFilters()             { return payrollRunStore.cycleFilters; }
 	get cycleListPage()            { return payrollRunStore.cycleListPage; }
@@ -146,6 +147,7 @@ class PayrollStoreFacade {
 
 	beginNewRun()           { payrollRunStore.beginNewRun(); }
 	cancelNewRun()          { payrollRunStore.cancelNewRun(); }
+	closeActiveRun()        { payrollRunStore.closeActiveRun(); }
 	syncActiveRunFromList() { return payrollRunStore.syncActiveRunFromList(); }
 
 	// ─── payslipsStore ────────────────────────────────────────────────────────

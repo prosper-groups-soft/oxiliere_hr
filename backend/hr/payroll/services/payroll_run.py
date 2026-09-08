@@ -4,23 +4,26 @@ from typing  import Dict, Any
 from uuid    import UUID
 
 from django.utils import timezone
-from django.db import transaction
+from django.db    import transaction
 from django.core.exceptions import ValidationError
-from django.db.models import QuerySet, Sum, Count, Q
+from django.db.models import QuerySet, Sum, Count, Q, Value, OuterRef, Subquery, F
 from django.db.models.functions import Coalesce
 
 from hr.payroll.models import (
     PayrollRun, 
     EmployeePayslip, 
     PayslipLine, 
-    EmployeeContract
+    EmployeeContract,
+    EmployerCharge,
 )
 from django.core.cache         import cache
 from hr.services.cache_helpers import CacheKeys
 from .orchestrator             import PayrollOrchestrator
 from hr.payroll.enums          import PayrollStatus
 from hr.payroll.services.contract_eligibility import contract_active_on_period
-from hr.payroll.services.cache import PayrollCacheService
+from hr.jobs.models import EmployeePositionHistory
+from django.db.models.functions import Concat
+from hr.payroll.services.cache  import PayrollCacheService
 
 
 logger = logging.getLogger(__name__)
@@ -557,6 +560,30 @@ class PayrollRunService:
             'payroll_run',
         ).prefetch_related(
             'lines'
+        ).annotate(
+            # Employé + unité + POSTE courant (source liste).
+            employee_name=Concat(
+                'contract__employee__last_name',
+                Value(' '),
+                'contract__employee__middle_name',
+                Value(' '),
+                'contract__employee__first_name',
+            ),
+            job_title=Subquery(
+                EmployeePositionHistory.objects.filter(
+                    employee_id=OuterRef('contract__employee_id'),
+                    is_current=True,
+                ).values('position__name')[:1]
+            ),
+            org_unit=Subquery(
+                EmployeePositionHistory.objects.filter(
+                    employee_id=OuterRef('contract__employee_id'),
+                    is_current=True,
+                ).values('org_unit__name')[:1]
+            ),
+            # Chemin de la photo de profil (relation déjà préchargée) — le front
+            # applique getMediaUrl() dessus pour afficher l'avatar de l'employé.
+            photo_path=F('contract__employee__profile_photo'),
         ).order_by('contract__employee__user__first_name')
         
     @classmethod
@@ -596,9 +623,20 @@ class PayrollRunService:
         total_inpp = totals.get('total_inpp') or Decimal("0.00")
         total_onem = totals.get('total_onem') or Decimal("0.00")
 
-        # 2. DRC Employer Liabilities Calculation
-        # Employer CNSS (8%) is derived from Employee CNSS (5%) -> Ratio 8/5
-        total_er_cnss = (total_ee_cnss * Decimal('8')) / Decimal('5')
+        # 2. Charges patronales RÉELLES — agrégées depuis EmployerCharge (persistées à
+        #    l'étape 6 avec les taux configurés : CNSS 5%+13%=18%, INPP, ONEM).
+        #    Aucun ratio codé en dur (ex. l'ancien CNSS employeur ×8/5).
+        er_agg = EmployerCharge.objects.filter(
+            payslip__payroll_run_id=run_id
+        ).values('contribution_type').annotate(total=Sum('amount'))
+        er_by_type = {
+            row['contribution_type']: (row['total'] or Decimal('0.00'))
+            for row in er_agg
+        }
+        total_er_cnss = er_by_type.get('CNSS', Decimal('0.00'))
+        # INPP/ONEM : valeur persistée si dispo, sinon repli sur les colonnes du payslip.
+        total_inpp = er_by_type.get('INPP', total_inpp)
+        total_onem = er_by_type.get('ONEM', total_onem)
         total_employer_liabilities = total_er_cnss + total_inpp + total_onem
 
         # 3. Total Cost to Company (CTC)
@@ -662,16 +700,17 @@ class PayrollRunService:
             "id": payslip.id,
             "payroll_run": payslip.payroll_run_id,
             "contract": payslip.contract_id,
-            "base_salary_snapshot": payslip.base_salary_snapshot if payslip.base_salary_snapshot else None,
-            "gross_amount": payslip.gross_amount if payslip.gross_amount else None,
-            "cnss_amount": payslip.cnss_amount if payslip.cnss_amount else None,
-            "onem_amount": payslip.onem_amount if payslip.onem_amount else None,
-            "inpp_amount": payslip.inpp_amount if payslip.inpp_amount else None,
-            "ipr_amount": payslip.ipr_amount if payslip.ipr_amount else None,
-            "housing_allowance": payslip.housing_allowance if payslip.housing_allowance else None,
-            "transport_allowance": payslip.transport_allowance if payslip.transport_allowance else None,
-            "total_adjustments": payslip.total_adjustments if payslip.total_adjustments else None,
-            "net_amount": payslip.net_amount if payslip.net_amount else None,
+            "base_salary_snapshot": payslip.base_salary_snapshot,
+            "gross_amount": payslip.gross_amount,
+            "cnss_amount": payslip.cnss_amount,
+            "onem_amount": payslip.onem_amount,
+            "inpp_amount": payslip.inpp_amount,
+            "ipr_amount": payslip.ipr_amount,
+            "housing_allowance": payslip.housing_allowance,
+            "transport_allowance": payslip.transport_allowance,
+            "total_adjustments": payslip.total_adjustments,
+            "net_amount": payslip.net_amount,
+            "taxable_base": payslip.taxable_base,
             "worked_days": payslip.worked_days,
             "worked_hours": payslip.worked_hours,
             "overtime_hours": payslip.overtime_hours,
@@ -683,9 +722,14 @@ class PayrollRunService:
             "payment_method": payslip.payment_method,
             "paid_at": payslip.paid_at,
             "lines": list(payslip.lines.all()),
-            "employee_name": f"{employee.user.first_name} {employee.user.last_name}",
+            # Nom via l'employé (user peut être None → ne pas planter).
+            "employee_name": " ".join(p for p in (
+                (getattr(employee, 'last_name', '') or ''),
+                (getattr(employee, 'middle_name', '') or ''),
+                (getattr(employee, 'first_name', '') or ''),
+            ) if p) or getattr(employee, 'matricule', '') or '',
             "employee_id": employee.id,
-            "net_after_advances": payslip.net_amount if payslip.net_amount else None,
+            "net_after_advances": payslip.net_amount,
         }
 
     @classmethod

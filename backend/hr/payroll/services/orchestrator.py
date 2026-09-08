@@ -65,6 +65,20 @@ from hr.payroll.services.integration.exchange import ExchangeRateService
 from hr.payroll.services.cache import PayrollCacheService
 
 
+def _cnss_employee_deduction(base: Decimal) -> Decimal:
+    """CNSS salariale depuis la CONFIG (employee_portion + éventuel plafond).
+    Pas de 5 % codé en dur ; repli défensif à 5 % si la config est absente."""
+    rate = Decimal('5.00')
+    ceiling = None
+    for r in PayrollCacheService.get_social_contribution_rates():
+        if r.contribution_type == SocialContributionType.CNSS:
+            rate = r.employee_portion
+            ceiling = r.ceiling_amount
+            break
+    applied = base if ceiling is None else min(base, ceiling)
+    return (applied * rate / Decimal('100')).quantize(Decimal('0.01'))
+
+
 class PayrollOrchestrator:
     """
     Moteur principal — orchestre le pipeline de paie en 8 étapes.
@@ -627,10 +641,15 @@ class PayrollOrchestrator:
         # La CNSS est calculée ici car elle est déduite de la base imposable
         # (cf. semantics.md §Ordre de calcul des retenues)
 
-        # Seuil exonération logement = 30% du salaire de base effectif
-        # (quotité légale exonérée — explications IRPP)
+        # Seuil d'exonération logement (% du salaire de base) lu de la CONFIG
+        # (housing_allowance_min_percentage), pas de 30 % codé en dur.
+        housing_threshold_pct = (
+            config.housing_allowance_min_percentage
+            if (config and config.housing_allowance_min_percentage)
+            else Decimal('30.00')
+        )
         housing_exemption_limit = (
-            effective_base_salary * Decimal('0.30')
+            effective_base_salary * housing_threshold_pct / Decimal('100')
         ).quantize(Decimal('0.01'))
         exoneration_logement = min(
             allowances['housing_allowance'],
@@ -640,9 +659,9 @@ class PayrollOrchestrator:
         # Exonération transport (totale si non exagérée)
         exoneration_transport = allowances['transport_allowance']
 
-        # CNSS salariale = BASE_CNSS × 5%
+        # CNSS salariale = portion salariale CNSS (config) appliquée à la base CNSS
         cnss_base = sum(e.montant for e in elements if e.soumis_cnss)
-        cnss_salariale = (cnss_base * Decimal('0.05')).quantize(Decimal('0.01'))
+        cnss_salariale = _cnss_employee_deduction(cnss_base)
 
         # --- Construction des 5 bases ---
         bases = CalculationBasisBuilder.build_all(
@@ -688,8 +707,8 @@ class PayrollOrchestrator:
         base_cnss = bases[CalculationBasisType.CNSS].montant
         base_imposable = bases[CalculationBasisType.IMPOSABLE].montant
 
-        # 1. CNSS salariale
-        cnss_employee = (base_cnss * Decimal('0.05')).quantize(Decimal('0.01'))
+        # 1. CNSS salariale (depuis la config, pas de 5 % codé en dur)
+        cnss_employee = _cnss_employee_deduction(base_cnss)
 
         # 2. Impôt progressif (IPR ou IRPP selon la date) + abattement familial
         nb_charges = validated_data.get('family', {}).get('child_count', 0)
@@ -944,7 +963,14 @@ class PayrollOrchestrator:
             },
         }
 
-        run.params_snapshot = snapshot
+        # On MERGE le snapshot légal dans l'existant au lieu de l'écraser :
+        # `params_snapshot` porte aussi la sélection employés créée au kickoff
+        # ({ selection: { scope, employee_ids } }). L'écraser ici ferait perdre
+        # cette sélection après le calcul → le retour au kickoff retomberait sur
+        # « Tous les employés actifs » au lieu de l'employé effectivement payé.
+        merged = dict(run.params_snapshot or {})
+        merged.update(snapshot)
+        run.params_snapshot = merged
         run.save(update_fields=['params_snapshot'])
 
     @classmethod
@@ -1080,7 +1106,7 @@ class PayrollOrchestrator:
         )
         PayslipLine.objects.create(
             payslip=payslip,
-            label="IPR",
+            label="IRPP",
             amount=deductions['ipr_tax'],
             adjustment_type='CONTRIBUTION',
         )

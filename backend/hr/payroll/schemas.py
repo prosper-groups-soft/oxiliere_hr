@@ -419,6 +419,12 @@ class EmployeePayslipOut(Schema):
     paid_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
+    # Enrichissement : employé + poste + unité (annotés sur la liste des bulletins du run)
+    employee_name: str = ""
+    job_title: str | None = None
+    org_unit: str | None = None
+    # Chemin brut de la photo de profil (annoté) — le front applique getMediaUrl().
+    photo_path: str | None = None
 
 
 class EmployeePayslipDetailOut(Schema):
@@ -449,7 +455,7 @@ class EmployeePayslipDetailOut(Schema):
     paid_at: datetime | None = None
     lines: List[PayslipLineOut] = []
     employee_name: str = ""
-    employee_id: int = 0
+    employee_id: UUID = UUID(int=0)
     net_after_advances: Decimal = Decimal('0.00')
 
 

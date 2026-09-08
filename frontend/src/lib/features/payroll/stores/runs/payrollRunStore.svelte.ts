@@ -40,6 +40,10 @@ export class PayrollRunStore {
 	 */
 	isStartingNewRun = $state(false);
 
+	/** Passe à true une fois la restauration du run au boot terminée (évite les
+	 *  redirections prématurées pendant le chargement initial). */
+	isBootResolved = $state(false);
+
 	/** Clé localStorage pour l'ID du run actif (persiste à travers les rechargements). */
 	private static readonly ACTIVE_RUN_KEY = 'payroll:activeRunId';
 	/** Clé sessionStorage pour le démarrage d'une nouvelle paie (avant POST). */
@@ -58,14 +62,16 @@ export class PayrollRunStore {
 		this.restoreActiveRun();
 	}
 
-	/** Vrai si un run non finalisé est chargé (l'onglet dynamique doit rester visible). */
+	/** Vrai si un run est chargé en session. Un run qui vient d'être payé reste
+	 *  « actif » pour afficher l'écran de clôture ; il n'est purgé qu'au boot
+	 *  (restoreActiveRun) ou via closeActiveRun(). */
 	get hasActiveRun(): boolean {
-		return this.currentRun !== null && !this.isFinalStatus(this.currentRun.status);
+		return this.currentRun !== null;
 	}
 
-	/** Onglet dynamique : run backend actif OU démarrage client (KickoffStep). */
+	/** Onglet dynamique : run chargé (y compris écran de clôture) OU démarrage client (KickoffStep). */
 	get hasCurrentRunTab(): boolean {
-		return this.hasActiveRun || this.isStartingNewRun;
+		return this.currentRun !== null || this.isStartingNewRun;
 	}
 
 	/** Lit l'ID du run actif persisté (ou null). */
@@ -101,8 +107,16 @@ export class PayrollRunStore {
 		this.persistStartingNewRun(false);
 	}
 
-	/** Au boot : recharge le run actif persisté par son ID. */
+	/** Au boot : recharge le run actif persisté par son ID. Signale la fin via isBootResolved. */
 	private async restoreActiveRun() {
+		try {
+			await this.restoreActiveRunInner();
+		} finally {
+			this.isBootResolved = true;
+		}
+	}
+
+	private async restoreActiveRunInner() {
 		const runId = this.persistedActiveRunId;
 		if (!runId) {
 			// Pas de run backend : éventuellement un démarrage de paie en cours (Kickoff).
@@ -122,16 +136,14 @@ export class PayrollRunStore {
 				this.clearActiveRun();
 				return;
 			}
-			// Si le run persisté est finalisé (PAID/CANCELED), on libère l'onglet.
-			if (this.isFinalStatus(this.currentRun.status)) {
-				this.clearActiveRun();
-			} else {
-				// Run actif restauré → plus besoin du flag "starting".
-				this.isStartingNewRun = false;
-				this.persistStartingNewRun(false);
-				if (this.currentStep === 'kickoff') {
-					this.currentStep = PayrollRunStore.stepForStatus(this.currentRun.status);
-				}
+			// L'état APRÈS paiement (PAID) est l'état final VISIBLE : on conserve le
+			// run restauré (y compris payé, écran de clôture) pour permettre à
+			// l'utilisateur de le clôturer explicitement. La libération se fait
+			// uniquement via closeActiveRun() (bouton « Clôturer »).
+			this.isStartingNewRun = false;
+			this.persistStartingNewRun(false);
+			if (this.currentStep === 'kickoff') {
+				this.currentStep = PayrollRunStore.stepForStatus(this.currentRun.status);
 			}
 		} catch {
 			// Run introuvable (supprimé côté serveur) : on nettoie tout, y compris
@@ -368,16 +380,11 @@ export class PayrollRunStore {
 						this.isStartingNewRun = false;
 						this.persistStartingNewRun(false);
 					}
-				} else if (this.currentRun && this.hasActiveRun) {
-					// Aucun run actif dans la liste : on ne réinitialise currentRun que
-					// si le run courant apparaît explicitement comme finalisé dans la
-					// liste (protection contre le cache périmé qui ne contiendrait pas
-					// encore le run récemment créé).
-					const currentInList = res.results.find(r => r.id === (this.currentRun as PayrollRun).id);
-					if (currentInList && ['PAID', 'CANCELED'].includes(currentInList.status)) {
-						this.clearActiveRun();
-					}
 				}
+				// NOTE : on ne vide PAS currentRun ici lorsqu'il est PAID. L'état après
+				// paiement (écran de clôture) est l'état final VISIBLE : il reste ouvert
+				// jusqu'à `closeActiveRun()` (bouton « Clôturer ») ou au passage à la
+				// liste (Exécutions). On ne fait que rafraîchir `runList` ci-dessus.
 
 				// availablePeriods dérivé des runs réels (YYYY-MM, triés desc)
 				this.availablePeriods = [...new Set(
@@ -407,9 +414,10 @@ export class PayrollRunStore {
 			const summary = await payrollRunApiStore.fetchRunSummary(runId);
 			this.currentRunSummary = summary;
 			this.currentRun = this.detailToPayrollRun(run, summary);
-			// Persiste l'ID du run dès qu'il est chargé (sauf s'il est déjà finalisé
-			// — dans ce cas on retire la clé pour libérer l'onglet).
-			if (['PAID', 'CANCELED'].includes(run.status)) {
+			// Persiste l'ID du run dès qu'il est chargé. Un run PAYÉ reste persistant
+			// (écran de clôture = état final visible) jusqu'à `closeActiveRun()`. Seul
+			// un run CANCELED retire la clé (l'onglet dynamique ne doit pas le rouvrir).
+			if (run.status === 'CANCELED') {
 				this.persistActiveRunId(null);
 			} else {
 				this.persistActiveRunId(runId);
@@ -541,12 +549,28 @@ export class PayrollRunStore {
 		this.persistStartingNewRun(false);
 	}
 
+	/** Synchronise l'étape du wizard sur le statut réel du run après une transition. */
+	private syncStepFromStatus() {
+		if (this.currentRun) {
+			this.currentStep = PayrollRunStore.stepForStatus(this.currentRun.status);
+		}
+	}
+
 	/** Calcule la paie (lance le traitement backend : DRAFT → PROCESSING → VALIDATED). */
 	async calculatePayroll(): Promise<boolean> {
 		if (!this.currentRun) return false;
+		const run = this.currentRun;
+		// Le calcul exige un run DRAFT côté backend : on re-synchronise d'abord le
+		// statut réel pour éviter d'envoyer un appel voué à l'échec.
+		await this.fetchRunDetail(run.id);
+		if (!this.currentRun || this.currentRun.status !== 'draft') {
+			this.syncStepFromStatus();
+			throw new Error('La paie doit être un brouillon avant de pouvoir être calculée.');
+		}
 		const result = await payrollRunApiStore.processRun(this.currentRun.id);
 		if (!result) return false;
 		await this.fetchRunDetail(this.currentRun.id);
+		this.syncStepFromStatus();
 		await this.fetchRunList();
 		return true;
 	}
@@ -554,9 +578,18 @@ export class PayrollRunStore {
 	/** Révision de la paie (VALIDATED → REVIEWED). */
 	async reviewPayroll(): Promise<boolean> {
 		if (!this.currentRun) return false;
+		const run = this.currentRun;
+		// Toujours re-synchroniser le statut depuis le backend avant d'agir : le
+		// store peut être en retard sur l'état réel du run (sinon 400 « … must be … »).
+		await this.fetchRunDetail(run.id);
+		if (!this.currentRun || this.currentRun.status !== 'calculated') {
+			this.syncStepFromStatus();
+			throw new Error('La paie doit d’abord être calculée avant de pouvoir être révisée.');
+		}
 		const result = await payrollRunApiStore.reviewRun(this.currentRun.id);
 		if (!result) return false;
 		await this.fetchRunDetail(this.currentRun.id);
+		this.syncStepFromStatus();
 		await this.fetchRunList();
 		return true;
 	}
@@ -564,36 +597,57 @@ export class PayrollRunStore {
 	/** Approbation de la paie (REVIEWED → APPROVED). */
 	async approvePayroll(): Promise<boolean> {
 		if (!this.currentRun) return false;
+		const run = this.currentRun;
+		// /approve exige REVIEWED : on re-synchronise d'abord le statut réel pour
+		// ne pas déclencher un 400 si le store est en retard sur la base.
+		await this.fetchRunDetail(run.id);
+		if (!this.currentRun || this.currentRun.status !== 'reviewed') {
+			this.syncStepFromStatus();
+			throw new Error('La paie doit d’abord être révisée avant de pouvoir être approuvée.');
+		}
 		const result = await payrollRunApiStore.approveRun(this.currentRun.id);
 		if (!result) return false;
 		await this.fetchRunDetail(this.currentRun.id);
+		this.syncStepFromStatus();
 		await this.fetchRunList();
 		return true;
 	}
 
-	/** Paiement / clôture de la paie (VALIDATED/REVIEWED/APPROVED → PAID). */
+	/** Paiement / clôture de la paie (VALIDATED/REVIEWED/APPROVED → PAID).
+	 *  Une fois payé, on positionne l'étape « payment » (récap de clôture) au lieu
+	 *  de fermer l'onglet brutalement : l'utilisateur voit le résultat avant de
+	 *  quitter via `closeActiveRun()`. */
 	async processPayment(): Promise<boolean> {
 		if (!this.currentRun) return false;
+		const run = this.currentRun;
+		// La finalisation (complete) exige un run VALIDATED/REVIEWED/APPROVED.
+		await this.fetchRunDetail(run.id);
+		if (!this.currentRun || !['calculated', 'reviewed', 'approved'].includes(this.currentRun.status)) {
+			this.syncStepFromStatus();
+			throw new Error('La paie doit être calculée, révisée puis approuvée avant d’être payée.');
+		}
 		const id = this.currentRun.id;
 		const result = await payrollRunApiStore.completeRun(id);
 		if (!result) return false;
-		// Re-synchroniser le détail depuis le backend et ne libérer l'onglet
-		// que si le run est explicitement `PAID` côté serveur.
+		// Re-synchroniser le détail depuis le backend et basculer sur l'écran de
+		// clôture (payment) une fois le run explicitement `PAID` côté serveur.
 		try {
 			await this.fetchRunDetail(id);
-			if (this.currentRun && this.currentRun.status === 'paid') {
-				this.clearActiveRun();
-			}
-			// Rafraîchit la liste en arrière-plan.
-			await this.fetchRunList();
+			this.syncStepFromStatus();
+			// Ne PAS appeler fetchRunList() ici : il auto-ferme un run PAID
+			// (clearActiveRun) → on reviendrait aux Exécutions sans voir la clôture.
+			// La liste se rafraîchit quand l'utilisateur revient aux exécutions.
 			return true;
 		} catch (err) {
-			// Si la récupération échoue, on ne supprime pas currentRun pour éviter
-			// une disparition involontaire — l'UI restera visible jusqu'à la
-			// prochaine synchronisation réussie.
 			this.error = err instanceof Error ? err.message : 'Erreur lors de la synchronisation post-paiement';
 			return false;
 		}
+	}
+
+	/** Ferme/relâche le run actif (après clôture ou paiement) et revient à l'état initial. */
+	closeActiveRun() {
+		this.clearActiveRun();
+		this.currentStep = 'kickoff';
 	}
 
 	setSort(by: typeof this.sortBy) {

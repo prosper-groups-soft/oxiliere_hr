@@ -17,8 +17,6 @@
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
   import AnimateSpin from "@/components/layout/elements/AnimateSpin.svelte";
   import type { ContractPayElementItem } from "@/features/payroll/types/types";
-  import { format, parseISO } from "date-fns";
-  import { fr } from "date-fns/locale";
 
 
   export interface KickOffEmployee {
@@ -89,12 +87,12 @@
     return name.split(' ').map(n => n[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
   }
 
-  /** Formate une date ISO en français court (ex. « 1 sept. 2026 »). */
+  /** Formate une date ISO en français court (ex. « 1 sept. 2026 »), sans dépendance. */
   function fmtDate(value?: string | null): string {
     if (!value) return '';
-    const d = parseISO(value);
+    const d = new Date(value.slice(0, 10) + 'T00:00:00');
     if (Number.isNaN(d.getTime())) return '';
-    return format(d, 'd MMM yyyy', { locale: fr });
+    return new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }).format(d);
   }
 
   /**
@@ -390,7 +388,7 @@
         class="shrink-0 bg-white"
       />
       <div class="relative shrink-0">
-        <Avatar class="h-9 w-9 rounded-full border border-slate-200">
+        <Avatar class="h-11 w-11 rounded-full border border-slate-200">
           {#if employee.photo}
             <AvatarImage src={getMediaUrl(employee.photo)} alt={employee.name} class="object-cover" />
           {/if}

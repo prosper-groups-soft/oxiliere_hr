@@ -297,7 +297,7 @@
               </div>
               <div class="flex items-center justify-between text-[0.75rem]">
                 <span class="text-slate-500">SHA-256</span>
-                <span class="text-slate-700 font-mono text-[0.65rem] truncate max-w-[180px]" title={payslip.immutableSnapshot.sha256}>
+                <span class="text-slate-700 font-mono text-[0.65rem] truncate max-w-45" title={payslip.immutableSnapshot.sha256}>
                   {payslip.immutableSnapshot.sha256}
                 </span>
               </div>

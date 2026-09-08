@@ -1,113 +1,236 @@
 <script lang="ts">
   import { payrollStore } from "@/features/payroll/stores/payroll.svelte";
   import AppIcon from "@/components/layout/elements/AppIcon.svelte";
+  import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+  import { Button } from "@/components/ui/button";
+  import { notification } from "@/stores/notification.svelte";
 
   
   const currentStatus = $derived(payrollStore.currentRun?.status ?? 'draft');
-  
-  const formattedDate = $derived(new Date(payrollStore.currentRun?.paidAt ?? '').toLocaleDateString('fr-FR'));
-  const periodLabel = $derived(new Date(payrollStore.currentPeriod + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }));
-  const today = new Date().toLocaleDateString('fr-FR');
+  const payslips = $derived(payrollStore.payslips);
+  const summary = $derived(payrollStore.currentRunSummary?.summary ?? null);
 
-  type StatusAlertProps = { color: string; icon: string; title: string; text: string };
-  type SummaryCardProps = { color: string; icon: string; label: string; value: string; subtext: string };
-  type PaymentOptionProps = { icon: string; title: string; desc: string; checked: boolean; extraClass?: string };
+  // Devise du run : celle des bulletins générés (CDF en pratique).
+  const currency = $derived(payslips[0]?.currency ?? 'CDF');
+  function money(value: number | null | undefined): string {
+    const n = Number(value ?? 0);
+    if (currency && currency.toUpperCase() !== 'CDF') {
+      return n.toLocaleString('fr-FR', { maximumFractionDigits: 2 }) + ' ' + currency.toUpperCase();
+    }
+    return n.toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' CDF';
+  }
+
+  function fmtDay(value?: string | null): string {
+    if (!value) return '—';
+    const raw = String(value).slice(0, 10);
+    const d = new Date(raw + 'T00:00:00');
+    if (Number.isNaN(d.getTime())) return raw;
+    return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+
+  const totalNet = $derived(
+    summary?.total_net_salary != null
+      ? Number(summary.total_net_salary)
+      : payslips.reduce((s, p) => s + Number(p.summary?.netPay ?? 0), 0)
+  );
+  const employeeCount = $derived(summary?.total_employees ?? payslips.length);
+
+  // Méthode réellement utilisée par le moteur (portée par les bulletins).
+  const methodKey = $derived(String((payslips[0] as any)?.payment_method || '').toUpperCase());
+  const METHOD_LABELS: Record<string, string> = {
+    CASH: 'Espèces (Cash)',
+    BANK_TRANSFER: 'Virement bancaire',
+    MOBILE_MONEY: 'Mobile Money'
+  };
+  const availableMethods = [
+    { value: 'CASH', label: 'Espèces (Cash)', desc: 'Paiement en espèces' },
+    { value: 'BANK_TRANSFER', label: 'Virement bancaire', desc: 'Virement vers les comptes bancaires' },
+    { value: 'MOBILE_MONEY', label: 'Mobile Money', desc: 'Orange Money, M-Pesa ou Airtel Money' }
+  ];
+  const methodLabel = $derived(METHOD_LABELS[methodKey] || null);
+
+  const paidDate = $derived.by(() => {
+    const at = payrollStore.currentRun?.paidAt;
+    if (!at) return '';
+    const d = new Date(at);
+    return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+  });
+
+  let isPaying = $state(false);
+  async function confirmPayment() {
+    if (isPaying) return;
+    isPaying = true;
+    try {
+      const ok = await payrollStore.processPayment();
+      if (ok) notification.toast.success('Paiement effectué avec succès');
+      else notification.toast.error('Échec du paiement');
+    } catch (e: any) {
+      notification.toast.error(e?.message ?? 'Échec du paiement');
+    } finally {
+      isPaying = false;
+    }
+  }
 </script>
 
 
-<div class="space-y-3 mt-2">
-  
+{#snippet Row(label: string, value: string, strong = false, tone: 'default' | 'emerald' | 'muted' = 'default')}
+  <div class="flex items-center justify-between gap-3 py-1">
+    <span class="text-sm text-slate-500">{label}</span>
+    <span
+      class={[
+        'whitespace-nowrap text-sm',
+        strong ? 'font-bold text-slate-900' : 'font-semibold text-slate-800',
+        tone === 'emerald' && 'text-emerald-600',
+        tone === 'muted' && 'text-slate-400'
+      ].join(' ')}
+    >{value}</span>
+  </div>
+{/snippet}
+
+
+<div class="mt-4 space-y-5 font-sans">
   {#if currentStatus === 'approved'}
-    {@render StatusAlert({ 
-      color: 'purple', 
-      icon: 'credit-card', 
-      title: 'Prêt pour exécution', 
-      text: "La paie a été approuvée. Utilisez le bouton Payer pour valider." 
-    })}
-  {:else if currentStatus === 'paid'}
-    <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-2 flex items-center gap-4 shadow-fine">
-      <div class="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
-        <AppIcon name="circle-check" size={24} class="text-emerald-600" />
+    <!-- Pré-paiement -->
+    <div class="space-y-4">
+      <div class="flex items-start gap-3 rounded-xl border border-purple-100 bg-purple-50/40 px-4 py-3">
+        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white border border-purple-100">
+          <AppIcon name="banknote" size={17} class="text-purple-600" />
+        </div>
+        <div class="min-w-0">
+          <p class="text-sm font-semibold text-slate-800">Prêt pour paiement</p>
+          <p class="text-sm text-slate-600 mt-0.5 leading-snug">
+            La paie est approuvée. Confirmez pour finaliser : le run passera à « Payé » puis à
+            l'écran de clôture.
+          </p>
+        </div>
       </div>
-      <div>
-        <p class="text-[0.875rem] font-bold text-emerald-900">Paiement complété</p>
-        <p class="text-[0.75rem] text-emerald-600 font-medium">Exécuté le {formattedDate}</p>
+
+      <Card class="border shadow-none border-slate-200">
+        <CardHeader class="pb-0">
+          <CardTitle class="text-sm font-semibold text-slate-500 uppercase flex items-center gap-2">
+            <AppIcon name="circle-check" size={18} strokeWidth={1.4} class="text-purple-500" />
+            Montant à payer
+          </CardTitle>
+        </CardHeader>
+        <CardContent class="pt-2 space-y-1">
+          {@render Row('Période', `${fmtDay(payrollStore.currentRun?.periodStart)} → ${fmtDay(payrollStore.currentRun?.periodEnd)}`)}
+          {@render Row('Employés', `${employeeCount} payé${employeeCount > 1 ? 's' : ''}`)}
+          {#if methodLabel}
+            {@render Row('Méthode de paiement', methodLabel, false, 'muted')}
+          {/if}
+          {@render Row('Net total à verser', money(totalNet), true, 'emerald')}
+        </CardContent>
+      </Card>
+
+      <div class="flex justify-end">
+        <Button onclick={confirmPayment} disabled={isPaying} class="bg-purple-600 hover:bg-purple-700 text-white h-9 px-5 text-[0.88rem]">
+          <AppIcon name="banknote" size={17} />
+          {isPaying ? 'Paiement en cours…' : 'Confirmer le paiement'}
+        </Button>
       </div>
+    </div>
+
+  {:else if ['paid', 'closed'].includes(currentStatus) && summary}
+    <!-- Post-paiement : clôture -->
+    <div class="flex items-start gap-3 rounded-xl border border-emerald-100 bg-emerald-50/40 px-4 py-3">
+      <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white border border-emerald-100">
+        <AppIcon name="circle-check" size={20} class="text-emerald-600" />
+      </div>
+      <div class="min-w-0">
+        <p class="text-sm font-bold text-slate-800">Paiement effectué</p>
+        <p class="text-sm text-slate-600 mt-0.5 leading-snug">
+          {#if paidDate}Effectué le {paidDate}.{/if}
+          Clôturez cette exécution pour revenir à la liste des exécutions.
+        </p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <Card class="border shadow-none border-slate-200">
+        <CardHeader class="pb-0">
+          <CardTitle class="text-sm font-semibold text-slate-500 uppercase flex items-center gap-2">
+            <AppIcon name="banknote" size={18} strokeWidth={1.4} class="text-emerald-500" />
+            Paiement des salaires
+          </CardTitle>
+        </CardHeader>
+        <CardContent class="pt-2 space-y-1">
+          {@render Row('Début de période', fmtDay(payrollStore.currentRun?.periodStart), false, 'muted')}
+          {@render Row('Fin de période', fmtDay(payrollStore.currentRun?.periodEnd), false, 'muted')}
+          {@render Row('Employés payés', `${employeeCount}`)}
+          {@render Row('Net total versé', money(totalNet), true, 'emerald')}
+          {#if methodLabel}
+            {@render Row('Méthode', methodLabel, false, 'muted')}
+          {/if}
+          {#if paidDate}
+            {@render Row('Paiement effectué le', paidDate, false, 'muted')}
+          {/if}
+        </CardContent>
+      </Card>
+
+      <Card class="border shadow-none border-slate-200">
+        <CardHeader class="pb-0">
+          <CardTitle class="text-sm font-semibold text-slate-500 uppercase flex items-center gap-2">
+            <AppIcon name="landmark" size={18} strokeWidth={1.4} class="text-rose-500" />
+            À reverser aux organismes
+          </CardTitle>
+        </CardHeader>
+        <CardContent class="pt-2 space-y-1">
+          {@render Row('IRPP (DGI)', money(summary.total_ipr_to_pay))}
+          {@render Row('CNSS — part salariale', money(summary.total_cnss_employee))}
+          {@render Row('CNSS — part patronale', money(summary.total_cnss_employer))}
+          {@render Row('INPP', money(summary.total_inpp))}
+          {@render Row('ONEM', money(summary.total_onem))}
+          <div class="pt-1">
+            {@render Row('Coût total entreprise (CTC)', money(summary.total_cost_to_company), true)}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+
+    <!-- Méthode de paiement utilisée (lecture seule) -->
+    <Card class="border shadow-none border-slate-200">
+      <CardHeader class="pb-0">
+        <CardTitle class="text-sm font-semibold text-slate-500 uppercase flex items-center gap-2">
+          <AppIcon name="credit-card" size={18} strokeWidth={1.4} class="text-slate-500" />
+          Méthode de paiement
+        </CardTitle>
+      </CardHeader>
+      <CardContent class="pt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+        {#each availableMethods as m (m.value)}
+          {@const active = m.value === methodKey}
+          <div
+            class={[
+              'flex items-start gap-2 rounded-lg border px-3 py-2.5',
+              active ? 'border-emerald-200 bg-emerald-50/50' : 'border-slate-100 bg-white'
+            ].join(' ')}
+          >
+            <span class={[
+              'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border',
+              active ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-slate-300'
+            ].join(' ')}>
+              {#if active}
+                <AppIcon name="check" size={11} />
+              {/if}
+            </span>
+            <span class="min-w-0">
+              <span class={['block text-sm font-semibold', active ? 'text-emerald-700' : 'text-slate-700'].join(' ')}>{m.label}</span>
+              <span class="block text-sm text-slate-400 leading-snug">{m.desc}</span>
+            </span>
+          </div>
+        {/each}
+        {#if !methodLabel}
+          <p class="sm:col-span-3 text-sm text-slate-400">
+            Aucune méthode enregistrée sur les bulletins de ce run.
+          </p>
+        {/if}
+      </CardContent>
+    </Card>
+
+  {:else}
+    <div class="flex items-center justify-center gap-2 p-10 text-sm text-slate-400 border border-slate-200 rounded-xl bg-white">
+      <AppIcon name="circle-alert" size={20} class="text-amber-500" />
+      Paiement indisponible : le run n'est pas encore prêt à être payé.
     </div>
   {/if}
-
-  <section class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-fine">
-    <header class="px-4 py-3 bg-slate-50 border-b border-slate-100">
-      <h3 class="text-sm font-bold text-slate-700">Résumé du paiement</h3>
-    </header>
-    
-    <div class="p-4 py-2 grid grid-cols-2 gap-10">
-      {@render SummaryCard({
-        color: 'emerald',
-        icon: 'banknote',
-        label: 'Montant total',
-        value: payrollStore.totalNetPay.toLocaleString('fr-FR', { style: 'currency', currency: 'USD' }),
-        subtext: `${payrollStore.payslips.length} employés`
-      })}
-      {@render SummaryCard({
-        color: 'blue',
-        icon: 'calendar',
-        label: 'Période',
-        value: periodLabel,
-        subtext: `Date: ${today}`
-      })}
-    </div>
-  </section>
-
-  <section class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-fine">
-    <header class="px-4 py-3 bg-slate-50 border-b border-slate-100">
-      <h3 class="text-sm font-bold text-slate-700">Méthode de paiement</h3>
-    </header>
-    <div class="p-4 space-y-3">
-      {@render PaymentOption({ icon: 'finance', title: 'Virement bancaire', desc: 'Paiement direct vers les comptes', checked: true })}
-      {@render PaymentOption({ icon: 'mobile', title: 'Mobile Money', desc: 'Orange Money, M-Pesa ou Airtel Money', checked: false, extraClass: 'opacity-60' })}
-    </div>
-  </section>
 </div>
-
-
-{#snippet StatusAlert({ color, icon, title, text }: StatusAlertProps)}
-  <div class="bg-{color}-50 border border-{color}-100 rounded-xl p-6 flex gap-4">
-    <div class="w-12 h-12 rounded-full bg-{color}-100 flex items-center justify-center shrink-0">
-      <AppIcon name={icon} size={24} class="text-{color}-600" />
-    </div>
-    <div class="flex-1">
-      <h3 class="font-medium text-{color}-900 mb-1">{title}</h3>
-      <p class="text-sm text-{color}-700">{text}</p>
-    </div>
-  </div>
-{/snippet}
-
-
-{#snippet SummaryCard({ color, icon, label, value, subtext }: SummaryCardProps)}
-  <div class="bg-{color}-50/50 rounded-lg p-4 py-2 border border-{color}-100">
-    <div class="flex items-center gap-3 mb-2">
-      <div class="w-8 h-8 rounded-full bg-{color}-100 flex items-center justify-center">
-        <AppIcon name={icon} size={18} class="text-{color}-600" />
-      </div>
-      <span class="text-[0.78rem] text-{color}-600 font-bold uppercase tracking-wider">{label}</span>
-    </div>
-    <p class="text-[1rem] font-medium text-{color}-700">{value}</p>
-    <p class="text-[0.8rem] text-{color}-600 font-medium mt-1">{subtext}</p>
-  </div>
-{/snippet}
-
-
-{#snippet PaymentOption({ icon, title, desc, checked, extraClass = '' }: PaymentOptionProps)}
-  <label class="flex items-center gap-3 p-3 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-all group {extraClass}">
-    <input type="radio" name="payment-method" {checked} class="w-4 h-4 text-primary border-slate-300" />
-    <div class="flex-1">
-      <div class="flex items-center gap-2">
-        <AppIcon name={icon} size={16} class="text-slate-600 group-hover:text-primary" />
-        <span class="font-bold text-sm text-slate-700">{title}</span>
-      </div>
-      <p class="text-sm text-slate-500 mt-0.5">{desc}</p>
-    </div>
-  </label>
-{/snippet}
 

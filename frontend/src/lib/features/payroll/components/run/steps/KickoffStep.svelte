@@ -4,6 +4,7 @@
   import { payrollRunStore } from "@/features/payroll/stores/runs/payrollRunStore.svelte";
   import { updatePayrollRun, type PayrollRunUpdatePayload } from "@/features/payroll/queries/payroll";
   import { notification } from "@/stores/notification.svelte";
+  import AppIcon from "@/components/layout/elements/AppIcon.svelte";
   import { orgService } from "@/features/jobs/services/org.service";
   import { employeesService } from "@/features/employees/services/employees.service";
 
@@ -32,21 +33,28 @@
   });
 
   $effect(() => {
-    canSubmit = !!(isValid && rateReady && !isCreating);
+    canSubmit = !!(isValid && rateReady && !isCreating && !isViewOnlyRun);
   });
 
   const run = payrollRunStore.currentRun;
   const initialSelection = run?.selection;
+  // Valeurs figées du run (période + taux + sélection). Elles ne sont chargées
+  // qu'une seule fois (création) puis ré-affichées telles quelles lors d'un
+  // retour sur le kickoff d'un run existant.
+  const frozenRate = run?.exchangeRate;
+  const frozenStart = run?.periodStart ?? (run as any)?.start_date;
+  const frozenEnd = run?.periodEnd ?? (run as any)?.end_date;
 
-  // ─── Période ───
-  let periodStart = $state(run?.periodStart ?? (run as any)?.start_date ?? '');
-  let periodEnd = $state(run?.periodEnd ?? (run as any)?.end_date ?? '');
+  // ─── Période (pré-remplie depuis le run figé le cas échéant) ───
+  let periodStart = $state(frozenStart ?? '');
+  let periodEnd = $state(frozenEnd ?? '');
 
-  // ─── Taux de change ───
+  // ─── Taux de change figé au run (jamais re-téléchargé sur un run existant) ───
+  // Seule la création d'une nouvelle paie propose un taux « auto » (BCC).
   let rateSource: 'auto' | 'manual' = $state<'auto' | 'manual'>(
-    run?.exchangeRate ? 'manual' : 'auto'
+    frozenRate ? 'manual' : 'auto'
   );
-  let manualRate = $state(run?.exchangeRate ?? 2850);
+  let manualRate = $state(frozenRate ?? 0);
 
   // ─── Sélection employés ───
   let includeAllEmployees = $state(
@@ -65,6 +73,13 @@
   /** Vrai si on édite un run déjà créé (DRAFT) — on patche au lieu de créer. */
   let isEditingExisting = $derived(
     !!payrollRunStore.currentRun && payrollRunStore.currentRun.status === 'draft'
+  );
+
+  /** Run déjà engagé au-delà du brouillon (calculé, révisé, approuvé…) : le
+   *  kickoff redevient une simple VUE de la configuration figée. On interdit
+   *  toute re-création (doublon) et on ne re-télécharge pas un nouveau taux. */
+  let isViewOnlyRun = $derived(
+    !!payrollRunStore.currentRun && payrollRunStore.currentRun.status !== 'draft'
   );
 
   // Taux de change résolu envoyé au backend : auto (BCC) si disponible, sinon manuel
@@ -143,9 +158,12 @@
   });
 
   // Charger le taux de change USD → CDF (BCC) au montage si pas déjà chargé.
-  // Sans cet appel, exchangeRateInfo reste null et le bouton « Lancer » est
-  // désactivé indéfiniment (rateReady = false).
+  // Le taux de change n'est récupéré qu'UNE SEULE FOIS, au démarrage d'une
+  // NOUVELLE paie (aucun run en cours). Dès qu'un run existe (y compris DRAFT),
+  // son taux est figé : revenir sur le kickoff réaffiche la valeur figée du run,
+  // sans jamais en re-télécharger une nouvelle.
   $effect(() => {
+    if (payrollRunStore.currentRun) return; // run existant → taux figé, ne rien chercher
     if (payrollStore.exchangeRateInfo) return;
     payrollStore.refreshExchangeRate();
   });
@@ -227,6 +245,9 @@
 
   // ─── Création / mise à jour du run ───
   function handleSubmit() {
+    // Un run déjà engagé (au-delà du brouillon) est en lecture seule sur le
+    // kickoff : on n'ira jamais recréer un doublon depuis cette vue.
+    if (isViewOnlyRun) return;
     if (!periodStart || !periodEnd) return;
     if (isEditingExisting) {
       updateRun();
@@ -290,44 +311,60 @@
 </script>
 
 
-<form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }} class="space-y-6">
-  <PeriodSection
-    {periodStart}
-    {periodEnd}
-    onPeriodStartChange={(v) => periodStart = v}
-    onPeriodEndChange={(v) => periodEnd = v}
-  />
+<div class="space-y-5">
+  {#if isViewOnlyRun}
+    <div class="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3">
+      <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white shadow-fine border border-slate-200">
+        <AppIcon name="lock" size={15} class="text-indigo-600" />
+      </div>
+      <div class="min-w-0">
+        <p class="text-sm font-semibold text-slate-800">Configuration figée — lecture seule</p>
+        <p class="text-[0.86rem] text-slate-500 mt-1 leading-snug">
+          La période, le taux de change et la sélection des employés sont verrouillés à la
+          création du run. Une fois la paie engagée (calcul effectué, révision…), ces paramètres
+          ne sont plus modifiables : les bulletins et le calcul ont été figés à partir d'eux.
+          Modifier cette configuration invaliderait la traçabilité et la cohérence des résultats
+          déjà produits. Vous consultez ici la configuration exacte de ce run.
+        </p>
+      </div>
+    </div>
+  {/if}
 
-  <ExchangeRateSection
-    {rateSource}
-    {manualRate}
-    exchangeRateInfo={payrollStore.exchangeRateInfo}
-    onRateSourceChange={(s: 'auto' | 'manual') => rateSource = s}
-    onManualRateChange={(v: number) => manualRate = v}
-    onRefresh={() => payrollStore.refreshExchangeRate(true)}
-  />
-
-  <EmployeesSection
-    {employees}
-    {isLoadingEmployees}
-    {orgUnits}
-    {isLoadingOrgUnits}
-    {includeAllEmployees}
-    {selectedEmployeeIds}
-    {selectedOrgUnitIds}
-    {employeeSearch}
-    periodStart={periodStart}
-    periodEnd={periodEnd}
-    onIncludeAllChange={handleIncludeAllChange}
-    onToggleEmployee={toggleEmployee}
-    onToggleOrgUnit={toggleOrgUnit}
-    onClearOrgUnits={clearOrgUnits}
-    onSearchChange={(v: string) => employeeSearch = v}
-  />
-
-  {@render Footer()}
-
-</form>
+  <form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }} class="space-y-6">
+    <PeriodSection
+        {periodStart}
+        {periodEnd}
+        onPeriodStartChange={(v) => periodStart = v}
+        onPeriodEndChange={(v) => periodEnd = v}
+    />
+    <ExchangeRateSection
+        {rateSource}
+        {manualRate}
+        exchangeRateInfo={payrollStore.exchangeRateInfo}
+        onRateSourceChange={(s: 'auto' | 'manual') => rateSource = s}
+        onManualRateChange={(v: number) => manualRate = v}
+        onRefresh={() => payrollStore.refreshExchangeRate(true)}
+    />
+    <EmployeesSection
+        {employees}
+        {isLoadingEmployees}
+        {orgUnits}
+        {isLoadingOrgUnits}
+        {includeAllEmployees}
+        {selectedEmployeeIds}
+        {selectedOrgUnitIds}
+        {employeeSearch}
+        periodStart={periodStart}
+        periodEnd={periodEnd}
+        onIncludeAllChange={handleIncludeAllChange}
+        onToggleEmployee={toggleEmployee}
+        onToggleOrgUnit={toggleOrgUnit}
+        onClearOrgUnits={clearOrgUnits}
+        onSearchChange={(v: string) => employeeSearch = v}
+    />
+    {@render Footer()}
+  </form>
+</div>
 
 
 {#snippet Footer()}

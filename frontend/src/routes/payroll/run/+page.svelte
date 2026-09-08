@@ -19,18 +19,49 @@
   const currentStatus = $derived(payrollStore.currentRun?.status ?? 'draft');
   const isKickoff = $derived(payrollStore.currentStep === 'kickoff');
 
+  // Redirige vers la liste des exécutions si on arrive sur /payroll/run sans
+  // exécution en cours (ni création en cours). On attend isBootResolved pour ne
+  // pas rediriger pendant la restauration du run ; et on garde l'écran de clôture
+  // d'un run payé (currentRun non nul) visible.
+  $effect(() => {
+    if (
+      payrollStore.isBootResolved &&
+      !payrollStore.currentRun &&
+      !payrollStore.isStartingNewRun
+    ) {
+      goto('/payroll');
+    }
+  });
+
   let isCreating = $state(false);
   let isCalculating = $state(false);
   let isReviewing = $state(false);
   let isApproving = $state(false);
   let isPaying = $state(false);
+  let isClosing = $state(false);
 
   let kickoffSubmit = $state<(() => void) | undefined>(undefined);
   let canSubmitKickoff = $state(false);
 
+  /** Nombre d'employés payés sur le run courant (source summary, sinon bulletins). */
+  const paidEmployeeCount = $derived(payrollStore.currentRunSummary?.summary?.total_employees ?? payrollStore.payslips.length);
+
+  /** Formate un montant dans la devise du run (CDF en pratique), sans USD. */
   function formatAmount(amount: number): string {
-    return (amount ?? 0).toLocaleString('fr-FR', { style: 'currency', currency: 'USD' });
+    return (amount ?? 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' CDF';
   }
+
+  /** Libellé humain de la période du run (ex. « septembre 2026 ») au lieu de « 2026-09 ». */
+  const periodLabel = $derived.by(() => {
+    const start = payrollStore.currentRun?.periodStart;
+    const raw = start || payrollStore.currentPeriod;
+    const y = Number(raw?.slice(0, 4));
+    const m = Number(raw?.slice(5, 7));
+    if (!raw || !Number.isInteger(y) || !Number.isInteger(m)) {
+      return payrollStore.currentRun?.period || payrollStore.currentPeriod || '';
+    }
+    return new Date(y, m - 1, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  });
 
   async function handleCalculate() {
     if (isCalculating) return;
@@ -46,6 +77,17 @@
     }
   }
 
+  /** Clôture d'un run payé : petite temporisation (feedback) puis libère l'onglet
+   *  et retourne aux exécutions. Désactive le bouton pour éviter les doubles clics. */
+  function handleCloseRun() {
+    if (isClosing) return;
+    isClosing = true;
+    setTimeout(() => {
+      payrollStore.closeActiveRun();
+      goto('/payroll');
+    }, 450);
+  }
+
   async function handleReview() {
     if (isReviewing) return;
     isReviewing = true;
@@ -53,6 +95,8 @@
       const ok = await payrollStore.reviewPayroll();
       if (ok) notification.toast.success('Paie envoyée en révision');
       else notification.toast.error('Échec de la révision');
+    } catch (e: any) {
+      notification.toast.error(e?.message ?? 'Échec de la révision');
     } finally {
       isReviewing = false;
     }
@@ -62,7 +106,7 @@
     if (isApproving) return;
     notification.confirm({
       title: 'Confirmer l\'approbation',
-      message: `Vous allez approuver la paie de ${payrollStore.currentPeriod} pour un montant net total de ${formatAmount(payrollStore.totalNetPay)}`,
+      message: `Vous allez approuver la paie de ${periodLabel} (${paidEmployeeCount} employé${paidEmployeeCount > 1 ? 's' : ''}) pour un montant net total de ${formatAmount(payrollStore.totalNetPay)}. L'approbation verrouillera la paie pour le paiement.`,
       type: 'warning',
       yesText: 'Approuver',
       noText: 'Annuler',
@@ -72,6 +116,8 @@
           const ok = await payrollStore.approvePayroll();
           if (ok) notification.toast.success('Paie approuvée avec succès');
           else notification.toast.error('Échec de l\'approbation');
+        } catch (e: any) {
+          notification.toast.error(e?.message ?? 'Échec de l\'approbation');
         } finally {
           isApproving = false;
         }
@@ -83,7 +129,7 @@
     if (isPaying) return;
     notification.confirm({
       title: 'Confirmer le paiement',
-      message: `Vous allez procéder au paiement de la paie de ${payrollStore.currentPeriod} pour un montant total de ${formatAmount(payrollStore.totalNetPay)}`,
+      message: `Vous allez procéder au paiement de la paie de ${periodLabel} (${paidEmployeeCount} employé${paidEmployeeCount > 1 ? 's' : ''}) pour un montant total de ${formatAmount(payrollStore.totalNetPay)}.`,
       type: 'warning',
       yesText: 'Confirmer',
       noText: 'Annuler',
@@ -93,6 +139,8 @@
           const ok = await payrollStore.processPayment();
           if (ok) notification.toast.success('Paiement effectué avec succès');
           else notification.toast.error('Échec du paiement');
+        } catch (e: any) {
+          notification.toast.error(e?.message ?? 'Échec du paiement');
         } finally {
           isPaying = false;
         }
@@ -114,11 +162,11 @@
       icon: "calculator"
     },
     review: {
-      title: "Révision des fiches de paie",
+      title: "Révision de la paie",
       icon: "eye"
     },
     approval: {
-      title: "Approbation finale",
+      title: "Approbation de la paie",
       icon: "circle-check"
     },
     payment: {
@@ -168,7 +216,9 @@
         {isReviewing}
         {isApproving}
         {isPaying}
+        {isClosing}
         {canSubmitKickoff}
+        onCloseRun={handleCloseRun}
         onCancelKickoff={() => { payrollStore.cancelNewRun(); goto('/payroll'); }}
         onSubmitKickoff={() => kickoffSubmit?.()}
         onNew={handleCalculate}

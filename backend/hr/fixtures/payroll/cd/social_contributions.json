@@ -4,14 +4,14 @@
     "pk": "019c03b87a2375919001c9e4d9f12419",
     "fields": {
       "contribution_type": "CNSS",
-      "rate_percentage": "13.00",
+      "rate_percentage": "18.00",
       "employee_portion": "5.00",
-      "employer_portion": "8.00",
+      "employer_portion": "13.00",
       "company_size_min": null,
       "company_size_max": null,
       "effective_date": "2024-01-01",
       "is_active": true,
-      "ceiling_amount": "175000.00",
+      "ceiling_amount": null,
       "created_at": "2026-01-26T00:00:00Z",
       "updated_at": "2026-01-26T00:00:00Z"
     }
@@ -37,9 +37,9 @@
     "pk": "019c03b8f8297bcfbdcdb37d7f3c1b5a",
     "fields": {
       "contribution_type": "INPP",
-      "rate_percentage": "3.00",
+      "rate_percentage": "3.50",
       "employee_portion": "0.00",
-      "employer_portion": "3.00",
+      "employer_portion": "3.50",
       "company_size_min": 1,
       "company_size_max": 50,
       "effective_date": "2024-01-01",
@@ -53,9 +53,9 @@
     "pk": "019c03b93a427e24abf0b657460a8c02",
     "fields": {
       "contribution_type": "INPP",
-      "rate_percentage": "2.00",
+      "rate_percentage": "3.00",
       "employee_portion": "0.00",
-      "employer_portion": "2.00",
+      "employer_portion": "3.00",
       "company_size_min": 51,
       "company_size_max": 300,
       "effective_date": "2024-01-01",
@@ -69,9 +69,9 @@
     "pk": "019c03b97dd2776bbab688a70e0282de",
     "fields": {
       "contribution_type": "INPP",
-      "rate_percentage": "1.00",
+      "rate_percentage": "2.00",
       "employee_portion": "0.00",
-      "employer_portion": "1.00",
+      "employer_portion": "2.00",
       "company_size_min": 301,
       "company_size_max": null,
       "effective_date": "2024-01-01",

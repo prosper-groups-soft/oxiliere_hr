@@ -58,7 +58,7 @@
   )}>
     {#if isCompleted}
       <div in:scale={{ duration: 200 }}>
-        <AppIcon name="check" size={10} strokeWidth={3} />
+        <AppIcon name="check" size={18} class="text-white" />
       </div>
     {:else}
       {index + 1}

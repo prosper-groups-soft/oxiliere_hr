@@ -14,6 +14,9 @@ export const PayrollApi = {
   /** Payslips within a run — /api/payroll/runs/:runId/payslips */
   runPayslips: new APIEndPoint('/api/payroll/runs/:id/payslips/', '/api/payroll/runs/:id/payslips/:payslipId/'),
 
+  /** Détail d'un bulletin — /api/payroll/runs/payslips/:payslipId/ (sans run_id) */
+  payslipDetail: new APIEndPoint('/api/payroll/runs/payslips/:payslipId/', '/api/payroll/runs/payslips/:payslipId/'),
+
   /** Run summary — /api/payroll/runs/:id/summary */
   runSummary: new APIEndPoint('/api/payroll/runs/:id/summary/', '/api/payroll/runs/:id/summary/'),
 
