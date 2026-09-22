@@ -11,7 +11,7 @@ import axios, { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig 
 import * as rax from 'retry-axios';
 import { AUTH_EVENT, AUTH_REQUIRED_EVENT, PERM_REQUIRED_EVENT } from '@/constants/app/events';
 import { get_api_auth_origin, get_api_base_origin } from './urls';
-import { ensureValidToken, isTokenExpired, refreshOrganizationToken } from '@/features/auth/utils/token-manager';
+import { ensureValidToken, isTokenExpired, refreshOrganizationToken } from '@/hr/auth/utils/token-manager';
 
 
 const auth_event = createEvent<string>(AUTH_EVENT);

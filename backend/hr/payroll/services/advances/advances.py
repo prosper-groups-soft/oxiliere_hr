@@ -11,6 +11,7 @@ from hr.payroll.models import (
 from hr.payroll.enums import (
     AdvanceDeductionBase,
     AdvanceDeductionWindow,
+    AdvanceStatus,
 )
 
 
@@ -47,10 +48,13 @@ class AdvanceService:
     @classmethod
     def get_active_advances_ordered(cls, employee_id: int, payroll_date: date) -> List[SalaryAdvance]:
         """ Retrieves active advances for an employee, sorted by repayment priority. """
-        # Get configurations for this employee, ordered by priority
+        # Get configurations for this employee, ordered by priority.
+        # Seules les avances ACTIVE sont déductibles (sémantique alignée sur le
+        # reste du module) — une avance simplement APPROVED n'est pas déduite.
         configs = AdvanceDeductionConfiguration.objects.filter(
             employee_id=employee_id,
-            is_active=True
+            is_active=True,
+            advance__status=AdvanceStatus.ACTIVE,
         ).select_related('advance').order_by('priority_order')
 
         # Filter advances that are deductible on the given date
@@ -111,20 +115,32 @@ class AdvanceService:
             # total = 270
         """
         active_advances = cls.get_active_advances_ordered(employee_id, payroll_date)
-        
+
         advance_deductions = []
         total_deduction = Decimal('0.00')
+        # Net encore disponible pour absorber des remboursements d'avances. On
+        # plafonne la déduction cumulée au net à payer : avec plusieurs avances,
+        # chaque avance ne peut prendre que ce qu'il RESTE du net (sinon sur-
+        # déduction → net négatif).
+        available_net = net_salary_before_advances
+        if available_net <= 0:
+            return advance_deductions, total_deduction
 
         for advance in active_advances:
-            deduction = cls.calculate_advance_deduction(
+            if available_net <= 0:
+                break
+            suggested = cls.calculate_advance_deduction(
                 advance,
                 gross_salary,
                 net_salary_before_advances
             )
-            
+            # Ne jamais dépasser le net restant (la part non couverte reste due et
+            # sera déduite à la période suivante — le solde n'est pas perdu).
+            deduction = min(suggested, available_net)
             if deduction > 0:
                 advance_deductions.append((advance, deduction))
                 total_deduction += deduction
+                available_net -= deduction
 
         return advance_deductions, total_deduction
 

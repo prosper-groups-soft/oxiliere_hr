@@ -2,6 +2,24 @@ import { toast } from '@/utilities/ui/toast';
 
 export type AlertDialogVariant = 'info' | 'danger' | 'warning' | 'success';
 
+type ToastOpts = { duration?: number; id?: string | number };
+
+/** ponytail: dedup window 2.5s — augmente si toasts légitimes identiques trop proches */
+const DEDUP_WINDOW_MS = 2500;
+const _lastToast = new Map<string, number>();
+
+function shouldShow(variant: string, message: string, id?: string | number): boolean {
+	if (id != null) return true; // caller-managed dedup via id
+	const key = `${variant}:${message}`;
+	const now = Date.now();
+	const prev = _lastToast.get(key);
+	if (prev != null && now - prev < DEDUP_WINDOW_MS) return false;
+	_lastToast.set(key, now);
+	// prune old entries
+	for (const [k, t] of _lastToast) if (now - t > DEDUP_WINDOW_MS) _lastToast.delete(k);
+	return true;
+}
+
 
 export interface ConfirmRequest {
 	title: string;
@@ -22,17 +40,25 @@ class NotificationStore {
 	/** Ask for confirmation */
 	confirmRequest = $state<ConfirmRequest | null>(null);
 
-	// Toast
+	// Toast — dedup identical variant+message within DEDUP_WINDOW_MS
 
 	readonly toast = {
-		success: (message: string, options?: { duration?: number }) => toast.success(message, options),
-
-		error: (message: string, options?: { duration?: number }) => toast.error(message, options),
-
-		warning: (message: string, options?: { duration?: number }) => toast.warning(message, options),
-
-		info: (message: string, options?: { duration?: number }) => toast.info(message, options),
-
+		success: (message: string, options?: ToastOpts) => {
+			if (!shouldShow('success', message, options?.id)) return;
+			toast.success(message, options);
+		},
+		error: (message: string, options?: ToastOpts) => {
+			if (!shouldShow('error', message, options?.id)) return;
+			toast.error(message, options);
+		},
+		warning: (message: string, options?: ToastOpts) => {
+			if (!shouldShow('warning', message, options?.id)) return;
+			toast.warning(message, options);
+		},
+		info: (message: string, options?: ToastOpts) => {
+			if (!shouldShow('info', message, options?.id)) return;
+			toast.info(message, options);
+		},
 		dismiss: (id?: string | number) => toast.dismiss(id)
 	};
 

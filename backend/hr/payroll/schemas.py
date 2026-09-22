@@ -1,7 +1,8 @@
 from decimal  import Decimal
 from typing   import List, Dict, Annotated, Optional, Literal, Any
 from uuid     import UUID
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+import re
 from django.db.models import Q
 from ninja    import (
     Schema, 
@@ -10,6 +11,7 @@ from ninja    import (
     FilterLookup
 )
 from pydantic import Field, ConfigDict, AliasChoices
+from hr.schemas import BaseFilter
 from .models import (
     PayrollConfiguration,
     EmployeeContract,
@@ -416,6 +418,7 @@ class EmployeePayslipOut(Schema):
     exchange_rate_used: Decimal
     currency: str
     payment_method: str
+    status: str = "REVIEW"
     paid_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
@@ -992,15 +995,140 @@ class EmployeeContractListFilterIn(FilterSchema):
     end_date_to: Annotated[date | None, FilterLookup("end_date__lte")] = None
 
 
-class PayrollRunListFilterIn(FilterSchema):
-    """Filter schema for payroll runs listing."""
-    status: Annotated[str | None, FilterLookup("status")] = None
-    search: Annotated[str | None, FilterLookup("code__icontains")] = None
-    org_unit: Annotated[str | None, FilterLookup("payslips__contract__employee__position_history__org_unit__name__icontains")] = None
+class PayrollRunListFilterIn(BaseFilter):
+    """Filter schema for payroll runs listing.
+
+    `status` accepte soit un statut métier de liste (draft / processing /
+    closed / error) soit un statut backend brut (DRAFT, PAID…). `period`
+    filtre par libellé exact "YYYY-MM-DD - YYYY-MM-DD" ou par clé YYYY-MM.
+    `ordering` pilote le tri serveur (voir PayrollRunService.list_runs_annotated).
+    `search` (hérité de BaseFilter) cherche code OU période (mois français / année).
+    `org_unit` filtre par unité org — via payslips pour runs avec bulletins,
+    sinon via params_snapshot.selection pour DRAFT.
+    """
+    org_unit: str | None = None
     period_start_from: Annotated[date | None, FilterLookup("start_date__gte")] = None
     period_start_to: Annotated[date | None, FilterLookup("start_date__lte")] = None
     period_end_from: Annotated[date | None, FilterLookup("end_date__gte")] = None
     period_end_to: Annotated[date | None, FilterLookup("end_date__lte")] = None
+
+    status: str | None = None
+    period: str | None = None
+
+    # Statuts backend possibles (lifecycle de PayrollRun).
+    _BACKEND_STATUSES = ('DRAFT', 'CANCELED', 'PROCESSING', 'VALIDATED',
+                         'REVIEWED', 'APPROVED', 'PAID')
+
+    def filter_org_unit(self, value: str | None):
+        """Filtre par unité org. DRAFT n'a pas de payslips → on filtre via params_snapshot."""
+        if not value:
+            return Q()
+        v = value.strip()
+        # Runs avec payslips : filtre relationnel classique
+        payslip_q = Q(payslips__contract__employee__position_history__org_unit__name__icontains=v,
+                      payslips__contract__employee__position_history__is_current=True)
+        # Runs DRAFT (sans payslips) : le scope est dans params_snapshot
+        from hr.jobs.models import OrgUnit, EmployeePositionHistory
+        matching_ids = list(
+            OrgUnit.objects.filter(name__icontains=v).values_list('id', flat=True)[:20]
+        )
+        if matching_ids:
+            snapshot_q = Q()
+            for oid in matching_ids:
+                snapshot_q |= Q(params_snapshot__selection__org_unit_ids__contains=str(oid))
+            # Scope 'employees' : DRAFT stocke employee_ids, pas org_unit_ids.
+            # On résout les employés de ces org_units et on check leur présence dans le JSON.
+            employee_ids = list(
+                EmployeePositionHistory.objects.filter(
+                    org_unit_id__in=matching_ids, is_current=True
+                ).values_list('employee_id', flat=True)[:100]
+            )
+            for eid in employee_ids:
+                snapshot_q |= Q(params_snapshot__selection__employee_ids__contains=str(eid))
+            if snapshot_q:
+                return payslip_q | snapshot_q
+        return payslip_q
+
+    def filter_status(self, value: str | None):
+        """Filtre par statut métier de liste OU statut backend brut."""
+        if not value:
+            return Q()
+        v = value.strip().upper()
+        if v == 'DRAFT':
+            return Q(status__in=['DRAFT', 'CANCELED'])
+        if v == 'PROCESSING':
+            return Q(status='PROCESSING')
+        if v == 'CLOSED':
+            return Q(status__in=['VALIDATED', 'REVIEWED', 'APPROVED', 'PAID'])
+        if v == 'ERROR':
+            # Tout statut hors du cycle connu (anomalie / inattendu).
+            return ~Q(status__in=self._BACKEND_STATUSES)
+        # Valeur backend brute → exact (rétro-compat).
+        return Q(status=v) if v in self._BACKEND_STATUSES else Q(pk__in=[])
+
+    def filter_period(self, value: str | None):
+        """Filtre par période exacte : "YYYY-MM-DD - YYYY-MM-DD" ou "YYYY-MM"."""
+        if not value:
+            return Q()
+        raw = value.strip()
+        # Forme libellé complet "YYYY-MM-DD - YYYY-MM-DD"
+        if ' - ' in raw:
+            parts = raw.split(' - ')
+            try:
+                s = date.fromisoformat(parts[0].strip())
+                e = date.fromisoformat(parts[1].strip())
+                return Q(start_date=s, end_date=e)
+            except Exception:
+                return Q(pk__in=[])
+        # Forme YYYY-MM
+        m = re.match(r'^(\d{4})-(\d{2})$', raw)
+        if m:
+            try:
+                y, mo = int(m.group(1)), int(m.group(2))
+                start = date(y, mo, 1)
+                end = (start.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+                return Q(start_date=start, end_date=end)
+            except Exception:
+                return Q(pk__in=[])
+        return Q(pk__in=[])
+
+    # Mois français → numéro (recherche par libellé de période côté serveur).
+    _FRENCH_MONTHS = {
+        'janvier': 1, 'fevrier': 2, 'février': 2, 'mars': 3, 'avril': 4,
+        'mai': 5, 'juin': 6, 'juillet': 7, 'aout': 8, 'août': 8,
+        'septembre': 9, 'octobre': 10, 'novembre': 11, 'decembre': 12, 'décembre': 12,
+    }
+
+    def filter_search(self, value: str | None):
+        """Recherche serveur : code du run OU période (mois français / année).
+
+        Exemples : « PA-2026 », « septembre », « septembre 2026 », « 2026 ».
+        """
+        if not value:
+            return Q()
+        raw = value.strip()
+        q = raw.lower()
+        cond = Q(code__icontains=raw)
+
+        year_match = re.search(r'\b(19|20)\d{2}\b', q)
+        year = int(year_match.group()) if year_match else None
+        month = next((num for name, num in self._FRENCH_MONTHS.items() if name in q), None)
+
+        if month:
+            y = year or date.today().year
+            start = date(y, month, 1)
+            end = (start.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+            cond |= Q(start_date__range=(start, end))
+        elif year:
+            cond |= Q(start_date__year=year)
+        return cond
+
+
+class PayrollRunPeriodOut(Schema):
+    """Une période d'exécution distincte (pour le filtre Période, pagination serveur)."""
+    label: str
+    start_date: date
+    end_date: date
 
 
 class AdvanceListFilterIn(BaseFilter):
@@ -1183,4 +1311,63 @@ class EmployerChargeOut(Schema):
     label: str
     amount: Decimal
     base_amount: Decimal
+
+
+# ---  PRESENCE PREVIEW (préparation de paie) ---
+class EmployeePresenceOut(Schema):
+    """Présence agrégée d'un employé sur la période du run, en vue de la préparation.
+
+    Reprend exactement ce que l'orchestrateur utilisera au calcul : seules les
+    présences FINALISÉES sont comptées. `unfinalized_days` renseigne le nombre de
+    jours de la période dont les registres ne sont pas encore finalisés (donc
+    absents du calcul ci-dessus).
+    """
+    employee_id: UUID
+    worked_days: int = 0
+    total_worked_hours: float = 0.0
+    overtime_hours_standard: float = 0.0
+    overtime_hours_holiday: float = 0.0
+    absence_days: int = 0
+    paid_leave_days: float = 0.0
+    unpaid_leave_days: float = 0.0
+    unfinalized_days: int = 0
+    has_attendance: bool = False
+
+
+class PayrollRunPresenceOut(Schema):
+    """Aperçu de présence des employés éligibles d'un run (préparation de paie)."""
+    run_id: UUID
+    period_start: date
+    period_end: date
+    employees: list[EmployeePresenceOut] = []
+
+
+class PayslipListFilterIn(BaseFilter):
+    """Filtre global des bulletins (comme PayrollRunListFilterIn) : paginé, filtré, trié, recherché.
+
+    - `run_id` : filtre par exécution (par défaut tous les runs).
+    - `org_unit` : filtre par unité organisationnelle courante.
+    - `search` : nom/matricule employé.
+    - Tri via `ordering` passé en Query (pas dans FilterSchema) : employeeName, gross, net, period.
+    """
+    run_id: Annotated[UUID | None, FilterLookup("payroll_run_id")] = None
+    org_unit: str | None = None
+
+    def filter_org_unit(self, value: str | None):
+        if not value:
+            return Q()
+        v = value.strip()
+        return Q(contract__employee__position_history__org_unit__name__icontains=v,
+                 contract__employee__position_history__is_current=True)
+
+    def filter_search(self, value: str | None):
+        if not value:
+            return Q()
+        v = value.strip()
+        return (
+            Q(contract__employee__first_name__icontains=v)
+            | Q(contract__employee__last_name__icontains=v)
+            | Q(contract__employee__middle_name__icontains=v)
+            | Q(contract__employee__matricule__icontains=v)
+        )
 

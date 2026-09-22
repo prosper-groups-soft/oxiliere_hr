@@ -3,8 +3,8 @@
   import { settings } from "@/stores/settings.svelte";
   import { ui } from "@/stores/ui.svelte";
   import { buildFullName } from "@/utilities/common/employee.utils";
-  import { employeeStore } from '@/features/employees/stores/employees.svelte';
-  import { recruitmentStore } from '@/features/recruitment/stores/recruitment.svelte';
+  import { employeeStore } from '@/hr/employees/stores/employees.svelte';
+  import { recruitmentStore } from '@/hr/recruitment/stores/recruitment.svelte';
   import { PAGE_LABELS } from '@/constants/features/navigation';
   import SideBar from "@/components/layout/shell/SideBar.svelte";
   import TopBar from "@/components/layout/shell/TopBar.svelte";

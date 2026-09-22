@@ -1,5 +1,6 @@
 import logging
 from uuid     import UUID
+from typing   import List
 from injector import inject
 
 from django.core.exceptions import ValidationError
@@ -31,6 +32,8 @@ from hr.payroll.schemas import (
     EmployeePayslipDetailOut,
     PayslipGenerationStatusOut,
     PayrollRunSummaryOut,
+    PayrollRunPresenceOut,
+    PayslipListFilterIn,
 )
 from hr.payroll.services.orchestrator import PayrollOrchestrator
 from hr.payroll.services.payroll_run  import PayrollRunService
@@ -65,20 +68,22 @@ class PayrollRunController(ControllerBase):
 
     @http_get('/', response=PaginatedResponseSchema[PayrollRunOut], permissions=[ScopePermission('payroll:r')])
     @paginate(PageNumberPaginationExtra, page_size=50)
-    @cache_api_response(timeout=60*60*24, key_prefix="payroll_runs_list", user_specific=False)
-    def list_payroll_runs(self, filters: PayrollRunListFilterIn = Query(...)):  # type: ignore[reportCallIssue]
+    def list_payroll_runs(self, filters: PayrollRunListFilterIn = Query(...), ordering: str | None = Query(None)):  # type: ignore[reportCallIssue]
         """
         List payroll runs with filtering and pagination.
         
         Supports filtering by:
-        - Status (DRAFT, PROCESSING, COMPLETED, CANCELLED)
+        - Status (DRAFT, PROCESSING, COMPLETED, CANCELLED) — ou statut métier de
+          liste (draft / processing / closed / error), voir PayrollRunListFilterIn
         - Period (month/year)
         - Payment method
         - Date range
+        - Tri serveur via `ordering` (period, status, employeeCount, grossTotal,
+          createdAt ; préfixer par '-' pour un ordre décroissant).
         """
-        logger.debug("[Payroll Run] Listing runs", extra={"filters": filters.model_dump()})
+        logger.debug("[Payroll Run] Listing runs", extra={"filters": filters.model_dump(), "ordering": ordering})
 
-        qs = self.payroll_run_service.list_runs_annotated(filters=filters)
+        qs = self.payroll_run_service.list_runs_annotated(filters=filters, ordering=ordering)
         return [self.payroll_run_service.serialize_run(run) for run in qs]
 
     @http_get('/{run_id}/', response=PayrollRunDetailOut, permissions=[ScopePermission('payroll:r')])
@@ -99,6 +104,25 @@ class PayrollRunController(ControllerBase):
             run = self.payroll_run_service.get_run_detail(run_id)
             return run
 
+        except PayrollRun.DoesNotExist:
+            logger.warning("[Payroll Run] Run not found", extra={"run_id": run_id})
+            return self.create_response(
+                {"detail": "Payroll run not found"},
+                status_code=404,
+            )
+
+    @http_get('/{run_id}/presence/', response=PayrollRunPresenceOut, permissions=[ScopePermission('payroll:r')])
+    def get_payroll_run_presence(self, run_id: UUID):
+        """
+        Aperçu de présence des employés éligibles d'un run (préparation de paie).
+
+        Pour chaque employé retenu par la sélection et éligible sur la période,
+        renvoie jours travaillés, heures, absences, congés et jours de présence
+        non finalisés — la source de vérité que le calcul utilisera.
+        """
+        logger.debug("[Payroll Run] Getting presence preview", extra={"run_id": run_id})
+        try:
+            return self.payroll_run_service.get_presence_preview(run_id)
         except PayrollRun.DoesNotExist:
             logger.warning("[Payroll Run] Run not found", extra={"run_id": run_id})
             return self.create_response(
@@ -399,4 +423,20 @@ class PayrollRunController(ControllerBase):
         except ValidationError as e:
             logger.warning("[Payroll Run] Cannot cancel run", extra={"error": str(e)})
             return self.create_response({"detail": str(e)}, status_code=400)
+
+
+@api_controller('/payroll/payslips', tags=['Payslips'])
+class PayslipController(ControllerBase):
+    """Bulletins globaux : paginés, filtrables par run, triables, recherchables."""
+
+    @inject
+    def __init__(self, payroll_run_service: PayrollRunService):
+        self.payroll_run_service = payroll_run_service
+
+    @http_get('/', response=PaginatedResponseSchema[EmployeePayslipOut], permissions=[ScopePermission('payroll:r')])
+    @paginate(PageNumberPaginationExtra, page_size=50)
+    def list_payslips(self, filters: PayslipListFilterIn = Query(...), ordering: str | None = Query(None)):  # type: ignore[reportCallIssue]
+        """Liste globale des bulletins. `run_id` filtre par run (par défaut tous). Tri via `ordering`."""
+        qs = self.payroll_run_service.list_payslips_annotated(filters=filters, ordering=ordering)
+        return qs
 

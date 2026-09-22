@@ -1,0 +1,505 @@
+import type { PayrollRun, PayrollRunApiOut, PayrollRunDetailApiOut, PayrollRunSummaryApiOut, Payslip, Advance, AdvanceCreatePayload, AdvanceUpdatePayload, PayrollFilters, PayrollConfiguration, PayrollConfigurationUpdate, SMIGConfiguration, TaxBracketConfig, PayrollAdjustmentConfig, OvertimeRule, LegalAllowanceConfig, SocialContributionRate, ContractPayElementItem, ContractPayElementSummary } from '@/hr/modules/payroll/types/types';
+import { PayrollApi } from '@/hr/modules/payroll/api/payroll.endpoints';
+import { getStaleTime } from '@/api/queries/utils';
+
+
+/** Réponse brute de l'endpoint /api/payroll/configuration/exchange-rate/ */
+export interface ExchangeRateResponse {
+  /** Valeur du taux (string — format Decimal côté backend) */
+  rate: string;
+  /** Source du taux : "bcc" (Banque Centrale du Congo) ou "config" (taux manuel) */
+  source: 'bcc' | 'config' | string;
+  /** Paire de devises concernée, ex. "USD/CDF" */
+  currency_pair: string;
+}
+
+/** Filtres de la liste des avances (envoyés au backend) */
+export interface AdvanceListFilters {
+  search?: string;
+  /** Statuts séparés par des virgules (PENDING,APPROVED...) */
+  status?: string;
+  /** Niveaux de risque séparés par des virgules (LOW,MEDIUM,HIGH) */
+  risk_level?: string;
+}
+
+/** Présence agrégée d'un employé sur la période du run (aperçu préparation). */
+export interface EmployeePresence {
+  employee_id: string;
+  worked_days: number;
+  total_worked_hours: number;
+  overtime_hours_standard: number;
+  overtime_hours_holiday: number;
+  absence_days: number;
+  paid_leave_days: number;
+  unpaid_leave_days: number;
+  /** Jours de la période dont les registres de présence ne sont pas encore finalisés. */
+  unfinalized_days: number;
+  has_attendance: boolean;
+}
+
+/** Réponse de l'endpoint /api/payroll/runs/{id}/presence/ */
+export interface RunPresenceApiOut {
+  run_id: string;
+  period_start: string;
+  period_end: string;
+  employees: EmployeePresence[];
+}
+
+
+/* ─── Run List ─── */
+
+export const payrollQueryOptions = {
+  /** Cache-key root */
+  all: () => ['payroll'] as const,
+
+  /* ── Run list (S1) ── */
+  runLists: () => [...payrollQueryOptions.all(), 'runs', 'list'] as const,
+  runList: (filters: { page?: number; pageSize?: number; status?: string; period?: string; search?: string; orgUnit?: string }) => ({
+    queryKey: [...payrollQueryOptions.runLists(), filters],
+    queryFn: () => fetchRunList(filters),
+    staleTime: getStaleTime(5),
+  }),
+
+  /* ── Run detail (S3) ── */
+  runDetails: () => [...payrollQueryOptions.all(), 'runs', 'detail'] as const,
+  runDetail: (runId: string) => ({
+    queryKey: [...payrollQueryOptions.runDetails(), runId],
+    queryFn: () => fetchRunDetail(runId),
+    staleTime: getStaleTime(2),
+  }),
+
+  /* ── Run summary ── */
+  runSummary: (runId: string) => ({
+    queryKey: [...payrollQueryOptions.runDetails(), runId, 'summary'],
+    queryFn: () => fetchRunSummary(runId),
+    staleTime: getStaleTime(2),
+  }),
+
+  /* ── Payslips list (S4) ── */
+  payslipLists: () => [...payrollQueryOptions.all(), 'payslips', 'list'] as const,
+  payslipList: (runId: string, filters?: PayrollFilters) => ({
+    queryKey: [...payrollQueryOptions.payslipLists(), runId, filters],
+    queryFn: () => fetchPayslips(runId, filters),
+    staleTime: getStaleTime(2),
+  }),
+  
+  payslipsGlobal: (params: { page?: number; pageSize?: number; search?: string; orgUnit?: string; runId?: string; employeeId?: string; ordering?: string }) => ({
+    queryKey: [...payrollQueryOptions.payslipLists(), 'global', params],
+    queryFn: () => fetchPayslipsGlobal(params),
+    staleTime: getStaleTime(2),
+  }),
+
+  employeePayslips: (employeeId: string, params: { page?: number; pageSize?: number; ordering?: string } = {}) => ({
+    queryKey: [...payrollQueryOptions.payslipLists(), 'by-employee', employeeId, params],
+    queryFn: () => fetchPayslipsGlobal({ employeeId, ordering: '-created_at', ...params }),
+    staleTime: getStaleTime(2),
+  }),
+
+  /* ── Payslip detail (S4) ── */
+  payslipDetail: (payslipId: string) => ({
+    queryKey: [...payrollQueryOptions.payslipLists(), 'detail', payslipId],
+    queryFn: () => fetchPayslipDetail(payslipId),
+    staleTime: getStaleTime(5),
+  }),
+
+  /* ── Advances (S6) ── */
+  advanceLists: () => [...payrollQueryOptions.all(), 'advances', 'list'] as const,
+  
+  advanceList: (filters?: AdvanceListFilters) => ({
+    queryKey: [...payrollQueryOptions.advanceLists(), filters],
+    queryFn: () => fetchAdvances(filters),
+    staleTime: getStaleTime(2),
+  }),
+
+  /* ── Configuration (S8) ── */
+  configuration: () => ({
+    queryKey: [...payrollQueryOptions.all(), 'configuration'],
+    queryFn: fetchConfiguration,
+    staleTime: getStaleTime(15),
+  }),
+
+  /* ── SMIG rates (S8) ── */
+  smigList: () => ({
+    queryKey: [...payrollQueryOptions.all(), 'configuration', 'smig'],
+    queryFn: fetchSMIG,
+    staleTime: getStaleTime(15),
+  }),
+
+  /* ── Tax brackets (S8) ── */
+  taxBrackets: () => ({
+    queryKey: [...payrollQueryOptions.all(), 'configuration', 'tax-brackets'],
+    queryFn: fetchTaxBrackets,
+    staleTime: getStaleTime(15),
+  }),
+
+  /* ── Payroll adjustments / catalog (S8) ── */
+  adjustments: () => ({
+    queryKey: [...payrollQueryOptions.all(), 'adjustments', 'types'],
+    queryFn: fetchAdjustments,
+    staleTime: getStaleTime(15),
+  }),
+
+  /* ── Overtime rules (RDC) ── */
+  overtimeRules: () => ({
+    queryKey: [...payrollQueryOptions.all(), 'configuration', 'overtime'],
+    queryFn: fetchOvertimeRules,
+    staleTime: getStaleTime(15),
+  }),
+
+  /* ── Legal allowances (S8) ── */
+  legalAllowances: () => ({
+    queryKey: [...payrollQueryOptions.all(), 'configuration', 'allowances'],
+    queryFn: fetchLegalAllowances,
+    staleTime: getStaleTime(15),
+  }),
+
+  /* ── Social contribution rates (CNSS, ONEM, INPP) — read-only ── */
+  socialContributions: () => ({
+    queryKey: [...payrollQueryOptions.all(), 'configuration', 'contributions'],
+    queryFn: fetchSocialContributions,
+    staleTime: getStaleTime(60),
+  }),
+
+  /* ── Exchange rate (USD → CDF) ── */
+  exchangeRate: () => ({
+    queryKey: [...payrollQueryOptions.all(), 'configuration', 'exchange-rate'],
+    queryFn: fetchExchangeRate,
+    staleTime: getStaleTime(5),
+  }),
+
+  /* ── Contract pay elements (S10) ── */
+  contractPayElements: (contractId: string) => ({
+    queryKey: [...payrollQueryOptions.all(), 'contracts', contractId, 'pay-elements'],
+    queryFn: () => fetchContractPayElements(contractId),
+    staleTime: getStaleTime(5),
+  }),
+};
+
+
+/*
+   API fetch functions
+*/
+
+/** Fetch paginated run list (raw PayrollRunOut objects — mapping to RunListItem happens in the store) */
+async function fetchRunList(filters: {
+  page?: number; pageSize?: number; status?: string; period?: string; search?: string; orgUnit?: string; ordering?: string;
+  period_start_from?: string; period_end_to?: string;
+}): Promise<{ results: PayrollRunApiOut[]; count: number }> {
+  const params: Record<string, any> = {};
+  if (filters.page) params.page = filters.page;
+  if (filters.pageSize) params.page_size = filters.pageSize;
+  if (filters.status && filters.status !== 'all') params.status = filters.status;
+  if (filters.period) params.period = filters.period;
+  if (filters.period_start_from) params.period_start_from = filters.period_start_from;
+  if (filters.period_end_to) params.period_end_to = filters.period_end_to;
+  if (filters.search) params.search = filters.search;
+  if (filters.orgUnit) params.org_unit = filters.orgUnit;
+  if (filters.ordering) params.ordering = filters.ordering;
+  return PayrollApi.runs.list(params);
+}
+
+/** Fetch a single payroll run (returns the raw service dict) */
+async function fetchRunDetail(runId: string): Promise<PayrollRunDetailApiOut> {
+  return PayrollApi.runs.retrieve(runId);
+}
+
+/** Fetch run financial summary */
+async function fetchRunSummary(runId: string): Promise<PayrollRunSummaryApiOut> {
+  return PayrollApi.runSummary.retrieve(runId);
+}
+
+/** Fetch presence preview for a run (per-employee attendance, prep review) */
+export async function fetchRunPresence(runId: string): Promise<RunPresenceApiOut> {
+  return PayrollApi.runPresence.retrieve(runId);
+}
+
+/** Fetch payslips for a run */
+async function fetchPayslips(runId: string, _filters?: PayrollFilters): Promise<{ results: Payslip[]; count: number }> {
+  if (!runId) return fetchPayslipsGlobal({});
+  return PayrollApi.runPayslips.list(runId);
+}
+
+export async function fetchPayslipsGlobal(params: { page?: number; pageSize?: number; search?: string; orgUnit?: string; runId?: string; employeeId?: string; ordering?: string }): Promise<{ results: Payslip[]; count: number }> {
+  const q: Record<string, any> = {};
+  if (params.page) q.page = params.page;
+  if (params.pageSize) q.page_size = params.pageSize;
+  if (params.search) q.search = params.search;
+  if (params.orgUnit) q.org_unit = params.orgUnit;
+  if (params.runId) q.run_id = params.runId;
+  if (params.employeeId) q.employee_id = params.employeeId;
+  if (params.ordering) q.ordering = params.ordering;
+  return PayrollApi.payslips.list(q);
+}
+
+/** Bulletins d'un employé — triés du plus récent au plus ancien (ordering=-created_at) */
+export async function fetchPayslipsByEmployee(employeeId: string, params: { page?: number; pageSize?: number; ordering?: string } = {}): Promise<{ results: Payslip[]; count: number }> {
+  return fetchPayslipsGlobal({ employeeId, ordering: '-created_at', ...params });
+}
+
+/** Fetch single payslip detail */
+export async function fetchPayslipDetail(payslipId: string): Promise<Payslip> {
+  return PayrollApi.payslipDetail.retrieve(payslipId);
+}
+
+/** Fetch salary advances (server-side filtering) */
+async function fetchAdvances(filters?: AdvanceListFilters): Promise<{ results: Advance[]; count: number }> {
+  const params: Record<string, any> = {};
+  if (filters?.search) params.search = filters.search;
+  if (filters?.status) params.status = filters.status;
+  if (filters?.risk_level) params.risk_level = filters.risk_level;
+  return PayrollApi.advances.list(params);
+}
+
+/** Fetch payroll configuration */
+async function fetchConfiguration(): Promise<PayrollConfiguration> {
+  return PayrollApi.configuration.retrieve();
+}
+
+/** Fetch SMIG rates (historical + active) */
+async function fetchSMIG(): Promise<SMIGConfiguration[]> {
+  const res = await PayrollApi.smig.list();
+  return Array.isArray(res) ? res : (res?.results ?? []);
+}
+
+/** Fetch progressive tax brackets */
+async function fetchTaxBrackets(): Promise<TaxBracketConfig[]> {
+  const res = await PayrollApi.taxBrackets.list();
+  return Array.isArray(res) ? res : (res?.results ?? []);
+}
+
+/** Fetch payroll adjustment templates (catalog) */
+async function fetchAdjustments(): Promise<PayrollAdjustmentConfig[]> {
+  const res = await PayrollApi.adjustments.list();
+  return Array.isArray(res) ? res : (res?.results ?? []);
+}
+
+/** Fetch overtime rules (RDC multipliers) */
+async function fetchOvertimeRules(): Promise<OvertimeRule[]> {
+  const res = await PayrollApi.overtime.list();
+  return Array.isArray(res) ? res : (res?.results ?? []);
+}
+
+/** Fetch the active USD → CDF exchange rate (BCC live rate → manual config → default).
+ *  Pass `refresh: true` pour forcer une re-synchronisation BCC côté backend
+ *  (utilisé par le bouton « Recharger » du kickoff). */
+export async function fetchExchangeRate(refresh = false): Promise<ExchangeRateResponse> {
+  return PayrollApi.exchangeRate.retrieve(refresh ? { refresh: true } : undefined);
+}
+
+/** Fetch legal allowances (Logement, Transport) */
+async function fetchLegalAllowances(): Promise<LegalAllowanceConfig[]> {
+  const res = await PayrollApi.allowances.list();
+  return Array.isArray(res) ? res : (res?.results ?? []);
+}
+
+/** Fetch social contribution rates (CNSS, ONEM, INPP) — read-only informational */
+async function fetchSocialContributions(): Promise<SocialContributionRate[]> {
+  const res = await PayrollApi.contributions.list();
+  return Array.isArray(res) ? res : (res?.results ?? []);
+}
+
+/** Update an overtime rule multiplier */
+export async function updateOvertimeRule(ruleId: string, data: Partial<OvertimeRule>): Promise<OvertimeRule> {
+  return PayrollApi.overtime.partial_update(ruleId, data);
+}
+
+/** Update a legal allowance amount/percentage (PATCH /payroll/configuration/allowances/:id) */
+export async function updateLegalAllowance(
+  allowanceId: string,
+  data: Partial<LegalAllowanceConfig>
+): Promise<LegalAllowanceConfig> {
+  return PayrollApi.allowances.partial_update(allowanceId, data);
+}
+
+/** Reset legal allowances from fixture (POST /payroll/configuration/allowances/reset/) */
+export async function resetLegalAllowances(): Promise<{ status: string; reset_count: number }> {
+  return PayrollApi.allowanceReset.create();
+}
+
+/** Reset payroll adjustment catalog from fixture (POST /payroll/adjustments/reset/) */
+export async function resetPayrollAdjustments(): Promise<{ status: string; reset_count: number }> {
+  return PayrollApi.adjustmentsReset.create();
+}
+
+/** Fetch contract pay elements (S10 — GET /payroll/contracts/:id/pay-elements) */
+export async function fetchContractPayElements(contractId: string): Promise<ContractPayElementSummary> {
+  return PayrollApi.contractPayElements.list(contractId) as unknown as ContractPayElementSummary;
+}
+
+/** Add a pay element to a contract (S10 — POST /payroll/contracts/:id/pay-elements) */
+export async function createContractPayElement(
+  contractId: string,
+  data: Partial<ContractPayElementItem> & { adjustment: string; start_period: string; end_period?: string | null; custom_amount?: number | null; custom_percentage?: number | null; is_active?: boolean }
+): Promise<ContractPayElementItem> {
+  // IMPORTANT : le backend (ContractAdjustmentCreateIn) attend `start_date`/`end_date`,
+  // pas `start_period`/`end_period` (noms S10 frontend). Mapping obligatoire sinon les
+  // dates sont silencieusement ignorées → NOT NULL constraint failed sur start_date.
+  const { start_period, end_period, ...rest } = data;
+  const payload = {
+    ...rest,
+    start_date: start_period,
+    end_date: end_period ?? null,
+  };
+  return PayrollApi.contractPayElements.create(contractId, payload) as unknown as ContractPayElementItem;
+}
+
+/** Update a contract pay element (S10 — PATCH /payroll/contracts/:id/pay-elements/:elementId) */
+export async function patchContractPayElement(
+  contractId: string,
+  elementId: string,
+  data: Partial<ContractPayElementItem>
+): Promise<ContractPayElementItem> {
+  return PayrollApi.contractPayElements.partial_update(contractId, elementId, data) as unknown as ContractPayElementItem;
+}
+
+/** Delete a contract pay element (S10 — DELETE /payroll/contracts/:id/pay-elements/:elementId) */
+export async function deleteContractPayElement(
+  contractId: string,
+  elementId: string
+): Promise<{ message: string }> {
+  return PayrollApi.contractPayElements.destroy(contractId, elementId) as unknown as { message: string };
+}
+
+/*
+   Mutations
+*/
+
+/** Create a new payroll run (dates + taux + sélection des employés) */
+export async function createPayrollRun(data: {
+  start_date: string; end_date: string;
+  exchange_rate_applied?: number | null;
+  selection_scope?: 'all' | 'org_units' | 'employees';
+  org_unit_ids?: string[];
+  employee_ids?: string[];
+}): Promise<PayrollRunApiOut> {
+  return PayrollApi.runs.create(data);
+}
+
+/**
+ * Payload PATCH pour un PayrollRun. Le backend accepte en top-level :
+ *  - start_date, end_date (si modifiables tant que le run est en DRAFT)
+ *  - params_snapshot (objet JSON partiel — le service fait un merge
+ *    profond côté params_snapshot.selection pour ne pas écraser le
+ *    snapshot légal SMIG/IRPP).
+ * Le scope de sélection est binaire : `all` (tous les employés actifs)
+ * ou `employees` (liste explicite d'IDs cochés manuellement). Le filtre
+ * par unité organisationnelle dans l'UI est un filtre visuel de la liste
+ * — il ne constitue PAS un scope : un check par unité se traduit par
+ * une sélection d'employés dans `employee_ids`.
+ */
+export type PayrollRunSelectionScope = 'all' | 'employees';
+
+export type PayrollRunUpdatePayload = {
+  start_date?: string;
+  end_date?: string;
+  exchange_rate_applied?: string;
+  params_snapshot?: Record<string, unknown> & {
+    selection?: {
+      scope: PayrollRunSelectionScope;
+      employee_ids?: string[];
+    };
+  };
+};
+
+/** Update a payroll run */
+export async function updatePayrollRun(
+  runId: string,
+  data: PayrollRunUpdatePayload
+): Promise<PayrollRun> {
+  return PayrollApi.runs.partial_update(runId, data as Partial<PayrollRun>);
+}
+
+/** Process payroll (generate payslips) */
+export async function processPayrollRun(runId: string): Promise<{ task_id: string; status: string }> {
+  return PayrollApi.runProcess.create(runId);
+}
+
+/** Complete payroll (finalize) */
+export async function completePayrollRun(runId: string): Promise<PayrollRunApiOut> {
+  return PayrollApi.runComplete.create(runId);
+}
+
+/** Review payroll (VALIDATED → REVIEWED) */
+export async function reviewPayrollRun(runId: string): Promise<PayrollRunApiOut> {
+  return PayrollApi.runReview.create(runId);
+}
+
+/** Approve payroll (REVIEWED → APPROVED) */
+export async function approvePayrollRun(runId: string): Promise<PayrollRunApiOut> {
+  return PayrollApi.runApprove.create(runId);
+}
+
+/** Cancel payroll */
+export async function cancelPayrollRun(runId: string): Promise<PayrollRunApiOut> {
+  return PayrollApi.runCancel.create(runId);
+}
+
+/** Request an advance */
+export async function requestAdvance(data: AdvanceCreatePayload): Promise<Advance> {
+  return PayrollApi.advances.create(data);
+}
+
+/** Approve an advance (PATCH /payroll/advances/:id/approve) */
+export async function approveAdvance(advanceId: string): Promise<Advance> {
+  return PayrollApi.advanceApprove.partial_update(advanceId, {});
+}
+
+/** Activate an approved advance (PATCH /payroll/advances/:id/activate) */
+export async function activateAdvance(advanceId: string): Promise<Advance> {
+  return PayrollApi.advanceActivate.partial_update(advanceId, {});
+}
+
+/**
+ * Update advance deduction configuration (PATCH /payroll/advances/:id/configuration)
+ * This is the SINGLE route that modifies deduction settings at approval time.
+ */
+export async function updateAdvance(advanceId: string, data: AdvanceUpdatePayload): Promise<Advance> {
+  const config = await PayrollApi.advanceConfiguration.partial_update(advanceId, data);
+  return config as unknown as Advance;
+}
+
+/** Edit a draft advance fields (PATCH /payroll/advances/:id) — amount, reason */
+export async function updateAdvanceFields(advanceId: string, data: Record<string, any>): Promise<Advance> {
+  return PayrollApi.advances.partial_update(advanceId, data);
+}
+
+/** Reject an advance (PATCH /payroll/advances/:id/reject) — reason is mandatory */
+export async function rejectAdvance(advanceId: string, reason = ''): Promise<Advance> {
+  return PayrollApi.advanceReject.partial_update(advanceId, { reason });
+}
+
+/** Submit a draft advance (POST /payroll/advances/:id/submit) */
+export async function submitAdvance(advanceId: string): Promise<Advance> {
+  return PayrollApi.advanceSubmit.create(advanceId);
+}
+
+/** Update the global payroll configuration */
+export async function updatePayrollConfiguration(data: PayrollConfigurationUpdate): Promise<PayrollConfiguration> {
+  return PayrollApi.configuration.partial_update(data);
+}
+
+/** Toggle the active state of a payroll adjustment (catalog) */
+export async function togglePayrollAdjustment(adjustmentId: string, isActive: boolean): Promise<PayrollAdjustmentConfig> {
+  return PayrollApi.adjustments.partial_update(adjustmentId, { is_active: isActive });
+}
+
+/** Create a new payroll adjustment template (POST /payroll/adjustments/types) */
+export async function createPayrollAdjustment(
+  data: Partial<PayrollAdjustmentConfig>
+): Promise<PayrollAdjustmentConfig> {
+  return PayrollApi.adjustments.create(data);
+}
+
+/** Update a payroll adjustment template (PATCH /payroll/adjustments/:id) */
+export async function updatePayrollAdjustment(
+  adjustmentId: string,
+  data: Partial<PayrollAdjustmentConfig>
+): Promise<PayrollAdjustmentConfig> {
+  return PayrollApi.adjustments.partial_update(adjustmentId, data);
+}
+
+/** Delete a payroll adjustment template (DELETE /payroll/adjustments/:id) */
+export async function deletePayrollAdjustment(adjustmentId: string): Promise<{ message: string }> {
+  return PayrollApi.adjustments.destroy(adjustmentId);
+}
+

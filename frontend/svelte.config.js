@@ -10,7 +10,9 @@ const config = {
 	kit: {
 		adapter: adapter(),
 		alias: {
-			'@/*': './src/lib/*'
+			'@/*': './src/lib/*',
+			'@/hr/*': './src/lib/hr/*',
+			'@/features/*': './src/lib/hr/*' // ponytail: legacy, remove after migration (~1 month)
 		}
 	}
 };

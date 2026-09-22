@@ -1,5 +1,5 @@
 import { FILE_TYPES, SUPPORTED_FILE_TYPES, UNITS_SIZE_FILE } from '@/constants/features/files';
-import { type Document } from '@/features/employees/types/types';
+import { type Document } from '@/hr/employees/types/types';
 
 export function get_file_type(filename: string) {
 	const ext = filename.toLowerCase().split('.').pop();

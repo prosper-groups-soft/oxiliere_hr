@@ -43,18 +43,20 @@
 
 
 <div class={cn('flex flex-col items-center justify-center py-16 px-6 text-center', variant === 'loading' && 'bg-white', cls)}>
-  <div class={cn('w-16 h-16 rounded-2xl flex items-center justify-center mb-5', variant === 'loading' ? 'bg-white' : def.bgColor)}>
-    {#if variant === 'loading'}
+  {#if variant === 'loading'}
+    <div class="mb-5">
       <AnimateSpin text={effectiveTitle} />
-    {:else}
+    </div>
+  {:else}
+    <div class={cn('w-16 h-16 rounded-2xl flex items-center justify-center mb-5', def.bgColor)}>
       <AppIcon
         name={effectiveIcon}
         size={32}
         class={def.iconColor}
         strokeWidth={1.5}
       />
-    {/if}
-  </div>
+    </div>
+  {/if}
 
   {#if variant !== 'loading'}
     <h3 class="text-[1rem] font-extrabold text-slate-700 mb-1.5">{effectiveTitle}</h3>

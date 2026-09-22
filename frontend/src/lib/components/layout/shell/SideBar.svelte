@@ -10,8 +10,8 @@
   
   // Using the reactive UI store for selected menu item tracking
   import { ui } from "@/stores/ui.svelte"; 
-  import { onboardingStore } from "@/features/employees/stores/onboarding.svelte";
-  import { usePendingCountQuery } from "@/features/leaves/queries/leaveQueries";
+  import { onboardingStore } from "@/hr/employees/stores/onboarding.svelte";
+  import { usePendingCountQuery } from "@/hr/leaves/queries/leaveQueries";
   import Logo from "./Logo.svelte";
 
   // --- Props ---

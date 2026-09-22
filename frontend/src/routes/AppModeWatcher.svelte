@@ -3,7 +3,7 @@
 	import { appModeManager } from '@/hooks/is-organization.svelte';
 	import { organizationQueryOptions } from '@/api/queries/organizations';
   import { browser } from '$app/environment';
-	import { auth } from '@/features/auth/stores/auth.svelte';
+	import { auth } from '@/hr/auth/stores/auth.svelte';
 	
   $effect(() => {
     if (browser && appModeManager.isOrganizationMode){

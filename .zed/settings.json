@@ -1,0 +1,16 @@
+{
+  "languages": {
+    "Python": {
+      "language_servers": ["basedpyright", "!pyrefly", "!pyright"],
+      "format_on_save": "off"
+    }
+  },
+  "lsp": {
+    "basedpyright": {
+      "binary": {
+        "path": "C:/Users/kiban/Desktop/Projects/Programmation/Oxiliere/oxiliere_hr/backend/.venv/Scripts/basedpyright-langserver.exe",
+        "arguments": ["--stdio"]
+      }
+    }
+  }
+}

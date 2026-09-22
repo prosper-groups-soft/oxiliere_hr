@@ -1,5 +1,8 @@
 import { goto } from '$app/navigation';
 
+export const HR_BASE = '/hr' as const;
+export const hr = (p: string) => `${HR_BASE}${p.startsWith('/') ? p : `/${p}`}`;
+
 
 export enum MENU_ITEM_TYPE {
 	link = 'link',
@@ -32,11 +35,11 @@ export const MENU_ITEMS: MenuItemGroup[] = [
 		items: [
 			{
 				id: 'home',
-				path: '/',
+				path: HR_BASE,
 				type: MENU_ITEM_TYPE.router,
 				icon: 'layout-dashboard',
 				label: 'Tableau de bord',
-				onClick: () => goto('/')
+				onClick: () => goto(HR_BASE)
 			}
 		]
 	},
@@ -46,44 +49,44 @@ export const MENU_ITEMS: MenuItemGroup[] = [
 		items: [
 			{
 				id: 'employees',
-				path: '/employees',
+				path: hr('/employees'),
 				type: MENU_ITEM_TYPE.router,
 				icon: 'users',
 				label: 'Employés',
-				onClick: () => goto('/employees')
+				onClick: () => goto(hr('/employees'))
 			},
 			{
 				id: 'jobs',
-				path: '/jobs',
+				path: hr('/jobs'),
 				type: MENU_ITEM_TYPE.router,
 				icon: 'development',
 				label: 'Postes & Org.',
-				onClick: () => goto('/jobs/chart')
+				onClick: () => goto(hr('/jobs/chart'))
 			},
 			{
 				id: 'onboarding',
-				path: '/employees/onboarding',
+				path: hr('/employees/onboarding'),
 				type: MENU_ITEM_TYPE.router,
 				icon: 'app',
 				label: 'Onboarding',
 				countKey: 'onboarding_active',
-				onClick: () => goto('/employees/onboarding')
+				onClick: () => goto(hr('/employees/onboarding'))
 			},
 			{
 				id: 'recruitment',
-				path: '/recruitment',
+				path: hr('/recruitment'),
 				type: MENU_ITEM_TYPE.router,
 				icon: 'consulting',
 				label: 'Recrutement',
-				onClick: () => goto('/recruitment')
+				onClick: () => goto(hr('/recruitment'))
 			},
 			{
 				id: 'performance',
-				path: '/performance',
+				path: hr('/performance'),
 				type: MENU_ITEM_TYPE.router,
 				icon: 'target',
 				label: 'Évaluations',
-				onClick: () => goto('/performance/campaigns')
+				onClick: () => goto(hr('/performance/campaigns'))
 			}
 		]
 	},
@@ -93,28 +96,28 @@ export const MENU_ITEMS: MenuItemGroup[] = [
 		items: [
 			{
 				id: 'attendance',
-				path: '/attendance',
+				path: hr('/attendance'),
 				type: MENU_ITEM_TYPE.router,
 				icon: 'monitoring',
 				label: 'Présences',
-				onClick: () => goto('/attendance/register')
+				onClick: () => goto(hr('/attendance/register'))
 			},
 			{
 				id: 'calendar',
-				path: '/calendar',
+				path: hr('/calendar'),
 				type: MENU_ITEM_TYPE.router,
 				icon: 'calendar',
 				label: 'Calendrier',
-				onClick: () => goto('/calendar')
+				onClick: () => goto(hr('/calendar'))
 			},
 			{
 				id: 'leaves',
-				path: '/leaves',
+				path: hr('/leaves'),
 				type: MENU_ITEM_TYPE.router,
 				icon: 'calendar-days',
 				label: 'Congés',
 				countKey: 'leaves_pending',
-				onClick: () => goto('/leaves/requests')
+				onClick: () => goto(hr('/leaves/requests'))
 			}
 		]
 	},
@@ -124,19 +127,19 @@ export const MENU_ITEMS: MenuItemGroup[] = [
 		items: [
 			{
 				id: 'payroll',
-				path: '/payroll',
+				path: hr('/payroll'),
 				type: MENU_ITEM_TYPE.router,
 				icon: 'finance',
 				label: 'Paie',
-				onClick: () => goto('/payroll')
+				onClick: () => goto(hr('/payroll'))
 			},
 			{
 				id: 'banking',
-				path: '/banking',
+				path: hr('/banking'),
 				type: MENU_ITEM_TYPE.router,
 				icon: 'landmark',
 				label: 'Comptes Bancaires',
-				onClick: () => goto('/banking/accounts')
+				onClick: () => goto(hr('/banking/accounts'))
 			}
 		]
 	},
@@ -145,20 +148,20 @@ export const MENU_ITEMS: MenuItemGroup[] = [
 		label: 'Configuration',
 		items: [
 			{
-				id: 'audit',
-				path: '/admin/audit',
+				id: 'admin-users',
+				path: hr('/admin/users'),
 				type: MENU_ITEM_TYPE.router,
-				icon: 'reports',
-				label: 'Audit',
-				onClick: () => goto('/admin/audit')
+				icon: 'shield-check',
+				label: 'Utilisateurs',
+				onClick: () => goto(hr('/admin/users'))
 			},
 			{
-				id: 'settings',
-				path: '/admin/settings',
+				id: 'admin-company',
+				path: hr('/admin/my-company'),
 				type: MENU_ITEM_TYPE.router,
-				icon: 'settings',
-				label: 'Paramètres',
-				onClick: () => goto('/admin/settings/access')
+				icon: 'office',
+				label: 'Mon Entreprise',
+				onClick: () => goto(hr('/admin/my-company'))
 			}
 		]
 	}
@@ -177,6 +180,7 @@ export const bottomMenuItems: MenuItem[] = [
 
 
 export const PAGE_LABELS: Record<string, string> = {
+	hr:           'Ressources Humaines',
 	employees:    'Employés',
 	documents:    'Documents',
 	family:       'Famille',

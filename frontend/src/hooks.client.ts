@@ -1,5 +1,5 @@
-import { auth } from '@/features/auth/stores/auth.svelte';
-import { syncAuthState } from '@/features/auth/utils/auth-cookies';
+import { auth } from '@/hr/auth/stores/auth.svelte';
+import { syncAuthState } from '@/hr/auth/utils/auth-cookies';
 import { browser } from '$app/environment';
 import type { ServerInit } from '@sveltejs/kit';
 

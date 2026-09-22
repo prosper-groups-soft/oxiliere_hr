@@ -1,7 +1,7 @@
 import { goto } from '$app/navigation';
 import { auth } from '$lib/features/auth/stores/auth.svelte';
 import type { SessionUser } from '@/types/users';
-import { AuthEndpoint, UserAccountEndpoints } from '@/features/auth/api/auth.endpoints';
+import { AuthEndpoint, UserAccountEndpoints } from '@/hr/auth/api/auth.endpoints';
 import BaseEndpoints from '@/api/endpoints';
 import axios from 'axios';
 import { toast } from 'svelte-sonner';

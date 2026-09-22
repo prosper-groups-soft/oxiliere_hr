@@ -2,745 +2,150 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-
-  <title>
-    {{ title }} - {{ employee.last_name }} {{ employee.middle_name }} {{ employee.first_name }}
-  </title>
-
+  <title>{{ title }} - {{ employee.last_name }} {{ employee.middle_name }} {{ employee.first_name }}</title>
   <style>
-    /* =========================================================
-       PAGE
-    ========================================================= */
-
-    @page {
-      size: A4;
-      margin: 1.2cm;
-
-      @bottom-right {
-        content: "Page " counter(page) " / " counter(pages);
-        font-size: 8pt;
-        color: #94a3b8;
-      }
-
-      @bottom-left {
-        content: "Oxiliere HR • {% now 'd/m/Y H:i' %}";
-        font-size: 8pt;
-        color: #94a3b8;
-      }
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: Helvetica, Arial, sans-serif;
-      font-size: 8pt;
-      line-height: 1.35;
-      color: #1e293b;
-      margin: 0;
-      padding: 0;
-      background: #ffffff;
-    }
-
-    /* =========================================================
-       GLOBAL
-    ========================================================= */
-
-    h1, h2, h3, h4, p {
-      margin: 0;
-    }
-
-    .bold {
-      font-weight: bold;
-    }
-
-    .muted {
-      color: #64748b;
-    }
-
-    /* =========================================================
-       HEADER
-    ========================================================= */
-
-    .header {
-      display: table;
-      width: 100%;
-      border-bottom: 1px solid #dbe2ea;
-      padding-bottom: 12px;
-      margin-bottom: 16px;
-    }
-
-    .header-photo {
-      display: table-cell;
-      width: 80px;
-      vertical-align: top;
-    }
-
-    .header-content {
-      display: table-cell;
-      vertical-align: middle;
-      padding-left: 12px;
-    }
-
-    .photo-wrapper {
-      width: 70px;
-      height: 70px;
-      border-radius: 6px;
-      overflow: hidden;
-      border: 1px solid #dbe2ea;
-      background: #f8fafc;
-    }
-
-    .photo-wrapper img {
-      width: 70px;
-      height: 70px;
-      object-fit: cover;
-      display: block;
-    }
-
-    .photo-placeholder {
-      width: 100%;
-      height: 100%;
-      line-height: 70px;
-      text-align: center;
-      font-size: 18pt;
-      font-weight: bold;
-      color: #94a3b8;
-    }
-
-    .employee-name {
-      font-size: 12pt;
-      font-weight: bold;
-      color: #0f172a;
-      margin-bottom: 2px;
-    }
-
-    .employee-role {
-      font-size: 8pt;
-      color: #64748b;
-      margin-bottom: 8px;
-    }
-
-    .badge {
-      display: inline-block;
-      padding: 2px 7px;
-      border-radius: 10px;
-      font-size: 8pt;
-      font-weight: bold;
-      background: #f1f5f9;
-      color: #334155;
-      margin-right: 4px;
-    }
-
-    .badge-status {
-      background: #e0e7ff;
-      color: #4338ca;
-    }
-
-    /* =========================================================
-       SECTIONS
-    ========================================================= */
-
-    .section {
-      margin-bottom: 14px;
-    }
-
-    .section-title {
-      font-size: 9pt;
-      text-transform: uppercase;
-      letter-spacing: 0.7px;
-      font-weight: bold;
-      color: #475569;
-      border-bottom: 1px solid #e2e8f0;
-      padding-bottom: 4px;
-      margin-bottom: 8px;
-    }
-
-    /* =========================================================
-       LAYOUT
-    ========================================================= */
-
-    .two-columns {
-      display: table;
-      width: 100%;
-      border-spacing: 8px 0;
-    }
-
-    .col {
-      display: table-cell;
-      width: 50%;
-      vertical-align: top;
-    }
-
-    .card {
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      padding: 10px;
-    }
-
-    /* =========================================================
-       FIELD
-    ========================================================= */
-
-    .field {
-      margin-bottom: 8px;
-    }
-
-    .field:last-child {
-      margin-bottom: 0;
-    }
-
-    .field-label {
-      font-size: 8pt;
-      text-transform: uppercase;
-      color: #94a3b8;
-      font-weight: bold;
-      margin-bottom: 1px;
-      letter-spacing: 0.4px;
-    }
-
-    .field-value {
-      font-size: 8pt;
-      color: #0f172a;
-    }
-
-    .field-value.highlight {
-      font-weight: bold;
-    }
-
-    /* =========================================================
-       INFO STRIP
-    ========================================================= */
-
-    .info-strip {
-      display: table;
-      width: 100%;
-      border-spacing: 8px 0;
-      margin-top: 10px;
-    }
-
-    .info-box {
-      display: table-cell;
-      width: 33%;
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      padding: 8px;
-      background: #fafcff;
-    }
-
-    .info-box-title {
-      font-size: 8pt;
-      text-transform: uppercase;
-      color: #94a3b8;
-      font-weight: bold;
-      margin-bottom: 3px;
-    }
-
-    .info-box-value {
-      font-size: 8pt;
-      font-weight: bold;
-      color: #0f172a;
-    }
-
-    /* =========================================================
-       TABLES
-    ========================================================= */
-
-    .table-wrapper {
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      overflow: hidden;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    thead {
-      background: #f8fafc;
-    }
-
-    th {
-      text-align: left;
-      padding: 7px 8px;
-      font-size: 8pt;
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
-      color: #64748b;
-      border-bottom: 1px solid #e2e8f0;
-    }
-
-    td {
-      padding: 7px 8px;
-      font-size: 8pt;
-      border-bottom: 1px solid #f1f5f9;
-      vertical-align: top;
-    }
-
-    tbody tr:last-child td {
-      border-bottom: none;
-    }
-
-    .empty-row {
-      text-align: center;
-      color: #94a3b8;
-      padding: 14px;
-    }
-
-    /* =========================================================
-       FOOTER NOTE
-    ========================================================= */
-
-    .footer-note {
-      margin-top: 16px;
-      padding-top: 8px;
-      border-top: 1px solid #e2e8f0;
-      text-align: center;
-      font-size: 8pt;
-      color: #94a3b8;
-    }
-
+    @page { size: A4; margin: 1cm; @bottom-center { content: "Oxiliere HR — Fiche Employé • Page " counter(page) "/" counter(pages); font-size: 8pt; color:#94a3b8; } }
+    * { box-sizing:border-box; }
+    body { font-family: Helvetica, Arial, sans-serif; font-size:9pt; color:#1e293b; margin:0; background:#fff; line-height:1.35; }
+    h1,h2,h3,h4,p{margin:0}
+    .bold{font-weight:bold}
+    .muted{color:#64748b; font-size:8.5pt}
+    /* Header — même carte bordée que bulletin */
+    .header { border:0.5pt solid #edf2f7; border-radius:8px; padding:12px; margin-bottom:12px; display:table; width:100%; }
+    .header-photo { display:table-cell; width:68px; vertical-align:middle; }
+    .header-content { display:table-cell; vertical-align:middle; padding-left:12px; }
+    .photo-wrapper{width:56px;height:56px;border-radius:50%;overflow:hidden;border:0.5pt solid #edf2f7;background:#f1f5f9}
+    .photo-wrapper img{width:56px;height:56px;object-fit:cover;display:block}
+    .photo-placeholder{width:56px;height:56px;border-radius:50%;background:#f1f5f9;color:#64748b;font-size:14pt;font-weight:bold;text-align:center;line-height:56px;border:0.5pt solid #edf2f7}
+    .employee-name{font-size:11.5pt;font-weight:bold;color:#0f172a;margin-bottom:2px}
+    .employee-role{font-size:8.5pt;color:#64748b;margin-bottom:6px}
+    .badge{display:inline-block;padding:2px 8px;border-radius:10px;background:#f1f5f9;font-size:8.5pt;margin-right:4px}
+    .badge-status{background:#e0e7ff;color:#4338ca}
+    /* Sections — carte comme bulletin */
+    .section{border:0.5pt solid #edf2f7;border-radius:8px;padding:10px;margin-bottom:10px}
+    .section-title{font-size:9.5pt;font-weight:bold;text-transform:uppercase;letter-spacing:0.6px;color:#334155;border-bottom:0.5pt solid #edf2f7;padding-bottom:4px;margin-bottom:8px}
+    .two-columns{display:table;width:100%;border-spacing:8px 0}
+    .col{display:table-cell;width:50%;vertical-align:top}
+    .card{border:0.5pt solid #edf2f7;border-radius:8px;padding:10px}
+    .field{margin-bottom:6px}
+    .field:last-child{margin-bottom:0}
+    .field-label{font-size:8pt;text-transform:uppercase;color:#94a3b8;font-weight:bold;margin-bottom:1px;letter-spacing:0.4px}
+    .field-value{font-size:9pt;color:#0f172a}
+    .field-value.highlight{font-weight:bold}
+    .info-strip{display:table;width:100%;border-spacing:8px 0;margin-top:10px}
+    .info-box{display:table-cell;width:33%;border:0.5pt solid #edf2f7;border-radius:8px;padding:8px;background:#fafcff}
+    .info-box-title{font-size:8pt;text-transform:uppercase;color:#94a3b8;font-weight:bold;margin-bottom:3px}
+    .info-box-value{font-size:9pt;font-weight:bold;color:#0f172a}
+    .table-wrapper{border:0.5pt solid #edf2f7;border-radius:8px;overflow:hidden}
+    table{width:100%;border-collapse:collapse}
+    thead{background:#f8fafc}
+    th{text-align:left;padding:5px 6px;font-size:8pt;text-transform:uppercase;letter-spacing:0.4px;color:#64748b;border-bottom:0.5pt solid #edf2f7}
+    td{padding:5px 6px;font-size:9pt;border-bottom:0.5pt solid #f8fafc;vertical-align:top}
+    tbody tr:last-child td{border-bottom:none}
+    .empty-row{text-align:center;color:#94a3b8;padding:14px}
+    .footer-note{margin-top:8px;padding-top:6px;border-top:0.5pt solid #edf2f7;text-align:center;font-size:8pt;color:#94a3b8}
   </style>
 </head>
-
 <body>
 
-  <!-- =======================================================
-       HEADER
-  ======================================================== -->
-
+  <!-- HEADER -->
   <div class="header">
     <div class="header-photo">
       <div class="photo-wrapper">
-        {% if photo_url %}
-          <img src="{{ photo_url }}" alt="{{ employee.last_name }}">
-        {% else %}
-          <div class="photo-placeholder">
-            {{ employee.last_name|slice:":1" }}{{ employee.first_name|slice:":1" }}
-          </div>
-        {% endif %}
+        {% if photo_url %}<img src="{{ photo_url }}" alt="{{ employee.last_name }}">{% else %}<div class="photo-placeholder">{{ employee.last_name|slice:":1" }}{{ employee.first_name|slice:":1" }}</div>{% endif %}
       </div>
     </div>
-
     <div class="header-content">
-      <div class="employee-name">
-        {{ employee.last_name }} {{ employee.middle_name }} {{ employee.first_name }}
-      </div>
-      <div class="employee-role">
-        {% with pos=employee.prefetched_current_position.0 %}
-          {% if pos %}
-            {{ pos.position.name|default:"Aucun poste" }}
-          {% else %}
-            Aucun poste
-          {% endif %}
-        {% endwith %}
-      </div>
-      <span class="badge">
-        {{ employee.matricule }}
-      </span>
-      <span class="badge badge-status">
-        {% with status=employee.prefetched_current_status.0 %}
-          {{ status.get_status_display|default:"Statut inconnu" }}
-        {% endwith %}
-      </span>
+      <div class="employee-name">{{ employee.last_name }} {{ employee.middle_name }} {{ employee.first_name }}</div>
+      <div class="employee-role">{% with pos=employee.prefetched_current_position.0 %}{% if pos %}{{ pos.position.name|default:"Aucun poste" }}{% else %}Aucun poste{% endif %}{% endwith %}</div>
+      <span class="badge">{{ employee.matricule }}</span>
+      <span class="badge badge-status">{% with status=employee.prefetched_current_status.0 %}{{ status.get_status_display|default:"Statut inconnu" }}{% endwith %}</span>
     </div>
   </div>
 
-  <!-- =======================================================
-       PERSONAL INFO
-  ======================================================== -->
-
+  <!-- PERSONAL INFO -->
   <div class="section">
-    <div class="section-title">
-      Informations personnelles
-    </div>
+    <div class="section-title">Informations personnelles</div>
     <div class="two-columns">
-      <div class="col">
-        <div class="card">
-          <div class="field">
-            <div class="field-label">Date de naissance</div>
-            <div class="field-value">
-              {{ employee.birthdate|date:"d F Y"|default:"-" }}
-            </div>
-          </div>
-          <div class="field">
-            <div class="field-label">Genre</div>
-            <div class="field-value">
-              {{ employee.get_gender_display|default:"-" }}
-            </div>
-          </div>
-          <div class="field">
-            <div class="field-label">État civil</div>
-            <div class="field-value">
-              {{ employee.get_marital_status_display|default:"-" }}
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="col">
-        <div class="card">
-          <div class="field">
-            <div class="field-label">Email professionnel</div>
-            <div class="field-value">
-              {{ employee.email|default:"-" }}
-            </div>
-          </div>
-          <div class="field">
-            <div class="field-label">Téléphone</div>
-            <div class="field-value">
-              {{ employee.phone|default:"-" }}
-            </div>
-          </div>
-          <div class="field">
-            <div class="field-label">Site de travail</div>
-            <div class="field-value">
-              {{ employee.work_site.name|default:"-" }}
-            </div>
-          </div>
-        </div>
-      </div>
+      <div class="col"><div class="card">
+        <div class="field"><div class="field-label">Date de naissance</div><div class="field-value">{{ employee.birthdate|date:"d F Y"|default:"-" }}</div></div>
+        <div class="field"><div class="field-label">Genre</div><div class="field-value">{{ employee.get_gender_display|default:"-" }}</div></div>
+        <div class="field"><div class="field-label">État civil</div><div class="field-value">{{ employee.get_marital_status_display|default:"-" }}</div></div>
+        <div class="field"><div class="field-label">Nationalité</div><div class="field-value">{{ employee.get_nationality_display|default:employee.nationality|default:"-" }}</div></div>
+      </div></div>
+      <div class="col"><div class="card">
+        <div class="field"><div class="field-label">Email professionnel</div><div class="field-value">{{ employee.email|default:"-" }}</div></div>
+        <div class="field"><div class="field-label">Téléphone</div><div class="field-value">{{ employee.phone|default:"-" }}</div></div>
+        <div class="field"><div class="field-label">Site de travail</div><div class="field-value">{{ employee.work_site.name|default:"-" }}</div></div>
+        <div class="field"><div class="field-label">Date d'embauche</div><div class="field-value">{{ employee.hire_date|date:"d/m/Y"|default:"-" }}</div></div>
+        {% if employee.termination_date %}<div class="field"><div class="field-label">Date de sortie</div><div class="field-value">{{ employee.termination_date|date:"d/m/Y" }}</div></div>{% endif %}
+      </div></div>
     </div>
+    {% with addr=employee.prefetched_current_address.0 %}{% if addr %}<div class="field" style="margin-top:8px"><div class="field-label">Adresse</div><div class="field-value">{{ addr.number|default:"" }} {{ addr.street|default:"" }}{% if addr.municipality %}, {{ addr.municipality }}{% endif %}{% if addr.city %}, {{ addr.city }}{% endif %}{% if addr.province %} ({{ addr.province }}){% endif %}{% if addr.country_code %} — {{ addr.country_code }}{% endif %}</div></div>{% endif %}{% endwith %}
+    {% if employee.description %}<div class="field" style="margin-top:6px"><div class="field-label">Notes RH</div><div class="field-value">{{ employee.description }}</div></div>{% endif %}
   </div>
 
-  <!-- =======================================================
-       CONTRACT
-  ======================================================== -->
-
+  <!-- CONTRACT -->
   <div class="section">
-    <div class="section-title">
-      Carrière & contrat
-    </div>
+    <div class="section-title">Carrière & contrat</div>
     {% with pos=employee.prefetched_current_position.0 contract=employee.prefetched_latest_contract.0 %}
     <div class="card">
       <div class="two-columns">
         <div class="col">
-          <div class="field">
-            <div class="field-label">Poste actuel</div>
-            <div class="field-value highlight">
-              {% if pos %}
-                {{ pos.position.name|default:"-" }}
-              {% else %}
-                -
-              {% endif %}
-            </div>
-          </div>
-          <div class="field">
-            <div class="field-label">Unité organisationnelle</div>
-            <div class="field-value">
-              {% if pos %}
-                {{ pos.org_unit.name|default:"-" }}
-              {% else %}
-                -
-              {% endif %}
-            </div>
-          </div>
-          <div class="field">
-            <div class="field-label">Niveau de séniorité</div>
-            <div class="field-value">
-              {% if pos %}
-                {{ pos.seniority_level.label|default:"-" }}
-              {% else %}
-                -
-              {% endif %}
-            </div>
-          </div>
+          <div class="field"><div class="field-label">Poste actuel</div><div class="field-value highlight">{% if pos %}{{ pos.position.name|default:"-" }}{% else %}-{% endif %}</div></div>
+          <div class="field"><div class="field-label">Unité organisationnelle</div><div class="field-value">{% if pos %}{{ pos.org_unit.name|default:"-" }}{% else %}-{% endif %}</div></div>
+          <div class="field"><div class="field-label">Niveau de séniorité</div><div class="field-value">{% if pos %}{{ pos.seniority_level.label|default:"-" }}{% else %}-{% endif %}</div></div>
         </div>
         <div class="col">
-          <div class="field">
-            <div class="field-label">Type de contrat</div>
-            <div class="field-value">
-              {% if contract %}
-                {{ contract.get_contract_type_display }}
-              {% else %}
-                -
-              {% endif %}
-            </div>
-          </div>
-          <div class="field">
-            <div class="field-label">Période du contrat</div>
-            <div class="field-value">
-              {% if contract %}
-                Du {{ contract.start_date|date:"d/m/Y" }}
-                {% if contract.end_date %}
-                  au {{ contract.end_date|date:"d/m/Y" }}
-                {% else %}
-                  • Indéterminé
-                {% endif %}
-              {% else %}
-                -
-              {% endif %}
-            </div>
-          </div>
-          <div class="field">
-            <div class="field-label">Lieu de travail</div>
-            <div class="field-value">
-              {{ employee.work_site.name|default:"-" }}
-            </div>
-          </div>
+          <div class="field"><div class="field-label">Type de contrat</div><div class="field-value">{% if contract %}{{ contract.get_contract_type_display }}{% if not contract.is_active %} <span class="muted">(inactif)</span>{% endif %}{% else %}-{% endif %}</div></div>
+          <div class="field"><div class="field-label">Période du contrat</div><div class="field-value">{% if contract %}Du {{ contract.start_date|date:"d/m/Y" }} {% if contract.end_date %}au {{ contract.end_date|date:"d/m/Y" }}{% else %}• Indéterminé{% endif %}{% else %}-{% endif %}</div></div>
+          <div class="field"><div class="field-label">Régime de travail</div><div class="field-value">{% if contract %}{{ contract.get_work_regime_display }}{% else %}-{% endif %}</div></div>
         </div>
       </div>
       <div class="info-strip">
-        <div class="info-box">
-          <div class="info-box-title">Rémunération</div>
-          <div class="info-box-value">
-            {% if contract %}
-              {{ contract.get_remuneration_type_display }}
-            {% else %}
-              -
-            {% endif %}
-          </div>
-        </div>
-        <div class="info-box">
-          <div class="info-box-title">Salaire de base</div>
-          <div class="info-box-value">
-            {% if contract %}
-              {% if contract.base_salary %}
-                {{ contract.base_salary.amount }} {{ contract.currency }}
-              {% elif contract.hourly_rate %}
-                {{ contract.hourly_rate.amount }} {{ contract.currency }} /h
-              {% else %}
-                -
-              {% endif %}
-
-            {% else %}
-              -
-            {% endif %}
-          </div>
-        </div>
-        <div class="info-box">
-          <div class="info-box-title">Base de calcul</div>
-          <div class="info-box-value">
-            {% if contract %}
-              {{ contract.get_salary_base_type_display }}
-            {% else %}
-              -
-            {% endif %}
-          </div>
-        </div>
+        <div class="info-box"><div class="info-box-title">Rémunération</div><div class="info-box-value">{% if contract %}{{ contract.get_remuneration_type_display }}{% else %}-{% endif %}</div></div>
+        <div class="info-box"><div class="info-box-title">Salaire de base</div><div class="info-box-value">{% if contract %}{% if contract.base_salary %}{{ contract.base_salary }} {{ contract.currency }}{% elif contract.hourly_rate %}{{ contract.hourly_rate }} {{ contract.currency }} /h{% else %}-{% endif %}{% else %}-{% endif %}</div></div>
+        <div class="info-box"><div class="info-box-title">Base de calcul</div><div class="info-box-value">{% if contract %}{{ contract.get_salary_base_type_display }}{% else %}-{% endif %}</div></div>
       </div>
+      {% if contract and contract.contractual_clauses %}<div class="field" style="margin-top:8px"><div class="field-label">Clauses particulières</div><div class="field-value">{{ contract.contractual_clauses }}</div></div>{% endif %}
     </div>
     {% endwith %}
   </div>
 
-  <!-- =======================================================
-       STATUS HISTORY
-  ======================================================== -->
-
+  <!-- STATUS HISTORY -->
   <div class="section">
-    <div class="section-title">
-      Historique des statuts
-    </div>
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr>
-            <th>Date début</th>
-            <th>Date fin</th>
-            <th>Statut</th>
-            <th>Motif / commentaire</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for entry in employee.status_history.all %}
-          <tr>
-            <td>{{ entry.start_date|date:"d/m/Y" }}</td>
-            <td>{{ entry.end_date|date:"d/m/Y"|default:"Aujourd'hui" }}</td>
-            <td class="bold">{{ entry.get_status_display }}</td>
-            <td>{{ entry.reason|default:"-" }}</td>
-          </tr>
-          {% empty %}
-          <tr>
-            <td colspan="4" class="empty-row">
-              Aucun historique disponible
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+    <div class="section-title">Historique des statuts</div>
+    <div class="table-wrapper"><table><thead><tr><th>Date début</th><th>Date fin</th><th>Statut</th><th>Motif / commentaire</th></tr></thead>
+      <tbody>{% for entry in employee.status_history.all %}<tr><td>{{ entry.start_date|date:"d/m/Y" }}</td><td>{{ entry.end_date|date:"d/m/Y"|default:"Aujourd'hui" }}</td><td class="bold">{{ entry.get_status_display }}</td><td>{{ entry.reason|default:"-" }}</td></tr>{% empty %}<tr><td colspan="4" class="empty-row">Aucun historique disponible</td></tr>{% endfor %}</tbody>
+    </table></div>
   </div>
 
-  <!-- =======================================================
-       EDUCATION
-  ======================================================== -->
-
+  <!-- EDUCATION -->
   <div class="section">
-    <div class="section-title">
-      Parcours académique
-    </div>
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr>
-            <th>Diplôme</th>
-            <th>Établissement</th>
-            <th>Domaine</th>
-            <th>Année</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for edu in employee.educations.all %}
-          <tr>
-            <td class="bold">{{ edu.degree }}</td>
-            <td>{{ edu.institute }}</td>
-            <td>{{ edu.major|default:"-" }}</td>
-            <td>{{ edu.end_year|default:"-" }}</td>
-          </tr>
-          {% empty %}
-          <tr>
-            <td colspan="4" class="empty-row">
-              Aucune éducation enregistrée
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+    <div class="section-title">Parcours académique</div>
+    <div class="table-wrapper"><table><thead><tr><th>Diplôme</th><th>Établissement</th><th>Domaine</th><th>Année</th></tr></thead>
+      <tbody>{% for edu in employee.educations.all %}<tr><td class="bold">{{ edu.degree }}</td><td>{{ edu.institute }}</td><td>{{ edu.major|default:"-" }}</td><td>{{ edu.end_year|default:"-" }}</td></tr>{% empty %}<tr><td colspan="4" class="empty-row">Aucune éducation enregistrée</td></tr>{% endfor %}</tbody>
+    </table></div>
   </div>
 
-  <!-- =======================================================
-       FAMILY
-  ======================================================== -->
-
+  <!-- FAMILY -->
   <div class="section">
-    <div class="section-title">
-      Composition familiale
-    </div>
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr>
-            <th>Prénom & nom</th>
-            <th>Genre</th>
-            <th>Date de naissance</th>
-            <th>À charge</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for child in employee.children.all %}
-          <tr>
-            <td class="bold">
-              {{ child.first_name }} {{ child.last_name }}
-            </td>
-            <td>{{ child.get_gender_display }}</td>
-            <td>{{ child.birthdate|date:"d/m/Y" }}</td>
-            <td>
-              {% if child.is_dependent %}
-                Oui
-              {% else %}
-                Non
-              {% endif %}
-            </td>
-          </tr>
-          {% empty %}
-          <tr>
-            <td colspan="4" class="empty-row">
-              Aucun enfant enregistré
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+    <div class="section-title">Composition familiale</div>
+    <div class="table-wrapper"><table><thead><tr><th>Prénom & nom</th><th>Genre</th><th>Date de naissance</th><th>À charge</th></tr></thead>
+      <tbody>{% for child in employee.children.all %}<tr><td class="bold">{{ child.first_name }} {{ child.last_name }}</td><td>{{ child.get_gender_display }}</td><td>{{ child.birthdate|date:"d/m/Y" }}</td><td>{% if child.is_dependent %}Oui{% else %}Non{% endif %}</td></tr>{% empty %}<tr><td colspan="4" class="empty-row">Aucun enfant enregistré</td></tr>{% endfor %}</tbody>
+    </table></div>
   </div>
 
-  <!-- =======================================================
-       DOUBLE SECTION
-  ======================================================== -->
-
+  <!-- DOUBLE SECTION -->
   <div class="two-columns">
-    <!-- CONTACTS -->
-    <div class="col">
-      <div class="section">
-        <div class="section-title">
-          Contacts d'urgence
-        </div>
-        <div class="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Nom</th>
-                <th>Relation</th>
-                <th>Téléphone</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for contact in employee.emergency_contacts.all %}
-              <tr>
-                <td class="bold">
-                  {{ contact.first_name }} {{ contact.last_name }}
-                </td>
-                <td>{{ contact.get_relation_display }}</td>
-                <td>{{ contact.phone }}</td>
-              </tr>
-              {% empty %}
-              <tr>
-                <td colspan="3" class="empty-row">
-                  Aucun contact
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- DOCUMENTS -->
-    <div class="col">
-      <div class="section">
-        <div class="section-title">
-          Documents fournis
-        </div>
-        <div class="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Référence</th>
-                <th>Vérifié</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for doc in employee.documents.all %}
-              <tr>
-                <td class="bold">
-                  {{ doc.get_document_type_display }}
-                </td>
-                <td>
-                  {{ doc.document_number|default:"-" }}
-                </td>
-                <td>
-                  {% if doc.is_verified %}
-                    ✓ Oui
-                  {% else %}
-                    Non
-                  {% endif %}
-                </td>
-              </tr>
-              {% empty %}
-              <tr>
-                <td colspan="3" class="empty-row">
-                  Aucun document
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+    <div class="col"><div class="section"><div class="section-title">Contacts d'urgence</div><div class="table-wrapper"><table><thead><tr><th>Nom</th><th>Relation</th><th>Téléphone</th></tr></thead>
+      <tbody>{% for contact in employee.emergency_contacts.all %}<tr><td class="bold">{{ contact.first_name }} {{ contact.last_name }}</td><td>{{ contact.get_relation_display }}</td><td>{{ contact.phone }}</td></tr>{% empty %}<tr><td colspan="3" class="empty-row">Aucun contact</td></tr>{% endfor %}</tbody>
+    </table></div></div></div>
+    <div class="col"><div class="section"><div class="section-title">Documents fournis</div><div class="table-wrapper"><table><thead><tr><th>Type</th><th>Référence</th><th>Vérifié</th></tr></thead>
+      <tbody>{% for doc in employee.documents.all %}<tr><td class="bold">{{ doc.get_document_type_display }}</td><td>{{ doc.document_number|default:"-" }}</td><td>{% if doc.is_verified %}✓ Oui{% else %}Non{% endif %}</td></tr>{% empty %}<tr><td colspan="3" class="empty-row">Aucun document</td></tr>{% endfor %}</tbody>
+    </table></div></div></div>
   </div>
 
-  <!-- =======================================================
-       FOOTER
-  ======================================================== -->
-
-  <div class="footer-note">
-    Document généré automatiquement par Oxiliere HR
-  </div>
+  <div class="footer-note">Document généré automatiquement par Oxiliere HR — {% now "d/m/Y H:i" %}</div>
 </body>
 </html>
-

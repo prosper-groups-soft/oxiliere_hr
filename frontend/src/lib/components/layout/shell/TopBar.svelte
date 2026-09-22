@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Separator } from "@/components/ui/separator";
   import UserMenu from "./UserMenu.svelte";
-  import { auth } from "@/features/auth/stores/auth.svelte";
+  import { auth } from "@/hr/auth/stores/auth.svelte";
   import { OXILIERE_LABEL, ORGANIZATION_NAME } from '@/constants/app/base';
   import { NAV_CONFIG } from "@/constants/features/navigation";
 </script>

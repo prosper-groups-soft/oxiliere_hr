@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { auth } from "@/features/auth/stores/auth.svelte";
+  import { auth } from "@/hr/auth/stores/auth.svelte";
 
   const { title }: { title: string } = $props();
 </script>

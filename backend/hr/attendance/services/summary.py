@@ -15,21 +15,25 @@ class AttendanceSummaryService:
     def get_attendance_summary(employee_id: UUID, start_date: date, end_date: date) -> dict:
         """ Calculates worked days, hours, and overtime breakdown for a specific period. """
         
-        summary = TimeSheet.objects.filter(
+        # Seuls les registres FINALISÉS alimentent la paie : avant finalisation un
+        # TimeSheet est encore par défaut ABSENT et ses heures ne sont pas
+        # réconciliées. Compter du non finalisé gonflerait faussement les absences.
+        finalized = Q(register__is_finalized=True)
+        worked = Q(status__in=[
+            TimeSheetStatus.PRESENT, TimeSheetStatus.PARTIAL, TimeSheetStatus.LATE
+        ])
+        qs = TimeSheet.objects.filter(
             employee_id=employee_id,
             register__date__range=(start_date, end_date)
-        ).aggregate(
-            worked_days=Count('id', filter=Q(status__in=[
-                TimeSheetStatus.PRESENT, TimeSheetStatus.PARTIAL, TimeSheetStatus.LATE
-            ])),
-            absence_days=Count('id', filter=Q(status=TimeSheetStatus.ABSENT)),
-            total_work=Sum('recorded_work', filter=Q(status__in=[
-                TimeSheetStatus.PRESENT, TimeSheetStatus.PARTIAL, TimeSheetStatus.LATE
-            ])),
-            std_overtime=Sum('overtime', filter=Q(status__in=[
-                TimeSheetStatus.PRESENT, TimeSheetStatus.PARTIAL, TimeSheetStatus.LATE
-            ])),
-            hld_overtime=Sum('overtime', filter=Q(status=TimeSheetStatus.HOLIDAY))
+        )
+        summary = qs.aggregate(
+            worked_days=Count('id', filter=worked & finalized),
+            absence_days=Count('id', filter=Q(status=TimeSheetStatus.ABSENT) & finalized),
+            total_work=Sum('recorded_work', filter=worked & finalized),
+            std_overtime=Sum('overtime', filter=worked & finalized),
+            hld_overtime=Sum('overtime', filter=Q(status=TimeSheetStatus.HOLIDAY) & finalized),
+            # Jours de la période pas encore finalisés (donc exclus du calcul ci-dessus).
+            unfinalized_days=Count('id', filter=Q(register__is_finalized=False)),
         )
 
         def to_hours(td: timedelta | None) -> float:
@@ -43,5 +47,8 @@ class AttendanceSummaryService:
             'total_worked_hours': to_hours(summary['total_work']),
             'overtime_hours_standard': to_hours(summary['std_overtime']),
             'overtime_hours_holiday': to_hours(summary['hld_overtime']),
+            # Jours de la période dont les registres ne sont pas encore finalisés.
+            # Leur absence/heures ne sont volontairement PAS comptées ci-dessus.
+            'unfinalized_days': summary['unfinalized_days'] or 0,
         }
 

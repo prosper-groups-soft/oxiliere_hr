@@ -8,7 +8,7 @@
   import AnimateSpin from '../elements/AnimateSpin.svelte';
   
   // Stores and Auth logic
-  import { auth } from '@/features/auth/stores/auth.svelte';
+  import { auth } from '@/hr/auth/stores/auth.svelte';
   import { notification } from '@/stores/notification.svelte'; 
   
   // Queries and Utils

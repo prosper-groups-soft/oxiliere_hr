@@ -8,7 +8,7 @@
     formatPhoneNumber, 
     validatePhoneNumber, 
     type PhonePrefix 
-  } from '@/features/employees/constants/phone-prefixes';
+  } from '@/hr/employees/constants/phone-prefixes';
   import ValidationError from '../validation-error';
 
   interface Props {

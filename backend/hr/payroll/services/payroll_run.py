@@ -15,15 +15,17 @@ from hr.payroll.models import (
     PayslipLine, 
     EmployeeContract,
     EmployerCharge,
+    PayrollConfiguration,
 )
 from django.core.cache         import cache
 from hr.services.cache_helpers import CacheKeys
 from .orchestrator             import PayrollOrchestrator
-from hr.payroll.enums          import PayrollStatus
+from hr.payroll.enums          import PayrollStatus, PayslipStatus
 from hr.payroll.services.contract_eligibility import contract_active_on_period
 from hr.jobs.models import EmployeePositionHistory
 from django.db.models.functions import Concat
 from hr.payroll.services.cache  import PayrollCacheService
+from hr.payroll.services.integration.integration import PayrollIntegrationService
 
 
 logger = logging.getLogger(__name__)
@@ -318,25 +320,79 @@ class PayrollRunService:
         )
         return run
 
+    # Champs de tri serveur exposés par le frontend (liste des exécutions).
+    ORDERING_FIELDS = {
+        'period': 'start_date',
+        'status': 'status',
+        'employeeCount': '_employee_count',
+        'grossTotal': '_gross_total',
+        'createdAt': 'created_at',
+    }
+
     @classmethod
-    def list_runs_annotated(cls, filters=None, ordering: str = '-created_at'):
+    def _resolve_ordering(cls, ordering: str | None):
+        """Traduit un token de tri ('period', '-grossTotal', …) en tri Django."""
+        if not ordering:
+            return ['-created_at']
+        desc = ordering.startswith('-')
+        key = ordering[1:] if desc else ordering
+        field = cls.ORDERING_FIELDS.get(key)
+        if not field:
+            return ['-created_at']
+        return [('-' if desc else '') + field]
+
+    @classmethod
+    def list_runs_annotated(cls, filters=None, ordering: str | None = None):
         """
         Returns payroll runs with list-oriented annotations (payslip count,
         gross total, employee count) so the list endpoint can serialize
         directly into PayrollRunOut without N+1 queries.
+
+        Le brut total est calculé par sous-requête corrélée (et non par une
+        jointure agrégée) pour rester exact quand un filtre ajoute des jointures
+        (ex. org_unit via position_history) qui multiplieraient la somme.
         """
         logger.debug("[PayrollRun] Listing runs with annotations")
 
+        gross_subquery = (
+            EmployeePayslip.objects
+            .filter(payroll_run=OuterRef('pk'))
+            .order_by()
+            .values('payroll_run')
+            .annotate(total=Sum('gross_amount'))
+            .values('total')[:1]
+        )
         qs = PayrollRun.objects.annotate(
             _payslip_count=Count('payslips', distinct=True),
-            _gross_total=Coalesce(Sum('payslips__gross_amount'), Decimal('0.00')),
+            _gross_total=Coalesce(Subquery(gross_subquery), Decimal('0.00')),
             _employee_count=Count('payslips__contract', distinct=True),
-        ).order_by(ordering)
+        )
 
         if filters is not None:
             qs = filters.filter(qs)
 
-        return qs
+        # org_unit filtre via payslips → jointure qui duplique le run ; distinct obligatoire.
+        qs = qs.distinct()
+        return qs.order_by(*cls._resolve_ordering(ordering))
+
+    @classmethod
+    def list_run_periods(cls) -> list[dict]:
+        """Périodes d'exécution distinctes (label + bornes), triées desc.
+
+        Utilisé par le filtre « Période » du frontend, désormais alimenté par le
+        serveur (la liste est paginée côté serveur : on ne peut plus la déduire
+        d'une page locale).
+        """
+        rows = (
+            PayrollRun.objects
+            .order_by('-start_date')
+            .values_list('start_date', 'end_date')
+            .distinct()
+        )
+        return [
+            {'label': f"{start} - {end}", 'start_date': start, 'end_date': end}
+            for start, end in rows
+        ]
 
     @classmethod
     def serialize_run(cls, run) -> Dict[str, Any]:
@@ -371,6 +427,75 @@ class PayrollRunService:
         }
 
     # ===== STATUS TRANSITIONS =====
+
+    @classmethod
+    def get_presence_preview(cls, run_id: UUID) -> Dict[str, Any]:
+        """Présence agrégée des employés éligibles d'un run (vue préparation).
+
+        Renvoie, pour chaque contrat retenu par la sélection du run et actif sur
+        la période, exactement ce que l'orchestrateur utilisera au calcul :
+        jours travaillés, heures, absences et congés — en ne comptant que les
+        registres de présence FINALISÉS (voir AttendanceSummaryService).
+        """
+        logger.debug("[PayrollRun] Building presence preview", extra={"run_id": run_id})
+
+        run = PayrollRun.objects.get(id=run_id)
+
+        contracts = EmployeeContract.objects.filter(
+            contract_active_on_period(run.start_date, run.end_date)
+        )
+        selection = (run.params_snapshot or {}).get('selection', {})
+        scope = selection.get('scope', 'all')
+        if scope == 'org_units':
+            org_unit_ids = selection.get('org_unit_ids') or []
+            if org_unit_ids:
+                contracts = contracts.filter(
+                    employee__position_history__org_unit_id__in=org_unit_ids,
+                    employee__position_history__is_current=True,
+                ).distinct()
+        elif scope == 'employees':
+            employee_ids = selection.get('employee_ids') or []
+            if employee_ids:
+                contracts = contracts.filter(employee_id__in=employee_ids)
+
+        config = PayrollConfiguration.objects.first()
+        include_leaves = bool(config and config.include_leaves_in_payroll)
+
+        employees = []
+        for contract in contracts.select_related('employee'):
+            att = PayrollIntegrationService.get_worked_days_data(
+                contract.employee_id, run.start_date, run.end_date
+            )
+            paid_leave = unpaid_leave = Decimal('0.00')
+            if include_leaves:
+                lv = PayrollIntegrationService.get_employee_leave_data(
+                    contract.employee_id, run.start_date, run.end_date
+                )
+                paid_leave = lv.get('paid_leave_days') or Decimal('0.00')
+                unpaid_leave = lv.get('unpaid_leave_days') or Decimal('0.00')
+
+            unfinalized = int(att.get('unfinalized_days') or 0)
+            worked = int(att['regular_days'] or 0)
+            absence = int(att['absence_days'] or 0)
+            employees.append({
+                'employee_id': contract.employee_id,
+                'worked_days': worked,
+                'total_worked_hours': float(att['total_worked_hours'] or 0),
+                'overtime_hours_standard': float(att['overtime_hours_standard'] or 0),
+                'overtime_hours_holiday': float(att['overtime_hours_holiday'] or 0),
+                'absence_days': absence,
+                'paid_leave_days': float(paid_leave),
+                'unpaid_leave_days': float(unpaid_leave),
+                'unfinalized_days': unfinalized,
+                'has_attendance': bool(worked or absence or unfinalized),
+            })
+
+        return {
+            'run_id': run.id,
+            'period_start': run.start_date,
+            'period_end': run.end_date,
+            'employees': employees,
+        }
 
     @classmethod
     @transaction.atomic
@@ -465,6 +590,7 @@ class PayrollRunService:
         run.status = PayrollStatus.PAID
         run.updated_by = actor
         run.save()
+        EmployeePayslip.objects.filter(payroll_run_id=run.id).update(status=PayslipStatus.PAID, paid_at=timezone.now())
 
         logger.info("[PayrollRun] Run completed and marked PAID", extra={"run_id": run_id, "payslips": payslip_count})
         return run
@@ -490,6 +616,7 @@ class PayrollRunService:
         run.status = PayrollStatus.REVIEWED
         run.updated_by = actor
         run.save()
+        EmployeePayslip.objects.filter(payroll_run_id=run.id).update(status=PayslipStatus.CONFIRMED)
 
         logger.info("[PayrollRun] Run reviewed", extra={"run_id": run_id})
         return run
@@ -515,6 +642,7 @@ class PayrollRunService:
         run.status = PayrollStatus.APPROVED
         run.updated_by = actor
         run.save()
+        EmployeePayslip.objects.filter(payroll_run_id=run.id).update(status=PayslipStatus.CONFIRMED)
 
         logger.info("[PayrollRun] Run approved", extra={"run_id": run_id})
         return run
@@ -537,6 +665,7 @@ class PayrollRunService:
         run.status = PayrollStatus.CANCELED
         run.updated_by = actor
         run.save()
+        EmployeePayslip.objects.filter(payroll_run_id=run.id).update(status=PayslipStatus.CANCELED)
 
         logger.info("[PayrollRun] Run cancelled", extra={"run_id": run_id})
         return run
@@ -585,6 +714,38 @@ class PayrollRunService:
             # applique getMediaUrl() dessus pour afficher l'avatar de l'employé.
             photo_path=F('contract__employee__profile_photo'),
         ).order_by('contract__employee__user__first_name')
+        
+    PAYSLIP_ORDERING_FIELDS = {
+        'employeeName': 'contract__employee__last_name',
+        'gross': 'gross_amount',
+        'net': 'net_amount',
+        'period': 'payroll_run__start_date',
+        'createdAt': 'created_at',
+    }
+
+    @classmethod
+    def _resolve_payslip_ordering(cls, ordering: str | None):
+        if not ordering:
+            return ['-created_at']
+        desc = ordering.startswith('-')
+        key = ordering[1:] if desc else ordering
+        field = cls.PAYSLIP_ORDERING_FIELDS.get(key)
+        if not field:
+            return ['-created_at']
+        return [('-' if desc else '') + field]
+
+    @classmethod
+    def list_payslips_annotated(cls, filters=None, ordering: str | None = None):
+        qs = EmployeePayslip.objects.select_related('contract','contract__employee','payroll_run').prefetch_related('lines').annotate(
+            employee_name=Concat('contract__employee__last_name', Value(' '), 'contract__employee__middle_name', Value(' '), 'contract__employee__first_name'),
+            job_title=Subquery(EmployeePositionHistory.objects.filter(employee_id=OuterRef('contract__employee_id'), is_current=True).values('position__name')[:1]),
+            org_unit=Subquery(EmployeePositionHistory.objects.filter(employee_id=OuterRef('contract__employee_id'), is_current=True).values('org_unit__name')[:1]),
+            photo_path=F('contract__employee__profile_photo'),
+        )
+        if filters is not None:
+            qs = filters.filter(qs)
+        qs = qs.distinct()
+        return qs.order_by(*cls._resolve_payslip_ordering(ordering))
         
     @classmethod
     def get_payroll_summary(cls, run_id: UUID) -> Dict[str, Any]:

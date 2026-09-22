@@ -4,7 +4,7 @@
   import { Input } from "@/components/ui/input/index.js";
   import { Label } from "@/components/ui/label/index.js";
   import { Spinner } from "@/components/ui/spinner/index.js";
-  import { AuthEndpoint, MFAEndpoint } from "@/features/auth/api/auth.endpoints";
+  import { AuthEndpoint, MFAEndpoint } from "@/hr/auth/api/auth.endpoints";
   import { Lock, Smartphone } from "@lucide/svelte";
   import { toast } from "svelte-sonner";
 

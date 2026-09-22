@@ -26,7 +26,7 @@
   // --- Global Synchronization of Menu and Loading State ---
   $effect(() => {
     const pathname = page.url.pathname;
-    let bestMatchId: string | null = pathname === '/' ? "home" : null;
+    let bestMatchId: string | null = pathname === '/hr' ? "home" : null;
     let maxMatchLength = -1;
 
     const checkMatch = (item: MenuItem) => {

@@ -29,7 +29,8 @@ class PayrollIntegrationService:
             'total_worked_hours': summary['total_worked_hours'],
             'overtime_hours_standard': summary['overtime_hours_standard'],
             'overtime_hours_holiday': summary['overtime_hours_holiday'],
-            'absence_days': summary['absence_days']
+            'absence_days': summary['absence_days'],
+            'unfinalized_days': summary['unfinalized_days'],
         }
 
     @classmethod
