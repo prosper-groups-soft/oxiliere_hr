@@ -10,14 +10,15 @@
   import AttendanceHeader from "./AttendanceHeader.svelte";
   import AttendanceRecordRow from "./views/AttendanceRecordRow.svelte";
   import AppIcon from "@/hr/components/layout/elements/AppIcon.svelte";
-  import AnimateSpin from '@/hr/components/layout/elements/AnimateSpin.svelte';
-  import LoadingBar from '@/hr/components/layout/elements/LoadingBar.svelte';
-  import Empty from '@/hr/components/shared/containers/empty/Empty.svelte';
   import FilterChips from '@/hr/components/shared/elements/FilterChips.svelte';
   import { Button } from "@/components/ui/button";
   import { fade, slide } from 'svelte/transition';
   import { useCalendarEventsQuery } from "@/hr/modules/calendar/queries/calendarQueries";
   import { EVENT_TYPE_LABELS, EVENT_TYPE_COLORS } from "@/hr/modules/calendar/types/types";
+  import { createFilterState } from "@/hr/async/filters/filterState.svelte";
+  import { useAsyncResource } from "@/hr/async/core/useAsyncResource.svelte";
+  import AsyncView from "@/hr/async/components/AsyncView.svelte";
+  import { attendanceService } from "@/hr/modules/attendance/services/attendanceService";
 
 
 
@@ -125,33 +126,19 @@
     };
   }
 
-  // TanStack Query pour la vue quotidienne — réactive aux filtres et à la date
-  const dailyViewQuery = useDailyViewQuery(
-    () => attendanceStore.filters.dateRange.from,
-    () => attendanceStore.filters.search,
-    () => attendanceStore.filters.orgUnit.join(','),
-    () => attendanceStore.filters.status.join(','),
+  // hr/async — garde attendanceStore.filters comme source (pas de nouveau store), mais centralise loading/error/empty
+  const dailyRes = useAsyncResource(
+    () => ({
+      queryKey: ['attendance', 'daily', attendanceStore.filters.dateRange.from, attendanceStore.filters.search, attendanceStore.filters.orgUnit, attendanceStore.filters.status],
+      queryFn: () => attendanceService.getDailyView({ date: attendanceStore.filters.dateRange.from, search: attendanceStore.filters.search, orgUnit: attendanceStore.filters.orgUnit.join(','), status: attendanceStore.filters.status.join(',') } as any)
+    }),
+    { mapData: (d: any) => ({ items: (d ?? []).map(entryToRecord), total: (d ?? []).length }) }
   );
 
-
-  // $effect pour refetch quand les filtres changent — utiliser dailyViewQuery
-  // (sans $) pour éviter de créer une dépendance réactive sur la valeur du store
-  $effect(() => {
-    attendanceStore.filters.dateRange.from;
-    attendanceStore.filters.search;
-    attendanceStore.filters.orgUnit;
-    attendanceStore.filters.status;
-    get(dailyViewQuery).refetch();
-  });
-
-  const records = $derived(($dailyViewQuery.data ?? []).map(entryToRecord));
+  const records = $derived(dailyRes.data?.items ?? []);
   const recordsWithAnomalies = $derived(records.filter(r => r.anomalies.length > 0 || (r.status === 'EXCUSED' && r.remarks)));
   const anomaliesCount = $derived(recordsWithAnomalies.length);
-  const isLoading = $derived($dailyViewQuery.isLoading);
-  const isFetching = $derived($dailyViewQuery.isFetching);
-  const isError = $derived($dailyViewQuery.isError);
   const hasData = $derived(records.length > 0);
-  const isInitialLoading = $derived(isLoading && !$dailyViewQuery.isRefetching);
   
   const hasActiveFilters = $derived(
     attendanceStore.filters.search !== '' ||
@@ -211,10 +198,8 @@
   <div class="flex-1 flex overflow-hidden">
     <div class="flex-1 flex flex-col min-w-0 border-r border-slate-100 bg-white relative overflow-hidden">
       
-      <!-- Event banner -->
       {@render EventBanner()}
 
-      <!-- FilterChips toujours visible — même en chargement, erreur ou vide -->
       <FilterChips
         filters={chipFilters}
         activeFiltersCount={activeChipFiltersCount}
@@ -225,62 +210,8 @@
         badgeClass="bg-amber-50 text-amber-600 border-amber-100/50"
       />
 
-      <LoadingBar loading={isFetching} class="shrink-0" />
-
-      {#if isInitialLoading}
-        <div transition:fade={{ duration: 150 }} class="absolute inset-0 flex items-center justify-center">
-          <AnimateSpin text="Chargement des pointages" />
-        </div>
-
-      {:else if isError && !hasData}
-        <div transition:fade={{ duration: 150 }} class="absolute inset-0 flex items-center justify-center p-8">
-          <Empty
-            title="Erreur de chargement"
-            description="Impossible de charger les pointages pour cette date."
-            icon="alert-circle"
-            iconClass="text-red-400"            
-            iconSize={28}
-            iconStrokeWidth={1.3}
-            iconContainerClass="bg-red-50/30"
-          >
-            <Button onclick={() => $dailyViewQuery.refetch()} variant="outline" class="h-7 rounded-lg">
-              <AppIcon name="refresh-cw" />
-              Réessayer
-            </Button>
-          </Empty>
-        </div>
-
-      {:else}
-        {#if !hasData && !isLoading && !hasActiveFilters}
-          <div transition:fade={{ duration: 150 }} class="absolute inset-0 flex items-center justify-center">
-            <Empty 
-              title="Aucun enregistrement" 
-              description="Aucun pointage n'a encore été enregistré pour cette journée."
-              icon="clipboard-list"
-              iconSize={28}
-              iconStrokeWidth={1.3}
-              iconClass="text-slate-400"
-            />
-          </div>
-
-        {:else if !hasData && !isLoading && hasActiveFilters}
-          <div transition:fade={{ duration: 150 }} class="absolute inset-0 flex items-center justify-center">
-            <Empty 
-              title="Aucun résultat trouvé"
-              description="Aucun pointage ne correspond à votre recherche ou à vos filtres actuels."
-              icon="search-x"
-              iconSize={28}
-              iconStrokeWidth={1.3}
-              iconClass="text-slate-400"
-            >
-              <Button variant="ghost" onclick={resetAllFilters} class="h-7 bg-slate-50">
-                <AppIcon name="x" size={16} class="text-slate-400" />
-                Réinitialiser la recherche
-              </Button>
-            </Empty>
-          </div>
-
-        {:else}
+      <AsyncView state={dailyRes} loadingText="Chargement des pointages" emptyWhen={(d)=>d.total===0} isFiltered={hasActiveFilters} searchQuery={attendanceStore.filters.search} onResetFilters={resetAllFilters}>
+        {#snippet children(data)}
           <div class="flex-1 flex flex-col min-h-0">
             <div class="sticky top-0 z-10 flex items-center h-10 px-6 bg-white border-b border-slate-100">
               <span class="w-[30%] text-[0.7rem] font-bold uppercase tracking-widest text-slate-400">Employé / Poste</span>
@@ -294,10 +225,9 @@
                 <div class="w-7 shrink-0"></div>
               </div>
             </div>
-
             <div class="flex-1 overflow-y-auto custom-scrollbar">
               <div class="flex flex-col">
-                {#each records as record (record.id)}
+                {#each data.items as record (record.id)}
                   <div animate:flip={{ duration: 400, easing: cubicOut }}>
                     <AttendanceRecordRow {record} onrequestjustify={openJustifyDialog} />
                   </div>
@@ -305,8 +235,8 @@
               </div>
             </div>
           </div>
-        {/if}
-      {/if}
+        {/snippet}
+      </AsyncView>
     </div>
 
     {@render AnomaliesPanel()}

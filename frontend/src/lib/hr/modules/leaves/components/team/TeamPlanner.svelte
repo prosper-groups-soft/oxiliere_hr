@@ -13,6 +13,9 @@
   import { MONTHS } from '@/hr/constants/locale';
   import { cn } from '@/hr/utilities/common/css';
   import LoadingBar from '@/hr/components/layout/elements/LoadingBar.svelte';
+  import { useAsyncResource } from "@/hr/async/core/useAsyncResource.svelte";
+  import AsyncView from "@/hr/async/components/AsyncView.svelte";
+  import { leaveRequestsEndpoint } from '../../api/leaveRequests.endpoints';
 
 
   // --- Month state ---
@@ -24,16 +27,15 @@
   const employeesQuery = useAllEmployees();
   const employees = $derived($employeesQuery.data ?? []);
 
-  // --- Leaves for current month via dedicated endpoint ---
-  const teamQuery = useTeamPlannerQuery(() => year, () => month);
-  const teamData: TeamPlannerEmployee[] = $derived($teamQuery?.data ?? []);
-
-  // Refetch query when month changes (même pattern que LeavesBoard)
-  $effect(() => {
-    year;
-    month;
-    get(teamQuery).refetch();
-  });
+  // --- Leaves for current month via hr/async (garde le gantt intact) ---
+  const teamRes = useAsyncResource(
+    () => ({
+      queryKey: ['leaves', 'teamPlanner', year, month],
+      queryFn: () => leaveRequestsEndpoint.getTeamPlanner(year, month)
+    }),
+    { mapData: (d: any) => d as TeamPlannerEmployee[] }
+  );
+  const teamData: TeamPlannerEmployee[] = $derived(teamRes.data ?? []);
 
   // Build a Map<employeeId, Map<dateIso, {type, status}>> for O(1) lookup
   const leaveMap = $derived.by(() => {
@@ -338,30 +340,27 @@
 
 <div class="flex h-full flex-col overflow-hidden">
   {@render Header()}
-
-  <!-- Overhead loading bar during refetch -->
-  <LoadingBar loading={$teamQuery.isFetching} />
-
-  <!-- Gantt Grid -->
-  <Tooltip.Provider delayDuration={400}>
-    <div class="flex-1 overflow-auto custom-scrollbar">
-      <div class="min-w-full w-max">
-        {@render DaysHeader()}
-
-        <!-- Employee Rows -->
-        {#each employees as emp}
-          <TeamGanttRow employee={{
-            id: String(emp.id),
-            name: emp.name,
-            jobTitle: emp.jobTitle,
-            orgUnit: emp.orgUnit || '',
-            orgUnitType: emp.orgUnitType,
-            avatarUrl: emp.avatarUrl,
-          }} days={days} {getLeaveForDay} />
-        {/each}
-      </div>
-    </div>
-  </Tooltip.Provider>
+  <AsyncView state={teamRes} loadingText="Chargement du planning" emptyWhen={(d)=>!d || d.length===0}>
+    {#snippet children(data)}
+      <Tooltip.Provider delayDuration={400}>
+        <div class="flex-1 overflow-auto custom-scrollbar">
+          <div class="min-w-full w-max">
+            {@render DaysHeader()}
+            {#each employees as emp}
+              <TeamGanttRow employee={{
+                id: String(emp.id),
+                name: emp.name,
+                jobTitle: emp.jobTitle,
+                orgUnit: emp.orgUnit || '',
+                orgUnitType: emp.orgUnitType,
+                avatarUrl: emp.avatarUrl,
+              }} days={days} {getLeaveForDay} />
+            {/each}
+          </div>
+        </div>
+      </Tooltip.Provider>
+    {/snippet}
+  </AsyncView>
 </div>
 
 
