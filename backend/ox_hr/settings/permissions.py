@@ -3,7 +3,7 @@ from .apps import INSTALLED_APPS
 
 ACCESS_MANAGER_SCOPE = "access"
 ACCESS_MANAGER_ROLE = None     # No specific role required - any role with access permission works
-ACCESS_MANAGER_GROUP = "manager"  # Must match a slug in PERMISSION_PRESET["group"]
+ACCESS_MANAGER_GROUP = "system_admins"  # Must match a slug in PERMISSION_PRESET["group"]
 ACCESS_MANAGER_CONTEXT = {}
 
 
@@ -34,8 +34,8 @@ PERMISSION_PRESET = {
             "slug": "admin"
         },
         {
-            "name": "Manager RH", 
-            "slug": "hr_manager"
+            "name": "Équipe RH", 
+            "slug": "hr"
         },
         {
             "name": "Employé", 
@@ -44,19 +44,19 @@ PERMISSION_PRESET = {
     ],
     "group": [
         {
-            "name": "Gestion Administrative",
-            "slug": "manager", 
+            "name": "Administrateurs Système",
+            "slug": "system_admins", 
             "roles": ["admin"]
         },
         {
-            "name": "Administrateurs",
+            "name": "Direction Générale",
             "slug": "admins",
             "roles": ["admin"]
         },
         {
-            "name": "Direction RH",
-            "slug": "hr_dir",
-            "roles": ["hr_manager"]
+            "name": "Équipe RH",
+            "slug": "hr_team",
+            "roles": ["hr"]
         },
     ],
     "role_grants": [
@@ -71,50 +71,50 @@ PERMISSION_PRESET = {
             for scope in ACCESS_SCOPES
         ],
 
-        # --- ROLE: HR MANAGER ---
+        # --- ROLE: HR (Équipe RH) ---
         # Full operational management + Read/Write access to access
         {
-            "role": "hr_manager", 
+            "role": "hr", 
             "scope": "access", 
             "actions": ["r", "w"]
         },
         {
-            "role": "hr_manager", 
+            "role": "hr", 
             "scope": "employees", 
             "actions": ["r", "w", "u", "d"]
         },
         {
-            "role": "hr_manager", 
+            "role": "hr", 
             "scope": "leaves", 
             "actions": ["r", "w", "u", "d", "a"] # 'a' for approval
         },
         {
-            "role": "hr_manager", 
+            "role": "hr", 
             "scope": "attendance", 
             "actions": ["r", "w", "u", "d"]
         },
         {
-            "role": "hr_manager", 
+            "role": "hr", 
             "scope": "recruitment", 
             "actions": ["r", "w", "u", "d"]
         },
         {
-            "role": "hr_manager", 
+            "role": "hr", 
             "scope": "jobs", 
             "actions": ["r", "w", "u", "d"]
         },
         {
-            "role": "hr_manager", 
+            "role": "hr", 
             "scope": "calendar", 
             "actions": ["r", "w", "u", "d"]
         },
         {
-            "role": "hr_manager", 
+            "role": "hr", 
             "scope": "payroll", 
             "actions": ["r", "a"] # Final consultation and validation
         },  
         {
-            "role": "hr_manager",
+            "role": "hr",
             "scope": "performance",
             "actions": ["r", "w", "u", "d"]
         },
