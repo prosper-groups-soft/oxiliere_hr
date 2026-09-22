@@ -26,7 +26,7 @@ export function useAsyncResource<T, M = T>(
     get isStale() { return res.isStale; },
     get isLoading() { return res.isLoading; },
     get isFetching() { return res.isFetching; },
-    refetch: () => get(q).refetch(),
+    refetch: () => (get(q) as any)?.refetch?.(),
     query: q
   } as any;
 }

@@ -16,8 +16,16 @@
     errorTitle = 'Erreur de Connexion',
     emptyTitle = 'Aucun résultat',
     emptyDescription = 'Aucune donnée à afficher',
+    filteredEmptyTitle = 'Aucun résultat ne correspond à vos critères',
+    filteredEmptyIcon = 'search-x',
+    isFiltered = false,
+    searchQuery = '',
+    onResetFilters,
+    onCreate,
+    createLabel = 'Créer',
     children,
-    emptySnippet
+    emptySnippet,
+    filteredEmptySnippet
   }: {
     state: ResourceAsync<any>;
     emptyWhen?: (data: any) => boolean;
@@ -25,8 +33,16 @@
     errorTitle?: string;
     emptyTitle?: string;
     emptyDescription?: string;
+    filteredEmptyTitle?: string;
+    filteredEmptyIcon?: string;
+    isFiltered?: boolean;
+    searchQuery?: string;
+    onResetFilters?: () => void;
+    onCreate?: () => void;
+    createLabel?: string;
     children: Snippet<[any]>;
     emptySnippet?: Snippet;
+    filteredEmptySnippet?: Snippet;
   } = $props();
 
   let isEmpty = $derived(state.data != null && emptyWhen ? emptyWhen(state.data) : false);
@@ -46,7 +62,13 @@
   </div>
 {:else if isEmpty}
   <div class="flex justify-center items-center h-full">
-    {#if emptySnippet}{@render emptySnippet()}{:else}<Empty icon="search" title={emptyTitle} description={emptyDescription} />{/if}
+    {#if filteredEmptySnippet}{@render filteredEmptySnippet()}
+    {:else if isFiltered}
+      <Empty icon={filteredEmptyIcon} title="Aucun résultat" description={searchQuery ? `Aucun résultat ne correspond à vos critères pour « ${searchQuery} ».` : filteredEmptyTitle} iconSize={28} iconStrokeWidth={1.3} iconClass="text-slate-400">
+        {#if onResetFilters}<Button variant="outline" onclick={onResetFilters} class="h-9 border-slate-200 shadow-fine"><AppIcon name="x" size={16} class="text-slate-400" /> Réinitialiser les filtres</Button>{/if}
+      </Empty>
+    {:else if emptySnippet}{@render emptySnippet()}
+    {:else}<Empty icon="search" title={emptyTitle} description={emptyDescription} iconSize={28} iconStrokeWidth={1.3} iconClass="text-slate-400">{#if onCreate}<Button onclick={onCreate} class="h-7"><AppIcon name="plus" size={15} />{createLabel}</Button>{/if}</Empty>{/if}
   </div>
 {:else if state.data}
   {@render children(state.data)}
