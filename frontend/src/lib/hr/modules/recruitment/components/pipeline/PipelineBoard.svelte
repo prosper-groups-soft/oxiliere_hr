@@ -42,12 +42,14 @@
 
   // _sheetActionPending kept for sheet UX (not for global loading — now handled by parent AsyncView)
   let _sheetActionPending = $state(false);
+  
   $effect(() => {
     const anyOpen = isInterviewSheetOpen || isOfferSheetOpen || isEvaluationSheetOpen
       || isFeedbackSheetOpen || isCandidateSheetOpen || recruitmentStore.profileSheetOpen;
     if (anyOpen) _sheetActionPending = true;
     else _sheetActionPending = false;
   });
+
   let _interviewInterview = $state<Interview | null>(null);
   let _offerApplication = $state<CandidateApplication | null>(null);
   let _evaluationApplication = $state<CandidateApplication | null>(null);
