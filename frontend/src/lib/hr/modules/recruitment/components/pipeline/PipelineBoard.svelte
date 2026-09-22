@@ -6,22 +6,13 @@
   import CandidateSheet from "../shared/sheets/candidate/CandidateSheet.svelte";
   import EvaluationSheet from "../shared/sheets/candidate/EvaluationSheet.svelte";
   import FeedbackSheet from "../shared/sheets/interview/FeedbackSheet.svelte";
-  import Empty from '@/hr/components/shared/containers/empty/Empty.svelte';
-  import AnimateSpin from '@/hr/components/layout/elements/AnimateSpin.svelte';
-  import AppIcon from "@/hr/components/layout/elements/AppIcon.svelte";
-  import { Button } from "@/components/ui/button";
   import { recruitmentStore } from "../../stores/recruitment.svelte";
   import { notification } from '@/hr/stores/notification.svelte';
-  import { getFriendlyErrorMessage } from '@/hr/constants/errors';
   import type { PipelineApplicationItem, CandidateStage, Interview, Candidate, CandidateApplication } from "../../types/types";
 
 
   const pipelineData = $derived(recruitmentStore.pipelineApplications);
   const campaign = $derived(recruitmentStore.currentCampaign);
-  const isLoading = $derived(recruitmentStore.isLoading);
-
-  const error = $derived(recruitmentStore.error);
-  const candidatesCount = $derived(recruitmentStore.candidates.length);
 
   // Position filter
   const activePositionIds = $derived(recruitmentStore.pipelinePositionIds);
@@ -49,25 +40,14 @@
   // Snapshots stables des props pour chaque sheet — capturés à l'ouverture, jamais modifiés pendant la vie du sheet
   let _interviewCandidate = $state<Candidate | null>(null);
 
-  // Mask loading state while a sheet-initiated action is in progress.
-  // _sheetActionPending goes true when ANY sheet opens, and only clears
-  // after isLoading finishes (store's finally block runs) AND all sheets are closed.
-  // This prevents the AnimateSpin flash between sheet close and API completion.
+  // _sheetActionPending kept for sheet UX (not for global loading — now handled by parent AsyncView)
   let _sheetActionPending = $state(false);
-
   $effect(() => {
     const anyOpen = isInterviewSheetOpen || isOfferSheetOpen || isEvaluationSheetOpen
       || isFeedbackSheetOpen || isCandidateSheetOpen || recruitmentStore.profileSheetOpen;
-    if (anyOpen) {
-      _sheetActionPending = true;
-    } else if (!isLoading) {
-      _sheetActionPending = false;
-    }
+    if (anyOpen) _sheetActionPending = true;
+    else _sheetActionPending = false;
   });
-
-  const effectiveIsLoading = $derived(
-    isLoading && !_sheetActionPending
-  );
   let _interviewInterview = $state<Interview | null>(null);
   let _offerApplication = $state<CandidateApplication | null>(null);
   let _evaluationApplication = $state<CandidateApplication | null>(null);
@@ -340,56 +320,12 @@
     recruitmentStore.profileSheetOpen = true;
   }
 
-  function handleRetry() {
-    recruitmentStore.setError(null);
-    // Refetch via store or trigger query re-fetch
-    window.location.reload();
-  }
+  // handleRetry now handled by parent AsyncView (refetch)
 </script>
 
 
 <div class="flex-1 flex flex-col min-h-0 h-full overflow-hidden">
-  <!-- État: Chargement -->
-  {#if effectiveIsLoading}
-    <div class="flex-1 flex items-center justify-center" in:fade={{ duration: 200 }}>
-      <AnimateSpin text="Chargement du pipeline" />
-    </div>
-
-  <!-- État: Erreur -->
-  {:else if error}
-    <div class="flex-1 flex items-center justify-center p-8" in:fade={{ duration: 200 }}>
-      <Empty
-        title="Erreur de chargement"
-        description={getFriendlyErrorMessage(new Error(error))}
-        icon="alert-circle"
-        iconClass="text-red-400"
-        iconSize={28}
-        iconStrokeWidth={1.3}
-        iconContainerClass="bg-red-50/30"
-      >
-        <Button onclick={handleRetry} variant="outline" class="h-7 rounded-lg">
-          <AppIcon name="refresh-cw" size={16} />
-          Réessayer
-        </Button>
-      </Empty>
-    </div>
-
-  <!-- État: Données vides -->
-  {:else if candidatesCount === 0}
-    <div class="flex-1 flex items-center justify-center" in:fade={{ duration: 200 }}>
-      <Empty
-        title="Aucune candidature"
-        description="Pas de candidatures à afficher pour cette campagne de recrutement."
-        icon="briefcase"
-        iconClass="text-slate-300"
-        iconSize={28}
-        iconStrokeWidth={1.3}
-      />
-    </div>
-
-  <!-- État: Pipeline avec colonnes -->
-  {:else}
-    <div class="flex h-full gap-4 p-4 py-2 overflow-x-auto overflow-y-hidden bg-slate-50/10" in:fade={{ duration: 200 }}>
+  <div class="flex h-full gap-4 p-4 py-2 overflow-x-auto overflow-y-hidden bg-slate-50/10" in:fade={{ duration: 200 }}>
       {#each filteredPipelineData as column (column.stage)}
         <div class="flex-1 min-w-[320px] max-w-100 h-full">
           <PipelineColumn
@@ -407,7 +343,6 @@
         </div>
       {/each}
     </div>
-  {/if}
 </div>
 
 

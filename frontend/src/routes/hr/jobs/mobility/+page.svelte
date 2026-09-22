@@ -60,11 +60,11 @@
       <div class="col-start-1 row-start-1 flex flex-col min-h-0 overflow-y-auto custom-scrollbar" in:fly={{ y: 8, duration: 350, delay: 80, easing: cubicOut }} out:fade={{ duration: 180 }}>
         {#if activeTab === 'transitions'}
           <AsyncView state={transitionsRes} loadingText="Chargement des mouvements" emptyWhen={(d)=>d.total===0} isFiltered={!!transUi.search || transUi.filters.type.length>0} searchQuery={transUi.search} onResetFilters={()=>transUi.resetFilters()} onCreate={()=>openTransitionSheet()}>
-            {#snippet children(data)}<TransitionList transitions={data.items} onEdit={openTransitionSheet} onDelete={(t)=>$deleteTransMutation.mutate(t.id)} onNew={()=>openTransitionSheet()} onRetry={()=>transitionsRes.refetch()} isLoading={false} isError={!!transitionsRes.error} error={transitionsRes.error} totalCount={data.total} currentPage={transUi.page} totalPages={data.totalPages} perPage={transUi.perPage} onPageChange={(p)=>transUi.setPage(p)} onPerPageChange={(s)=>transUi.setPerPage(s)} onNext={()=>transUi.nextPage()} onPrev={()=>transUi.prevPage()} />{/snippet}
+            {#snippet children(data)}<TransitionList transitions={data.items} onEdit={openTransitionSheet} onDelete={(t)=>$deleteTransMutation.mutate(t.id)} />{/snippet}
           </AsyncView>
         {:else}
           <AsyncView state={vacanciesRes} loadingText="Chargement des besoins" emptyWhen={(d)=>d.total===0} isFiltered={!!vacUi.search || vacUi.activeFiltersCount>0} searchQuery={vacUi.search} onResetFilters={()=>vacUi.resetFilters()} onCreate={()=>openVacancySheet()}>
-            {#snippet children(data)}<VacancyList vacancies={data.items} onEdit={openVacancySheet} onDelete={(v)=>$deleteVacMutation.mutate(v.id)} onNew={()=>openVacancySheet()} onRetry={()=>vacanciesRes.refetch()} isLoading={false} isError={!!vacanciesRes.error} error={vacanciesRes.error} totalCount={data.total} currentPage={vacUi.page} totalPages={data.totalPages} perPage={vacUi.perPage} onPageChange={(p)=>vacUi.setPage(p)} onPerPageChange={(s)=>vacUi.setPerPage(s)} onNext={()=>vacUi.nextPage()} onPrev={()=>vacUi.prevPage()} />{/snippet}
+            {#snippet children(data)}<VacancyList vacancies={data.items} onEdit={openVacancySheet} onDelete={(v)=>$deleteVacMutation.mutate(v.id)} />{/snippet}
           </AsyncView>
         {/if}
       </div>
