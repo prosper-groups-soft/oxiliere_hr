@@ -24,10 +24,7 @@
   const employees = useAsyncResource(
     () => ({
       queryKey: ['employees', uiState.page, uiState.perPage, uiState.search, uiState.filters, uiState.sortBy, uiState.sortOrder],
-      queryFn: () => employeesService.listEmployees({
-        page: uiState.page, perPage: uiState.perPage, search: uiState.search,
-        filters: uiState.filters, sortBy: uiState.sortBy, sortOrder: uiState.sortOrder
-      })
+      queryFn: () => employeesService.listEmployees(uiState.page, uiState.perPage, uiState.search, uiState.filters as any, uiState.sortBy, uiState.sortOrder as any)
     }),
     { mapData: (d: any) => ({ items: d.results, total: d.count, totalPages: Math.ceil(d.count / uiState.perPage) }) }
   );
@@ -59,7 +56,9 @@
   });
 </script>
 
-<svelte:head><title>Oxiliere HR - Employés</title></svelte:head>
+<svelte:head>
+  <title>Oxiliere HR - Employés</title>
+</svelte:head>
 
 <div class="flex h-full flex-col overflow-hidden min-h-0">
   {@render Header()}
@@ -72,10 +71,10 @@
       onReset={() => uiState.resetFilters()}
       class="py-1 pb-1.5 px-6 border-b border-slate-50"
     />
-    <AsyncView state={employees} loadingText="Chargement des employés" emptyWhen={(d) => d.total === 0}>
+    <AsyncView state={employees} loadingText="Chargement des employés" emptyWhen={(d) => d.total === 0} isFiltered={uiState.activeFiltersCount > 0 || !!uiState.search} searchQuery={uiState.search} onResetFilters={() => uiState.resetFilters()} onCreate={openEmployeeAdd} createLabel="Ajouter un employé">
       {#snippet children(data)}
         <div class="flex-1 overflow-y-auto min-h-0" transition:fade={{ duration: 200 }}>
-          <EmployeeList employees={data.items} viewMode={uiState.viewMode} activeFiltersCount={uiState.activeFiltersCount} searchQuery={uiState.search} onResetFilters={() => uiState.resetFilters()} onAdd={openEmployeeAdd} />
+          <EmployeeList employees={data.items} viewMode={uiState.viewMode} />
         </div>
       {/snippet}
     </AsyncView>
@@ -88,7 +87,7 @@
 </div>
 
 {#snippet EmployeesActionsSnippet()}
-  <EmployeesActions onAdd={openEmployeeAdd} onToggleViewMode={toggleViewMode} />
+  <EmployeesActions onAdd={openEmployeeAdd} onToggleViewMode={toggleViewMode} filterState={uiState} />
 {/snippet}
 
 {#snippet Header()}

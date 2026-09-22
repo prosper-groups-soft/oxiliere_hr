@@ -51,12 +51,14 @@
     if (key === 'status') return LEAVE_STATUS_LABELS[value as LeaveStatus] ?? String(value);
     return String(value);
   }
+  
   function openAddRequest() { editRequest = null; showRequestSheet = true; }
   function handleEditRequest(r: any) { editRequest = r; showRequestSheet = true; }
   function formatShortDate(s: string) { return new Date(s + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }); }
   function getTypeLabel(r: LeaveRequest) { return LEAVE_TYPE_LABELS[r.type] || 'Congé'; }
   function handleShowAttachment(r: LeaveRequest) { attachmentRequest = r; }
   function handleCloseAttachment() { attachmentRequest = null; }
+  
   function handleApprove(request: LeaveRequest) {
     const typeLabel = getTypeLabel(request);
     const dateRange = `${formatShortDate(request.startDate)} — ${formatShortDate(request.endDate)}`;
@@ -64,17 +66,20 @@
       leaveRequestsEndpoint.checkOverlap(request.employeeId, request.startDate, request.endDate, 'SICK,CIRCUMSTANCE,UNPAID').then(overlap => showApproveConfirm(request, typeLabel, dateRange, overlap)).catch(()=>showApproveConfirm(request, typeLabel, dateRange, null));
     } else showApproveConfirm(request, typeLabel, dateRange, null);
   }
+
   function showApproveConfirm(request: LeaveRequest, typeLabel: string, dateRange: string, overlap: any) {
     const hasOverlap = overlap?.hasOverlap && overlap.leaves.length > 0;
     let message = `Approuver la demande de ${typeLabel} de <strong>${request.employeeName}</strong> du ${dateRange} (${Math.round(request.days)} jour${Math.round(request.days) > 1 ? 's' : ''}) ?`;
     if (hasOverlap) { message += `<br><br><strong>⚠️ Chevauchement détecté</strong><br>`; for (const l of overlap.leaves) message += `• Du ${formatShortDate(l.start_date)} au ${formatShortDate(l.end_date)}<br>`; }
     notification.confirm({ title: hasOverlap ? 'Confirmer l\'approbation avec conversion' : 'Confirmer l\'approbation', message, type: hasOverlap ? 'info' : 'warning', yesText: 'Approuver', noText: 'Annuler', onYes: async () => { await $approveMutation.mutateAsync(request.id); leavesRes.refetch(); } });
   }
+
   function handleReject(request: LeaveRequest) {
     const typeLabel = getTypeLabel(request);
     const dateRange = `${formatShortDate(request.startDate)} — ${formatShortDate(request.endDate)}`;
     notification.confirm({ title: 'Confirmer le refus', message: `Refuser la demande de ${typeLabel} de <strong>${request.employeeName}</strong> du ${dateRange} ?`, type: 'danger', yesText: 'Refuser', noText: 'Annuler', onYes: async () => { await $rejectMutation.mutateAsync({ requestId: request.id }); leavesRes.refetch(); } });
   }
+
   $effect(() => { ui.addActions('leaves', LeavesActionsSnippet); return () => ui.removeActions('leaves'); });
 </script>
 
@@ -105,7 +110,7 @@
   </div>
 </div>
 
-{#snippet LeavesActionsSnippet()}<LeavesActions requests={leavesRes.data?.items ?? []} onAdd={openAddRequest} />{/snippet}
+{#snippet LeavesActionsSnippet()}<LeavesActions requests={leavesRes.data?.items ?? []} onAdd={openAddRequest} filterState={uiState} />{/snippet}
 {#snippet Header()}
   <div class="flex flex-col gap-4 pb-2.5 border-b border-slate-100 pt-2.5 px-4 pr-8">
     <div class="flex items-center justify-between">
