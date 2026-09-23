@@ -1,12 +1,15 @@
 export type DashboardRole = 'admin' | 'hr' | 'employee';
 
+export type WidgetKind = 'kpi' | 'chart' | 'list';
+
 export interface WidgetDef {
   id: string;
+  kind?: WidgetKind;
   metric: string;
   period?: string;
   visibleIf?: (role: DashboardRole) => boolean;
   source: () => { queryKey: unknown[]; queryFn: () => Promise<any> };
-  mapData: (raw: any) => { value: string; label: string; sublabel?: string; icon: string; color: string };
+  mapData: (raw: any) => any;
 }
 
 export interface DashboardConfig {
